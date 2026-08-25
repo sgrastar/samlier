@@ -1,0 +1,4 @@
+# G1 ツールの固定依存（tools/g1_docgen.py, tools/g1_validate.py, tools/g1_author.py）
+#   python3 -m venv .venv && .venv/bin/pip install -r tools/requirements.txt
+PyYAML==6.0.2
+pdfminer.six==20240706

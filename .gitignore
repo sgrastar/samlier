@@ -1,0 +1,40 @@
+# Build output
+build/*
+# ただし :specReconcile レポートは G1 提出物なので追跡する
+!build/spec-reconcile-report.json
+out/
+.gradle/
+bin/
+
+# 原文キャッシュ（:specReconcile が取得する。配布物にもリポジトリにも含めない）
+# docs/04-requirement-coverage.md の設計ゲート G1 を参照
+build/spec-cache/
+
+# Node / frontend
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Runtime data（SQLite / 生成鍵 / Transcript）
+data/
+*.db
+*.db-wal
+*.db-shm
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# OS
+.DS_Store
+
+# G1: 原文キャッシュと authoring 入力（原文の句を含むため配布しない）
+tools/g1_authoring.py
+
+# Python
+__pycache__/
+*.pyc
+
+# repo-local venv (tools/requirements.txt)
+.venv/

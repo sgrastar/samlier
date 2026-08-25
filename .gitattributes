@@ -1,0 +1,4 @@
+# G1 の成果物は「ファイルのバイト列そのもの」を digest 対象にしている
+# （tests/approvals/g1.yaml の artifact_digests、SR-38 の作業ツリー照合）。
+# EOL 変換が入ると clone 先で digest が一致しなくなるため、変換を一切行わない。
+* -text

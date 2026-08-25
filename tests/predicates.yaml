@@ -1,0 +1,87 @@
+# tests/predicates.yaml — 条件述語の固定集合（G1 成果物）
+# 生成: build_g1.py / 手編集しない
+generated_at: 2026-08-25T22:50:56+00:00
+schema_version: 1
+# kind: CLAIM_BASED      = 申告そのものが条件（observed 不要）
+#       CAPABILITY_BASED = 実際の能力が条件（observed 必須。declaration-only FALSE は UNKNOWN）
+#       CLASSIFICATION_BASED = 製品分類が条件（declaration_only_exclusion のみ FALSE 可）
+predicates:
+  claims_mdq_support:
+    kind: CLAIM_BASED
+    description_ja: "対象が MDQ 対応を表明しているか"
+    declared:
+      - declared_features.mdq
+    observed: []
+    on_conflict: inconsistent
+    rationale_ja: "原文が 'Implementations that claim support for this protocol' と述べており、申告そのものが条件"
+  supports_outbound_encryption:
+    kind: CAPABILITY_BASED
+    description_ja: "対象が outbound 暗号化に対応しているか"
+    declared:
+      - declared_features.assertion_encryption
+    observed:
+      - "target_emitted: saml:EncryptedAssertion"
+      - "target_emitted: saml:EncryptedID"
+      - "target_emitted: saml:EncryptedAttribute"
+    on_conflict: inconsistent
+    rationale_ja: "原文は 'If an implementation supports outbound encryption'。★ 観測は方向付きでなければならない: 対象が *送信した* 暗号要素のみが証拠になる。対象メタデータの KeyDescriptor use=encryption は『暗号文を受信・復号できる』証拠であって outbound 生成能力の証拠ではないため使わない"
+  claims_slo_support_sp:
+    kind: CLAIM_BASED
+    description_ja: "SP が SLO profile への対応を表明しているか"
+    declared:
+      - declared_features.single_logout
+    observed: []
+    on_conflict: inconsistent
+    rationale_ja: "原文が 'Service Providers that claim support for this profile'。申告が真理値そのもの"
+  supports_slo_sp:
+    kind: CAPABILITY_BASED
+    description_ja: "SP が実際に SLO profile に対応しているか"
+    declared:
+      - declared_features.single_logout
+    observed:
+      - "target_metadata_has: md:SPSSODescriptor/md:SingleLogoutService"
+      - "target_emitted: samlp:LogoutRequest"
+      - "target_consumed: samlp:LogoutRequest"
+    on_conflict: inconsistent
+    rationale_ja: "原文は 'Service Providers that support the ... profile'（claim ではない）ため CAPABILITY_BASED"
+  supports_cbc:
+    kind: CAPABILITY_BASED
+    description_ja: "対象が AES-CBC ブロック暗号に対応しているか"
+    declared:
+      - declared_features.cbc
+    observed:
+      - "target_emitted_encryption_method: aes128-cbc"
+      - "target_emitted_encryption_method: aes256-cbc"
+      - "target_accepted_encryption_method: aes128-cbc"
+      - "target_accepted_encryption_method: aes256-cbc"
+    on_conflict: inconsistent
+    rationale_ja: "IIP-ALG05.b の条件。CBC 非対応なら NOT_APPLICABLE であって違反ではない"
+  peer_declares_algorithm_support:
+    kind: CAPABILITY_BASED
+    description_ja: "ピア（Samlier）のメタデータがアルゴリズム対応を宣言しているか"
+    declared: []
+    observed:
+      - "suite_metadata_variant_declares_alg: true"
+    on_conflict: inconsistent
+    rationale_ja: "IIP-MD10 の 'If a SAML peer has declared algorithm support'。Suite 側の構成で決まるため常に決定可能"
+  setting_supported_by_implementation:
+    kind: CAPABILITY_BASED
+    description_ja: "当該メタデータ要素に対応する設定を対象が備えているか"
+    declared:
+      - declared_features.supported_settings
+    observed:
+      - "target_behaviour_changed_on_metadata_edit: true"
+    on_conflict: inconsistent
+    rationale_ja: "IIP-SSO06 の (b) 'corresponds to settings supported by the implementation'。要素ごとに評価する"
+  not_token_translation_proxy:
+    kind: CLASSIFICATION_BASED
+    description_ja: "対象が token translation Proxy ではないか"
+    declared:
+      - target.kind
+    observed: []
+    on_conflict: inconsistent
+    declaration_only_exclusion:
+      allowed: true
+      requires_reason: true
+      statement_en: "The target was declared to be a token translation Proxy, to which IIP-IDP13 does not apply. This was not verified by the Suite."
+    rationale_ja: "IIP-IDP13 末尾の 'This requirement does not apply to token translation Proxies.'。観測材料が存在しないため明示的な除外申告のみが FALSE を作れる"
