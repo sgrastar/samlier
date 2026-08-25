@@ -37,7 +37,7 @@ tasks.named("dockerPush") { dependsOn(":specReconcile", ":releaseCheck") }
 | ステージ | 実体 | 状態 |
 |---|---|---|
 | `g1Check` | `tools/g1_validate.py --offline` の構造検査部（SR-15〜SR-29, SR-36）+ `tools/g1_docgen.py --check` | 通る |
-| `specReconcile` | `tools/g1_validate.py`（**強制再取得**で原文と全 22 仕様を照合） | **49/50 PASS / blocking 0** |
+| `specReconcile` | `tools/g1_validate.py`（**強制再取得**で原文と全 22 仕様を照合） | **49/50 PASS / blocking 0**（承認後は 50/50） |
 | `releaseCheck` | 未実装。テストケースが 0 件のため | 未実施 |
 
 `build/spec-reconcile-report.json` の `checks[]` は、どの検査がブロッキングかを
@@ -84,6 +84,8 @@ validator（**SR-38**）が確認すること:
 | 確認 | 手段 |
 |---|---|
 | 承認記録が commit されている | `git log -1 -- tests/approvals/g1.yaml` |
+| **保護対象ファイルの現在値が A と一致する** | `git show <A>:<path>` とバイト比較 |
+| **`tests/` のファイル集合が A と一致する** | `git ls-tree -r A tests` |
 | **その commit が署名されている** | `git verify-commit` |
 | **正本は署名済み commit の中身**（作業ツリーではない） | `git show <C_sig>:tests/approvals/g1.yaml` |
 | 作業ツリーが署名済み内容と一致する | digest 比較 |
@@ -93,9 +95,27 @@ validator（**SR-38**）が確認すること:
 | reviewer ≠ authored_by / `evidence.reviewers` に含まれる | 対象 commit の `authored_by` と照合 |
 | `approved_at` がタイムゾーン付き ISO-8601 | 文字列全体を `fromisoformat` |
 
-**限界の明示**: validator が検証できるのは「署名鍵の保持者が承認した」ところまでである。
-その鍵が実在のレビュアーのものかは `gpg.ssh.allowedSignersFile` / CODEOWNERS など
-**リポジトリ運用側の設定**に委ねられる。validator はそれ以上を主張しない。
+### 承認が守る対象（`PROTECTED_PATHS`）
+
+承認記録だけを署名で守っても意味がない。**署名済み A の tree と現在値を突き合わせる対象**:
+
+```
+tests/coverage.yaml      tests/specs.yaml       tests/predicates.yaml
+tests/approvals/g1.yaml  tools/g1_validate.py   tools/g1_extract.py
+```
+
+加えて **`tests/` 配下のファイル集合**が A と一致することも確認する（追加・削除の検出）。
+これがないと、A の後に coverage を書き換えて `obligation_digest` を再計算するだけで通ってしまう。
+
+**validator 自身を保護対象に含めている**のは、検査器を弱める改変を検出するためである。
+
+**限界の明示**（validator はこれ以上を主張しない）:
+
+| 保証できること | 保証できないこと |
+|---|---|
+| 署名鍵の保持者が承認記録に署名した | その鍵が**実在のレビュアー**のものか（`allowedSignersFile` / CODEOWNERS などリポジトリ運用側の設定に依存） |
+| 承認後に保護対象ファイルが変わっていない | **改変された validator を実行した場合**の結果（自己検査の原理的限界。CI では承認済み commit から checkout した validator を使うこと） |
+| レビュアーが原文を読んだと**記録した**こと | レビュアーが**実際に**原文を読んだこと |
 
 **G1 完了の判定式**（レポートの `g1.complete`）:
 

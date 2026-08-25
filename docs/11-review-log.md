@@ -1049,3 +1049,61 @@ open question 0 ／ g1.complete = false
 G1b を開始するには、**承認対象を固定する commit C** が要る。
 署名済みの承認 commit A は、レビュアーが C を確認したうえで作成する。
 コミットは CLAUDE.md の恒久ルールにより利用者の明示指示があるまで行わない。
+
+---
+
+## G1a-R6 — 2026-08-26 承認後の成果物保護
+
+**結論**: 指摘 3 件すべて妥当。指摘 1 は承認プロトコルの実効性を無にする穴だった。
+実 git の clone で正常系と改変 5 パターンを実地試験した。
+
+### 指摘 1: 署名済み A の後に成果物を改変できた
+
+SR-38 が署名済み commit と比較していたのは **`tests/approvals/g1.yaml` だけ**で、
+`coverage.yaml` などの現在値は見ていなかった。
+`git log -1 -- tests/approvals/g1.yaml` は改変後も署名済み A を返すため、
+**A の後に coverage を書き換えて `obligation_digest` を再計算すれば通った**
+（未コミットでも、未署名 commit にしても `50/50 PASS`）。
+
+**修正**: 署名済み A を特定したあと、**保護対象ファイルの現在値を A の tree と
+バイト比較**する。
+
+```
+tests/coverage.yaml   tests/specs.yaml      tests/predicates.yaml
+tests/approvals/g1.yaml   tools/g1_validate.py   tools/g1_extract.py
+```
+
+加えて **`tests/` 配下のファイル集合**が A と一致することも確認する（追加・削除の検出）。
+**validator 自身を保護対象に含めた**のは、検査器を弱める改変を検出するためである。
+
+### 実地試験（clone した実リポジトリ）
+
+正常系: 対象 commit C → SSH 署名付き承認 commit A → **50/50 PASS / complete=true**
+
+| 改変 | 結果 |
+|---|---|
+| A の後に coverage の `level` を改変 + digest 再計算（未コミット） | **BLOCK** |
+| さらに未署名 commit B にして tree を clean に | **BLOCK**（clean でも検出） |
+| `PROTECTED_PATHS` を空にして validator を無効化 | **BLOCK**（validator 自身が保護対象） |
+| `tests/` にファイルを追加 | **BLOCK**（ファイル集合の不一致） |
+| `evidence.reviewers` を空に | **BLOCK**（承認記録の改変として検出） |
+
+### 指摘 2・3
+
+- **SR-38**: `evidence.kind` / 非空の `reviewers` / `evidence_url` を**必須化**。
+  `reviewers` が空なら reviewer 照合を素通りしていた
+- **レポート**: `g1_approval` を新設し、`target_commit` / `approval_commit` /
+  **署名者と鍵 fingerprint**（`%GS|%GK|%GT`）/ `artifact_digests` /
+  保護対象ファイルの digest / reviewers / 承認義務数を記録
+
+### 限界の明示
+
+`tools/ci-stages.md` に、validator が**保証できること／できないこと**を表で書いた。
+
+| 保証できる | 保証できない |
+|---|---|
+| 署名鍵の保持者が承認記録に署名した | その鍵が実在のレビュアーのものか（`allowedSignersFile` / CODEOWNERS 依存） |
+| 承認後に保護対象が変わっていない | **改変された validator を実行した場合**の結果（自己検査の原理的限界。CI では承認済み commit から checkout した validator を使う） |
+| レビュアーが原文を読んだと記録したこと | レビュアーが実際に原文を読んだこと |
+
+累計で塞いだ攻撃は **23 パターン**。

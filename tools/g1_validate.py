@@ -285,9 +285,12 @@ def _iso_full(v):
         return False
     return d.tzinfo is not None
 
-APPROVAL_REL='tests/approvals/g1.yaml'
+# 承認が守る対象。validator 自身も含める（検査器を弱める改変を検出するため）。
+PROTECTED_PATHS=('tests/coverage.yaml','tests/specs.yaml','tests/predicates.yaml',
+                 'tests/approvals/g1.yaml','tools/g1_validate.py','tools/g1_extract.py')
+APPROVAL_REL='tests/approvals/g1.yaml' 
 APPROVAL_PATH=os.path.join(ROOT,APPROVAL_REL)
-appr=None; appr_src_problems=[]
+appr=None; appr_src_problems=[]; _sig_info=None
 if os.path.exists(APPROVAL_PATH):
     # ★ 承認記録の正本は「作業ツリーの内容」ではなく
     #    「その内容が入っている署名済み commit の中身」である。
@@ -298,6 +301,12 @@ if os.path.exists(APPROVAL_PATH):
         appr_src_problems.append(f"{APPROVAL_REL} が git にコミットされていない（承認は commit されている必要がある）")
     else:
         _v=_git('verify-commit',_sig_commit)
+        _si=_git('log','-1','--format=%GS|%GK|%GT',_sig_commit)
+        if _si and _si.returncode==0 and _si.stdout.strip():
+            _p=_si.stdout.strip().split('|')
+            _sig_info=dict(signer=_p[0] if len(_p)>0 else None,
+                           key=_p[1] if len(_p)>1 else None,
+                           trust=_p[2] if len(_p)>2 else None)
         if not _v or _v.returncode!=0:
             appr_src_problems.append(f"承認記録を含む commit {_sig_commit[:12]} が署名検証に失敗した")
         else:
@@ -306,9 +315,30 @@ if os.path.exists(APPROVAL_PATH):
                 appr_src_problems.append("署名済み commit から承認記録を読み出せない")
             else:
                 appr=yaml.safe_load(_blob.stdout.decode('utf-8'))
-                if X.sha(open(APPROVAL_PATH,'rb').read())!=X.sha(_blob.stdout):
-                    appr_src_problems.append("作業ツリーの承認記録が署名済み commit の内容と異なる（改竄）")
                 appr['_signed_commit']=_sig_commit
+                # ★ 承認が守るのは承認記録だけではない。
+                #   署名済み A の tree と「保護対象ファイルの現在値」を全て突き合わせる。
+                #   これをしないと A の後で coverage を書き換え digest を再計算するだけで通る。
+                for _rel in PROTECTED_PATHS:
+                    _cur=os.path.join(ROOT,_rel)
+                    _b=_git('show',f'{_sig_commit}:{_rel}',binary=True)
+                    if not _b or _b.returncode!=0:
+                        appr_src_problems.append(f"{_rel} が署名済み commit に存在しない"); continue
+                    if not os.path.exists(_cur):
+                        appr_src_problems.append(f"{_rel} が作業ツリーに存在しない"); continue
+                    if X.sha(open(_cur,'rb').read())!=X.sha(_b.stdout):
+                        appr_src_problems.append(f"{_rel} が署名済み承認 commit の内容と異なる（承認後に変更された）")
+                # 追加・削除も検出する（tests/ 配下のファイル集合の一致）
+                _ls=_git('ls-tree','-r','--name-only',_sig_commit,'tests')
+                if _ls and _ls.returncode==0:
+                    _a=set(_ls.stdout.split())
+                    _n=set()
+                    for _dp,_dn,_fn in os.walk(os.path.join(ROOT,'tests')):
+                        for _f in _fn:
+                            _n.add(os.path.relpath(os.path.join(_dp,_f),ROOT))
+                    if _a!=_n:
+                        appr_src_problems.append(
+                            f"tests/ のファイル集合が署名済み commit と異なる（追加 {sorted(_n-_a)[:3]} / 削除 {sorted(_a-_n)[:3]}）")
 
 # coverage.yaml 側の state は起票の記録であり、承認の正本ではない
 state_claims=[o['key'] for _,o in obs if (o.get('review') or {}).get('state')!='PENDING_REVIEW']
@@ -358,6 +388,12 @@ else:
                 if missing: appr_problems.append(f"承認されていない義務が {len(missing)} 件（例 {missing[:3]}）")
     # 外部証拠: 署名された git オブジェクトのみを受け付ける
     ev=appr.get('evidence') or {}
+    if ev.get('kind') not in ('signed-commit','signed-tag'):
+        appr_problems.append("evidence.kind は signed-commit / signed-tag のいずれかで必須")
+    if not (ev.get('reviewers') or []):
+        appr_problems.append("evidence.reviewers は非空で必須（個別義務の reviewer と突き合わせるため）")
+    if not ev.get('evidence_url'):
+        appr_problems.append("evidence.evidence_url が必須（PR / レビュー記録の URL）")
     # 署名の検証は「承認記録が入っている commit」に対して実施済み（appr_src_problems）。
     # ★ evidence.ref のようなフィールドは置かない。記録の中に自分を含む commit の SHA を
     #   書くのは自己参照であり、署名し直すたびに SHA が変わって整合しない。
@@ -368,9 +404,8 @@ else:
         appr_problems.append("evidence_url が https の URL 形式でない")
     # per-obligation reviewer は evidence.reviewers に含まれていなければならない
     allowed=set(ev.get('reviewers') or [])
-    if allowed:
-        bad_rv=sorted({e.get('reviewer') for e in (appr.get('approvals') or [])} - allowed - {None})
-        if bad_rv: appr_problems.append(f"evidence.reviewers に無い reviewer: {bad_rv[:3]}")
+    bad_rv=sorted({e.get('reviewer') for e in (appr.get('approvals') or [])} - allowed - {None})
+    if bad_rv: appr_problems.append(f"evidence.reviewers に無い reviewer: {bad_rv[:3]}")
 
 check("SR-38","承認が対象 commit の外にある署名付き記録に拘束されている",
       not appr_problems and not appr_src_problems,(appr_src_problems+appr_problems)[:6])
@@ -393,6 +428,16 @@ report=dict(task=":specReconcile",run_id=str(uuid.uuid4()),executed_at=NOW,
               recorded_digest=primary.get('source_digest'),cache="build/spec-cache/ (gitignored)"),
   totals=dict(requirements=len(reqs),obligations=len(obs),checks=len(R),passed=npass,failed=nfail,
               blocking_failures=len(blocking)),
+  g1_approval=(dict(
+      target_commit=(appr or {}).get('target_commit'),
+      approval_commit=(appr or {}).get('_signed_commit'),
+      signature=_sig_info,
+      artifact_digests=(appr or {}).get('artifact_digests'),
+      protected_file_digests={r:(X.sha(open(os.path.join(ROOT,r),'rb').read())
+                                 if os.path.exists(os.path.join(ROOT,r)) else None)
+                              for r in PROTECTED_PATHS},
+      reviewers=sorted({e.get('reviewer') for e in ((appr or {}).get('approvals') or []) if e.get('reviewer')}),
+      approved_obligations=len(approved_keys)) if appr else None),
   g1=dict(state=cov.get('g1_state'),open_questions=opens,unapproved=len(pending),
           blocking_failures=[c['id'] for c in blocking],
           complete=bool(g1_ready),
