@@ -1,8 +1,15 @@
 {
   "task": ":specReconcile",
-  "run_id": "0eae693d-f89a-4e1e-a459-0e95d6df983a",
-  "executed_at": "2026-08-26T00:36:50+00:00",
+  "run_id": "23fe1d0c-186f-453c-a042-89bdc26da5db",
+  "executed_at": "2026-08-26T01:59:12+00:00",
   "validator": "tools/g1_validate.py (生成処理から独立。値を書き戻さない)",
+  "provenance": {
+    "repo_root": "/Users/yuta/Documents/Samlier",
+    "validator_source": null,
+    "validator_source_kind": null,
+    "runner_source": null,
+    "note": "validator_source_kind が external-pin でなければ、検査器の取得元は 承認記録が指す target_commit である。CI では G1_VALIDATOR_COMMIT を外部固定すること"
+  },
   "mode": "offline",
   "source": {
     "spec": "kantara-fedinterop-impl",

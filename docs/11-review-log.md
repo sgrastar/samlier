@@ -1235,3 +1235,63 @@ A の署名者が承認記録と一緒に validator を弱体化すれば、
 | 承認後に保護対象ファイルが変わっていない | **runner 自身**が改変された場合（CI は固定した commit / hash から runner を取得すること） |
 
 累計で塞いだ攻撃は **34 パターン**。
+
+---
+
+## G1a-R9 — 2026-08-26 trust anchor の固定とランナーの外部化
+
+**結論**: 指摘 2 件とも妥当。加えて runner の docstring / 実行時メッセージに
+旧仕様（「A から validator を取り出す」）が残っていた点も訂正した。
+
+### 指摘 1: `G1_VALIDATOR_COMMIT` が可変 ref を受理していた
+
+存在確認しかしていなかったため `HEAD` / `main` が通り、
+署名済み A の後に弱体化した validator を未署名 B として置き
+`G1_VALIDATOR_COMMIT=HEAD` で実行すると `51/51 PASS / exit 0` になった。
+
+**修正**: **40 桁完全 SHA のみ**を受理し、`git rev-parse --verify <sha>^{commit}` の
+出力との**完全一致**を要求する。`target_commit` 側の判定も同じ関数に統一した。
+
+| 与えた値 | 結果 |
+|---|---|
+| `HEAD` | **exit 2**（可変 ref は不可） |
+| `main` | **exit 2** |
+| B の完全 SHA | exit 0 — ただしこれは**設計どおり**。外部固定の trust anchor を
+運用者が誤って弱体版に向けた場合であり、監査レポートの `provenance.validator_source` に
+どの commit を使ったかが記録される |
+
+### 指摘 2: ランナー自身を外部固定する経路がなかった
+
+`C..A` 制約もランナーの中にあるため、ランナーを書き換えれば制約ごと消える。
+さらにランナーの `ROOT` が自身の配置から導出されるため、
+固定版を別ディレクトリに取り出しても**その隔離ディレクトリを検査してしまう**状態だった。
+
+**修正**:
+
+- ランナーが **`G1_REPO_ROOT`** を受け付けるようにした（省略時のみ自身の位置から導出）。
+  検査対象が git リポジトリでなければ exit 2
+- **`tools/g1_ci_verify.sh`** を新設。`G1_TOOLS_COMMIT`（40 桁完全 SHA）から
+  ランナー + validator + extract を取り出し、`python -I` で実行し、
+  検査対象は `G1_REPO_ROOT` で渡す。未設定・可変 ref はいずれも **exit 2**（fail closed）
+- 監査レポートに **`provenance`**（`repo_root` / `validator_source` /
+  `validator_source_kind` / `runner_source`）を追加
+- `ci-stages.md` に **workflow インライン用のスニペット**を掲載
+  （ラッパー自身もリポジトリ内のコピーである以上、最後の一枚は CI 設定で固定する）
+
+### 実地試験（クリーンな clone、SSH 署名）
+
+| # | 状況 | 結果 |
+|---|---|---|
+| 0 | 正常系 | **51/51 PASS** / exit 0 |
+| 1 | 弱体化 validator を B に置き `G1_VALIDATOR_COMMIT=HEAD` | **exit 2** |
+| 2 | 同 `=main` | **exit 2** |
+| 3 | CI ラッパーで `G1_TOOLS_COMMIT=C` に固定 | **BLOCK**（SR-38: validator が承認時と不一致）/ exit 1 |
+| 4 | **ランナー自身**を「即時 PASS」に書き換え | 直接実行では素通り → **ラッパー経由なら BLOCK**（SR-38 / SR-40）/ exit 1 |
+| 5 | `G1_TOOLS_COMMIT` 未設定 | **exit 2**（fail closed） |
+
+### 訂正
+
+runner の docstring と実行時メッセージに「A の tree から validator を取り出す」という
+旧仕様の記述が残っていた（実装は R8 で C 側に変更済み）。文言を実装に合わせた。
+
+累計で塞いだ攻撃は **39 パターン**。

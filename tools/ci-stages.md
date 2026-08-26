@@ -128,7 +128,8 @@ python3 tools/g1_trusted_verify.py [--offline]
 4. **A が対象 commit C の子孫**であることを確認する
 5. **`C..A` の変更が `tests/approvals/g1.yaml` だけ**であることを確認する
 6. ★ **validator は A から取らない**。`G1_VALIDATOR_COMMIT`（CI が外部から固定する
-   trust anchor）があればそこから、なければ **C**（レビュアーが実際に読んだ成果物）から
+   trust anchor。**40 桁完全 SHA のみ**。`HEAD` / `main` などの可変 ref は拒否）が
+   あればそこから、なければ **C**（レビュアーが実際に読んだ成果物）から
    `g1_validate.py` / `g1_extract.py` を隔離ディレクトリに取り出す
 7. `python -I` で実行し、検査対象リポジトリは `G1_REPO_ROOT` で渡す
 
@@ -138,6 +139,44 @@ python3 tools/g1_trusted_verify.py [--offline]
 >
 > C から取る場合も、C 自体を署名者が作れる余地は残る。
 > **CI では `G1_VALIDATOR_COMMIT` を外部設定で固定すること。**
+
+### ★ ランナー自身の固定 — `tools/g1_ci_verify.sh`
+
+ランナー内の制約（`C..A` の制限、validator の取得元固定）は、
+**ランナーを書き換えれば削除できる**。ランナーの中ではこれを防げない。
+
+```bash
+G1_TOOLS_COMMIT=<40桁SHA> tools/g1_ci_verify.sh [--offline]
+```
+
+このラッパーは固定 SHA から `g1_trusted_verify.py` / `g1_validate.py` / `g1_extract.py`
+を取り出し、`python -I` で実行する。検査対象は `G1_REPO_ROOT` で渡すため、
+**隔離ディレクトリではなく実リポジトリ**が検査される。
+
+- `G1_TOOLS_COMMIT` 未設定 → **exit 2**（fail closed）
+- `HEAD` / `main` などの可変 ref → **exit 2**
+- 実測: 現在の checkout の runner を「即時 PASS」に書き換えても、
+  ラッパー経由なら `BLOCK`（SR-38 / SR-40）
+
+**最後の一枚は CI 設定側で固定する。** ラッパー自身もリポジトリ内のコピーなので、
+CI では下のスニペットを workflow に**インラインで**書くか、固定 SHA から取り出して実行する。
+
+```yaml
+# .github/workflows 等（例）
+- name: G1 approval verification
+  env:
+    G1_TOOLS_COMMIT: "0000000000000000000000000000000000000000"   # ← 承認時に固定
+  run: |
+    set -euo pipefail
+    TMP=$(mktemp -d); mkdir -p "$TMP/tools"
+    for f in tools/g1_trusted_verify.py tools/g1_validate.py tools/g1_extract.py; do
+      git show "$G1_TOOLS_COMMIT:$f" > "$TMP/$f"
+    done
+    env -u PYTHONPATH G1_REPO_ROOT="$PWD"         G1_RUNNER_COMMIT="$G1_TOOLS_COMMIT"         G1_VALIDATOR_COMMIT="$G1_TOOLS_COMMIT"         python3 -I "$TMP/tools/g1_trusted_verify.py"
+```
+
+監査レポートの `provenance` に `validator_source` / `validator_source_kind`
+（`external-pin` / `target-commit`）/ `runner_source` / `repo_root` が記録される。
 
 ### 承認時に `coverage.yaml` を編集しない
 
@@ -158,7 +197,7 @@ python3 tools/g1_trusted_verify.py [--offline]
 | 保証できること | 保証できないこと |
 |---|---|
 | 署名鍵の保持者が承認記録に署名した | その鍵が**実在のレビュアー**のものか（`allowedSignersFile` / CODEOWNERS などリポジトリ運用側の設定に依存） |
-| 承認後に保護対象ファイルが変わっていない | このランナー（`g1_trusted_verify.py`）自身が改変された場合。ランナーは短く保ち、CI では**承認済み commit から取り出したランナー**を使う |
+| 承認後に保護対象ファイルが変わっていない | **ランナー自身**が改変された場合。→ `tools/g1_ci_verify.sh` が固定 SHA からランナーを取り出す（下記） |
 | レビュアーが原文を読んだと**記録した**こと | レビュアーが**実際に**原文を読んだこと |
 
 **G1 完了の判定式**（レポートの `g1.complete`）:

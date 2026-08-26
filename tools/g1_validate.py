@@ -470,6 +470,13 @@ blocking=[c for c in R if c['result']=='FAIL' and c['id'] not in ('SR-30','SR-31
 g1_ready = (not blocking) and (not opens) and (not pending)
 report=dict(task=":specReconcile",run_id=str(uuid.uuid4()),executed_at=NOW,
   validator="tools/g1_validate.py (生成処理から独立。値を書き戻さない)",
+  provenance=dict(
+      repo_root=ROOT,
+      validator_source=os.environ.get('G1_VALIDATOR_SOURCE'),
+      validator_source_kind=os.environ.get('G1_VALIDATOR_SOURCE_KIND'),
+      runner_source=os.environ.get('G1_RUNNER_SOURCE'),
+      note="validator_source_kind が external-pin でなければ、検査器の取得元は "
+           "承認記録が指す target_commit である。CI では G1_VALIDATOR_COMMIT を外部固定すること"),
   mode="offline" if OFFLINE else "network",
   source=dict(spec=cov['spec'],version=cov['spec_version'],url=primary['url'],
               recorded_digest=primary.get('source_digest'),cache="build/spec-cache/ (gitignored)"),
