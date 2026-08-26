@@ -19,7 +19,10 @@ def fetch(root,key,url,mode='network',timeout=60):
     mode='cache-first'   : 起票（author）用。キャッシュがあればそれを使う。
     """
     assert mode in ('network','offline','cache-first'), mode
-    ext='.pdf' if url.lower().endswith('.pdf') else ('.txt' if url.lower().endswith('.txt') else '.html')
+    u=url.lower()
+    ext=('.pdf' if u.endswith('.pdf') else
+         '.txt' if u.endswith('.txt') else
+         '.xml' if u.endswith(('.xsd','.xml')) else '.html')
     path=os.path.join(cache_dir(root),key+ext)
     if mode in ('offline','cache-first') and os.path.exists(path):
         return open(path,'rb').read(),path
@@ -95,8 +98,25 @@ def normalize_pdf(raw):
     t=re.sub(r'\n(?:\s*\d{1,4}\s*\n)+','\n',t)                                        # 行番号列
     return '\n'.join(l for l in (re.sub(r'[ \t]+',' ',x).strip() for x in t.split('\n')) if l)
 
+def normalize_text(raw):
+    """text/plain（IETF ドラフト等）用。★ 山括弧を保持する。
+
+    HTML として処理すると <samlec:GeneratedKey> のような **仕様本文中の XML 要素名**が
+    タグとして削除され、根拠の digest も語の検査も壊れる。
+    """
+    t=raw.decode('utf-8',errors='replace')
+    t=unicodedata.normalize('NFC',t)
+    t=re.sub(r'\n\f?[^\n]*\[Page \d+\][^\n]*\n','\n',t)      # RFC のページフッタ
+    t=re.sub(r'\n\f[^\n]*\n','\n',t)                          # 改ページ直後のヘッダ
+    return '\n'.join(l for l in (re.sub(r'[ \t]+',' ',x).rstrip() for x in t.split('\n')) if l)
+
 def normalize(raw,url,mark_em=False):
-    return normalize_pdf(raw) if url.lower().endswith('.pdf') else normalize_html(raw,mark_em)
+    u=url.lower()
+    if u.endswith('.pdf'):  return normalize_pdf(raw)
+    # ★ .txt / .xsd / .xml は山括弧を保持する。
+    #   HTML として処理すると仕様本文中の XML 要素名やスキーマ定義が消える。
+    if u.endswith(('.txt','.xsd','.xml')):  return normalize_text(raw)
+    return normalize_html(raw,mark_em)
 
 LOCATOR_SEP='||'
 def section(text,locator):

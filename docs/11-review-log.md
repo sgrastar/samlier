@@ -1548,3 +1548,96 @@ reviewer ごとの署名済み記録が必要である旨をエラーに明記�
 - **ci-stages.md の旧記述**: offline 除外方式と旧 G1b トリガーを現行に合わせた
 
 累計で塞いだ攻撃は **45 パターン**。
+
+---
+
+## G1b-R1 — 2026-08-26 初回の意味レビュー（義務本文）
+
+**結論**: 指摘 9 件すべて妥当。**承認できる状態ではなかった**。
+特に P1-2 は**下流の根拠を壊していたツールのバグ**で、P0-1 は
+「参照仕様を読まなくても決まる」という私の判断が広範に誤っていた。
+
+### P1-2（先に直した）: `.txt` / `.xsd` を HTML として正規化していた
+
+`g1_extract.normalize()` が PDF 以外を全て HTML として処理しており、
+**仕様本文中の XML 要素名がタグとして削除**されていた。
+
+```
+修正前の SAML-EC §5.3.1: 「The key is base64-encoded and placed inside a element.」
+修正後:                   「... placed inside a <samlec:GeneratedKey> element.」
+```
+
+`GeneratedKey` の出現数が **0 → 10**。
+**IIP-IDP15 の根拠は壊れた本文で取っていた**。
+`normalize_text()` を追加し、`.txt` / `.xsd` / `.xml` は山括弧を保持するようにした
+（`SAML2MD-xsd` / `SAML2-xsd` も同じ被害を受けており、再取得したところ
+`<element>` 102 件 / `<complexType>` 21 件が復活した）。
+
+### P1-6: IIP-IDP15 が §5.3.1 の一部しか見ていなかった
+
+読み直した §5.3.1 には 3 つの規定があった。
+
+| 規定 | 前版 |
+|---|---|
+| `<samlec:GeneratedKey>` を `<saml:Advice>` に置く | ✅ あり |
+| **The identity provider MUST encrypt the assertion** | ❌ 欠落 |
+| **A copy of the element is also added as a SOAP header block** | ❌ 欠落 |
+
+SOAP ヘッダを出さない実装や Assertion を暗号化しない実装が PASS していた。
+
+### P0-1: `reference_derivation: false` の判断が広範に誤っていた
+
+`Support ... as defined in [SPEC]` 型の義務は、**検査内容が参照仕様を読まないと決まらない**。
+指摘の 13 義務に加え、`IIP-MD05.a〜f`（6 仕様）も同じ構造だった。
+
+**18 義務を `reference_derivation: true` に変更**し、参照節の `reference_evidence` を付けたうえで、
+**規範内容の分解が未了であることを `open_question` として明示**した。
+これにより **SR-30 が FAIL → `g1.complete` が false** になり、
+**分解を終えるまで承認が構造的に不可能**になる。
+
+対象: MD05.a〜f / MD06.a / SSO01.a / SP04.a / SP12.a / SP14.a /
+IDP06.a / IDP07.a / IDP10.a / IDP12.a / IDP13.a / IDP17.a / IDP17.b
+
+### 今回分解を完了したもの
+
+| 義務 | 内容 |
+|---|---|
+| **IIP-SSO05.a** | SAML2Core §8.3.7 を読んで 9 variant に分解。256 文字上限 / 同一 SP での再現性 / 別 SP での非再現性（pair-wise pseudonym）/ NameQualifier・SPNameQualifier・SPProvidedID の規則。前版は「Format が返ること」だけで §8.3.7 を何も検証していなかった |
+| **IIP-SSO05.b** | §8.3.8 を読んで 5 variant に。256 文字上限 / SAML 識別子規則 / 一時性 |
+| **IIP-IDP15** | 上記の 3 規定を variant に |
+| **IIP-IDP16** | §2.3.10 冒頭が **Browser SSO §4.1.6 を継承**する点を追加し、`linked_obligations: [IIP-SSO06.a]` で機械的にリンク |
+| **IIP-MD12.d**（新規） | 引用部分（非イタリック＝規範）から not-yet-valid / critical・non-critical extension / usage flag / 任意 subject・issuer を **8 variant** に。前版は注記だけで、critical extension を理由に拒否する実装が PASS した |
+
+### P1-3: IIP-G01 に非規範の 180 秒が再導入されていた
+
+原文の「3–5 分」はイタリック＝非規範なのに、`±180 秒の受理`を必須 variant にしていた。
+**許容幅を 120 秒に設定した適合実装を違反にしうる誤り**。
+対象が申告・設定した許容幅 T の **境界ペア（T−δ / T+δ）** で判定する形に変えた。
+
+### P1-4: IIP-G02 の 2 系統が試験に反映されていなかった
+
+原文の *applies both to types defined within the SAML standards ... and to user-defined types* が
+`source_clauses` から欠落し、variant も文字種だけだった。
+**【型種別】×【文字種】の 2 軸**に作り直した（標準型: transient/persistent NameID・ProviderName、
+利用者定義型: 任意 NameFormat の Attribute @Name / @FriendlyName）。
+
+### P2-8 / P2-9
+
+- **IIP-SP09.a**: 2 つ目の MUST 文（*That is, it MUST be possible to request an arbitrary
+  protected resource ...*）を `source_clauses` に追加
+- **IIP-SP16.b / .c**: 根拠範囲が交差していたので IDP19 と同じ分割粒度に揃えた
+- **IIP-ALG07.a**: `AUTOMATED` → **`ATTESTED`**。TLS ハンドシェイク 1 回から
+  「考慮したか」は判定できない。観測は情報として記録する
+- **IIP-SP07.a**: `ATTESTED` → **`CONFIG`**。設定変更と positive/negative control が
+  定義されている以上、自己申告だけで Core の MUST を PASS にしてはならない
+
+### 現在の状態
+
+```
+要件 69 / 義務 134（MD12.d を追加）
+open question 18 → SR-30 が FAIL
+g1.complete = false（承認は構造的に不可能）
+```
+
+**次にやること**: 18 義務の参照節を読んで規範内容を分解する。
+`open_question` に「どの仕様のどの節を読むか」を義務ごとに書いてある。

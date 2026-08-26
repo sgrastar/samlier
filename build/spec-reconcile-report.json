@@ -1,7 +1,7 @@
 {
   "task": ":specReconcile",
-  "run_id": "91482617-4ef2-49b1-9612-e91852bf6cc3",
-  "executed_at": "2026-08-26T07:23:45+00:00",
+  "run_id": "1a364e81-4de6-4bb6-aa30-6041ebd32a27",
+  "executed_at": "2026-08-26T08:25:08+00:00",
   "validator": "tools/g1_validate.py (生成処理から独立。値を書き戻さない)",
   "provenance": {
     "repo_root": "/Users/yuta/Documents/Samlier",
@@ -20,18 +20,37 @@
   },
   "totals": {
     "requirements": 69,
-    "obligations": 133,
+    "obligations": 134,
     "checks": 53,
-    "passed": 52,
-    "failed": 1,
+    "passed": 51,
+    "failed": 2,
     "blocking_failures": 0
   },
   "g1_approval": null,
   "g1": {
     "state": "PENDING_REVIEW",
     "authored_state": "PENDING_REVIEW",
-    "open_questions": [],
-    "unapproved": 133,
+    "open_questions": [
+      "IIP-MD05.a",
+      "IIP-MD05.b",
+      "IIP-MD05.c",
+      "IIP-MD05.d",
+      "IIP-MD05.e",
+      "IIP-MD05.f",
+      "IIP-MD06.a",
+      "IIP-SSO01.a",
+      "IIP-SP04.a",
+      "IIP-SP12.a",
+      "IIP-SP14.a",
+      "IIP-IDP06.a",
+      "IIP-IDP07.a",
+      "IIP-IDP10.a",
+      "IIP-IDP12.a",
+      "IIP-IDP13.a",
+      "IIP-IDP17.a",
+      "IIP-IDP17.b"
+    ],
+    "unapproved": 134,
     "blocking_failures": [],
     "complete": false,
     "complete_formula": "no blocking failures AND no open questions AND all obligations approved via tests/approvals/g1.yaml (coverage.yaml は承認時に編集しない)"
@@ -293,7 +312,7 @@
       "id": "SR-34",
       "description": "reference_evidence の locator が解決でき、節ダイジェストが一致する",
       "result": "PASS",
-      "detail": "n=12 bad=[]"
+      "detail": "n=32 bad=[]"
     },
     {
       "id": "SR-35",
@@ -322,8 +341,8 @@
     {
       "id": "SR-30",
       "description": "未解決の open question が残っていない（G1 完了の条件）",
-      "result": "PASS",
-      "detail": "[]"
+      "result": "FAIL",
+      "detail": "['IIP-MD05.a', 'IIP-MD05.b', 'IIP-MD05.c', 'IIP-MD05.d', 'IIP-MD05.e', 'IIP-MD05.f', 'IIP-MD06.a', 'IIP-SSO01.a', 'IIP-SP04.a', 'IIP-SP12.a', 'IIP-SP14.a', 'IIP-IDP06.a', 'IIP-IDP07.a', 'IIP-IDP10.a', 'IIP-IDP12.a', 'IIP-IDP13.a', 'IIP-IDP17.a', 'IIP-IDP17.b']"
     },
     {
       "id": "SR-25d",
@@ -347,7 +366,7 @@
       "id": "SR-31",
       "description": "全 obligation が承認済み（G1 承認の条件）",
       "result": "FAIL",
-      "detail": "133/133 が未承認"
+      "detail": "134/134 が未承認"
     },
     {
       "id": "SR-39",

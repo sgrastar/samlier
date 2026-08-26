@@ -1,6 +1,6 @@
 # tests/coverage.yaml — 要件カタログ（G1 成果物 / 判定レベルの唯一の出典）
 # 生成: build_g1.py（原文からオフセットと digest を解決）/ 手編集しない
-generated_at: 2026-08-26T07:20:00+00:00
+generated_at: 2026-08-26T08:23:45+00:00
 schema_version: 1
 g1_state: PENDING_REVIEW
 # 作成者は reviewer / approved_at を埋めない。別のレビュアーが原文と直接照合して承認する。
@@ -37,30 +37,34 @@ requirements:
         level: MUST
         testability: BROWSER
         condition: null
+        configuration_failure_semantics: test_precondition
         summary_en: "Allow for reasonable clock skew when interpreting xsd:dateTime values and enforcing policy based on them"
         summary_ja: "xsd:dateTime の解釈とそれに基づくポリシー適用で合理的なクロックスキューを許容する"
         level_assignment: { idp: core, sp: core }
         source_clauses:
           - { start: 0, end: 155, digest: "sha256:9a9e31b61f2fc700fb8180ff896efb30e884c875e01cd0a64ed1af64615ce25e", occurrences: 1 }
         required_variants:
-          - id: v-66e190df62
-            description_ja: "skew -180s on IssueInstant"
-          - id: v-68db46c861
-            description_ja: "skew +180s on IssueInstant"
-          - id: v-748ee7840e
-            description_ja: "skew -180s on NotBefore/NotOnOrAfter"
-          - id: v-7357157eea
-            description_ja: "skew on metadata validUntil"
+          - id: v-fe36f1fde7
+            description_ja: "対象が申告した許容幅 T の内側（T-δ）に IssueInstant をずらす → 受理されるべき"
+          - id: v-e9ce768ecf
+            description_ja: "T の外側（T+δ）にずらす → 拒否されるべき"
+          - id: v-957b4c52ab
+            description_ja: "NotBefore / NotOnOrAfter でも同じ境界ペアを試す"
+          - id: v-f38f3b0851
+            description_ja: "メタデータの validUntil でも同じ境界ペアを試す"
+          - id: v-de1319d08c
+            description_ja: "許容幅そのものが設定・申告できるか（できなければ『合理的な許容』を判定できない）"
         controls:
-          - "対象が拒否する境界を測るため、許容側(±180s)と対象が明示設定した閾値超の両方を送る"
-        notes_ja: "原文に上限や『許容しすぎ』の不適合条件はない（3–5分の記述はイタリック＝非規範）。過大許容は advisory clock_skew.very_permissive として記録し判定に使わない。"
+          - "★ Samlier は絶対閾値を持たない。対象が申告・設定した許容幅 T の境界ペアで判定する"
+          - "T-δ が拒否されたら違反、T+δ が受理されたら違反。どちらか一方だけでは検出力がない"
+        notes_ja: "原文には普遍的な秒数の受理義務がない（『3–5 分』はイタリック＝非規範）。前版は ±180 秒の受理を必須 variant にしており、許容幅を 120 秒に設定した適合実装を違反にしうる誤りだった。T を申告・設定できない場合は NOT_VERIFIED。過大許容は advisory clock_skew.very_permissive として記録し判定に使わない。"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:a5cc91ed45e259a1bbab6b8738876e77c09fbdce1dcb2cda74203985d53a5722"
+          obligation_digest: "sha256:9376b233e23e759c388fe39b23f2b17447876c590ed9605c5bb158cec5846bd3"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-G01"
@@ -86,22 +90,34 @@ requirements:
         level_assignment: { idp: core, sp: core }
         source_clauses:
           - { start: 81, end: 291, digest: "sha256:d07e84e7979b443c9b7a1a30f67d6bd7f54d0722dfebb4b8c9e2bf809b343e66", occurrences: 1 }
+          - { start: 293, end: 435, digest: "sha256:fe98afa5ffc20d38dfca4e5a2e80b7d93b86969943bdeb9edd8565dce8972654", occurrences: 1 }
         required_variants:
-          - id: v-59156be205
-            description_ja: "len=255 boundary"
-          - id: v-a63a57c1da
-            description_ja: "len=256 boundary"
-          - id: v-09712a89e6
-            description_ja: "non-ASCII (CJK/Cyrillic)"
-          - id: v-df455bd536
-            description_ja: "combining marks"
-          - id: v-ee0e83e3ca
-            description_ja: "supplementary-plane code points (no lone surrogates)"
-          - id: v-494bef69cf
-            description_ja: "TAB/LF via character references"
-          - id: v-fd0ff828e5
-            description_ja: "XML-special chars (< & \" ' >) via references"
+          - id: v-c5fdf4c301
+            description_ja: "【標準型】transient NameID に 256 文字（SAML2Core 8.3.8 の上限と一致）"
+          - id: v-07274cb7c4
+            description_ja: "【標準型】persistent NameID に 256 文字（SAML2Core 8.3.7 の上限と一致）"
+          - id: v-fe0a924d7a
+            description_ja: "【標準型】AuthnRequest/@ProviderName に 256 文字"
+          - id: v-2d77b7fa35
+            description_ja: "【利用者定義型】任意の NameFormat を持つ saml:Attribute の @Name に 256 文字"
+          - id: v-2655a7d212
+            description_ja: "【利用者定義型】同 @FriendlyName に 256 文字"
+          - id: v-111b055549
+            description_ja: "文字種: len=255 境界"
+          - id: v-e69ea25841
+            description_ja: "文字種: len=256 境界"
+          - id: v-b3e41d759d
+            description_ja: "文字種: 非 ASCII（CJK / キリル）"
+          - id: v-eb3d87c044
+            description_ja: "文字種: 結合文字（正規化で長さが変わる）"
+          - id: v-5e3fe3ff57
+            description_ja: "文字種: 補助平面のコードポイント（孤立サロゲートは生成しない）"
+          - id: v-3d0ed2363d
+            description_ja: "文字種: TAB / LF を文字参照で（リテラルは XML 属性値正規化で空白になる）"
+          - id: v-16ec37dcf7
+            description_ja: "文字種: XML 構文上特別な文字（< & \" ' >）を文字参照・エンティティ参照で"
         controls:
+          - "★ 【型種別】×【文字種】の両軸を試す。標準型だけ通しても『user-defined types にも適用される』ことを検証していない"
           - "リテラル TAB/LF は XML 属性値正規化で空白になる。リテラル版と文字参照版を別ケースにし、比較は XML 解析後の値で行う"
           - "長さは Unicode コードポイント数で数える"
         notes_ja: "適用対象は SAML 標準内の型(transient/persistent NameID 等)と利用者定義型の双方。型が xs:string と確定するフィールド(ProviderName / Attribute@Name / @FriendlyName)を使う。"
@@ -111,7 +127,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:293f77e8ae6b79fdf7e48ff9507477ff277f10aa2cf9dddf4262494d7955acbd"
+          obligation_digest: "sha256:4776a42b8481485964698b324852a791b422ea5d4154e492ab7d79a2a5e7e443"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-G02"
@@ -662,21 +678,26 @@ requirements:
         summary_en: "Support SAML Metadata as defined in SAML V2.0 Metadata [SAML2Meta] as updated by Errata"
         summary_ja: "SAML V2.0 Metadata（Errata 反映）に定義されたメタデータに対応"
         references_spec: SAML2Meta
-        reference_derivation: false
-        reference_derivation_note: "参照仕様は義務の対象を特定するために引用しているだけで、required_variants は IIP 原文の句そのものから導いている。参照節を読まないと変わる内容はない"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2Meta
+            locator: "2 Metadata for SAML V2\\.0||3 Signature Processing"
+            section_digest: "sha256:ebc05b01a866560ee3c97e55ebaf36fc1b9c72c5cb1c11d588fff38c61959730"
+            basis_ja: "メタデータの要素・型の規範定義"
         level_assignment: { idp: core, sp: core }
         source_clauses:
           - { start: 0, end: 92, digest: "sha256:7dfacaaae6f1628a334526662ac0d62563407dd4dfcfba6aca718084508215b5", occurrences: 1 }
         required_variants:
           - id: v-a1abd52b12
             description_ja: "基本 EntityDescriptor / RoleDescriptor 構造"
+        open_question_ja: "参照仕様 SAML2Meta の該当節を読んで規範内容を分解する。規範内容から対応を証明するに足る variant を起こす。現状は基本構造のスモーク 1 件のみ"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:48391b2e722c3090c50185452c016501501d2fe1423cfe3d5d1ff4d00846b3be"
+          obligation_digest: "sha256:9d2f43ef24d37076e87193a4e933cbf1355d03649fb817af01f6a0c650749acd"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-MD05"
@@ -690,8 +711,12 @@ requirements:
         summary_en: "Support SAML Metadata as defined by the SAML V2.0 Metadata Schema"
         summary_ja: "SAML V2.0 Metadata Schema に適合したメタデータに対応"
         references_spec: SAML2MD-xsd
-        reference_derivation: false
-        reference_derivation_note: "参照仕様は義務の対象を特定するために引用しているだけで、required_variants は IIP 原文の句そのものから導いている。参照節を読まないと変わる内容はない"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2MD-xsd
+            locator: "<schema\\n||</schema>"
+            section_digest: "sha256:3f0dc037c247a0df2e55ba2e37c27bf3a85a175c892fb406594669cecbe912a8"
+            basis_ja: "メタデータスキーマ本体（任意要素・拡張点）"
         level_assignment: { idp: core, sp: core }
         source_clauses:
           - { start: 0, end: 92, digest: "sha256:7dfacaaae6f1628a334526662ac0d62563407dd4dfcfba6aca718084508215b5", occurrences: 1 }
@@ -699,13 +724,14 @@ requirements:
         required_variants:
           - id: v-9fe94830c4
             description_ja: "スキーマ上の任意要素を含む variant"
+        open_question_ja: "参照仕様 SAML2MD-xsd の該当節を読んで規範内容を分解する。スキーマの任意要素・拡張点を列挙して variant にする"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:dd4025116b7e79928a1e3894c0a5ec0e3d49c4d36e2a977b1b0c165bfd5bb3a0"
+          obligation_digest: "sha256:20970a244bd7226bfe7406a36896cfad780f0a9d0a54a30e1013e6d54fb0c772"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-MD05"
@@ -719,8 +745,12 @@ requirements:
         summary_en: "Support metadata as defined by the SAML V2.0 Metadata Interoperability Profile"
         summary_ja: "SAML V2.0 Metadata Interoperability Profile に対応"
         references_spec: SAML2MDIOP
-        reference_derivation: false
-        reference_derivation_note: "参照仕様は義務の対象を特定するために引用しているだけで、required_variants は IIP 原文の句そのものから導いている。参照節を読まないと変わる内容はない"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2MDIOP
+            locator: "2 SAML V2\\.0 Metadata Interoperability Profile||3 Conformance"
+            section_digest: "sha256:bf2b9a81c64052c2748ed3e92ff33940057f3fc9873037d95ca94a3b6fe563d5"
+            basis_ja: "MDIOP の profile 本体"
         level_assignment: { idp: core, sp: core }
         source_clauses:
           - { start: 0, end: 92, digest: "sha256:7dfacaaae6f1628a334526662ac0d62563407dd4dfcfba6aca718084508215b5", occurrences: 1 }
@@ -728,13 +758,14 @@ requirements:
         required_variants:
           - id: v-8487f69009
             description_ja: "MDIOP に沿った鍵記述"
+        open_question_ja: "参照仕様 SAML2MDIOP の該当節を読んで規範内容を分解する。鍵解決規則を分解する（IIP-MD06.a と重複する範囲の整理も必要）"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:54c4c59bbd5924a20ebe2389a1e2e982d6ffc5d01abef82f55b6b66a3f0bc8c0"
+          obligation_digest: "sha256:6803a8ca3d74e294ce4f370234cad4d8fb2fe795db3270f9135832a8139e723a"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-MD05"
@@ -748,8 +779,12 @@ requirements:
         summary_en: "Support the Metadata Extension for Entity Attributes"
         summary_ja: "Entity Attributes 拡張に対応"
         references_spec: MetaAttr
-        reference_derivation: false
-        reference_derivation_note: "参照仕様は義務の対象を特定するために引用しているだけで、required_variants は IIP 原文の句そのものから導いている。参照節を読まないと変わる内容はない"
+        reference_derivation: true
+        reference_evidence:
+          - spec: MetaAttr
+            locator: "2 SAML V2\\.0 Metadata Extension for Entity Attributes||3 Conformance"
+            section_digest: "sha256:261281057870ead6ab6598a00bcdd8f75696476ee53e98d9e67735bb16dfe3e8"
+            basis_ja: "EntityAttributes 拡張の規範定義"
         level_assignment: { idp: core, sp: core }
         source_clauses:
           - { start: 0, end: 92, digest: "sha256:7dfacaaae6f1628a334526662ac0d62563407dd4dfcfba6aca718084508215b5", occurrences: 1 }
@@ -757,13 +792,14 @@ requirements:
         required_variants:
           - id: v-b1ae256c32
             description_ja: "mdattr:EntityAttributes を含む variant"
+        open_question_ja: "参照仕様 MetaAttr の該当節を読んで規範内容を分解する。EntityAttributes の構造（複数属性・複数値・未知属性）を variant にする"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:cc04f1c9d3c2f0756dffcd7ef95a6ebc4aa9c6d5bbeb11cb09156dd6661329e0"
+          obligation_digest: "sha256:13b1147a819812730776ef3a45dbd8e97bff9c0b0ab108417c8960538174edf0"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-MD05"
@@ -777,8 +813,12 @@ requirements:
         summary_en: "Support the Metadata Extension for Algorithm Support"
         summary_ja: "Algorithm Support 拡張に対応"
         references_spec: SAML2MetaAlgSup
-        reference_derivation: false
-        reference_derivation_note: "参照仕様は義務の対象を特定するために引用しているだけで、required_variants は IIP 原文の句そのものから導いている。参照節を読まないと変わる内容はない"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2MetaAlgSup
+            locator: "2 SAML V2\\.0 Metadata Profile for Algorithm Support||3 Conformance"
+            section_digest: "sha256:36d9a1cf67a8207e8a0f69c295653e79993e21555a516ddfaea0a55c9b7a9e2e"
+            basis_ja: "Algorithm Support 拡張の規範定義"
         level_assignment: { idp: core, sp: core }
         source_clauses:
           - { start: 0, end: 92, digest: "sha256:7dfacaaae6f1628a334526662ac0d62563407dd4dfcfba6aca718084508215b5", occurrences: 1 }
@@ -786,13 +826,14 @@ requirements:
         required_variants:
           - id: v-1bfe5128d6
             description_ja: "alg:DigestMethod / alg:SigningMethod を含む variant"
+        open_question_ja: "参照仕様 SAML2MetaAlgSup の該当節を読んで規範内容を分解する。alg:DigestMethod / SigningMethod / EncryptionMethod の配置規則を分解する"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:e10db5ba1a8617af08d9a27615229bf99e79b9ef8b209aa3e51766f6b7b1590f"
+          obligation_digest: "sha256:9ad47e489721bbf075c49b6e26816ff9c1f21ea54d0351e7706d835a083a0d21"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-MD05"
@@ -806,8 +847,12 @@ requirements:
         summary_en: "Support the Metadata Extensions for Login and Discovery User Interface"
         summary_ja: "Login and Discovery UI 拡張 (mdui) に対応"
         references_spec: MetaUi
-        reference_derivation: false
-        reference_derivation_note: "参照仕様は義務の対象を特定するために引用しているだけで、required_variants は IIP 原文の句そのものから導いている。参照節を読まないと変わる内容はない"
+        reference_derivation: true
+        reference_evidence:
+          - spec: MetaUi
+            locator: "2 Metadata Extensions for Login and Discovery User Interfa||3 Conformance"
+            section_digest: "sha256:2bc6b479439c29112fa137aad5d583cd4a966f4b2787789b2a4821e5b45b12e1"
+            basis_ja: "mdui 拡張の規範定義"
         level_assignment: { idp: core, sp: core }
         source_clauses:
           - { start: 0, end: 92, digest: "sha256:7dfacaaae6f1628a334526662ac0d62563407dd4dfcfba6aca718084508215b5", occurrences: 1 }
@@ -815,13 +860,14 @@ requirements:
         required_variants:
           - id: v-c57012a3f1
             description_ja: "mdui:UIInfo を含む variant"
+        open_question_ja: "参照仕様 MetaUi の該当節を読んで規範内容を分解する。mdui:UIInfo / mdui:DiscoHints の要素を列挙して variant にする"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:70081b78281ff48c099f3d1a2e464786d1428cb5afafd5979977f8774e3f6b23"
+          obligation_digest: "sha256:aa79fa004215e1fa4c81eb2db99bec493dc74a4a9626bed60fbdf81b4b65a34a"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-MD05"
@@ -875,8 +921,12 @@ requirements:
         summary_en: "Support interpretation and application of metadata as defined by the Metadata Interoperability Profile"
         summary_ja: "Metadata Interoperability Profile に従ってメタデータを解釈・適用する"
         references_spec: SAML2MDIOP
-        reference_derivation: false
-        reference_derivation_note: "参照仕様は義務の対象を特定するために引用しているだけで、required_variants は IIP 原文の句そのものから導いている。参照節を読まないと変わる内容はない"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2MDIOP
+            locator: "2 SAML V2\\.0 Metadata Interoperability Profile||3 Conformance"
+            section_digest: "sha256:bf2b9a81c64052c2748ed3e92ff33940057f3fc9873037d95ca94a3b6fe563d5"
+            basis_ja: "メタデータの解釈と適用の規範内容"
         level_assignment: { idp: core, sp: core }
         source_clauses:
           - { start: 0, end: 151, digest: "sha256:85cd4426cdc6390a7863c650494ac4d43f17977aa2ba2cf3a238a5f206877c5b", occurrences: 1 }
@@ -884,13 +934,14 @@ requirements:
           - id: v-36f04a6457
             description_ja: "MDIOP の鍵解決規則に従うか（PKIX 検証を課していないか）"
         notes_ja: "trust store に関する記述（As an example, a separate trust store must not be required…）はイタリック＝非規範。義務にしない。"
+        open_question_ja: "参照仕様 SAML2MDIOP の該当節を読んで規範内容を分解する。「解釈と適用」の規範内容を分解する。証明書の扱いは MD12.d と重複しないよう整理する"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:b8f4ac2df0f7bd32f12c017dd236c7913ef5c08a8ecf743a7157cd90a50f4c49"
+          obligation_digest: "sha256:680da20420b2237daae54620515206a7fd98367636c06ddedbf3c2dc18e3aea8"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-MD06"
@@ -1310,6 +1361,52 @@ requirements:
           spec_version: "1.1"
           source_selector: "#IIP-MD12"
           source_section_digest: "sha256:3781bdd68fae31819c90476ee258626de5ac2a584adc7f3ef7f6d3cde179c20a"
+      - key: IIP-MD12.d
+        roles: [idp, sp]
+        level: MUST_NOT
+        testability: CONFIG
+        condition: null
+        configuration_failure_semantics: test_precondition
+        summary_en: "A certificate may be expired, not yet valid, carry critical or non-critical extensions or usage flags, and contain any subject or issuer — none of these may prevent use of the contained key"
+        summary_ja: "証明書が期限切れ・not-yet-valid・critical / non-critical 拡張・usage flag 付き・任意の subject / issuer であっても、含まれる鍵の利用を妨げてはならない"
+        references_spec: SAML2MDIOP
+        reference_derivation: false
+        reference_derivation_note: "引用文が IIP 原文に直接含まれており（非イタリック＝規範）、参照節を読まなくても内容が確定する"
+        level_assignment: { idp: core, sp: core }
+        source_clauses:
+          - { start: 177, end: 245, digest: "sha256:dc1cb942899adb43c6324864fbd5e5b7073e543083060ebace91ff7c909a8043", occurrences: 1 }
+          - { start: 431, end: 569, digest: "sha256:85ad170631150c713b7e8dba73772ecf50afb5bf2c40ae9377769bd9bd4d1f4e", occurrences: 1 }
+        required_variants:
+          - id: v-9ae8ef22df
+            description_ja: "not-yet-valid 証明書（notBefore が未来）"
+          - id: v-700ffaba35
+            description_ja: "critical extension を持つ証明書"
+          - id: v-1e1c84b24d
+            description_ja: "non-critical extension を持つ証明書"
+          - id: v-1f6f637dc9
+            description_ja: "KeyUsage が digitalSignature を含まない証明書（usage flag が用途と矛盾）"
+          - id: v-afd1f283c7
+            description_ja: "extendedKeyUsage が SAML と無関係な証明書"
+          - id: v-61efd6403c
+            description_ja: "subject が空の証明書"
+          - id: v-c2c974c105
+            description_ja: "issuer が未知 CA の証明書"
+          - id: v-dee7f60c45
+            description_ja: "正常な証明書（対照。すべて拒否する実装を検出する）"
+        controls:
+          - "★ 各バリエーションを個別 variant にする。1 つ通しても他を拒否する実装を検出できない"
+        notes_ja: "前版は not-yet-valid を MD12.b の注記に混ぜ、残りを注記だけにしていた。引用部分は非イタリックなので G1 の規則上は規範内容であり、拒否理由にされうる項目を全て variant にする。"
+        authored_by: samlier-g1-builder
+        review:
+          # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
+          state: PENDING_REVIEW
+          reviewer: null
+          approved_at: null
+          obligation_digest: "sha256:f15fb6b624e5a6ddfa2adf2c5f74bb187fd909b74ef89c999f447676dd438286"
+          source_spec: kantara-fedinterop-impl
+          spec_version: "1.1"
+          source_selector: "#IIP-MD12"
+          source_section_digest: "sha256:3781bdd68fae31819c90476ee258626de5ac2a584adc7f3ef7f6d3cde179c20a"
   - id: IIP-SSO01
     section: 2.3
     section_name: "Common / Web Browser SSO"
@@ -1326,8 +1423,12 @@ requirements:
         summary_en: "Support the SAML V2.0 Web Browser SSO Profile"
         summary_ja: "SAML V2.0 Web Browser SSO Profile に対応"
         references_spec: SAML2Prof
-        reference_derivation: false
-        reference_derivation_note: "参照仕様は義務の対象を特定するために引用しているだけで、required_variants は IIP 原文の句そのものから導いている。参照節を読まないと変わる内容はない"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2Prof
+            locator: "4\\.1 Web Browser SSO Profile||4\\.2 Enhanced Client or Proxy"
+            section_digest: "sha256:dc25e757919763643b2286e9bb3431e30aa12d64efd17dfb20a38f72424f3a70"
+            basis_ja: "Web Browser SSO Profile の規範的義務"
         level_assignment: { idp: core, sp: core }
         source_clauses:
           - { start: 0, end: 125, digest: "sha256:ff1057626aaa898cc4a76e1e0e4e9f6ad908c018ad60ce09d95e71634b08fac5", occurrences: 1 }
@@ -1336,13 +1437,14 @@ requirements:
             description_ja: "SP-initiated 正常系"
           - id: v-56496ee074
             description_ja: "IdP-initiated（unsolicited）正常系"
+        open_question_ja: "参照仕様 SAML2Prof#4.1 の該当節を読んで規範内容を分解する。4.1.1〜4.1.5 の規範的義務から variant を起こす。現状は正常系 2 件のみ"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:e36e92a69b9e36038cfd8e740bfef3f8a713cf610d2b0abd921bb31d431ecf19"
+          obligation_digest: "sha256:292cc6e90ea50eefcae24733cf4d1f32f3089372f183fb6674bf43cfbc7470aa"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SSO01"
@@ -1500,25 +1602,49 @@ requirements:
         level: MUST
         testability: BROWSER
         condition: null
-        summary_en: "Support the persistent name identifier format per SAML2Core sect. 8.3"
-        summary_ja: "persistent NameID Format に対応（SAML2Core 8.3 の規範的義務に従う）"
+        summary_en: "Support the persistent name identifier format in accordance with the normative obligations in SAML2Core sect. 8.3.7"
+        summary_ja: "persistent NameID Format に対応（SAML2Core 8.3.7 の規範的義務に従う）"
         references_spec: "SAML2Core#8.3.7"
-        reference_derivation: false
-        reference_derivation_note: "参照仕様は義務の対象を特定するために引用しているだけで、required_variants は IIP 原文の句そのものから導いている。参照節を読まないと変わる内容はない"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2Core
+            locator: "8\\.3\\.7 Persistent Identifier||8\\.3\\.8 Transient Identifier"
+            section_digest: "sha256:6add1e8cf39e4ece3e97563d6877daefe876ee1c20dd2c9fc253f8562a69de9e"
+            basis_ja: "persistent NameID の規範的義務。IIP-SSO05 が『in accordance with the normative obligations associated with them by [SAML2Core] sect. 8.3』と述べているため、検査内容は §8.3.7 を読まないと決まらない"
         level_assignment: { idp: core, sp: core }
         source_clauses:
-          - { start: 0, end: 169, digest: "sha256:e66a1c4b4350bebadd4d4eea6620b79599bf4ccf39f39a3ea381665fbbc61d39", occurrences: 1 }
           - { start: 170, end: 222, digest: "sha256:200d6cc58795ef10f294b4748ce9f9f493f02626e206d1d73490711ce8f2561a", occurrences: 1 }
         required_variants:
-          - id: v-e064d2092a
-            description_ja: "NameIDPolicy で persistent を要求 → persistent が返る"
+          - id: v-409cc31391
+            description_ja: "NameIDPolicy で persistent を要求 → 同じ Format が返る"
+          - id: v-db8f71ec67
+            description_ja: "【IdP 生成側】値が 256 文字を超えない（8.3.7: MUST NOT exceed a length of 256 characters）"
+          - id: v-30d41e2462
+            description_ja: "【IdP 生成側】同一主体・同一 SP で 2 回ログインしても値が一致する（persistent の意味）"
+          - id: v-45df222405
+            description_ja: "【IdP 生成側】secondary_peer（別 SP）では異なる値が返る（pair-wise pseudonym）"
+          - id: v-e11964e7bf
+            description_ja: "【IdP 生成側】値が主体の実識別子（ユーザー名等）と可視の対応を持たない"
+          - id: v-03db40bd99
+            description_ja: "【IdP 生成側】NameQualifier がある場合、IdP の entityID と一致する"
+          - id: v-2ee70816e1
+            description_ja: "【IdP 生成側】SPNameQualifier がある場合、SP の entityID（または affiliation）と一致する"
+          - id: v-56b5893afa
+            description_ja: "【IdP 生成側】SPProvidedID は SP が設定していなければ省略される"
+          - id: v-4dcf4cc363
+            description_ja: "【SP 消費側】上記の形の persistent NameID を受理する"
+        controls:
+          - "★ 『Format が返ること』だけでは 8.3.7 の義務を何も検証していない"
+          - "同一 SP での再現性と別 SP での非再現性を対にする（片方だけでは pair-wise を検証できない）"
+          - "opacity（実識別子との無対応）は完全には自動判定できない。ユーザー名を含む等の明白な違反のみ検出し、それ以外は情報記録に留める"
+        notes_ja: "8.3.7 の『clear text で他провайдер と共有しない』『ログに出さない』は外部プロトコル面から観測できないため variant にしない（NOT_OBSERVABLE 相当の内容を含む義務であることを明記する）。"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:131e662434f6989fab280c59d4150891c96bc335020c6f987a4df24779fc1470"
+          obligation_digest: "sha256:349bbb766b73cbb1fde2849c581265c7d5a164af1dd44f9480aa108d6d9e4339"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SSO05"
@@ -1528,27 +1654,40 @@ requirements:
         level: MUST
         testability: BROWSER
         condition: null
-        summary_en: "Support the transient name identifier format per SAML2Core sect. 8.3"
-        summary_ja: "transient NameID Format に対応"
+        summary_en: "Support the transient name identifier format in accordance with the normative obligations in SAML2Core sect. 8.3.8"
+        summary_ja: "transient NameID Format に対応（SAML2Core 8.3.8 の規範的義務に従う）"
         references_spec: "SAML2Core#8.3.8"
-        reference_derivation: false
-        reference_derivation_note: "参照仕様は義務の対象を特定するために引用しているだけで、required_variants は IIP 原文の句そのものから導いている。参照節を読まないと変わる内容はない"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2Core
+            locator: "8\\.3\\.8 Transient Identifier||8\\.4 "
+            section_digest: "sha256:12b55781d3d8270f8718378e5d36b9fea9c832256378b52fbc3d2ecd07111a0a"
+            basis_ja: "transient NameID の規範的義務。値の一時性・長さ上限・SAML 識別子規則が §8.3.8 に定義されている"
         level_assignment: { idp: core, sp: core }
         source_clauses:
-          - { start: 0, end: 169, digest: "sha256:e66a1c4b4350bebadd4d4eea6620b79599bf4ccf39f39a3ea381665fbbc61d39", occurrences: 1 }
           - { start: 223, end: 274, digest: "sha256:5bab1ac68cbe9cf5e98f1d62b5748e1b5129e0a0a8e80ecb59cda3c2c939a701", occurrences: 1 }
         required_variants:
-          - id: v-472de8a356
-            description_ja: "NameIDPolicy で transient を要求 → transient が返る"
-          - id: v-93864fa604
-            description_ja: "2 回のログインで値が変わること"
+          - id: v-c7f144b559
+            description_ja: "NameIDPolicy で transient を要求 → 同じ Format が返る"
+          - id: v-18e736f887
+            description_ja: "【IdP 生成側】値が 256 文字を超えない（8.3.8: MUST NOT exceed a length of 256 characters）"
+          - id: v-a5b28ecde2
+            description_ja: "【IdP 生成側】2 回のログインで値が変わる（transient の意味）"
+          - id: v-7eb6aceae2
+            description_ja: "【IdP 生成側】値が SAML 識別子の規則（SAML2Core 1.3.4）に従う（先頭が数字でない等）"
+          - id: v-8b438582f1
+            description_ja: "【SP 消費側】transient NameID を受理し、値を永続識別子として扱わない"
+        controls:
+          - "★ 『2 回で値が変わる』だけでは長さ上限と識別子規則を検証していない"
+          - "SP 側の『永続識別子として扱わない』は ATTESTED（内部の扱いは観測できない）"
+        notes_ja: "8.3.8 の『SHOULD be treated as an opaque and temporary value by the relying party』は SP 側の SHOULD。違反は WARNING。"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:0fff37c6f7ed69d65c29120179ce8830e8beb67726c8052ae5a9b4c8892c03df"
+          obligation_digest: "sha256:9c628fee8b15a1c0032faacce27a1b382ec37fa8c5f91fcd85bb91fc8179d615"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SSO05"
@@ -2526,8 +2665,12 @@ requirements:
         summary_en: "Support IdP discovery in accordance with the Identity Provider Discovery Service Protocol and Profile"
         summary_ja: "[IdPDisco] に従った IdP Discovery に対応"
         references_spec: IdPDisco
-        reference_derivation: false
-        reference_derivation_note: "参照仕様は義務の対象を特定するために引用しているだけで、required_variants は IIP 原文の句そのものから導いている。参照節を読まないと変わる内容はない"
+        reference_derivation: true
+        reference_evidence:
+          - spec: IdPDisco
+            locator: "2 Identity Provider Discovery Protocol and Profile||3 "
+            section_digest: "sha256:ba819fcd3495f67ba25f725332a971cb7c3df60e8559685700adfab2def0373c"
+            basis_ja: "Discovery の redirection 規約"
         level_assignment: { sp: full }
         source_clauses:
           - { start: 0, end: 75, digest: "sha256:ce8bdccd17ea2f66dcbdaaf5b60241115ca8b6c3fb1bc9eb3f4cc468d61dad1b", occurrences: 1 }
@@ -2535,13 +2678,14 @@ requirements:
           - id: v-2d253b6a20
             description_ja: "Suite が Discovery Service を演じ、リダイレクト規約に従うか"
         notes_ja: "非規範の注記により、実際の discovery インタフェースの実装までは要求されない（単純なリダイレクト規約への対応のみ）。『discovery mechanisms SHOULD use SAML metadata…』もイタリック＝非規範なので義務にしない。"
+        open_question_ja: "参照仕様 IdPDisco の該当節を読んで規範内容を分解する。「simple redirection conventions」の規範内容を分解する"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:cd9f1d3723fa2247e951215cf68c3a5014f79b557382ca621ac5cb8dc65c1a68"
+          obligation_digest: "sha256:a0efc6b5a7eccefe2f328b25c94a4c34d9c4e29cf7f8cd8898cfa7a8fbb7880e"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SP04"
@@ -2689,7 +2833,7 @@ requirements:
       - key: IIP-SP07.a
         roles: [sp]
         level: MUST
-        testability: ATTESTED
+        testability: CONFIG
         condition: null
         configuration_failure_semantics: normative_capability
         summary_en: "Support acceptance or rejection of assertions based on the content of the saml:AuthnContext element"
@@ -2706,13 +2850,14 @@ requirements:
             description_ja: "一致しない ClassRef → 拒否"
         controls:
           - "受理と拒否を同一設定下で対にする。拒否だけでは全 Assertion を拒否する実装も通る"
+          - "★ 訂正: 前版は ATTESTED だったが、対象側の設定変更と positive / negative の browser control が定義されている以上 CONFIG が正しい。自己申告だけで Core の MUST を PASS にできてはならない"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:165de25ebf4e875ff479dca1dfdee162cf65e2a0eb035e718d855000e396af3a"
+          obligation_digest: "sha256:f227c336ac3440f2c651002352ccb6af3d1c59b313e508612404c25a18c9071e"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SP07"
@@ -2952,21 +3097,26 @@ requirements:
         summary_en: "Must not require persistent name identifiers to be overloaded with semantics or content beyond SAML2Core 8.3.7"
         summary_ja: "persistent NameID に SAML2Core 8.3.7 を超える意味・内容を要求してはならない"
         references_spec: "SAML2Core#8.3.7"
-        reference_derivation: false
-        reference_derivation_note: "参照仕様は義務の対象を特定するために引用しているだけで、required_variants は IIP 原文の句そのものから導いている。参照節を読まないと変わる内容はない"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2Core
+            locator: "8\\.3\\.7 Persistent Identifier||8\\.3\\.8 Transient Identifier"
+            section_digest: "sha256:6add1e8cf39e4ece3e97563d6877daefe876ee1c20dd2c9fc253f8562a69de9e"
+            basis_ja: "persistent NameID に許される意味・内容の範囲"
         level_assignment: { sp: core }
         source_clauses:
           - { start: 0, end: 220, digest: "sha256:4487b42c20370f092f5033eb30b075ff01457fce9808d0e09cc845bbb6d298db", occurrences: 1 }
         not_observable_reason_en: "Whether an implementation *requires* additional semantics is a property of its configuration surface and internal policy, not of the SAML protocol surface. A single successful login with an opaque identifier is weak evidence and cannot distinguish a conforming from a non-conforming implementation."
         not_observable_reason_ja: "追加の意味づけを『要求するか』は設定面・内部ポリシーの性質であり、SAML のプロトコル面には現れない。不透明な識別子で 1 回ログインできても、適合／不適合を区別できない。"
         required_variants: []
+        open_question_ja: "参照仕様 SAML2Core#8.3.7 の該当節を読んで規範内容を分解する。「semantics or content beyond」が何を指すかを分解する（NOT_OBSERVABLE のままでも除外理由を §8.3.7 に即して書き直す）"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:89f20fb6eed38d82c32990a3f86d52ff6db74638a92e8073faa0156507bd89e5"
+          obligation_digest: "sha256:bb1e839da971b4dc7b9d7efa855ab0e1bc7eb091e5349464cfe0919d718609ec"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SP12"
@@ -3050,21 +3200,26 @@ requirements:
         summary_en: "Should support the SAML V2.0 SingleLogout profile"
         summary_ja: "SAML V2.0 SingleLogout profile に対応することが望ましい"
         references_spec: "SAML2Prof#4.4"
-        reference_derivation: false
-        reference_derivation_note: "参照仕様は義務の対象を特定するために引用しているだけで、required_variants は IIP 原文の句そのものから導いている。参照節を読まないと変わる内容はない"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2Prof
+            locator: "4\\.4 Single Logout Profile||4\\.5 Name Identifier Management Profile"
+            section_digest: "sha256:e18e43026d7f95e4286e93a5ae0e73ff9f6763ed65ea2a2ef34875a179885003"
+            basis_ja: "SLO Profile の規範的義務"
         level_assignment: { sp: full }
         source_clauses:
           - { start: 0, end: 109, digest: "sha256:284c8f09360551d5a9db48439f6d40890b67152fcf6a716c6885b468678edb80", occurrences: 1 }
         required_variants:
           - id: v-8466714abc
             description_ja: "SLO 正常系"
+        open_question_ja: "参照仕様 SAML2Prof#4.4 の該当節を読んで規範内容を分解する。SingleLogout Profile の規範的義務から variant を起こす"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:b945a1a2248dd9035705691d48bc3a16ae91dc6870d816420b940b7f7240d926"
+          obligation_digest: "sha256:855fbe2e46d07341aeff547f03fef0049ebda5334741b2dbf89fc210c8f0bcbe"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SP14"
@@ -3533,8 +3688,12 @@ requirements:
         summary_en: "Support the ForceAuthn attribute in AuthnRequest as defined in SAML2Core"
         summary_ja: "SAML2Core に定義された AuthnRequest の ForceAuthn 属性に対応"
         references_spec: "SAML2Core#3.4.1"
-        reference_derivation: false
-        reference_derivation_note: "参照仕様は義務の対象を特定するために引用しているだけで、required_variants は IIP 原文の句そのものから導いている。参照節を読まないと変わる内容はない"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2Core
+            locator: "3\\.4\\.1 Element <AuthnRequest>||3\\.4\\.1\\.1 Element <NameIDPolicy>"
+            section_digest: "sha256:afa441f55c94a0bbcee454e322f7fe6bfcc28401aa67f9a6b0eca291fdc0b21c"
+            basis_ja: "ForceAuthn の規範定義"
         level_assignment: { idp: core }
         source_clauses:
           - { start: 0, end: 116, digest: "sha256:40cd2c53a3cb123504ac7e0a82122052a52c8fdf2e32649cb4d4a38d570e80d5", occurrences: 1 }
@@ -3543,13 +3702,14 @@ requirements:
             description_ja: "セッション確立後に ForceAuthn=true → 新規認証が行われ AuthnInstant が更新される"
         controls:
           - "SAML2Core が禁じるのは true のときに既存のセキュリティコンテキストに依拠すること。false / 省略時の自主的な再認証は禁止されていないので判定に使わず advisory に記録する"
+        open_question_ja: "参照仕様 SAML2Core#3.4.1 の該当節を読んで規範内容を分解する。true のとき既存セキュリティコンテキストに依拠しない／IsPassive 併用時の MUST NOT を variant に反映する"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:837bf277ff64d418d2569c51befa8d5990331b7b7e38ab48954796a0d7707181"
+          obligation_digest: "sha256:cd41bf351291ab1351a668dbbf8c922b323686a2aa1b5e130a44f5c6ac7fbf12"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-IDP06"
@@ -3595,8 +3755,12 @@ requirements:
         summary_en: "Support the IsPassive attribute in AuthnRequest as defined in SAML2Core"
         summary_ja: "SAML2Core に定義された IsPassive 属性に対応"
         references_spec: "SAML2Core#3.4.1"
-        reference_derivation: false
-        reference_derivation_note: "参照仕様は義務の対象を特定するために引用しているだけで、required_variants は IIP 原文の句そのものから導いている。参照節を読まないと変わる内容はない"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2Core
+            locator: "3\\.4\\.1 Element <AuthnRequest>||3\\.4\\.1\\.1 Element <NameIDPolicy>"
+            section_digest: "sha256:afa441f55c94a0bbcee454e322f7fe6bfcc28401aa67f9a6b0eca291fdc0b21c"
+            basis_ja: "IsPassive の規範定義"
         level_assignment: { idp: core }
         source_clauses:
           - { start: 0, end: 115, digest: "sha256:50adf1500e90078d332a3aa499622764cff2bfe7f62689e9699d3d6541ea16fe", occurrences: 1 }
@@ -3607,13 +3771,14 @@ requirements:
             description_ja: "セッションなし + IsPassive=true → NoPassive エラー"
         controls:
           - "2 状態の対照が必須。片方だけでは対応を証明できない"
+        open_question_ja: "参照仕様 SAML2Core#3.4.1 の該当節を読んで規範内容を分解する。IdP と user agent が UI を可視的に奪わない、という規範内容を variant に反映する"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:925bdd64b86316e2464fad7faab3a25c2488ded51ec9650f3d22a6f292200e3c"
+          obligation_digest: "sha256:117405eb56933f80ab2e44e334e2caedd2139d34a7c27fe26b27918471c50e7e"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-IDP07"
@@ -3734,8 +3899,12 @@ requirements:
         summary_en: "Support the samlp:NameIDPolicy element in AuthnRequest as defined in SAML2Core"
         summary_ja: "AuthnRequest の samlp:NameIDPolicy に対応"
         references_spec: "SAML2Core#3.4.1.1"
-        reference_derivation: false
-        reference_derivation_note: "参照仕様は義務の対象を特定するために引用しているだけで、required_variants は IIP 原文の句そのものから導いている。参照節を読まないと変わる内容はない"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2Core
+            locator: "3\\.4\\.1\\.1 Element <NameIDPolicy>||3\\.4\\.1\\.2 Element <Scoping>"
+            section_digest: "sha256:1d0d74961f49db9f05558cceed0d5dd24f1ab4793dcee2af907c32dfbc7834d2"
+            basis_ja: "NameIDPolicy の規範定義"
         level_assignment: { idp: core }
         source_clauses:
           - { start: 0, end: 124, digest: "sha256:02dce7a982bb5807e9c8dbb4bbc56b7a65316196cdec2ad510364039aefdcd7f", occurrences: 1 }
@@ -3748,13 +3917,14 @@ requirements:
             description_ja: "SPNameQualifier 指定"
           - id: v-54bc462a9c
             description_ja: "要求と異なる Format を返さないこと（対照）"
+        open_question_ja: "参照仕様 SAML2Core#3.4.1.1 の該当節を読んで規範内容を分解する。Format / SPNameQualifier / AllowCreate の規範内容を variant に反映する"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:0e961d1a53bbc67e03798fe14be38fa4b47f75d5007dc5bb81efee862bade801"
+          obligation_digest: "sha256:987607ad1ffeeb711307cc2ae5b38daddaeb7749dbce7f00c9ea6938e427e4ee"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-IDP10"
@@ -3808,8 +3978,12 @@ requirements:
         summary_en: "Support the AssertionConsumerServiceURL, ProtocolBinding and AssertionConsumerServiceIndex attributes in AuthnRequest for identifying the response endpoint and binding"
         summary_ja: "AuthnRequest の AssertionConsumerServiceURL / ProtocolBinding / AssertionConsumerServiceIndex により応答先とバインディングを特定できる"
         references_spec: "SAML2Core#3.4.1"
-        reference_derivation: false
-        reference_derivation_note: "参照仕様は義務の対象を特定するために引用しているだけで、required_variants は IIP 原文の句そのものから導いている。参照節を読まないと変わる内容はない"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2Core
+            locator: "3\\.4\\.1 Element <AuthnRequest>||3\\.4\\.1\\.1 Element <NameIDPolicy>"
+            section_digest: "sha256:afa441f55c94a0bbcee454e322f7fe6bfcc28401aa67f9a6b0eca291fdc0b21c"
+            basis_ja: "ACS 属性の規範定義"
         level_assignment: { idp: core }
         source_clauses:
           - { start: 0, end: 247, digest: "sha256:3662ba485eda41f20e86103fc476f358089d2a2bd9241ccee7b3730bb85967aa", occurrences: 1 }
@@ -3822,13 +3996,14 @@ requirements:
             description_ja: "メタデータにない ACS URL 指定 → 拒否される（対照。IIP-IDP05 の acceptable location と整合）"
         controls:
           - "3 属性を個別 variant にする"
+        open_question_ja: "参照仕様 SAML2Core#3.4.1 の該当節を読んで規範内容を分解する。Index 無効時は MAY error or default／URL 指定時は responder MUST ensure the value is associated with the requester／相互排他 を variant に反映する"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:f3349f1b27e345330708d5ad6bb1dd1edac2c0f41e224b2e3a6f783bc692e1be"
+          obligation_digest: "sha256:f767f140c3bc73d8df13edbd9675841b22bd8f40c465662616253cfd349fc066"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-IDP12"
@@ -3851,8 +4026,12 @@ requirements:
         summary_en: "Support the SAML V2.0 Enhanced Client or Proxy Profile Version 2.0"
         summary_ja: "SAML V2.0 Enhanced Client or Proxy Profile v2.0 に対応"
         references_spec: SAML2ECP
-        reference_derivation: false
-        reference_derivation_note: "参照仕様は義務の対象を特定するために引用しているだけで、required_variants は IIP 原文の句そのものから導いている。参照節を読まないと変わる内容はない"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2ECP
+            locator: "2\\.3 Profile Description||2\\.4 "
+            section_digest: "sha256:4022a0eda87bdc6fb59534e571bdb754fccaa62d4a352cb1defaf1451ae771ca"
+            basis_ja: "ECP Profile 本体の規範内容"
         level_assignment: { idp: full }
         source_clauses:
           - { start: 0, end: 102, digest: "sha256:01ca8c2a74c033d17d27fc4eddce3d36809cbce425d66d275261843d2e08b497", occurrences: 1 }
@@ -3860,13 +4039,14 @@ requirements:
           - id: v-da292a062f
             description_ja: "PAOS ACS を含む Suite メタデータで ECP 往復が成立する"
         notes_ja: "原文末尾に『This requirement does not apply to token translation Proxies.』の適用除外がある。また『excepting IIP-SSO02 and IIP-SSO03』により ECP 実行時は Redirect/POST バインディング要件が適用されない。"
+        open_question_ja: "参照仕様 SAML2ECP の該当節を読んで規範内容を分解する。Bearer / channel bindings 以外の規範内容の扱いを決める（Full conformance は OPTIONAL だが、対応表明した範囲の扱い）"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:23ec1ac6f607c8ec82d15f483ebc5d088a5a128b6fd5aaef1d497fc4c8dcc570"
+          obligation_digest: "sha256:c06fda1f5203013dcebf8be5b136554e6bfec4958533c6ee8e7767b26d078645"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-IDP13"
@@ -4055,7 +4235,7 @@ requirements:
         reference_evidence:
           - spec: SAML-EC
             locator: "5\\.3\\.1\\. Generated by Identity Provider||5\\.3\\.2\\. Alternate Key Derivation Mechanisms"
-            section_digest: "sha256:4b2632861c9440a0a1d73f4a102140d9ce6f71ff8f0c2d6583b8778be556705b"
+            section_digest: "sha256:c8726d9927f92fc50f94636f874366e88ac17743d9f6ead380854614dd7e598d"
             basis_ja: "samlec:GeneratedKey の生成・同梱の規定。参照ドラフトは draft-ietf-kitten-sasl-saml-ec-16 に固定"
         level_assignment: { idp: full }
         source_clauses:
@@ -4072,7 +4252,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:d67bf271430d80ee6280fe701782b1e5a7aee42f950b901554dace53ab4621ba"
+          obligation_digest: "sha256:bc9bd41eea67ebe22262845344a26dda9aedf7a0780531c050a9fa320410058b"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-IDP15"
@@ -4143,8 +4323,12 @@ requirements:
         summary_en: "Support the SAML V2.0 SingleLogout profile"
         summary_ja: "SAML V2.0 SingleLogout profile に対応"
         references_spec: "SAML2Prof#4.4"
-        reference_derivation: false
-        reference_derivation_note: "参照仕様は義務の対象を特定するために引用しているだけで、required_variants は IIP 原文の句そのものから導いている。参照節を読まないと変わる内容はない"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2Prof
+            locator: "4\\.4 Single Logout Profile||4\\.5 Name Identifier Management Profile"
+            section_digest: "sha256:e18e43026d7f95e4286e93a5ae0e73ff9f6763ed65ea2a2ef34875a179885003"
+            basis_ja: "同上（IdP 側）"
         level_assignment: { idp: full }
         source_clauses:
           - { start: 0, end: 107, digest: "sha256:0649b5f4937ddaf054925804c5e79e1c7260aeb6704060d2eb256754a88010f5", occurrences: 1 }
@@ -4153,13 +4337,14 @@ requirements:
             description_ja: "SP-initiated SLO"
           - id: v-040fae99fd
             description_ja: "IdP-initiated SLO"
+        open_question_ja: "参照仕様 SAML2Prof#4.4 の該当節を読んで規範内容を分解する。IdP 側の規範的義務から variant を起こす"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:686889ea7ead2e8bffb29d427c7be3730c8342c06d2b3c5598fcebc7a246ec3c"
+          obligation_digest: "sha256:1a685fb9218999a16fd950de60230c4e720b13caa5054c8851f129ca229f9902"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-IDP17"
@@ -4172,8 +4357,12 @@ requirements:
         summary_en: "Support the SAML V2.0 Asynchronous Single Logout Protocol Extension"
         summary_ja: "SAML V2.0 Asynchronous Single Logout Protocol Extension に対応"
         references_spec: SAML2ASLO
-        reference_derivation: false
-        reference_derivation_note: "参照仕様は義務の対象を特定するために引用しているだけで、required_variants は IIP 原文の句そのものから導いている。参照節を読まないと変わる内容はない"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2ASLO
+            locator: "2 Single Logout Protocol Extension for Asynchronous Reques||3 Conformance"
+            section_digest: "sha256:86a1bb5a71936307cfb6c7c0819ad72f064e64631690a87cd2487a9886edfb64"
+            basis_ja: "Async SLO 拡張の規範定義"
         level_assignment: { idp: full }
         source_clauses:
           - { start: 109, end: 184, digest: "sha256:b6bba3e952dad96c6632c22909623672579ec9b07b5b4dcf6e2b75beaf0cad2b", occurrences: 1 }
@@ -4182,13 +4371,14 @@ requirements:
             description_ja: "asyncslo:Asynchronous 拡張付き LogoutRequest → LogoutResponse を返さずセッションが終了する"
         controls:
           - "拡張なしの LogoutRequest には LogoutResponse が返ることを対照に置く"
+        open_question_ja: "参照仕様 SAML2ASLO の該当節を読んで規範内容を分解する。aslo:Asynchronous の配置・LogoutResponse を返さない条件を分解する"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:2fac53ff7decdaa224f929623254a7d4184c692716cc54350b8a46542553f602"
+          obligation_digest: "sha256:b13fac972b4643515825d6605efa136a421df6c80f0c0ea492157a4e460a600e"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-IDP17"
