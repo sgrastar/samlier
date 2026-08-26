@@ -1,6 +1,6 @@
 # tests/specs.yaml — 仕様カタログ（G1 成果物）
 # 生成: build_g1.py / 手編集しない
-generated_at: 2026-08-26T18:29:23+00:00
+generated_at: 2026-08-26T18:46:42+00:00
 schema_version: 1
 specs:
   kantara-fedinterop-impl:
@@ -59,6 +59,14 @@ specs:
     url: "http://docs.oasis-open.org/security/saml/v2.0/saml-schema-metadata-2.0.xsd"
     role: referenced
     source_digest: "sha256:204bc7991055dbb889307abbd2ff58022753897dd7064a4d1ca13eb737d2617a"
+  SAML2P-xsd:
+    title: "SAML V2.0 Protocol Schema"
+    publisher: OASIS
+    version: "2.0"
+    date: 2005-03-15
+    url: "http://docs.oasis-open.org/security/saml/v2.0/saml-schema-protocol-2.0.xsd"
+    role: referenced
+    source_digest: "sha256:554250583cd5eacc6ce5f094f6ff50fc2547972c436dc96e2e7eb41abf2c817e"
   SAML2-xsd:
     title: "SAML V2.0 Assertion Schema"
     publisher: OASIS

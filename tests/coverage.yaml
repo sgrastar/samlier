@@ -1,13 +1,13 @@
 # tests/coverage.yaml — 要件カタログ（G1 成果物 / 判定レベルの唯一の出典）
 # 生成: build_g1.py（原文からオフセットと digest を解決）/ 手編集しない
-generated_at: 2026-08-26T18:29:23+00:00
+generated_at: 2026-08-26T18:46:42+00:00
 schema_version: 1
 g1_state: PENDING_REVIEW
 # 作成者は reviewer / approved_at を埋めない。別のレビュアーが原文と直接照合して承認する。
 spec: kantara-fedinterop-impl
 spec_version: "1.1"
 source_digest: "sha256:6cbc97a652651d6a5cff26a41c51195b8b914ed59dc63ed1d6ce254e88edd13d"
-catalog_digest: "sha256:3fac66b5ec093e286516c22ea24f56f5723e959672086e2c26d200fb52142dd0"   # specs.yaml + predicates.yaml 全体（後処理で埋める）
+catalog_digest: "sha256:54b316c6e1eb46bd6e4a6e35ac6dc29621519ff9fdd84beca44657055f7c1e63"   # specs.yaml + predicates.yaml 全体（後処理で埋める）
 # 承認記録はこのファイルに置かない。tests/approvals/g1.yaml（対象 commit の外）に置く。
 clause_offset_convention:
   base: normalized requirement section
@@ -1527,7 +1527,7 @@ requirements:
           - "★ 本義務は『profile が成立すること』だけを見る包括ケース。個々の規範句を通したことにはしない"
           - "★ 正常系だけでは検出力がない。IIP-SSO01.b 以降の個別義務が対照を担う"
           - "★ 訂正: 前版は『IdP-initiated（unsolicited）正常系』を必須 variant にしていたが、§4.1.5 の開始は MAY である（IIP-SSO01.z）。必須にすると unsolicited を発行しない適合 IdP を FAIL にする。unsolicited 固有の義務は IIP-SSO01.y / .y1 に条件付きで置いた"
-        notes_ja: "【§4.1 の RFC2119 句 → 義務の対応表】4.1.2: Redirect を応答に使わない → .x ／ SP が Discovery を使ってよい（MAY）→ IIP-SP04。4.1.3.1: RelayState を使ってよい（MAY）→ .ab の注記 ／ 元要求をできるだけ露出しない（SHOULD）→ .ac。4.1.3.2: Discovery / 別サービスへの誘導 / メタデータの利用（すべて MAY）→ 権限であり義務を起こさない。4.1.3.3: TLS 上で行うことが RECOMMENDED → .ad ／ AuthnRequest の署名は MAY → 権限 ／ 『IdP MUST process the <AuthnRequest> as described in [SAMLCore]』は**取り込み句**であり、取り込まれる SAML2Core の規範句を下記【取り込み句 A】に展開した。4.1.3.4: principal の identity を確立する（MUST）→ .ae。4.1.3.5: ACS 位置が SP の管理下だと確かめる（MUST）→ IIP-IDP12.b ／ 指定された binding と ACS を可能なら honor する（MUST）→ IIP-IDP12.a ／ TLS が RECOMMENDED → .ad ／ POST 時の Assertion 署名（MUST）→ .v ／ 『SP MUST process the <Response> as described in [SAMLCore]』は**取り込み句**で、profile 固有の処理規則は .n〜.r1、取り込まれる SAML2Core の一般規則は下記【取り込み句 B】。4.1.3.6: セキュリティコンテキストの確立は MAY → 権限。4.1.4.1: Issuer（MUST）→ .b ／ 要求を満たせないときのエラー応答（MUST）→ IIP-IDP05.a ／ Subject に SubjectConfirmation を入れない（MUST NOT）→ .c ／ 主体を認識できないときのエラー（MUST）→ .d ／ 未認証要求の情報を信頼しない（MUST NOT）→ .e ／ ACS の検証（MUST）→ IIP-IDP12.b ／ ★『SP が新規識別子の作成を望むなら AllowCreate=true を含めなければならない』は SAML2Errata E14 が §4.1.4.1 から削除しており、errata 反映版には存在しないため義務を起こさない。4.1.4.2（E17・E26・E52 反映）: .f〜.m ／ Address 属性・追加の statement・AttributeConsumingServiceIndex の無視は MAY → 権限 ／ 『条件は SP に理解・受理されなければ assertion は妥当でない』は SP 側の処理であり .r に含む。4.1.4.3（E26 反映）: .n〜.t ／ Address の照合は MAY → 権限。4.1.4.4: .u・.u1 ／ 4.1.4.5（E26 反映）: .v・.w。4.1.5（E90 追記を含む）: 開始は MAY → .z ／ InResponseTo を含めない（MUST NOT）→ .y ／ 既定 ACS への配送（SHOULD）→ .y1 ／ SP は unsolicited を扱えるようにしておく（SHOULD）→ .y2 ／ SP は unsolicited の受理を無効化できるべき（SHOULD, E90）→ .aa ／ RelayState の受け渡しは MAY → 権限。E90 が追加する新 §4.1.6『Use of Relay State』: URL scheme を https / http に限る（SHOULD）→ .ab。OS 版 §4.1.6『Use of Metadata』: IIP-SSO06 が同じ節を直接扱うのでここでは重複させない。★ E90 は errata 反映版に新 §4.1.6 を挿入するため、節番号 4.1.6 が OS 版（Use of Metadata）とerrata 反映版（Use of Relay State）で指す先が違う。IIP-SSO06 は節名も併記して OS 版を指しているので曖昧さはない。  【取り込み句 A: IdP MUST process the <AuthnRequest> as described in [SAMLCore]】取り込み範囲は <AuthnRequest> の処理に関わる SAML2Core の節、すなわち §3.2.1（共通の要求規則）と §3.4.1〜§3.4.1.5.1（AuthnRequest 本体・NameIDPolicy・Scoping・IDPList・処理規則・プロキシ）。§3.2.1: @ID の一意性 → .af ／ 要求 @ID と応答 @InResponseTo の一致 → .ap ／ @Destination の照合と破棄 → .ag ／ 拡張要素の名前空間修飾 → .ah ／ 署名の検証 → .ai ／ 署名不正時に内容へ依拠しない → .aj ／ 署名不正時のエラー応答（SHOULD）→ .ak ／ 署名者の同一性・妥当性の評価（SHOULD）→ .al ／ Consent 付き要求の署名（SHOULD）→ .am ／ 不正な要求へ応答する場合の <StatusCode>（MUST）→ .an。§3.4.1 本体と §3.4.1.1 NameIDPolicy: ForceAuthn → IIP-IDP06 ／ IsPassive → IIP-IDP07 ／ NameIDPolicy → IIP-IDP10 ／ ACS 3 属性 → IIP-IDP12 ／ RequestedAuthnContext → IIP-IDP08 ／ AttributeConsumingServiceIndex → IIP-IDP04.b ／ Subject → IIP-SSO01.c・.d と IIP-SSO07.b ／ ProviderName・Consent は処理規則の記述がなく IIP-SSO07.b の情報記録。§3.4.1.2 <Scoping>: RFC2119 の義務は『profiles specifying an active intermediary』の MAY のみ → 権限。§3.4.1.3 <IDPList>: <GetComplete> の解決結果に対する MUST → .av。§3.4.1.4 処理規則: 要求の仕様を満たす assertion か誤り応答か → IIP-IDP10.d ／ 認証できない・主体不明・ポリシーで拒否する場合の誤り応答 → IIP-IDP05.a と .d ／ <Subject> の strongly match → IIP-SSO07.b ／ 内容が空の場合の含意（AuthnStatement・AudienceRestriction）→ .l・.m。§3.4.1.5・§3.4.1.5.1 プロキシ: .aw〜.bj（すべて supports_authnrequest_proxying が条件）。  【取り込み句 B: SP MUST process the <Response> and enclosed <Assertion> as described in [SAMLCore]】取り込み範囲は §3.2.2（共通の応答規則）と、assertion の妥当性に関する §2.5 Conditions。§3.2.2: @ID の一意性 → .ao ／ 要求への応答での @InResponseTo 必須・一致 → .ap ／ 要求への応答でない場合の @InResponseTo 禁止 → .y ／ @Destination の照合と破棄 → .aq ／ 拡張要素の名前空間修飾 → .ah ／ 署名の検証 → .n ／ 署名不正時に内容へ依拠しない → .ar ／ 署名不正をエラーとして扱う（SHOULD）→ .as ／ 署名者の同一性・妥当性の評価（SHOULD）→ .at ／ Consent 付き応答の署名（SHOULD）→ .au。§2.5 Conditions（NotBefore / NotOnOrAfter / AudienceRestriction）→ .r。"
+        notes_ja: "【§4.1 の RFC2119 句 → 義務の対応表】4.1.2: Redirect を応答に使わない → .x ／ SP が Discovery を使ってよい（MAY）→ IIP-SP04。4.1.3.1: RelayState を使ってよい（MAY）→ .ab の注記 ／ 元要求をできるだけ露出しない（SHOULD）→ .ac。4.1.3.2: Discovery / 別サービスへの誘導 / メタデータの利用（すべて MAY）→ 権限であり義務を起こさない。4.1.3.3: TLS 上で行うことが RECOMMENDED → .ad ／ AuthnRequest の署名は MAY → 権限 ／ 『IdP MUST process the <AuthnRequest> as described in [SAMLCore]』は**取り込み句**であり、取り込まれる SAML2Core の規範句を下記【取り込み句 A】に展開した。4.1.3.4: principal の identity を確立する（MUST）→ .ae。4.1.3.5: ACS 位置が SP の管理下だと確かめる（MUST）→ IIP-IDP12.b ／ 指定された binding と ACS を可能なら honor する（MUST）→ IIP-IDP12.a ／ TLS が RECOMMENDED → .ad ／ POST 時の Assertion 署名（MUST）→ .v ／ 『SP MUST process the <Response> as described in [SAMLCore]』は**取り込み句**で、profile 固有の処理規則は .n〜.r1、取り込まれる SAML2Core の一般規則は下記【取り込み句 B】。4.1.3.6: セキュリティコンテキストの確立は MAY → 権限。4.1.4.1: Issuer（MUST）→ .b ／ 要求を満たせないときのエラー応答（MUST）→ IIP-IDP05.a ／ Subject に SubjectConfirmation を入れない（MUST NOT）→ .c ／ 主体を認識できないときのエラー（MUST）→ .d ／ 未認証要求の情報を信頼しない（MUST NOT）→ .e ／ ACS の検証（MUST）→ IIP-IDP12.b ／ ★『SP が新規識別子の作成を望むなら AllowCreate=true を含めなければならない』は SAML2Errata E14 が §4.1.4.1 から削除しており、errata 反映版には存在しないため義務を起こさない。4.1.4.2（E17・E26・E52 反映）: .f〜.m ／ Address 属性・追加の statement・AttributeConsumingServiceIndex の無視は MAY → 権限 ／ 『条件は SP に理解・受理されなければ assertion は妥当でない』は SP 側の処理であり .r に含む。4.1.4.3（E26 反映）: .n〜.t ／ Address の照合は MAY → 権限。4.1.4.4: .u・.u1 ／ 4.1.4.5（E26 反映）: .v・.w。4.1.5（E90 追記を含む）: 開始は MAY → .z ／ InResponseTo を含めない（MUST NOT）→ .y ／ 既定 ACS への配送（SHOULD）→ .y1 ／ SP は unsolicited を扱えるようにしておく（SHOULD）→ .y2 ／ SP は unsolicited の受理を無効化できるべき（SHOULD, E90）→ .aa ／ RelayState の受け渡しは MAY → 権限。E90 が追加する新 §4.1.6『Use of Relay State』: URL scheme を https / http に限る（SHOULD）→ .ab。OS 版 §4.1.6『Use of Metadata』: IIP-SSO06 が同じ節を直接扱うのでここでは重複させない。★ E90 は errata 反映版に新 §4.1.6 を挿入するため、節番号 4.1.6 が OS 版（Use of Metadata）とerrata 反映版（Use of Relay State）で指す先が違う。IIP-SSO06 は節名も併記して OS 版を指しているので曖昧さはない。  【取り込み句 A: IdP MUST process the <AuthnRequest> as described in [SAMLCore]】取り込み範囲は <AuthnRequest> の処理に関わる SAML2Core の節、すなわち §3.2.1（共通の要求規則）と §3.4.1〜§3.4.1.5.1（AuthnRequest 本体・NameIDPolicy・Scoping・IDPList・処理規則・プロキシ）。§1.1 Notation（スキーマ文書が構文の正本）+ protocol schema: 必須の @ID / @Version / @IssueInstant / <Status> → .cg。§1.3.4: 別オブジェクトへの重複割当をしない → .af（SP）/ .ao（IdP。<Response>/@ID と <Assertion>/@ID の両方）／ 宣言はちょうど 1 つ → .cc ／ 乱数使用時の衝突確率 ≤2^-128 → .cd ／ 同 ≤2^-160（SHOULD）→ .ce ／ PRNG の seed → .cf。§3.2.1: 要求 @ID と応答 @InResponseTo の一致 → .ap ／ @Destination の照合と破棄 → .ag ／ 拡張要素の名前空間修飾 → .ah ／ 署名の検証 → .ai ／ 署名不正時に内容へ依拠しない → .aj ／ 署名不正時のエラー応答（SHOULD）→ .ak ／ 署名者の同一性・妥当性の評価（SHOULD）→ .al ／ Consent 付き要求の署名（SHOULD）→ .am ／ 不正な要求へ応答する場合の <StatusCode>（MUST）→ .an。§3.4.1 本体と §3.4.1.1 NameIDPolicy: ForceAuthn → IIP-IDP06 ／ IsPassive → IIP-IDP07 ／ NameIDPolicy → IIP-IDP10 ／ ACS 3 属性 → IIP-IDP12 ／ RequestedAuthnContext → IIP-IDP08 ／ AttributeConsumingServiceIndex → IIP-IDP04.b ／ Subject → IIP-SSO01.c・.d と IIP-SSO07.b ／ ProviderName・Consent は処理規則の記述がなく IIP-SSO07.b の情報記録。§3.4.1.2 <Scoping>: RFC2119 の義務は『profiles specifying an active intermediary』の MAY のみ → 権限。§3.4.1.3 <IDPList>: <GetComplete> の解決結果に対する MUST → .av。§3.4.1.4 処理規則: 要求の仕様を満たす assertion か誤り応答か → IIP-IDP10.d ／ 認証できない・主体不明・ポリシーで拒否する場合の誤り応答 → IIP-IDP05.a と .d ／ <Subject> の strongly match → IIP-SSO07.b ／ 内容が空の場合の含意（AuthnStatement・AudienceRestriction）→ .l・.m。§3.4.1.5・§3.4.1.5.1 プロキシ: .aw〜.bj（すべて supports_authnrequest_proxying が条件）。  【取り込み句 B: SP MUST process the <Response> and enclosed <Assertion> as described in [SAMLCore]】取り込み範囲は §3.2.2（共通の応答規則）と、assertion の妥当性に関する §2.5 Conditions。§3.2.2: @ID の一意性 → .ao ／ 要求への応答での @InResponseTo 必須・一致 → .ap ／ 要求への応答でない場合の @InResponseTo 禁止 → .y ／ @Destination の照合と破棄 → .aq ／ 拡張要素の名前空間修飾 → .ah ／ 署名の検証 → .n ／ 署名不正時に内容へ依拠しない → .ar ／ 署名不正をエラーとして扱う（SHOULD）→ .as ／ 署名者の同一性・妥当性の評価（SHOULD）→ .at ／ Consent 付き応答の署名（SHOULD）→ .au。§3.2.2.2: 最上位 <StatusCode>/@Value が top-level リストの値 → .ch。§2.3.3 <Assertion>: @ID の一意性 → .ao ／ <Statement> の xsi:type → .ci ／ statement のない assertion は <Subject> を含む → .cj ／ 署名の検証 → .n ／ 署名不正時に依拠しない → .ar ／ 署名者の評価（SHOULD）→ .at ／ 『issuer は relying party にとって一義的であるべき』（SHOULD）は .i（MUST）に包含される。§2.5.1 <Conditions>: <Condition> の xsi:type → .ck ／ <OneTimeUse> は 1 つまで → .cl ／ <ProxyRestriction> は 1 つまで → .cm。§2.5.1.1: Invalid / Indeterminate な assertion の拒否 → .co。§2.5.1.2: NotBefore < NotOnOrAfter → .cn ／ 期間の検証 → .p・.r。§2.5.1.4: 複数 <AudienceRestriction> の独立評価 → .cp ／ <Audience> に SP の entityID → .m。§2.5.1.5 <OneTimeUse>: 直ちに使う（SHOULD）→ .cq ／ 将来利用のため保持しない → .cr ／ 保持する実装は遵守する → .cs ／ 1 つまで → .cl。§2.5.1.6 <ProxyRestriction>: 制限に違反する assertion を発行しない → .ct ／ Count=0 → .cu ／ Count 減算 → .cv ／ <Audience> の範囲 → .cw ／ 1 つまで → .cm。§2.5 Conditions の期間・Audience の検証そのものは .r。"
         open_question_ja: "notes_ja の 3 つの対応表——(1) §4.1（errata 反映）の RFC2119 句、(2) 取り込み句 A（IdP MUST process the <AuthnRequest> as described in [SAMLCore]）の展開、(3) 取り込み句 B（SP MUST process the <Response> ... as described in [SAMLCore]）の展開——をレビュアーが 1 件ずつ照合し、取りこぼしがないことを確認するまで open。照合が済めば閉じてよい"
         authored_by: samlier-g1-builder
         review:
@@ -1535,7 +1535,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:d20b428b830c6191d540817ca56e0b7f39221258b37c4feb4c9cba5a2face43e"
+          obligation_digest: "sha256:18eb846e0b06a9ba75d0428e416fee4c93e6d8db0210acc9b855b30e2f28ca6b"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SSO01"
@@ -3167,20 +3167,21 @@ requirements:
         required_variants:
           - id: v-a593295a2d
             description_ja: "対象が送る全 AuthnRequest の @ID が xs:ID の字句規則に適合する（先頭が数字でない等）"
-          - id: v-eb3401dcb1
-            description_ja: "連続する複数回の SSO で @ID が毎回異なる"
-          - id: v-238017049b
-            description_ja: "@ID が推測可能な連番になっていない"
+          - id: v-151c105e76
+            description_ja: "連続する複数回の SSO で @ID が毎回異なる（同一値の再利用がない）"
+          - id: v-34b157d53c
+            description_ja: "並行する複数セッションでも @ID が衝突しない"
         controls:
           - "★ 受動的な常時チェック。全ケースに横断適用する"
-          - "★ 連番検出は情報記録（原文は一意性しか要求していない）。判定は一意性と字句規則まで"
+          - "★ 本義務は『別のデータオブジェクトに同じ識別子を割り当てない』（negligible probability）まで。確率そのものの評価は IIP-SSO01.cd / .ce、PRNG の seed は .cf、『1 オブジェクトの宣言はちょうど 1 つ』は .cc に分けた。いずれも BROWSER / AUTOMATED 観測では証明できないため testability が違う"
+          - "★ 連番であること自体は違反ではない（原文は一意性しか要求していない）。advisory に記録する"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:e7cecf2fbe24ddf5443de565b35e4b44dc3b18b9be977b34f31b69e75e17f4b3"
+          obligation_digest: "sha256:5e36582fce7c7bb6ce92692a5a9e43fe66a4af8e717525581669cd5909084387"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SSO01"
@@ -3286,25 +3287,26 @@ requirements:
         source_clauses:
           - { start: 0, end: 125, digest: "sha256:ff1057626aaa898cc4a76e1e0e4e9f6ad908c018ad60ce09d95e71634b08fac5", occurrences: 1 }
         required_variants:
-          - id: v-3cc4459e45
-            description_ja: "署名を改竄した AuthnRequest → 受理されない"
-          - id: v-b82a631333
-            description_ja: "対象のメタデータにない鍵で署名した AuthnRequest → 受理されない"
-          - id: v-8912d9aae1
-            description_ja: "署名対象の内容（ACS URL 等）だけを改竄した AuthnRequest → 受理されない"
+          - id: v-5dc6210243
+            description_ja: "<ds:SignatureValue> を改竄した AuthnRequest → 受理されない"
+          - id: v-c6f7d7ab51
+            description_ja: "署名対象の内容（ACS URL 等）だけを改竄し <ds:Signature> はそのままにした AuthnRequest → 受理されない"
+          - id: v-5d2ea438af
+            description_ja: "<ds:Reference>/@URI を別要素に差し替えた AuthnRequest → 受理されない"
           - id: v-80c2ce5b57
             description_ja: "対照: 正しい署名の AuthnRequest → 受理される"
         controls:
+          - "★ 訂正: 前版は『対象のメタデータにない鍵で署名した要求 → 受理されない』を必須 variant にしていたが、それは**暗号学的な妥当性ではなく署名者・鍵の信頼性評価**であり、原文では別の SHOULD（IIP-SSO01.al）である。暗号学的に正しい未知鍵の要求を受理しても本 MUST の違反ではない"
           - "★ IIP-SSO01.n（SP 側の応答署名検証）と対になる IdP 側の義務。IIP にはこれを扱う要件が他にない"
           - "★ 未署名要求を拒否する義務ではない（WantAuthnRequestsSigned は MAY）。『署名があるなら検証する』ことだけを見る"
-          - "★ HTTP-Redirect の署名は生クエリ文字列のバイト列が対象（docs/02 §3.5）"
+          - "★ 本義務の対象は XML Signature（<ds:Signature>）に限る。HTTP-Redirect バインディングの DEFLATE + クエリ文字列署名は [SAML2Bind] 側の別機構であり、IIP-SSO01 が取り込む [SAML2Core] の規範句ではない。Redirect の署名検証の観測は advisory として記録する（実装上の注意は docs/02 §3.5）"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:682192a30b4f701ecc367a63d5508a86417f625ccc9e7f09f53a03ab2ab62661"
+          obligation_digest: "sha256:5cf3ac74bdcd9c63806a2458bbd852058482b9c49581597bf85934667fc91329"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SSO01"
@@ -3497,8 +3499,8 @@ requirements:
         level: MUST
         testability: AUTOMATED
         condition: null
-        summary_en: "The Response ID must follow the SAML identifier uniqueness requirements"
-        summary_ja: "Response/@ID は SAML 識別子の一意性要件（SAML2Core 1.3.4）に従う"
+        summary_en: "The identifiers the identity provider assigns — the Response ID and the Assertion ID — must follow the SAML identifier uniqueness requirements"
+        summary_ja: "IdP が割り当てる識別子（<Response>/@ID と <Assertion>/@ID）は SAML 識別子の一意性要件（SAML2Core 1.3.4）に従う"
         references_spec: "SAML2Prof#4.1"
         reference_derivation: true
         reference_evidence:
@@ -3506,24 +3508,37 @@ requirements:
             locator: "3\\.2\\.2 Complex Type StatusResponseType||3\\.2\\.2\\.1 Element <Status>"
             section_digest: "sha256:0afc0f943eef864f6eedaf665817fac10f79b6acf420ef3866d53eb938d90003"
             basis_ja: "SAML2Prof 4.1.3.5 の『The service provider MUST process the <Response> message and any enclosed <Assertion> elements as described in [SAMLCore]』により取り込まれる。『An identifier for the response. It is of type xs:ID, and MUST follow the requirements specified in Section 1.3.4 for identifier uniqueness』"
+          - spec: SAML2Core
+            locator: "2\\.3\\.3 Element <Assertion>||2\\.3\\.4 Element <EncryptedAssertion>"
+            section_digest: "sha256:1428b52e722b943ea5740b7d532ad9d8f37382e06a9ccaa2ed8e1f300ed7633a"
+            basis_ja: "SAML2Prof 4.1.4 の『This profile is based on the Authentication Request protocol defined in [SAMLCore]』および 4.1.3.5 の取り込み句により、assertion の生成・処理に関する SAML2Core の規則が入る。<Assertion>/@ID についても『It is of type xs:ID, and MUST follow the requirements specified in Section 1.3.4 for identifier uniqueness』"
+          - spec: SAML2Core
+            locator: "1\\.3\\.4 ID and ID Reference Values||2 SAML Assertions"
+            section_digest: "sha256:8744883b650208cd7b8ea317baab97796be91bb761046ba327128c57d1d51741"
+            basis_ja: "SAML2Prof 4.1.3.5 の『The service provider MUST process the <Response> message and any enclosed <Assertion> elements as described in [SAMLCore]』により取り込まれる。『Any party that assigns an identifier MUST ensure that there is negligible probability that that party or any other party will accidentally assign the same identifier to a different data object』"
         level_assignment: { idp: core }
         source_clauses:
           - { start: 0, end: 125, digest: "sha256:ff1057626aaa898cc4a76e1e0e4e9f6ad908c018ad60ce09d95e71634b08fac5", occurrences: 1 }
         required_variants:
           - id: v-a758ac1f21
             description_ja: "対象が送る全 <Response>/@ID が xs:ID の字句規則に適合する"
-          - id: v-bf1fa635fc
-            description_ja: "連続する複数回の SSO で @ID が毎回異なる"
+          - id: v-bb268f4cd7
+            description_ja: "対象が送る全 <Assertion>/@ID が xs:ID の字句規則に適合する"
+          - id: v-95fe3ba476
+            description_ja: "連続する複数回の SSO で <Response>/@ID と <Assertion>/@ID がそれぞれ毎回異なる"
+          - id: v-5bf8052484
+            description_ja: "並行する複数セッションでも衝突しない"
         controls:
           - "★ 受動的な常時チェック"
-          - "★ Assertion/@ID の一意性は IIP-SSO01.w（replay 防止）が別途扱う"
+          - "★ 訂正: 前版は『Assertion/@ID の一意性は IIP-SSO01.w が扱う』と書いていたが不正確だった。IIP-SSO01.w は **SP 側の replay 検出**であって、**IdP が SAML2Core 1.3.4 に従って Assertion ID を生成する義務**の代用にはならない。本義務に <Assertion>/@ID を含めた"
+          - "★ 確率の評価は IIP-SSO01.cd / .ce、PRNG の seed は .cf、『1 オブジェクトの宣言はちょうど 1 つ』は .cc"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:515c0a6ec68a850f4a0276a5637d2804d7373389cd91c0d2ddf971f09e45bdae"
+          obligation_digest: "sha256:5e83c98ffa7a7b7e66a84c4d2735c6d0befaa3286f67e139d73272678a8ff494"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SSO01"
@@ -3668,18 +3683,21 @@ requirements:
         source_clauses:
           - { start: 0, end: 125, digest: "sha256:ff1057626aaa898cc4a76e1e0e4e9f6ad908c018ad60ce09d95e71634b08fac5", occurrences: 1 }
         required_variants:
-          - id: v-6e8e1e3d4d
-            description_ja: "署名不正の <Response> → 利用者にエラーが提示される（無言で元のページに戻らない）"
+          - id: v-9441a03a47
+            description_ja: "署名不正の <Response> → セキュリティコンテキストが成立しない"
+          - id: v-1c025763bf
+            description_ja: "その事象がエラーとして扱われている（利用者への提示・監査ログ・エラーページのいずれかで確認できる）"
         controls:
           - "★ SHOULD_CLASS"
-          - "★ IIP-SSO01.ar（依拠しない）を満たしつつ、無言で認証前の状態に戻す実装は本 SHOULD を満たさない"
+          - "★ 訂正: 前版は『利用者にエラーが提示される』ことを満足条件にしていたが、原文が求めるのは『エラーとして扱う』ことであって UI 表示ではない。セッションを成立させず内部エラーとして処理・記録する実装も適合する。UI 表示を必須にすると原文より強い WARNING 条件になる"
+          - "★ 内部処理を観測できない場合は not_verified。『セキュリティコンテキストが成立しない』ことだけは自動観測できるので、そこまでは判定に使う"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:5d998d32cebd0ae7756ea985ac40603e42cb61e841e84bb496d4805b94d09822"
+          obligation_digest: "sha256:6fa5994f6ec9fcf9385890d424ea7f58f07da7a0ddb9e2f84395bedfc5bb3be5"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SSO01"
@@ -3738,26 +3756,27 @@ requirements:
         source_clauses:
           - { start: 0, end: 125, digest: "sha256:ff1057626aaa898cc4a76e1e0e4e9f6ad908c018ad60ce09d95e71634b08fac5", occurrences: 1 }
         required_variants:
-          - id: v-f667e04371
-            description_ja: "対象が @Consent に同意取得を示す値を入れた <Response> を送る場合、その応答（または assertion）に署名がある"
+          - id: v-56f286442f
+            description_ja: "対象が @Consent に同意取得を示す値を入れた <Response> を送る場合、<samlp:Response> 要素そのものに <ds:Signature> がある"
           - id: v-135e8abd4f
             description_ja: "@Consent を送らない、または unspecified を送る対象では空虚に真"
         controls:
           - "★ SHOULD_CLASS。条件は原文の中にあるので述語を作らない"
-          - "★ Web Browser SSO の POST バインディングでは IIP-SSO01.v により各 assertion が署名される。本義務が独立した意味を持つのは Artifact バインディングの場合"
+          - "★ 訂正: 前版は『応答（または assertion）に署名がある』を満足条件にしていたが、原文が求めるのは **<Response> の署名**である。assertion だけを署名しても <Response>/@Consent は保護されない。Response レベルの署名を判定条件にする"
+          - "★ したがって IIP-SSO01.v（POST 時に各 assertion が署名で保護される）を満たしていても本 SHOULD を満たすとは限らない。両者を混同しない"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:a95044efda7852c9c0b3d0f15900c7454d98ce5b8400a2e50edaa3b3ef4da766"
+          obligation_digest: "sha256:0a483fe5283927950351924b661c2c3cd7b084b19b8b3b8ad5e8ff0037179f50"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SSO01"
           source_section_digest: "sha256:ff1057626aaa898cc4a76e1e0e4e9f6ad908c018ad60ce09d95e71634b08fac5"
       - key: IIP-SSO01.av
-        roles: [sp]
+        roles: [idp, sp]
         level: MUST
         testability: CONFIG
         condition:
@@ -3773,7 +3792,7 @@ requirements:
             locator: "3\\.4\\.1\\.3 Element <IDPList>||3\\.4\\.1\\.4 Processing Rules"
             section_digest: "sha256:4399e688c7aa74382dddfd4253cfb8da016eff0d6ab2f7de9be43677a6d23cc7"
             basis_ja: "SAML2Prof 4.1.3.3 の『The identity provider MUST process the <AuthnRequest> message as described in [SAMLCore]』および 4.1.4.1 の『All processing rules are as defined in [SAMLCore]』により取り込まれる。『Retrieving the resource associated with the URI MUST result in an XML instance whose root element is an <IDPList> that does not itself contain a <GetComplete> element』"
-        level_assignment: { sp: core }
+        level_assignment: { idp: core, sp: core }
         source_clauses:
           - { start: 0, end: 125, digest: "sha256:ff1057626aaa898cc4a76e1e0e4e9f6ad908c018ad60ce09d95e71634b08fac5", occurrences: 1 }
         required_variants:
@@ -3785,7 +3804,12 @@ requirements:
             description_ja: "取得した <IDPList> が 1 つ以上の <samlp:IDPEntry> を持つ（スキーマ上必須）"
         controls:
           - "★ <GetComplete> を発行しない対象では条件が偽 → NOT_APPLICABLE"
-          - "★ URI が Suite から到達できない場合は not_verified(getcomplete_unreachable)。対象の不適合ではない"
+          - "★ role には idp も含む。プロキシ IdP は新 <AuthnRequest> に <IDPList>/<GetComplete> を載せうる（IIP-SSO01.bc）"
+          - "★ 訂正: 前版は到達不能を一律 not_verified にしていたが、それでは壊れた URI を隠してしまう。次のように切り分ける:"
+          - "   (1) Suite に外向き通信がない／プロキシ制限で到達できない → not_verified(suite_egress_restricted)"
+          - "   (2) Suite は他ホストへ到達できるのに当該 URI が 404・接続拒否・TLS 失敗 → violated（『Retrieving the resource ... MUST result in an XML instance』を満たしていない）"
+          - "   (3) 取得できたが XML でない・ルートが <IDPList> でない・<GetComplete> を含む → violated"
+          - "★ (1) と (2) を区別するため、preflight で既知の到達可能ホストへの疎通を先に確認しておく"
           - "★ 取得は Suite の outbox 経由で行い、リダイレクト追従とサイズ上限を Runner 側で制限する"
         authored_by: samlier-g1-builder
         review:
@@ -3793,7 +3817,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:ddbc35917c97f465fb0dc547b40ee323f8205d66e39af88b2698d1546dc84301"
+          obligation_digest: "sha256:a7fcfd40f6209677fb222f3de7eafe3fcadf0d57bdbc990efa798ab20bcfe569"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SSO01"
@@ -3926,7 +3950,7 @@ requirements:
         level: MUST
         testability: ATTESTED
         condition:
-          predicate: supports_authnrequest_proxying
+          predicate: proxies_to_non_saml_provider
           predicate_kind: CAPABILITY_BASED
         summary_en: "If the authenticating identity provider is not a SAML identity provider, the proxying provider must have some other way to ensure that elements governing user agent interaction will be honored"
         summary_ja: "非 SAML の IdP にプロキシする場合、IsPassive 等の user agent 制御要素が尊重される別の手段を持つ"
@@ -3954,7 +3978,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:31098883d14b4f7f551e0b334fa5129a6ea589064f5fb1e8835de0597d78c0fc"
+          obligation_digest: "sha256:759265c2361ea437f21aa1ad925d883972352a39e2d6ae02dc31d695e6cfe46e"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SSO01"
@@ -4241,7 +4265,7 @@ requirements:
         level: MUST
         testability: ATTESTED
         condition:
-          predicate: supports_authnrequest_proxying
+          predicate: proxies_to_non_saml_provider
           predicate_kind: CAPABILITY_BASED
         summary_en: "If the authenticating identity provider is not a SAML provider, the proxying identity provider must generate a unique identifier value for the authenticating provider"
         summary_ja: "非 SAML の認証 provider には、一意な識別子値を生成する"
@@ -4269,7 +4293,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:75c4a3ef347fba7a91fa4f3fc0b7abe84e47f254ce287fd379936d5348d73ff1"
+          obligation_digest: "sha256:81121c8958e4ea54a2fbc40278b5968110ee235fe93288360318995b6e6e80ef"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SSO01"
@@ -4279,7 +4303,7 @@ requirements:
         level: SHOULD
         testability: ATTESTED
         condition:
-          predicate: supports_authnrequest_proxying
+          predicate: proxies_to_non_saml_provider
           predicate_kind: CAPABILITY_BASED
         summary_en: "The generated identifier value should be consistent over time across different requests"
         summary_ja: "生成した識別子値は、異なる要求をまたいで時間的に一貫していることが望ましい"
@@ -4305,7 +4329,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:0efffbb1f535a70e0c0cbc1b115f1311a68c905afb5fc54e1360673203a3b986"
+          obligation_digest: "sha256:a3c82b0baa34340f532d8bacffee2e5372314eb554fc9c04c08a90f0fe62cd2b"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SSO01"
@@ -4315,7 +4339,7 @@ requirements:
         level: MUST_NOT
         testability: ATTESTED
         condition:
-          predicate: supports_authnrequest_proxying
+          predicate: proxies_to_non_saml_provider
           predicate_kind: CAPABILITY_BASED
         summary_en: "The generated identifier value must not conflict with values used or generated by other SAML providers"
         summary_ja: "生成した識別子値は、他の SAML provider が使う・生成する値と衝突してはならない"
@@ -4343,7 +4367,813 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:55d418501fc973cf33d0114828d887f8e41ca15d5f400cba962757859911ff1a"
+          obligation_digest: "sha256:800964e6bc0d42282b6297a0ecd93d15607fa0661dc11537c0a0a970bc48056d"
+          source_spec: kantara-fedinterop-impl
+          spec_version: "1.1"
+          source_selector: "#IIP-SSO01"
+          source_section_digest: "sha256:ff1057626aaa898cc4a76e1e0e4e9f6ad908c018ad60ce09d95e71634b08fac5"
+      - key: IIP-SSO01.cc
+        roles: [idp, sp]
+        level: MUST
+        testability: AUTOMATED
+        condition: null
+        summary_en: "Where a data object declares that it has a particular identifier, there must be exactly one such declaration"
+        summary_ja: "1 つのデータオブジェクトが持つ識別子の宣言は、ちょうど 1 つでなければならない"
+        references_spec: "SAML2Prof#4.1"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2Core
+            locator: "1\\.3\\.4 ID and ID Reference Values||2 SAML Assertions"
+            section_digest: "sha256:8744883b650208cd7b8ea317baab97796be91bb761046ba327128c57d1d51741"
+            basis_ja: "SAML2Prof 4.1.3.3 の『The identity provider MUST process the <AuthnRequest> message as described in [SAMLCore]』および 4.1.4.1 の『All processing rules are as defined in [SAMLCore]』により取り込まれる。『Where a data object declares that it has a particular identifier, there MUST be exactly one such declaration』"
+        level_assignment: { idp: core, sp: core }
+        source_clauses:
+          - { start: 0, end: 125, digest: "sha256:ff1057626aaa898cc4a76e1e0e4e9f6ad908c018ad60ce09d95e71634b08fac5", occurrences: 1 }
+        required_variants:
+          - id: v-950855b64d
+            description_ja: "<Response> と <Assertion> が同じ @ID を共有していない"
+          - id: v-135a747463
+            description_ja: "1 つの <Response> 内の複数 <Assertion> が同じ @ID を持たない"
+          - id: v-4771c7dc2a
+            description_ja: "同一メッセージ内に同じ xs:ID 値が 2 回現れない（xs:ID の一意性制約）"
+        controls:
+          - "★ 受動的な常時チェック。IIP-SSO01.af / .ao（異なるオブジェクトへの重複割当）とは別の性質。あちらは『別オブジェクトに同じ値を割り当てない』、こちらは『1 オブジェクトの宣言が 1 つ』"
+          - "★ スキーマの xs:ID 制約と重なるが、XML パーサが DTD/スキーマ検証を行わない実装でも成立させる必要がある"
+        authored_by: samlier-g1-builder
+        review:
+          # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
+          state: PENDING_REVIEW
+          reviewer: null
+          approved_at: null
+          obligation_digest: "sha256:ae4361b1d09acdcabeeef302a91ffc77da034c15871bc08e624e87ad264aedfc"
+          source_spec: kantara-fedinterop-impl
+          spec_version: "1.1"
+          source_selector: "#IIP-SSO01"
+          source_section_digest: "sha256:ff1057626aaa898cc4a76e1e0e4e9f6ad908c018ad60ce09d95e71634b08fac5"
+      - key: IIP-SSO01.cd
+        roles: [idp, sp]
+        level: MUST
+        testability: ATTESTED
+        condition:
+          predicate: uses_random_identifier_generation
+          predicate_kind: CAPABILITY_BASED
+        summary_en: "If a random or pseudorandom technique is employed, the probability of two randomly chosen identifiers being identical must be less than or equal to 2^-128"
+        summary_ja: "乱数・擬似乱数で識別子を作る場合、2 つの識別子が一致する確率が 2^-128 以下である"
+        references_spec: "SAML2Prof#4.1"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2Core
+            locator: "1\\.3\\.4 ID and ID Reference Values||2 SAML Assertions"
+            section_digest: "sha256:8744883b650208cd7b8ea317baab97796be91bb761046ba327128c57d1d51741"
+            basis_ja: "SAML2Prof 4.1.3.3 の『The identity provider MUST process the <AuthnRequest> message as described in [SAMLCore]』および 4.1.4.1 の『All processing rules are as defined in [SAMLCore]』により取り込まれる。『In the case that a random or pseudorandom technique is employed, the probability of two randomly chosen identifiers being identical MUST be less than or equal to 2-128』"
+        level_assignment: { idp: core, sp: core }
+        source_clauses:
+          - { start: 0, end: 125, digest: "sha256:ff1057626aaa898cc4a76e1e0e4e9f6ad908c018ad60ce09d95e71634b08fac5", occurrences: 1 }
+        required_variants:
+          - id: v-fbc12a9c02
+            description_ja: "識別子の生成方式（乱数ビット長・エンコード）を申告で確認し、128 ビット以上のランダム値であることを確かめる"
+          - id: v-c95ef0eae8
+            description_ja: "観測した識別子群のエントロピー推定が 128 ビットを下回らない（明白な違反の自動検出）"
+          - id: v-c9bbe44798
+            description_ja: "対照: 明らかに短い識別子（16 進 8 桁など）を返す実装を検出できる"
+        controls:
+          - "★ 確率そのものは有限回の観測では証明できない。**BROWSER 観測では判定できない**ので ATTESTED とし、明白な違反（値が短すぎる・連番）だけを自動検出する"
+          - "★ 原文は『MAY be met by encoding a randomly chosen value between 128 and 160 bits』と実現手段を例示するが、これは MAY なので他の手段を FAIL にしない"
+          - "★ 非乱数方式（連番・ハッシュ由来）なら条件が偽で NOT_APPLICABLE。その場合も IIP-SSO01.af / .ao / .cc は無条件に適用される"
+        authored_by: samlier-g1-builder
+        review:
+          # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
+          state: PENDING_REVIEW
+          reviewer: null
+          approved_at: null
+          obligation_digest: "sha256:b850de8cdbd1a9a29a84a550d7040f8969384807b889397d237c9ce269cbcd0f"
+          source_spec: kantara-fedinterop-impl
+          spec_version: "1.1"
+          source_selector: "#IIP-SSO01"
+          source_section_digest: "sha256:ff1057626aaa898cc4a76e1e0e4e9f6ad908c018ad60ce09d95e71634b08fac5"
+      - key: IIP-SSO01.ce
+        roles: [idp, sp]
+        level: SHOULD
+        testability: ATTESTED
+        condition:
+          predicate: uses_random_identifier_generation
+          predicate_kind: CAPABILITY_BASED
+        summary_en: "The probability of two randomly chosen identifiers being identical should be less than or equal to 2^-160"
+        summary_ja: "同じ確率が 2^-160 以下であることが望ましい"
+        references_spec: "SAML2Prof#4.1"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2Core
+            locator: "1\\.3\\.4 ID and ID Reference Values||2 SAML Assertions"
+            section_digest: "sha256:8744883b650208cd7b8ea317baab97796be91bb761046ba327128c57d1d51741"
+            basis_ja: "SAML2Prof 4.1.3.3 の『The identity provider MUST process the <AuthnRequest> message as described in [SAMLCore]』および 4.1.4.1 の『All processing rules are as defined in [SAMLCore]』により取り込まれる。『... and SHOULD be less than or equal to 2-160』"
+        level_assignment: { idp: full, sp: full }
+        source_clauses:
+          - { start: 0, end: 125, digest: "sha256:ff1057626aaa898cc4a76e1e0e4e9f6ad908c018ad60ce09d95e71634b08fac5", occurrences: 1 }
+        required_variants:
+          - id: v-ee5355ab6b
+            description_ja: "識別子の生成方式が 160 ビット以上のランダム値であることを申告で確認する"
+        controls:
+          - "★ SHOULD_CLASS。128〜160 ビットの実装は MUST（.cd）を満たしつつ本 SHOULD を満たさない → WARNING"
+          - "★ .cd と本義務を 1 つにまとめると、128 ビット実装を FAIL にするか 160 ビット未達を見逃すかのどちらかになる"
+        authored_by: samlier-g1-builder
+        review:
+          # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
+          state: PENDING_REVIEW
+          reviewer: null
+          approved_at: null
+          obligation_digest: "sha256:0d3ddd57b36ce20d4e3756f865d90d50430aea7e603a0e86d0ab813b140ea667"
+          source_spec: kantara-fedinterop-impl
+          spec_version: "1.1"
+          source_selector: "#IIP-SSO01"
+          source_section_digest: "sha256:ff1057626aaa898cc4a76e1e0e4e9f6ad908c018ad60ce09d95e71634b08fac5"
+      - key: IIP-SSO01.cf
+        roles: [idp, sp]
+        level: MUST
+        testability: ATTESTED
+        condition:
+          predicate: uses_random_identifier_generation
+          predicate_kind: CAPABILITY_BASED
+        summary_en: "A pseudorandom generator must be seeded with unique material in order to ensure the desired uniqueness properties between different systems"
+        summary_ja: "擬似乱数生成器は、システム間の一意性を保つため一意な材料でシードする"
+        references_spec: "SAML2Prof#4.1"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2Core
+            locator: "1\\.3\\.4 ID and ID Reference Values||2 SAML Assertions"
+            section_digest: "sha256:8744883b650208cd7b8ea317baab97796be91bb761046ba327128c57d1d51741"
+            basis_ja: "SAML2Prof 4.1.3.3 の『The identity provider MUST process the <AuthnRequest> message as described in [SAMLCore]』および 4.1.4.1 の『All processing rules are as defined in [SAMLCore]』により取り込まれる。『A pseudorandom generator MUST be seeded with unique material in order to ensure the desired uniqueness properties between different systems』"
+        level_assignment: { idp: core, sp: core }
+        source_clauses:
+          - { start: 0, end: 125, digest: "sha256:ff1057626aaa898cc4a76e1e0e4e9f6ad908c018ad60ce09d95e71634b08fac5", occurrences: 1 }
+        required_variants:
+          - id: v-1104edabf9
+            description_ja: "PRNG の seed 源（OS の CSPRNG 等）を申告で確認する"
+          - id: v-84559e2e9c
+            description_ja: "同一イメージから複製した 2 インスタンスが同じ識別子列を出さないことを申告で確認する"
+        controls:
+          - "★ seed の一意性は外部から観測できない。ATTESTED"
+          - "★ コンテナイメージの複製で seed が固定される事故は実在する。複製インスタンスでの重複を申告項目に入れる"
+        authored_by: samlier-g1-builder
+        review:
+          # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
+          state: PENDING_REVIEW
+          reviewer: null
+          approved_at: null
+          obligation_digest: "sha256:bdfcf6916e90b655ac95e6089bd317e12ae8143db21679f804f38828e4530513"
+          source_spec: kantara-fedinterop-impl
+          spec_version: "1.1"
+          source_selector: "#IIP-SSO01"
+          source_section_digest: "sha256:ff1057626aaa898cc4a76e1e0e4e9f6ad908c018ad60ce09d95e71634b08fac5"
+      - key: IIP-SSO01.cg
+        roles: [idp, sp]
+        level: MUST
+        testability: AUTOMATED
+        condition: null
+        summary_en: "Protocol messages the implementation issues must conform to the SAML V2.0 protocol schema, including the required Version, IssueInstant and ID attributes and the required Status element of a response"
+        summary_ja: "生成する samlp メッセージが SAML V2.0 protocol schema に適合する（必須の Version / IssueInstant / ID、応答の必須 <Status> を含む）"
+        references_spec: "SAML2Prof#4.1"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2Core
+            locator: "1\\.1 Notation||1\\.2 Schema Organization and Namespaces"
+            section_digest: "sha256:eb45ded941feb55ace464afe7a9ca0f72927e734a34cc4895cf5a58a2ed48555"
+            basis_ja: "『In cases of disagreement between the SAML schema documents and schema listings in this specification, the schema documents take precedence』。SAML2Core は構文の正本をスキーマ文書に置いている"
+          - spec: SAML2P-xsd
+            locator: "<complexType name=\"RequestAbstractType\"||<complexType name=\"ExtensionsType\""
+            section_digest: "sha256:2569168f5d4b83414c0074ecae958c8b4bb0744a64ca5ba8616f0f1f8ce05e5d"
+            basis_ja: "RequestAbstractType の use=\"required\" 属性（ID / Version / IssueInstant）"
+          - spec: SAML2P-xsd
+            locator: "<complexType name=\"StatusResponseType\"||<complexType name=\"StatusType\""
+            section_digest: "sha256:d815bd3d04bdc4c488aa966db99b4d01bf9418754d58089eb88c4756c7f55512"
+            basis_ja: "StatusResponseType の use=\"required\" 属性と必須の <samlp:Status> 要素"
+        level_assignment: { idp: core, sp: core }
+        source_clauses:
+          - { start: 0, end: 125, digest: "sha256:ff1057626aaa898cc4a76e1e0e4e9f6ad908c018ad60ce09d95e71634b08fac5", occurrences: 1 }
+        required_variants:
+          - id: v-f78bdf3478
+            description_ja: "対象が送る <samlp:AuthnRequest> に @ID / @Version=\"2.0\" / @IssueInstant がすべてある"
+          - id: v-4a73d18620
+            description_ja: "対象が送る <samlp:Response> に @ID / @Version=\"2.0\" / @IssueInstant がすべてある"
+          - id: v-6a6859f8a3
+            description_ja: "対象が送る <samlp:Response> に <samlp:Status> がある（成功・失敗のいずれでも）"
+          - id: v-1ffd4706f4
+            description_ja: "@IssueInstant が SAML2Core 1.3.3 の UTC 表現である"
+          - id: v-9b1fc13406
+            description_ja: "全メッセージが protocol schema で妥当と判定される"
+        controls:
+          - "★ 受動的な常時チェック。Transcript の全 samlp メッセージにスキーマ検証をかける"
+          - "★ 規範の出所は RFC2119 句ではなく**スキーマ文書**である。SAML2Core 1.1 が『schema documents take precedence』と述べており、構文の正本はスキーマにある"
+          - "★ 受信側の挙動（不正な構文の要求への応答）は IIP-SSO01.an。本義務は生成側"
+          - "★ スキーマ検証は DTD を有効にせずに行う（IIP-G03 と整合させる）"
+        authored_by: samlier-g1-builder
+        review:
+          # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
+          state: PENDING_REVIEW
+          reviewer: null
+          approved_at: null
+          obligation_digest: "sha256:54c14aa957a96ed517c548d591df8edf7dcda41d40552d01d0882e2440bcc05f"
+          source_spec: kantara-fedinterop-impl
+          spec_version: "1.1"
+          source_selector: "#IIP-SSO01"
+          source_section_digest: "sha256:ff1057626aaa898cc4a76e1e0e4e9f6ad908c018ad60ce09d95e71634b08fac5"
+      - key: IIP-SSO01.ch
+        roles: [idp]
+        level: MUST
+        testability: AUTOMATED
+        condition: null
+        summary_en: "The value of the topmost StatusCode element must be from the top-level list provided in SAML2Core 3.2.2.2"
+        summary_ja: "最上位 <StatusCode>/@Value は SAML2Core 3.2.2.2 の top-level リストの値である"
+        references_spec: "SAML2Prof#4.1"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2Core
+            locator: "3\\.2\\.2\\.2 Element <StatusCode>||3\\.2\\.2\\.3 Element <StatusMessage>"
+            section_digest: "sha256:7279c4b04ea968dd6b920443323126c72348fd13c91e53666e3265f7cf58b8ce"
+            basis_ja: "SAML2Prof 4.1.3.5 の『The service provider MUST process the <Response> message and any enclosed <Assertion> elements as described in [SAMLCore]』により取り込まれる。『The value of the topmost <StatusCode> element MUST be from the top-level list provided in this section』"
+        level_assignment: { idp: core }
+        source_clauses:
+          - { start: 0, end: 125, digest: "sha256:ff1057626aaa898cc4a76e1e0e4e9f6ad908c018ad60ce09d95e71634b08fac5", occurrences: 1 }
+        required_variants:
+          - id: v-72267b6f05
+            description_ja: "成功時の最上位 @Value が urn:oasis:names:tc:SAML:2.0:status:Success"
+          - id: v-79f10410bd
+            description_ja: "エラー時の最上位 @Value が Requester / Responder / VersionMismatch のいずれか"
+          - id: v-829adf3a27
+            description_ja: "対照: 二次コード（AuthnFailed 等）を最上位に置いていない"
+        controls:
+          - "★ 二次 <StatusCode> の値は自由（原文は『responders MAY omit subordinate status codes』）。最上位だけを判定する"
+          - "★ 『二次コードを最上位に置く』は実装でよくある誤り。検出できるようにする"
+        authored_by: samlier-g1-builder
+        review:
+          # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
+          state: PENDING_REVIEW
+          reviewer: null
+          approved_at: null
+          obligation_digest: "sha256:fc1fdcbc39ac76154fb31d227ae4d347b382538ff214c82af0240acc4bf6fd14"
+          source_spec: kantara-fedinterop-impl
+          spec_version: "1.1"
+          source_selector: "#IIP-SSO01"
+          source_section_digest: "sha256:ff1057626aaa898cc4a76e1e0e4e9f6ad908c018ad60ce09d95e71634b08fac5"
+      - key: IIP-SSO01.ci
+        roles: [idp]
+        level: MUST
+        testability: AUTOMATED
+        condition: null
+        summary_en: "An xsi:type attribute must be used to indicate the actual statement type when a generic Statement element is used"
+        summary_ja: "汎用の <saml:Statement> を使う場合、実際の型を xsi:type で示す"
+        references_spec: "SAML2Prof#4.1"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2Core
+            locator: "2\\.3\\.3 Element <Assertion>||2\\.3\\.4 Element <EncryptedAssertion>"
+            section_digest: "sha256:1428b52e722b943ea5740b7d532ad9d8f37382e06a9ccaa2ed8e1f300ed7633a"
+            basis_ja: "SAML2Prof 4.1.4 の『This profile is based on the Authentication Request protocol defined in [SAMLCore]』および 4.1.3.5 の取り込み句により、assertion の生成・処理に関する SAML2Core の規則が入る。『An xsi:type attribute MUST be used to indicate the actual statement type』"
+        level_assignment: { idp: core }
+        source_clauses:
+          - { start: 0, end: 125, digest: "sha256:ff1057626aaa898cc4a76e1e0e4e9f6ad908c018ad60ce09d95e71634b08fac5", occurrences: 1 }
+        required_variants:
+          - id: v-c6c230fbbd
+            description_ja: "対象が <saml:Statement> を出す場合、その要素に xsi:type がある"
+          - id: v-c3783c1356
+            description_ja: "<saml:Statement> を出さない対象では空虚に真"
+        controls:
+          - "★ 受動的な常時チェック。<AuthnStatement> / <AttributeStatement> は具体型なので対象外"
+          - "★ 観測機会がない場合は satisfied_with_note とし『検証した』とは書かない"
+        authored_by: samlier-g1-builder
+        review:
+          # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
+          state: PENDING_REVIEW
+          reviewer: null
+          approved_at: null
+          obligation_digest: "sha256:93d40a90ed3ba400f50b216ec80831fa11dc2290648dd3df25e26ddc822057c3"
+          source_spec: kantara-fedinterop-impl
+          spec_version: "1.1"
+          source_selector: "#IIP-SSO01"
+          source_section_digest: "sha256:ff1057626aaa898cc4a76e1e0e4e9f6ad908c018ad60ce09d95e71634b08fac5"
+      - key: IIP-SSO01.cj
+        roles: [idp]
+        level: MUST
+        testability: AUTOMATED
+        condition: null
+        summary_en: "An assertion with no statements must contain a Subject element"
+        summary_ja: "statement を 1 つも含まない assertion は <saml:Subject> を含む"
+        references_spec: "SAML2Prof#4.1"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2Core
+            locator: "2\\.3\\.3 Element <Assertion>||2\\.3\\.4 Element <EncryptedAssertion>"
+            section_digest: "sha256:1428b52e722b943ea5740b7d532ad9d8f37382e06a9ccaa2ed8e1f300ed7633a"
+            basis_ja: "SAML2Prof 4.1.4 の『This profile is based on the Authentication Request protocol defined in [SAMLCore]』および 4.1.3.5 の取り込み句により、assertion の生成・処理に関する SAML2Core の規則が入る。『An assertion with no statements MUST contain a <Subject> element』"
+        level_assignment: { idp: core }
+        source_clauses:
+          - { start: 0, end: 125, digest: "sha256:ff1057626aaa898cc4a76e1e0e4e9f6ad908c018ad60ce09d95e71634b08fac5", occurrences: 1 }
+        required_variants:
+          - id: v-b7e33728ee
+            description_ja: "statement のない assertion を返す構成で、その assertion に <saml:Subject> がある"
+          - id: v-a07fa9b5a5
+            description_ja: "statement を含む assertion では <Subject> の有無を問わない（IIP-IDP11.a は NameID なしの Subject を扱う）"
+        controls:
+          - "★ Web Browser SSO では IIP-SSO01.l により <AuthnStatement> が必ず 1 つ以上あるので、本義務が独立した意味を持つのは追加の assertion を同梱する構成のみ"
+          - "★ 観測機会がない場合は satisfied_with_note"
+        authored_by: samlier-g1-builder
+        review:
+          # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
+          state: PENDING_REVIEW
+          reviewer: null
+          approved_at: null
+          obligation_digest: "sha256:1edd9e1762499b2ab1f6f113bbc2ed9b1252ee902203dfd4cad7593f7038c9e0"
+          source_spec: kantara-fedinterop-impl
+          spec_version: "1.1"
+          source_selector: "#IIP-SSO01"
+          source_section_digest: "sha256:ff1057626aaa898cc4a76e1e0e4e9f6ad908c018ad60ce09d95e71634b08fac5"
+      - key: IIP-SSO01.ck
+        roles: [idp]
+        level: MUST
+        testability: AUTOMATED
+        condition: null
+        summary_en: "An xsi:type attribute must be used to indicate the actual condition type when a generic Condition element is used"
+        summary_ja: "汎用の <saml:Condition> を使う場合、実際の型を xsi:type で示す"
+        references_spec: "SAML2Prof#4.1"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2Core
+            locator: "2\\.5\\.1 Element <Conditions>||2\\.5\\.1\\.1 General Processing Rules"
+            section_digest: "sha256:72a67aaa62ddf5b08f831e56de7add2c6e8355e17e7383d39d172c3165db5082"
+            basis_ja: "SAML2Prof 4.1.4 の『This profile is based on the Authentication Request protocol defined in [SAMLCore]』および 4.1.3.5 の取り込み句により、assertion の生成・処理に関する SAML2Core の規則が入る。『An xsi:type attribute MUST be used to indicate the actual condition type』"
+        level_assignment: { idp: core }
+        source_clauses:
+          - { start: 0, end: 125, digest: "sha256:ff1057626aaa898cc4a76e1e0e4e9f6ad908c018ad60ce09d95e71634b08fac5", occurrences: 1 }
+        required_variants:
+          - id: v-74188a7f1a
+            description_ja: "対象が <saml:Condition> を出す場合、その要素に xsi:type がある"
+          - id: v-2a2a609eb6
+            description_ja: "<saml:Condition> を出さない対象では空虚に真"
+        controls:
+          - "★ 受動的な常時チェック。IIP-SP07（AuthnContext による受理判断）とは無関係"
+        authored_by: samlier-g1-builder
+        review:
+          # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
+          state: PENDING_REVIEW
+          reviewer: null
+          approved_at: null
+          obligation_digest: "sha256:79afb2251bbf969f142f826274f69500d911e1227c78be0a597252babfbd1130"
+          source_spec: kantara-fedinterop-impl
+          spec_version: "1.1"
+          source_selector: "#IIP-SSO01"
+          source_section_digest: "sha256:ff1057626aaa898cc4a76e1e0e4e9f6ad908c018ad60ce09d95e71634b08fac5"
+      - key: IIP-SSO01.cl
+        roles: [idp]
+        level: MUST
+        testability: AUTOMATED
+        condition: null
+        summary_en: "There must be at most one OneTimeUse element within a Conditions element of an assertion"
+        summary_ja: "1 つの <saml:Conditions> に <saml:OneTimeUse> は 1 つまで"
+        references_spec: "SAML2Prof#4.1"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2Core
+            locator: "2\\.5\\.1 Element <Conditions>||2\\.5\\.1\\.1 General Processing Rules"
+            section_digest: "sha256:72a67aaa62ddf5b08f831e56de7add2c6e8355e17e7383d39d172c3165db5082"
+            basis_ja: "SAML2Prof 4.1.4 の『This profile is based on the Authentication Request protocol defined in [SAMLCore]』および 4.1.3.5 の取り込み句により、assertion の生成・処理に関する SAML2Core の規則が入る。『Although the schema permits multiple occurrences, there MUST be at most one instance of this element』（<OneTimeUse>）"
+          - spec: SAML2Core
+            locator: "2\\.5\\.1\\.5 Element <OneTimeUse>||2\\.5\\.1\\.6 Element <ProxyRestriction>"
+            section_digest: "sha256:15f8de0cef2e7e46c0f883ef2728d759ba9f945aae91bcb450b49586a16fc320"
+            basis_ja: "SAML2Prof 4.1.4 の『This profile is based on the Authentication Request protocol defined in [SAMLCore]』および 4.1.3.5 の取り込み句により、assertion の生成・処理に関する SAML2Core の規則が入る。『A SAML authority MUST NOT include more than one <OneTimeUse> element within a <Conditions> element of an assertion』"
+        level_assignment: { idp: core }
+        source_clauses:
+          - { start: 0, end: 125, digest: "sha256:ff1057626aaa898cc4a76e1e0e4e9f6ad908c018ad60ce09d95e71634b08fac5", occurrences: 1 }
+        required_variants:
+          - id: v-7071e09eb6
+            description_ja: "対象が <OneTimeUse> を出す構成で、1 つの <Conditions> に 1 つしかない"
+          - id: v-7caa2520b2
+            description_ja: "<OneTimeUse> を出さない対象では空虚に真"
+        controls:
+          - "★ スキーマは複数を許すので、スキーマ検証では検出できない。要素数を数える"
+        authored_by: samlier-g1-builder
+        review:
+          # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
+          state: PENDING_REVIEW
+          reviewer: null
+          approved_at: null
+          obligation_digest: "sha256:77a03be321d2ed8b01698874d732baf51426eb34b79b6dd95f457daf4a17ad03"
+          source_spec: kantara-fedinterop-impl
+          spec_version: "1.1"
+          source_selector: "#IIP-SSO01"
+          source_section_digest: "sha256:ff1057626aaa898cc4a76e1e0e4e9f6ad908c018ad60ce09d95e71634b08fac5"
+      - key: IIP-SSO01.cm
+        roles: [idp]
+        level: MUST
+        testability: AUTOMATED
+        condition: null
+        summary_en: "There must be at most one ProxyRestriction element within a Conditions element of an assertion"
+        summary_ja: "1 つの <saml:Conditions> に <saml:ProxyRestriction> は 1 つまで"
+        references_spec: "SAML2Prof#4.1"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2Core
+            locator: "2\\.5\\.1 Element <Conditions>||2\\.5\\.1\\.1 General Processing Rules"
+            section_digest: "sha256:72a67aaa62ddf5b08f831e56de7add2c6e8355e17e7383d39d172c3165db5082"
+            basis_ja: "SAML2Prof 4.1.4 の『This profile is based on the Authentication Request protocol defined in [SAMLCore]』および 4.1.3.5 の取り込み句により、assertion の生成・処理に関する SAML2Core の規則が入る。『Although the schema permits multiple occurrences, there MUST be at most one instance of this element』（<ProxyRestriction>）"
+          - spec: SAML2Core
+            locator: "2\\.5\\.1\\.6 Element <ProxyRestriction>||2\\.6 Advice"
+            section_digest: "sha256:bd9d1af9194a75f99cbfce6d110a8e6ebab4885e2b3e672d325756cc001936c5"
+            basis_ja: "SAML2Prof 4.1.4 の『This profile is based on the Authentication Request protocol defined in [SAMLCore]』および 4.1.3.5 の取り込み句により、assertion の生成・処理に関する SAML2Core の規則が入る。『A SAML authority MUST NOT include more than one <ProxyRestriction> element within a <Conditions> element of an assertion』"
+        level_assignment: { idp: core }
+        source_clauses:
+          - { start: 0, end: 125, digest: "sha256:ff1057626aaa898cc4a76e1e0e4e9f6ad908c018ad60ce09d95e71634b08fac5", occurrences: 1 }
+        required_variants:
+          - id: v-1bd24a4938
+            description_ja: "対象が <ProxyRestriction> を出す構成で、1 つの <Conditions> に 1 つしかない"
+          - id: v-1529b25479
+            description_ja: "<ProxyRestriction> を出さない対象では空虚に真"
+        controls:
+          - "★ スキーマは複数を許すので、スキーマ検証では検出できない。要素数を数える"
+        authored_by: samlier-g1-builder
+        review:
+          # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
+          state: PENDING_REVIEW
+          reviewer: null
+          approved_at: null
+          obligation_digest: "sha256:b809a04e73135700c64d08a7f1b6cbc2b62f135c061735a824a2d5f8d2aadae4"
+          source_spec: kantara-fedinterop-impl
+          spec_version: "1.1"
+          source_selector: "#IIP-SSO01"
+          source_section_digest: "sha256:ff1057626aaa898cc4a76e1e0e4e9f6ad908c018ad60ce09d95e71634b08fac5"
+      - key: IIP-SSO01.cn
+        roles: [idp]
+        level: MUST
+        testability: AUTOMATED
+        condition: null
+        summary_en: "If both NotBefore and NotOnOrAfter are present, the value for NotBefore must be earlier than the value for NotOnOrAfter"
+        summary_ja: "<Conditions> に NotBefore と NotOnOrAfter が両方あるとき、NotBefore は NotOnOrAfter より前である"
+        references_spec: "SAML2Prof#4.1"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2Core
+            locator: "2\\.5\\.1\\.2 Attributes NotBefore and NotOnOrAfter||2\\.5\\.1\\.3 Element <Condition>"
+            section_digest: "sha256:a6206ad5ab63a0a7fa2c371489960e39c44fa3c4db7b042cd67690c8487d0155"
+            basis_ja: "SAML2Prof 4.1.4 の『This profile is based on the Authentication Request protocol defined in [SAMLCore]』および 4.1.3.5 の取り込み句により、assertion の生成・処理に関する SAML2Core の規則が入る。『If both attributes are present, the value for NotBefore MUST be less than (earlier than) the value for NotOnOrAfter』"
+        level_assignment: { idp: core }
+        source_clauses:
+          - { start: 0, end: 125, digest: "sha256:ff1057626aaa898cc4a76e1e0e4e9f6ad908c018ad60ce09d95e71634b08fac5", occurrences: 1 }
+        required_variants:
+          - id: v-469b18ff4a
+            description_ja: "返る assertion の <Conditions>/@NotBefore < @NotOnOrAfter"
+          - id: v-5f6e2fa0b4
+            description_ja: "片方だけの構成、両方ない構成でも空虚に真"
+        controls:
+          - "★ 受動的な常時チェック。時刻の比較は UTC に正規化してから行う"
+          - "★ 妥当期間の長さは原文に規定がないので判定に使わない（IIP-G01 と同じ理由）"
+        authored_by: samlier-g1-builder
+        review:
+          # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
+          state: PENDING_REVIEW
+          reviewer: null
+          approved_at: null
+          obligation_digest: "sha256:551deeaf2ffca36ade4788a0be6fb015c104f29def377eed3f0116f35997a3fe"
+          source_spec: kantara-fedinterop-impl
+          spec_version: "1.1"
+          source_selector: "#IIP-SSO01"
+          source_section_digest: "sha256:ff1057626aaa898cc4a76e1e0e4e9f6ad908c018ad60ce09d95e71634b08fac5"
+      - key: IIP-SSO01.co
+        roles: [sp]
+        level: MUST
+        testability: BROWSER
+        condition: null
+        summary_en: "An assertion that is determined to be Invalid or Indeterminate must be rejected by a relying party"
+        summary_ja: "Invalid または Indeterminate と判定された assertion は拒否する"
+        references_spec: "SAML2Prof#4.1"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2Core
+            locator: "2\\.5\\.1\\.1 General Processing Rules||2\\.5\\.1\\.2 Attributes NotBefore and NotOnOrAfter"
+            section_digest: "sha256:509c79a5443da2b87fcaa449cc92aa786fa7e073448361dd6d8a094df12eb5f2"
+            basis_ja: "SAML2Prof 4.1.3.5 の『The service provider MUST process the <Response> message and any enclosed <Assertion> elements as described in [SAMLCore]』により取り込まれる。『An assertion that is determined to be Invalid or Indeterminate MUST be rejected by a relying party (within whatever context or profile it was being processed), just as if the assertion were malformed』"
+        level_assignment: { sp: core }
+        source_clauses:
+          - { start: 0, end: 125, digest: "sha256:ff1057626aaa898cc4a76e1e0e4e9f6ad908c018ad60ce09d95e71634b08fac5", occurrences: 1 }
+        required_variants:
+          - id: v-73063d791a
+            description_ja: "Invalid: <Conditions>/@NotOnOrAfter を過ぎた assertion → 拒否される"
+          - id: v-47e4b549b2
+            description_ja: "Invalid: <AudienceRestriction> が対象の entityID を含まない assertion → 拒否される"
+          - id: v-fee96c9672
+            description_ja: "Indeterminate: 未知の <saml:Condition>（xsi:type が理解できない）を含む assertion → 拒否される"
+          - id: v-dd6852cf2b
+            description_ja: "対照: すべて妥当な assertion → 受理される"
+        controls:
+          - "★ 検出力の要は **Indeterminate**。未知の条件を『理解できないので無視する』実装は本 MUST に違反する。IIP-EXT01.b1（<Extensions> / <Advice> の内容は無視してよい）とは扱いが違うので混同しない"
+          - "★ IIP-SSO01.r（その他の点でも妥当であることを検証する）が Invalid 側を扱う。本義務は『判定の結果として拒否する』という帰結側で、特に Indeterminate を明示する"
+        authored_by: samlier-g1-builder
+        review:
+          # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
+          state: PENDING_REVIEW
+          reviewer: null
+          approved_at: null
+          obligation_digest: "sha256:a4728c7a76639918700a931c67dff3ce41b0f5838cf57ea74119309a9abb0d74"
+          source_spec: kantara-fedinterop-impl
+          spec_version: "1.1"
+          source_selector: "#IIP-SSO01"
+          source_section_digest: "sha256:ff1057626aaa898cc4a76e1e0e4e9f6ad908c018ad60ce09d95e71634b08fac5"
+      - key: IIP-SSO01.cp
+        roles: [sp]
+        level: MUST
+        testability: BROWSER
+        condition: null
+        summary_en: "Multiple AudienceRestriction elements in a single assertion must each be evaluated independently"
+        summary_ja: "1 つの assertion に複数の <AudienceRestriction> があるとき、それぞれを独立に評価する"
+        references_spec: "SAML2Prof#4.1"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2Core
+            locator: "2\\.5\\.1\\.4 Elements <AudienceRestriction> and <Audience>||2\\.5\\.1\\.5 Element <OneTimeUse>"
+            section_digest: "sha256:f72f6c5f8310d18491a66b854af13aa1bfebcb60d7c13ff8fbc24af632d3affe"
+            basis_ja: "SAML2Prof 4.1.3.5 の『The service provider MUST process the <Response> message and any enclosed <Assertion> elements as described in [SAMLCore]』により取り込まれる。『Note that multiple <AudienceRestriction> elements MAY be included in a single assertion, and each MUST be evaluated independently』"
+        level_assignment: { sp: core }
+        source_clauses:
+          - { start: 0, end: 125, digest: "sha256:ff1057626aaa898cc4a76e1e0e4e9f6ad908c018ad60ce09d95e71634b08fac5", occurrences: 1 }
+        required_variants:
+          - id: v-b419b7cdcf
+            description_ja: "対象の entityID を含む <AudienceRestriction> と、含まない別の <AudienceRestriction> を同梱 → 拒否される"
+          - id: v-a2c1f32fce
+            description_ja: "対照: すべての <AudienceRestriction> が対象の entityID を含む → 受理される"
+        controls:
+          - "★ 各 <AudienceRestriction> は独立に評価される（論理積）。『どれか 1 つに自分が入っていれば受理する』実装が典型的な違反"
+          - "★ 1 つの <AudienceRestriction> 内の複数 <Audience> は論理和。混同すると逆の誤判定をする"
+        authored_by: samlier-g1-builder
+        review:
+          # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
+          state: PENDING_REVIEW
+          reviewer: null
+          approved_at: null
+          obligation_digest: "sha256:3ea8f7912043f66c18ba3a063beca05f24759f400a22ff50ce7711164f91d3d3"
+          source_spec: kantara-fedinterop-impl
+          spec_version: "1.1"
+          source_selector: "#IIP-SSO01"
+          source_section_digest: "sha256:ff1057626aaa898cc4a76e1e0e4e9f6ad908c018ad60ce09d95e71634b08fac5"
+      - key: IIP-SSO01.cq
+        roles: [sp]
+        level: SHOULD
+        testability: ATTESTED
+        condition: null
+        summary_en: "An assertion carrying a OneTimeUse condition should be used immediately by the relying party"
+        summary_ja: "<OneTimeUse> を持つ assertion は、依拠当事者が直ちに使うことが望ましい"
+        references_spec: "SAML2Prof#4.1"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2Core
+            locator: "2\\.5\\.1\\.5 Element <OneTimeUse>||2\\.5\\.1\\.6 Element <ProxyRestriction>"
+            section_digest: "sha256:15f8de0cef2e7e46c0f883ef2728d759ba9f945aae91bcb450b49586a16fc320"
+            basis_ja: "SAML2Prof 4.1.3.5 の『The service provider MUST process the <Response> message and any enclosed <Assertion> elements as described in [SAMLCore]』により取り込まれる。『The <OneTimeUse> element indicates that the assertion SHOULD be used immediately by the relying party』"
+        level_assignment: { sp: full }
+        source_clauses:
+          - { start: 0, end: 125, digest: "sha256:ff1057626aaa898cc4a76e1e0e4e9f6ad908c018ad60ce09d95e71634b08fac5", occurrences: 1 }
+        required_variants:
+          - id: v-b5c37e4580
+            description_ja: "<OneTimeUse> 付き assertion の処理が遅延なく行われることを申告で確認する"
+        controls:
+          - "★ SHOULD_CLASS。『直ちに』の閾値は原文にないので、時間を判定条件にしない"
+          - "★ 判定できる観測がないため申告のみ。satisfied は申告があるときだけ"
+        authored_by: samlier-g1-builder
+        review:
+          # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
+          state: PENDING_REVIEW
+          reviewer: null
+          approved_at: null
+          obligation_digest: "sha256:70883a8d7a9a1b118d5c1c58107dd8aa28c0d4c17e3fbbe5c68bc41a84257b05"
+          source_spec: kantara-fedinterop-impl
+          spec_version: "1.1"
+          source_selector: "#IIP-SSO01"
+          source_section_digest: "sha256:ff1057626aaa898cc4a76e1e0e4e9f6ad908c018ad60ce09d95e71634b08fac5"
+      - key: IIP-SSO01.cr
+        roles: [sp]
+        level: MUST_NOT
+        testability: ATTESTED
+        condition: null
+        summary_en: "An assertion carrying a OneTimeUse condition must not be retained for future use"
+        summary_ja: "<OneTimeUse> を持つ assertion を将来の利用のために保持してはならない"
+        references_spec: "SAML2Prof#4.1"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2Core
+            locator: "2\\.5\\.1\\.5 Element <OneTimeUse>||2\\.5\\.1\\.6 Element <ProxyRestriction>"
+            section_digest: "sha256:15f8de0cef2e7e46c0f883ef2728d759ba9f945aae91bcb450b49586a16fc320"
+            basis_ja: "SAML2Prof 4.1.3.5 の『The service provider MUST process the <Response> message and any enclosed <Assertion> elements as described in [SAMLCore]』により取り込まれる。『... and MUST NOT be retained for future use』"
+        level_assignment: { sp: core }
+        source_clauses:
+          - { start: 0, end: 125, digest: "sha256:ff1057626aaa898cc4a76e1e0e4e9f6ad908c018ad60ce09d95e71634b08fac5", occurrences: 1 }
+        required_variants:
+          - id: v-89e1777da3
+            description_ja: "<OneTimeUse> 付き assertion をキャッシュ・永続化していないことを申告で確認する"
+          - id: v-eb0e941099
+            description_ja: "同じ assertion を再送 → 受理されない（IIP-SSO01.w の replay 検出と観測が重なる）"
+        controls:
+          - "★ 『保持していない』ことは外部から観測できない。ATTESTED"
+          - "★ 再送が拒否されても、それは replay 検出（IIP-SSO01.w）による可能性がある。本義務の証拠としては弱いので、申告と併せて記録する"
+        authored_by: samlier-g1-builder
+        review:
+          # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
+          state: PENDING_REVIEW
+          reviewer: null
+          approved_at: null
+          obligation_digest: "sha256:e74f2849550063345002b2c27b5d019edbc41e797339686ee5972534407304f0"
+          source_spec: kantara-fedinterop-impl
+          spec_version: "1.1"
+          source_selector: "#IIP-SSO01"
+          source_section_digest: "sha256:ff1057626aaa898cc4a76e1e0e4e9f6ad908c018ad60ce09d95e71634b08fac5"
+      - key: IIP-SSO01.cs
+        roles: [sp]
+        level: MUST
+        testability: ATTESTED
+        condition: null
+        summary_en: "Implementations that choose to retain assertions for future use must observe the OneTimeUse element"
+        summary_ja: "assertion を将来利用のために保持する実装は、<OneTimeUse> を遵守しなければならない"
+        references_spec: "SAML2Prof#4.1"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2Core
+            locator: "2\\.5\\.1\\.5 Element <OneTimeUse>||2\\.5\\.1\\.6 Element <ProxyRestriction>"
+            section_digest: "sha256:15f8de0cef2e7e46c0f883ef2728d759ba9f945aae91bcb450b49586a16fc320"
+            basis_ja: "SAML2Prof 4.1.3.5 の『The service provider MUST process the <Response> message and any enclosed <Assertion> elements as described in [SAMLCore]』により取り込まれる。『However, implementations that choose to retain assertions for future use MUST observe the <OneTimeUse> element』"
+        level_assignment: { sp: core }
+        source_clauses:
+          - { start: 0, end: 125, digest: "sha256:ff1057626aaa898cc4a76e1e0e4e9f6ad908c018ad60ce09d95e71634b08fac5", occurrences: 1 }
+        required_variants:
+          - id: v-3d471daca7
+            description_ja: "assertion をキャッシュする実装が、<OneTimeUse> 付きのものは除外していることを申告で確認する"
+          - id: v-2b9717f402
+            description_ja: "assertion を一切保持しない実装では空虚に真"
+        controls:
+          - "★ IIP-SSO01.cr（保持しない）と本義務（保持するなら遵守する）は同じ結論に至るが名宛人が違う。原文が両方を置いているので両方を持つ"
+          - "★ IIP-SSO01.w（replay 防止のための ID 保持）は <OneTimeUse> の『保持』とは別物。ID の記録は assertion の保持ではない"
+        authored_by: samlier-g1-builder
+        review:
+          # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
+          state: PENDING_REVIEW
+          reviewer: null
+          approved_at: null
+          obligation_digest: "sha256:480526383e44ee3f005bd75b08df07938c813ab8a4c0162032b040f6adcbce58"
+          source_spec: kantara-fedinterop-impl
+          spec_version: "1.1"
+          source_selector: "#IIP-SSO01"
+          source_section_digest: "sha256:ff1057626aaa898cc4a76e1e0e4e9f6ad908c018ad60ce09d95e71634b08fac5"
+      - key: IIP-SSO01.ct
+        roles: [idp]
+        level: MUST_NOT
+        testability: CONFIG
+        condition:
+          predicate: supports_authnrequest_proxying
+          predicate_kind: CAPABILITY_BASED
+        configuration_failure_semantics: test_precondition
+        summary_en: "A relying party acting as an asserting party must not issue an assertion that itself violates the restrictions specified in a ProxyRestriction condition"
+        summary_ja: "<ProxyRestriction> を持つ assertion に基づいて、その制限に違反する assertion を発行してはならない"
+        references_spec: "SAML2Prof#4.1"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2Core
+            locator: "2\\.5\\.1\\.6 Element <ProxyRestriction>||2\\.6 Advice"
+            section_digest: "sha256:bd9d1af9194a75f99cbfce6d110a8e6ebab4885e2b3e672d325756cc001936c5"
+            basis_ja: "SAML2Core 3.4.1.5.1 は <AuthnRequest> の処理規則の一部であり、SAML2Prof 4.1.3.3 の取り込み句を通じて Web Browser SSO Profile に入る。『A relying party acting as an asserting party MUST NOT issue an assertion that itself violates the restrictions specified in this condition on the basis of an assertion containing such a condition』"
+        level_assignment: { idp: core }
+        source_clauses:
+          - { start: 0, end: 125, digest: "sha256:ff1057626aaa898cc4a76e1e0e4e9f6ad908c018ad60ce09d95e71634b08fac5", occurrences: 1 }
+        required_variants:
+          - id: v-25117bbf31
+            description_ja: "上流 Samlier-IdP が <ProxyRestriction> 付き assertion を返す → 対象が発行する assertion がその制限に違反しない"
+          - id: v-e2fed14b31
+            description_ja: "対照: <ProxyRestriction> のない上流 assertion → 制限なしでよい"
+        controls:
+          - "★ 上流を Samlier が演じられるので自動観測できる。プロキシ構成が前提"
+          - "★ 具体的な違反は IIP-SSO01.cu（Count=0）と .cv（Count 減算）、.cw（Audience）で細分する"
+        authored_by: samlier-g1-builder
+        review:
+          # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
+          state: PENDING_REVIEW
+          reviewer: null
+          approved_at: null
+          obligation_digest: "sha256:0ddf230c18cc34d8aef70b736ad2cb670ad84225ed7a3c52f9bd6ecda55db361"
+          source_spec: kantara-fedinterop-impl
+          spec_version: "1.1"
+          source_selector: "#IIP-SSO01"
+          source_section_digest: "sha256:ff1057626aaa898cc4a76e1e0e4e9f6ad908c018ad60ce09d95e71634b08fac5"
+      - key: IIP-SSO01.cu
+        roles: [idp]
+        level: MUST_NOT
+        testability: CONFIG
+        condition:
+          predicate: supports_authnrequest_proxying
+          predicate_kind: CAPABILITY_BASED
+        configuration_failure_semantics: test_precondition
+        summary_en: "A ProxyRestriction Count value of zero indicates that a relying party must not issue an assertion to another relying party on the basis of this assertion"
+        summary_ja: "<ProxyRestriction>/@Count=0 の assertion に基づいて、他の依拠当事者へ assertion を発行してはならない"
+        references_spec: "SAML2Prof#4.1"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2Core
+            locator: "2\\.5\\.1\\.6 Element <ProxyRestriction>||2\\.6 Advice"
+            section_digest: "sha256:bd9d1af9194a75f99cbfce6d110a8e6ebab4885e2b3e672d325756cc001936c5"
+            basis_ja: "SAML2Core 3.4.1.5.1 は <AuthnRequest> の処理規則の一部であり、SAML2Prof 4.1.3.3 の取り込み句を通じて Web Browser SSO Profile に入る。『A Count value of zero indicates that a relying party MUST NOT issue an assertion to another relying party on the basis of this assertion』"
+        level_assignment: { idp: core }
+        source_clauses:
+          - { start: 0, end: 125, digest: "sha256:ff1057626aaa898cc4a76e1e0e4e9f6ad908c018ad60ce09d95e71634b08fac5", occurrences: 1 }
+        required_variants:
+          - id: v-ced0b9c695
+            description_ja: "上流が <ProxyRestriction Count=\"0\"> 付き assertion を返す → 対象は下流 Samlier-SP へ assertion を発行しない"
+          - id: v-cc5f6bf29e
+            description_ja: "対照: <ProxyRestriction Count=\"1\"> → 発行してよい"
+        controls:
+          - "★ 対照がないと、そもそもプロキシしない実装と区別できない"
+          - "★ 発行しない場合の代替挙動（エラー応答）は原文が定めていないので判定に使わない"
+        authored_by: samlier-g1-builder
+        review:
+          # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
+          state: PENDING_REVIEW
+          reviewer: null
+          approved_at: null
+          obligation_digest: "sha256:bc5cabb366fdb940ec219eb904d88921a7679fa3c45ffc22e67e3ae798c762b9"
+          source_spec: kantara-fedinterop-impl
+          spec_version: "1.1"
+          source_selector: "#IIP-SSO01"
+          source_section_digest: "sha256:ff1057626aaa898cc4a76e1e0e4e9f6ad908c018ad60ce09d95e71634b08fac5"
+      - key: IIP-SSO01.cv
+        roles: [idp]
+        level: MUST
+        testability: CONFIG
+        condition:
+          predicate: supports_authnrequest_proxying
+          predicate_kind: CAPABILITY_BASED
+        configuration_failure_semantics: test_precondition
+        summary_en: "If the ProxyRestriction Count is greater than zero, any assertions so issued must themselves contain a ProxyRestriction element with a Count value of at most one less"
+        summary_ja: "<ProxyRestriction>/@Count が 0 より大きいとき、発行する assertion には Count が 1 以上小さい <ProxyRestriction> を含める"
+        references_spec: "SAML2Prof#4.1"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2Core
+            locator: "2\\.5\\.1\\.6 Element <ProxyRestriction>||2\\.6 Advice"
+            section_digest: "sha256:bd9d1af9194a75f99cbfce6d110a8e6ebab4885e2b3e672d325756cc001936c5"
+            basis_ja: "SAML2Core 3.4.1.5.1 は <AuthnRequest> の処理規則の一部であり、SAML2Prof 4.1.3.3 の取り込み句を通じて Web Browser SSO Profile に入る。『If greater than zero, any assertions so issued MUST themselves contain a <ProxyRestriction> element with a Count value of at most one less than this value』"
+        level_assignment: { idp: core }
+        source_clauses:
+          - { start: 0, end: 125, digest: "sha256:ff1057626aaa898cc4a76e1e0e4e9f6ad908c018ad60ce09d95e71634b08fac5", occurrences: 1 }
+        required_variants:
+          - id: v-5c91e3882a
+            description_ja: "上流が Count=\"3\" → 対象が発行する assertion の <ProxyRestriction>/@Count が 2 以下"
+          - id: v-00edf71b63
+            description_ja: "上流が Count=\"1\" → 対象が発行する assertion の @Count が 0"
+          - id: v-bad04ca342
+            description_ja: "対照: <ProxyRestriction> を落として発行する実装を検出できる"
+        controls:
+          - "★ 『at most one less』なので 2 以上減らすのも適合。『ちょうど 1 減』を要求しない"
+          - "★ IIP-SSO01.ba（AuthnRequest の ProxyCount 減算）とは別物。あちらは要求、こちらは assertion"
+        authored_by: samlier-g1-builder
+        review:
+          # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
+          state: PENDING_REVIEW
+          reviewer: null
+          approved_at: null
+          obligation_digest: "sha256:eae03a8ee260314785a7ee70f522c6904e9a7d6d8994b66d0b30653e266f22eb"
+          source_spec: kantara-fedinterop-impl
+          spec_version: "1.1"
+          source_selector: "#IIP-SSO01"
+          source_section_digest: "sha256:ff1057626aaa898cc4a76e1e0e4e9f6ad908c018ad60ce09d95e71634b08fac5"
+      - key: IIP-SSO01.cw
+        roles: [idp]
+        level: MUST
+        testability: CONFIG
+        condition:
+          predicate: supports_authnrequest_proxying
+          predicate_kind: CAPABILITY_BASED
+        configuration_failure_semantics: test_precondition
+        summary_en: "Otherwise any assertions so issued must contain an AudienceRestriction with at least one of the Audience elements present in the previous ProxyRestriction element"
+        summary_ja: "<ProxyRestriction> に <Audience> がある場合、発行する assertion の <AudienceRestriction> はその範囲に収まる"
+        references_spec: "SAML2Prof#4.1"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2Core
+            locator: "2\\.5\\.1\\.6 Element <ProxyRestriction>||2\\.6 Advice"
+            section_digest: "sha256:bd9d1af9194a75f99cbfce6d110a8e6ebab4885e2b3e672d325756cc001936c5"
+            basis_ja: "SAML2Core 3.4.1.5.1 は <AuthnRequest> の処理規則の一部であり、SAML2Prof 4.1.3.3 の取り込み句を通じて Web Browser SSO Profile に入る。『Otherwise, any assertions so issued MUST themselves contain an <AudienceRestriction> element with at least one of the <Audience> elements present in the previous <ProxyRestriction> element』"
+        level_assignment: { idp: core }
+        source_clauses:
+          - { start: 0, end: 125, digest: "sha256:ff1057626aaa898cc4a76e1e0e4e9f6ad908c018ad60ce09d95e71634b08fac5", occurrences: 1 }
+        required_variants:
+          - id: v-d0abb5d2ee
+            description_ja: "上流が <ProxyRestriction> に <Audience>（下流 Samlier-SP の entityID）を含める → 対象が発行する assertion の <AudienceRestriction> にその値が含まれる"
+          - id: v-3f991a4f1c
+            description_ja: "上流の <ProxyRestriction> に含まれない Audience 向けには assertion を発行しない"
+          - id: v-66e999ee70
+            description_ja: "対照: <ProxyRestriction> に <Audience> がない → 本義務の対象外"
+        controls:
+          - "★ 原文は『with at least one of the <Audience> elements present in the previous <ProxyRestriction>』。新しい Audience を勝手に足すことが違反になる"
+          - "★ 上流の <ProxyRestriction> に <Audience> があるかどうかで分岐する。両方の構成を試す"
+        authored_by: samlier-g1-builder
+        review:
+          # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
+          state: PENDING_REVIEW
+          reviewer: null
+          approved_at: null
+          obligation_digest: "sha256:ffec2b44282293890d832486b48a8cad145ddbad9b40e4b3f9698b64b4af28e7"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SSO01"

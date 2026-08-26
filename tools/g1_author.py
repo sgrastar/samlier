@@ -133,6 +133,9 @@ SPECS = [
   "sha256:c9f6d7c4d6b147066a24715076ac8b62269429fae8e27d53a03cf0d73651ace3", "referenced"),
  ("SAML2MD-xsd","SAML V2.0 Metadata Schema","OASIS","2.0","2005-03-15",
   "http://docs.oasis-open.org/security/saml/v2.0/saml-schema-metadata-2.0.xsd", "sha256:204bc7991055dbb889307abbd2ff58022753897dd7064a4d1ca13eb737d2617a", "referenced"),
+ ("SAML2P-xsd","SAML V2.0 Protocol Schema","OASIS","2.0","2005-03-15",
+  "http://docs.oasis-open.org/security/saml/v2.0/saml-schema-protocol-2.0.xsd",
+  "sha256:554250583cd5eacc6ce5f094f6ff50fc2547972c436dc96e2e7eb41abf2c817e", "referenced"),
  ("SAML2-xsd","SAML V2.0 Assertion Schema","OASIS","2.0","2005-03-15",
   "http://docs.oasis-open.org/security/saml/v2.0/saml-schema-assertion-2.0.xsd", "sha256:006eb7553843cb7baa9b08da2a9d444346c0e982fb9d9293babe08ede680924b", "referenced"),
  ("SAML2MDIOP","SAML V2.0 Metadata Interoperability Profile","OASIS","1.0 (CS)","2009-08-01",
@@ -263,6 +266,21 @@ PRED = [
   "★ 観測は方向付き: 対象が ManageNameIDRequest を *受理し* ManageNameIDResponse を *返した* ことが能力の証拠。"
   "メタデータの ManageNameIDService だけでは宣言であって能力の観測ではないが、"
   "IIP-MD01 が『メタデータは実際の設定を反映する』ことを求めるため補助証拠として採る"),
+ ("proxies_to_non_saml_provider","CAPABILITY_BASED","対象が非 SAML の上流 provider へプロキシするか",
+  ["declared_features.non_saml_upstream"],
+  ["target_emitted_authenticating_authority_not_in_saml_metadata: true"],
+  "SAML2Core 3.4.1.5.1 の一部の規範句は『If the authenticating identity provider is not a SAML identity provider』"
+  "が明示的な条件。SAML IdP にしかプロキシしない対象には適用されないので NOT_APPLICABLE。"
+  "★ supports_authnrequest_proxying だけを条件にすると、SAML IdP のみへプロキシする対象で"
+  "『空虚に真』として満足扱いになってしまう。"
+  "観測は方向付き: 対象が <saml:AuthenticatingAuthority> に、SAML メタデータで解決できない値を入れたことが証拠"),
+ ("uses_random_identifier_generation","CAPABILITY_BASED","対象が識別子の生成に乱数・擬似乱数を用いるか",
+  ["declared_features.random_id_generation"],
+  ["target_emitted_identifiers_are_high_entropy: true"],
+  "SAML2Core 1.3.4 の衝突確率・seed に関する規範句は『In the case that a random or pseudorandom technique "
+  "is employed』が条件。連番やハッシュ由来など非乱数方式の実装には適用されない。"
+  "★ 非乱数方式でも 1.3.4 の『negligible probability』（IIP-SSO01.af / .ao）と"
+  "『exactly one declaration』（IIP-SSO01.cc）は無条件に適用される"),
  ("supports_authnrequest_proxying","CAPABILITY_BASED","対象が <AuthnRequest> のプロキシ（proxying identity provider）として振る舞うか",
   ["declared_features.authnrequest_proxying"],
   ["target_emitted_authnrequest_to_upstream_idp: true",

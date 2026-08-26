@@ -2126,3 +2126,65 @@ open question 13（IIP-SSO01.a の対応表照合が未了）
 
 **第 1 段階は未完了。** `IIP-SSO01.a` の `open_question` は、
 直接の §4.1 対応表に加えて**取り込み句 A / B の展開表**の照合も条件に含む。
+
+---
+
+## G1b-R8 — 2026-08-27 Core 取り込みの補完（指摘 7 件）
+
+### 1 [P0] Core の取り込みがまだ不完全だった
+
+前回は §3.2.1 / §3.2.2 の一部までしか入っていなかった。**21 義務を追加**（義務 230 → 251）。
+
+| 出典 | 規範句 | 義務 |
+|---|---|---|
+| §1.1 + protocol schema | 必須の `@ID` / `@Version` / `@IssueInstant`、応答の必須 `<Status>` | `.cg` |
+| §1.3.4 | 宣言はちょうど 1 つ | `.cc` |
+| §1.3.4 | 乱数使用時の衝突確率 ≤2^-128 ／ ≤2^-160(SHOULD) ／ PRNG の seed | `.cd` `.ce` `.cf` |
+| §3.2.2.2 | 最上位 `<StatusCode>/@Value` が top-level リストの値 | `.ch` |
+| §2.3.3 | `<Statement>` の `xsi:type` ／ statement のない assertion は `<Subject>` を含む | `.ci` `.cj` |
+| §2.5.1 | `<Condition>` の `xsi:type` ／ `<OneTimeUse>` は 1 つまで ／ `<ProxyRestriction>` は 1 つまで | `.ck` `.cl` `.cm` |
+| §2.5.1.1 | **Invalid / Indeterminate な assertion の拒否** | `.co` |
+| §2.5.1.2 | `NotBefore` < `NotOnOrAfter` | `.cn` |
+| §2.5.1.4 | 複数 `<AudienceRestriction>` の**独立評価** | `.cp` |
+| §2.5.1.5 | 直ちに使う(SHOULD) ／ 保持しない ／ 保持するなら遵守する | `.cq` `.cr` `.cs` |
+| §2.5.1.6 | 制限違反の発行禁止 ／ `Count=0` ／ `Count` 減算 ／ `<Audience>` の範囲 | `.ct` `.cu` `.cv` `.cw` |
+
+**`SAML2P-xsd`（SAML V2.0 Protocol Schema）を仕様カタログに追加した**（仕様 24 → 25）。
+必須属性・必須要素の規範の出所は RFC2119 句ではなく**スキーマ文書**であり、
+SAML2Core §1.1 が「the schema documents take precedence」と述べているため、
+スキーマを根拠として引けるようにした。
+
+**`.ao` の注記の訂正**: 前版は「`Assertion/@ID` は `IIP-SSO01.w` が扱う」と書いていたが**不正確**だった。
+`.w` は **SP のリプレイ検出**であって、**IdP が §1.3.4 に従って Assertion ID を生成する義務**の代用にはならない。
+`.ao` の対象に `<Assertion>/@ID` を含めた。
+
+### 2 [P1] ID 一意性の分解
+
+`.af` / `.ao` は「別オブジェクトへ同じ識別子を割り当てない（negligible probability）」までに限定し、
+**確率・seed は BROWSER / AUTOMATED では証明できない**ので独立義務にして `ATTESTED` へ分けた（`.cd` `.ce` `.cf`）。
+`≤2^-128`(MUST) と `≤2^-160`(SHOULD) を 1 つにまとめると、
+128 ビット実装を FAIL にするか 160 ビット未達を見逃すかのどちらかになる。
+
+### 3〜7
+
+| # | 指摘 | 対応 |
+|---|---|---|
+| 3 | `.ai` が**暗号学的検証と署名者評価を混同** | 「メタデータにない鍵 → 受理しない」を削除（それは `.al` の SHOULD）。variant を `<ds:SignatureValue>` 改竄・署名対象改竄・`<ds:Reference>/@URI` 差し替えに。Redirect のクエリ署名は `[SAML2Bind]` 側の別機構なので対象外と明記 |
+| 4 | `.au` が **Assertion 署名を Response 署名として扱っていた** | `<samlp:Response>` 要素そのものの `<ds:Signature>` を判定条件に。assertion だけ署名しても `@Consent` は保護されない |
+| 5 | `.as` が**利用者への画面表示まで要求** | 「セキュリティコンテキストが成立しない」＋「エラーとして扱われている（提示・監査ログ・エラーページのいずれか）」に。UI 表示を必須にしない |
+| 6 | `.av` の role と到達不能時の扱い | role に **idp を追加**（プロキシ IdP も `<GetComplete>` を発行しうる）。到達不能を三分岐に: Suite の egress 制限 → `not_verified` ／ 他ホストへは到達できるのに 404・接続拒否 → **`violated`** ／ 取得できたが形式違反 → `violated` |
+| 7 | 非 SAML 上流だけの規則の条件が広すぎた | 述語 **`proxies_to_non_saml_provider`** を新設し、`.az` `.bh` `.bi` `.bj` に適用。SAML IdP のみへプロキシする対象では NOT_APPLICABLE になる（「空虚に真」で満足扱いにならない） |
+
+### 現在の状態
+
+```
+要件 69 / 義務 251（230 → 251）/ variant 603 / 仕様 25 / 述語 21 / 検査 62
+IIP-SSO01 だけで 95 義務
+testability  BROWSER 119 / CONFIG 81 / ATTESTED 30 / AUTOMATED 20 / NOT_OBSERVABLE 1
+network 実行: 59/62 PASS・blocking 1（SR-40 = tools 未コミットのみ）
+SR-33  全 25 仕様を再取得し source_digest 一致
+SR-34  reference_evidence 175 件すべて locator 解決・節ダイジェスト一致
+open question 13
+```
+
+**第 1 段階は未完了。** `IIP-SSO01.a` の対応表（§4.1・取り込み句 A・取り込み句 B）の照合が残っている。

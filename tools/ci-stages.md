@@ -40,7 +40,7 @@ tasks.named("dockerPush") { dependsOn(":specReconcile", ":releaseCheck") }
 | job | trigger | ネットワーク | 内容 |
 |---|---|---|---|
 | `g1-check` | PR / push | 不要 | `g1_docgen.py --check` + **`--structural-only`**（CI 側に除外リストを書かない） |
-| `spec-reconcile` | push / 定期 / 手動 | **必要** | 原文と全 <!--g1:specs-->24<!--/g1--> 仕様を強制再取得して照合 |
+| `spec-reconcile` | push / 定期 / 手動 | **必要** | 原文と全 <!--g1:specs-->25<!--/g1--> 仕様を強制再取得して照合 |
 | `g1b-approval` | **常に実行**（ジョブ条件を置かない） | 必要 | 署名済み承認の検証。**固定 SHA から runner と依存を取り出して隔離実行**し、`g1.complete` / provenance / pin の一致を確認 |
 
 `g1b-approval` は **`tools/g1_ci_verify.sh` を呼ばず、同等の処理を workflow に展開している**。
@@ -74,7 +74,7 @@ branch protection で「CODEOWNERS のレビュー必須」にすること。**
 | ステージ | 実体 | 状態 |
 |---|---|---|
 | `g1Check` | `tools/g1_validate.py --offline` の構造検査部（SR-15〜SR-29, SR-36）+ `tools/g1_docgen.py --check` | 通る |
-| `specReconcile` | `tools/g1_validate.py`（**強制再取得**で原文と全 <!--g1:specs-->24<!--/g1--> 仕様を照合） | **`totals.blocking_failures == 0`**（承認前は SR-30 / SR-31 が FAIL のまま残る）。★ PASS 数は検査項目を足すたびに変わるので固定値を書かない |
+| `specReconcile` | `tools/g1_validate.py`（**強制再取得**で原文と全 <!--g1:specs-->25<!--/g1--> 仕様を照合） | **`totals.blocking_failures == 0`**（承認前は SR-30 / SR-31 が FAIL のまま残る）。★ PASS 数は検査項目を足すたびに変わるので固定値を書かない |
 | `releaseCheck` | 未実装。テストケースが 0 件のため（G2 完了後） | 未実施 |
 
 `build/spec-reconcile-report.json` の `checks[]` は、どの検査がブロッキングかを
