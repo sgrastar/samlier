@@ -1395,3 +1395,81 @@ runner の docstring と実行時メッセージに「A の tree から validato
 **決定: Phase 1 ではブラウザ自動化を導入しない。**
 リファレンス実装は **役割別マトリクス**（IdP/SP）+ **image digest 固定** + **設定 fixture** で
 再現性を確保する（`tests/reference-impls.yaml`、M4 までに作成）。
+
+---
+
+## G1a-R12 — 2026-08-26 CI の fail-open と G2 の実体化
+
+**結論**: 指摘 4 件すべて妥当。CI に fail-open が 2 件あった。
+
+### 指摘 1: `g1-check` が validator のクラッシュを古いレポートで隠していた
+
+`g1_validate.py --offline || true` で終了コードを捨てたうえ、
+**追跡済みの `build/spec-reconcile-report.json`** を読んでいた。
+レポート生成前にクラッシュしても古い正常結果で job が成功する。
+
+**修正**: validator に **`--structural-only`** モードを追加した。
+原文を一切参照せず構造規則だけを実行し、**自分の終了コードを返す**。
+CI 側のハードコード除外リストは撤去し、実行前に `rm -f` でレポートを消し、
+実行後に `mode == "structural-only"` のレポートが生成されたことを確認する。
+
+### 指摘 2: 署名検証より前に未保護のコードを実行していた
+
+`g1b-approval` が現在ブランチの `tools/requirements.txt` を `pip install` していた。
+このファイルは CODEOWNERS の外で、PR で任意パッケージ・URL・ローカルビルドを
+追加すれば**署名検証より前に任意コードが走る**。
+
+**修正**:
+
+- **`tools/requirements.lock`** を生成（推移依存 6 件・375 hash）。
+  `pip install --require-hashes` で導入する
+- `g1b-approval` は **`git show $G1_TOOLS_COMMIT:tools/requirements.lock`** で
+  依存も固定 SHA から取り出す。現在ブランチのファイルは使わない
+- CODEOWNERS に `tools/requirements.txt` / `tools/requirements.lock` を追加
+- Actions を **完全 commit SHA で固定**（`actions/checkout@11bd719…` など）
+- `if: vars.G1_TOOLS_COMMIT != ''` は required check として fail-open なので廃止。
+  **`vars.G1B_ENABLED == 'true'` なら常に実行し、`G1_TOOLS_COMMIT` 未設定なら失敗**する
+- provenance の `validator_source` / `runner_source` が **pin と一致すること**まで確認する
+
+### 指摘 3: mutant の義務カバレッジが G2 の通過条件になかった
+
+10 義務しか覆わない mutant セットでも「全 mutant の期待結果が一致した」で通せた。
+
+**修正**: G2 の通過条件に
+**「各義務が実行可能な mutant で検出される、または `mutant_waiver`
+（理由 + 代替の実行可能な control fixture）を持つ」**を追加。
+併せて `covers_variants` を**配列インデックスから安定 ID 参照**に変え、
+`coverage.yaml` の `required_variants` にも `id` を持たせる形にした
+（並び替えで対応が壊れないように）。
+ケースのマイルストーン割当も **M1〜M3**（M0 はテスト 0 件なので除外）に訂正した。
+
+### 指摘 4: mutant のオラクルに成立しない条件があった
+
+- 「正常 peer では全義務 PASS」→ 役割違い・条件付き・CONFIG・ATTESTED があるため**成立しない**
+- 「`reject-everything` ではどの義務も PASS してはならない」→ **誤り**。
+  一律拒否でも `MUST_NOT` 系は満たせる
+- `must_not_affect` を常に PASS とすると、対象外・条件偽・前提不足を表現できない
+
+**修正**: **baseline outcome vector** 方式に変えた。
+役割・Test Profile・条件を固定した `baseline.yaml` に全 133 義務の期待 verdict を置き、
+mutant は `expected_changes`（baseline から変わるべき義務）と
+`unchanged_required: all_others`（それ以外は baseline と一致）で判定する。
+`reject-everything` / `accept-everything` は
+**control の機能そのものを検証する対照 mutant** と位置づけ直した。
+
+### G2 の検証基盤を明示
+
+「G1b と同じ方式で署名承認」だけでは実体がないので、
+Codex に渡す単位として列挙した — `schema/cases-v1.json` / `tests/cases.yaml` /
+`tests/mutants/*.yaml` / `tools/g2_validate.py` / `tests/approvals/g2.yaml` /
+`case_digest` / `mutant_digest` / `g2.complete` / `.github/workflows/g2.yml` /
+作成者とレビュアーの分離規則（G1 と同じ）。
+
+### `AGENTS.md` を追加
+
+Codex の実装逸脱を抑えるため、リポジトリ直下に置いた。9 つの絶対規則
+（承認済み成果物を編集しない / 生成物を手編集しない / ケースは Verdict を返さない /
+送信は outbox のみ / `NOT_APPLICABLE` の限定 / 原文にない閾値を足さない /
+対照のないケースを作らない / 生リクエストを壊さない / 資格情報を永続化しない）と、
+変更ごとに実行する検証コマンド、ゲートの順序を短くまとめた。
+「過去に何を間違えたか」として `docs/11-review-log.md` を読ませる導線も入れた。

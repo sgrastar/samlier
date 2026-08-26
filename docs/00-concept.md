@@ -84,43 +84,79 @@ SAML にはこれに相当する、広く認知された仕組みが存在しな
 代わりに、**既知の違反を注入した mutant Test IdP / Test SP** を用意し、
 「狙った義務が必ず違反として検出されること」を golden test にする。
 
-```
-tests/mutants/<name>.yaml
-  id: no-signature-validation
-  role: sp                                   # mutant が演じる側
-  injected_violation_ja: Response の XML 署名を一切検証しない
-  must_be_detected_by: [IIP-SP13.a, IIP-MD07.b]   # ここが FAIL になること
-  must_not_affect: [IIP-SP01.a, IIP-SP10.a]       # ここは PASS のままであること
+#### ★ オラクルは「絶対値」ではなく baseline からの差分
+
+「正常な peer では全義務が PASS」は**成立しない**。
+役割違い（SP プロファイルでの `IIP-IDP*`）、条件付き義務、`CONFIG`、`ATTESTED` があるため、
+単一の Run で全義務が PASS になることはない。
+同様に「`reject-everything` ではどの義務も PASS してはならない」も誤りで、
+**拒否を要求する `MUST_NOT` 系は一律拒否でも満たせる**。
+
+そこで、**役割・Test Profile・条件を固定した baseline outcome vector** を先に取り、
+mutant はそこからの**差分**で判定する。
+
+```yaml
+# tests/mutants/baseline.yaml — 違反を注入していない peer の期待結果
+id: baseline
+scenario:                       # ★ ここを固定しないと比較できない
+  role: sp                      # 対象が SP（Suite は Test IdP を演じる）
+  profile: sp-full
+  declared_features: { single_logout: true, assertion_encryption: true, ecp: false }
+  interaction: { allow_browser_steps: true, allow_attestation: true }
+outcomes:                       # 義務 → 期待 verdict（全 133 件を列挙）
+  IIP-SP13.a: PASS
+  IIP-SP13.b: PASS
+  IIP-IDP01.a: NOT_APPLICABLE   # 役割違い
+  IIP-SP14.c: NOT_SUPPORTED     # OPTIONAL の未実装申告
+  ...
 ```
 
-`must_not_affect` を必須にするのが要点で、これがないと
-「何でも FAIL にする Suite」が golden test を通ってしまう。
+```yaml
+# tests/mutants/no-signature-validation.yaml
+id: no-signature-validation
+base: baseline                  # 同じ scenario を使う
+injected_violation_ja: Response の XML 署名を一切検証しない
+expected_changes:               # ★ baseline から変わるべき義務
+  IIP-SP13.a: FAIL
+  IIP-MD07.b: FAIL
+unchanged_required: all_others  # ★ それ以外は baseline と一致すること
+```
+
+`unchanged_required: all_others` が要点で、これがないと
+**「何でも FAIL にする Suite」が golden test を通ってしまう**。
 
 初期の mutant セット（G2 で `tests/cases.yaml` の `detected_by_mutants` と対応づける）:
 
-| mutant | 注入する違反 | 検出されるべき義務 |
+| mutant | 注入する違反 | baseline から FAIL に変わるべき義務 |
 |---|---|---|
 | `no-signature-validation` | 署名を検証しない | IIP-SP13.a / IIP-MD07.b |
-| `ignore-audience` | `Audience` を無視する | （Phase 4 の Security Profile と共通） |
-| `ignore-destination` | `Destination` を無視する | 同上 |
+| `ignore-audience` | `Audience` を無視 | （Phase 4 と共通） |
+| `ignore-destination` | `Destination` を無視 | 同上 |
 | `first-key-only` | 複数鍵の最初しか試さない | IIP-MD07.b / IIP-SP08.c / IIP-IDP19.c |
 | `gcm128-only` | AES128-GCM しか受け付けない | IIP-ALG04.b |
-| `oaep-sha256-only` | DigestMethod sha1 を拒否する | IIP-ALG06.c |
-| `crash-on-extension` | 未知の拡張要素で落ちる | IIP-EXT01.b / IIP-EXT01.c |
+| `oaep-sha1-reject` | DigestMethod sha1 を拒否する | IIP-ALG06.c |
+| `crash-on-extension` | 未知の拡張要素で落ちる | IIP-EXT01.b |
 | `crash-on-unknown-attribute` | `xsd:anyAttribute` の未知属性で落ちる | IIP-EXT01.c |
-| `ignore-force-authn` | `ForceAuthn` を無視する | IIP-IDP06.a |
+| `ignore-force-authn` | `ForceAuthn` を無視 | IIP-IDP06.a |
 | `truncate-256` | 256 文字の値を切り詰める | IIP-G02.a |
-| `reject-everything` | 全て拒否する | **どの義務も PASS にしてはならない**（対照用。`must_not_affect` が効くか検証する） |
-| `accept-everything` | 全て受理する | negative control が機能するかの検証用 |
+| `reject-everything` | 全て拒否する | **positive control を持つ全ケースが FAIL に変わる**こと。`MUST_NOT` 系は baseline のままでよい |
+| `accept-everything` | 全て受理する | **negative control を持つ全ケースが FAIL に変わる**こと |
+
+`reject-everything` / `accept-everything` は
+**control の機能そのものを検証する対照 mutant** である。
 
 **受け入れ条件**
 
-- [ ] 全 mutant について、`must_be_detected_by` の義務が **FAIL** になる
-- [ ] 全 mutant について、`must_not_affect` の義務が **PASS のまま**である
-- [ ] mutant を使わない正常な Test Peer では全義務が PASS する（false positive がない）
+- [ ] `baseline` の outcome vector が固定され、2 回実行して一致する（再現性）
+- [ ] 各 mutant で `expected_changes` の義務が**その通りに変化**する
+- [ ] 各 mutant で **それ以外の義務が baseline と一致**する（`unchanged_required`）
+- [ ] `reject-everything` で **positive control を持つ全ケース**が FAIL に変わる
+- [ ] `accept-everything` で **negative control を持つ全ケース**が FAIL に変わる
+- [ ] **全義務が 1 件以上の mutant で検出される、または `mutant_waiver` を持つ**
+      （[G2 の通過条件](01-scope-and-roadmap.md)）
 - [ ] Test Plan 作成から結果表示まで、利用者が触るドキュメントが `README` 1 枚で足りる
 - [ ] 対象側で必要な設定作業が **メタデータ URL の登録 1 回 + オプション設定** に収まる
-- [ ] 同じ Suite バージョン・同じ Test Plan で 2 回実行して結果が一致する（再現性）
+- [ ] 同じ Suite バージョン・同じ Test Plan で 2 回実行して結果が一致する
 - [ ] 外部から検証不能な義務が `PASS` に混ざっていない（[03](03-test-model.md) の判定語彙）
 
 **リファレンス実装（Keycloak / Shibboleth / SimpleSAMLphp）の位置づけ**は

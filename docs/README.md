@@ -54,12 +54,14 @@ G1a  カタログ作成        ✅ 完了（PENDING_REVIEW）
   ↓
 G1b  義務の意味レビュー   ⏳ 作成者以外が原文と coverage.yaml を照合し、署名済み承認記録を作る
   ↓                        検証: G1_TOOLS_COMMIT=<SHA> tools/g1_ci_verify.sh
-M0   骨格実装            G1b 後に着手してよい（Test Peer / Transcript / Preflight）
+M0   骨格実装            G1b 後に着手してよい（Test Peer / Transcript / Preflight。テスト 0 件）
   ↓
-G2   テスト設計          ⏳ 132 義務をケース ID に割り当て、対照ケースと反例を定義
-  ↓                        作成者以外が設計をレビューして承認
+G2   テスト設計          ⏳ 132 義務をケース ID に割り当て、対照ケース・反例・mutant を定義
+  ↓                        検証基盤（schema / g2_validate / approvals/g2.yaml / CI）も含む
 M1〜 判定ケースの実装     ★ G2 完了後
 ```
+
+実装エージェント（Codex 等）に渡す規約は [`AGENTS.md`](../AGENTS.md)。
 
 **G1b と G2 は別のレビュー**です。G1b は「義務が原文と正しく対応しているか」、
 G2 は「ケースに検出力があるか」を見ます。

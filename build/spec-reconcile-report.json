@@ -1,7 +1,7 @@
 {
   "task": ":specReconcile",
-  "run_id": "9f7f326e-0204-497f-8424-fe5aeba0c461",
-  "executed_at": "2026-08-26T03:32:07+00:00",
+  "run_id": "3bd52f9c-97c2-40b6-987e-34225742d2a7",
+  "executed_at": "2026-08-26T05:40:08+00:00",
   "validator": "tools/g1_validate.py (生成処理から独立。値を書き戻さない)",
   "provenance": {
     "repo_root": "/Users/yuta/Documents/Samlier",
@@ -22,9 +22,9 @@
     "requirements": 69,
     "obligations": 133,
     "checks": 51,
-    "passed": 50,
-    "failed": 1,
-    "blocking_failures": 0
+    "passed": 49,
+    "failed": 2,
+    "blocking_failures": 1
   },
   "g1_approval": null,
   "g1": {
@@ -32,7 +32,9 @@
     "authored_state": "PENDING_REVIEW",
     "open_questions": [],
     "unapproved": 133,
-    "blocking_failures": [],
+    "blocking_failures": [
+      "SR-40"
+    ],
     "complete": false,
     "complete_formula": "no blocking failures AND no open questions AND all obligations approved via tests/approvals/g1.yaml (coverage.yaml は承認時に編集しない)"
   },
@@ -322,8 +324,8 @@
     {
       "id": "SR-40",
       "description": "tools/ に未追跡・未コミットの Python モジュールがない（shadow import の防止）",
-      "result": "PASS",
-      "detail": "[]"
+      "result": "FAIL",
+      "detail": "['tools/g1_validate.py']"
     },
     {
       "id": "SR-38",

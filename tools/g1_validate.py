@@ -5,7 +5,11 @@
    一切の値を書き戻さない。原文は取得（またはキャッシュ）したものを使い、
    ダイジェストは specs.yaml に記録済みの値と比較する。
 
-  使い方:  python3 tools/g1_validate.py [--offline]
+  使い方:  python3 tools/g1_validate.py [--offline | --structural-only]
+
+    --offline          原文はキャッシュのみ（取得しない）
+    --structural-only  原文を一切参照せず、構造規則だけを実行する。
+                       ★ CI の g1Check 用。除外リストを CI 側に書かずに済む。
   依存  :  PyYAML
   出力  :  build/spec-reconcile-report.json  終了コード 0=PASS / 1=FAIL
 """
@@ -25,8 +29,9 @@ X=_ilu.module_from_spec(_spec); _spec.loader.exec_module(X)
 ROOT=os.environ.get('G1_REPO_ROOT') or os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TESTS=os.path.join(ROOT,'tests'); BUILD=os.path.join(ROOT,'build')
 CACHE=os.path.join(BUILD,'spec-cache'); os.makedirs(CACHE,exist_ok=True)
-OFFLINE='--offline' in sys.argv
-MODE='offline' if OFFLINE else 'network'
+STRUCT_ONLY='--structural-only' in sys.argv
+OFFLINE=('--offline' in sys.argv) or STRUCT_ONLY
+MODE='offline' if OFFLINE else 'network' 
 NOW=datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0).isoformat()
 
 R=[]
@@ -40,11 +45,15 @@ specs=load('specs.yaml'); cov=load('coverage.yaml'); preds=load('predicates.yaml
 
 # ---- 原文の取得（validator 自身は digest を書かない） ----
 primary=specs['specs'][cov['spec']]
-try:
-    raw,_=X.fetch(ROOT,cov['spec'],primary['url'],mode=MODE)
-except Exception as e:
-    raw=None; check("SR-00","primary spec を取得できる",False,f"{type(e).__name__}: {e}")
-if raw is None:
+raw=None
+if not STRUCT_ONLY:
+    try:
+        raw,_=X.fetch(ROOT,cov['spec'],primary['url'],mode=MODE)
+    except Exception as e:
+        raw=None; check("SR-00","primary spec を取得できる",False,f"{type(e).__name__}: {e}")
+if STRUCT_ONLY:
+    pass
+elif raw is None:
     check("SR-01","原文を取得できる（--offline かつキャッシュなし）",False,"no source"); 
 else:
     got='sha256:'+hashlib.sha256(raw).hexdigest()
@@ -187,17 +196,19 @@ dupe=[o['key'] for _,o in obs]
 check("SR-29","obligation key が一意",len(dupe)==len(set(dupe)),len(dupe)-len(set(dupe)))
 
 # ---- 参照仕様の取得と照合 ----
-used=sorted({o['references_spec'].split('#')[0] for _,o in obs if o.get('references_spec')} |
+used=[] if STRUCT_ONLY else sorted({o['references_spec'].split('#')[0] for _,o in obs if o.get('references_spec')} |
             {ev['spec'] for _,o in obs for ev in (o.get('reference_evidence') or [])})
-nodg=[k for k,v in specs['specs'].items()
+nodg=[] if STRUCT_ONLY else [k for k,v in specs['specs'].items()
       if v.get('role')!='referenced-unversioned' and not v.get('source_digest')]
-check("SR-32","カタログの全仕様（版なし文書を除く）に source_digest が記録されている",not nodg,nodg)
-used_nodg=[k for k in used if not specs['specs'].get(k,{}).get('source_digest')
+if not STRUCT_ONLY:
+    check("SR-32","カタログの全仕様（版なし文書を除く）に source_digest が記録されている",not nodg,nodg)
+used_nodg=[] if STRUCT_ONLY else [k for k in used if not specs['specs'].get(k,{}).get('source_digest')
            and specs['specs'].get(k,{}).get('role')!='referenced-unversioned']
-check("SR-32b","義務が参照する全仕様に source_digest がある",not used_nodg,used_nodg)
+if not STRUCT_ONLY:
+    check("SR-32b","義務が参照する全仕様に source_digest がある",not used_nodg,used_nodg)
 
 reftext={}; fetch_fail=[]; dg_bad=[]
-for k in sorted(specs['specs']):
+for k in ([] if STRUCT_ONLY else sorted(specs['specs'])):
     sp=specs['specs'].get(k) or {}
     if not sp.get('url') or not sp.get('source_digest'): continue
     try:
@@ -209,11 +220,11 @@ for k in sorted(specs['specs']):
     else:
         try: reftext[k]=X.normalize(raw,sp['url'])
         except Exception as e: fetch_fail.append(f"{k}:{e}")
-check("SR-33","カタログの全仕様を取得でき、記録された source_digest と一致する",
+if not STRUCT_ONLY: check("SR-33","カタログの全仕様を取得でき、記録された source_digest と一致する",
       not dg_bad and not fetch_fail, f"digest_mismatch={dg_bad[:3]} unavailable={fetch_fail[:3]}")
 
 ev_bad=[]; ev_n=0
-for rid,o in obs:
+for rid,o in ([] if STRUCT_ONLY else obs):
     for ev in o.get('reference_evidence') or []:
         ev_n+=1
         t2=reftext.get(ev['spec'])
@@ -222,7 +233,7 @@ for rid,o in obs:
         except KeyError as e: ev_bad.append(f"{o['key']}: locator 解決不可 {e}"); continue
         if X.sha(sec)!=ev['section_digest']:
             ev_bad.append(f"{o['key']}: section digest 不一致")
-check("SR-34","reference_evidence の locator が解決でき、節ダイジェストが一致する",not ev_bad,
+if not STRUCT_ONLY: check("SR-34","reference_evidence の locator が解決でき、節ダイジェストが一致する",not ev_bad,
       f"n={ev_n} bad={ev_bad[:4]}")
 
 # 参照根拠の要否は義務側の宣言（reference_derivation）から導く。ハードコードしない。
@@ -477,7 +488,7 @@ report=dict(task=":specReconcile",run_id=str(uuid.uuid4()),executed_at=NOW,
       runner_source=os.environ.get('G1_RUNNER_SOURCE'),
       note="validator_source_kind が external-pin でなければ、検査器の取得元は "
            "承認記録が指す target_commit である。CI では G1_VALIDATOR_COMMIT を外部固定すること"),
-  mode="offline" if OFFLINE else "network",
+  mode=("structural-only" if STRUCT_ONLY else ("offline" if OFFLINE else "network")),
   source=dict(spec=cov['spec'],version=cov['spec_version'],url=primary['url'],
               recorded_digest=primary.get('source_digest'),cache="build/spec-cache/ (gitignored)"),
   totals=dict(requirements=len(reqs),obligations=len(obs),checks=len(R),passed=npass,failed=nfail,

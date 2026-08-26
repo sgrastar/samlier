@@ -152,7 +152,9 @@ g2_state: PENDING_REVIEW          # G1 と同じく、承認は署名済み記�
 cases:
   - id: IIP-SP13-01
     obligation: IIP-SP13.a
-    covers_variants: [0, 1]        # required_variants のインデックス
+    covers_variants: [reject-when-configured, accept-signed]
+                                   # ★ 配列インデックスではなく variant の安定 ID。
+                                   #   coverage.yaml の required_variants に id を振る
     role: sp
     mode: CONFIG
     milestone: M1
@@ -166,7 +168,17 @@ cases:
       positive control でこれを落とす。
     depends_on: [IIP-SSO01-01]
     destroys_session: false
-    detected_by_mutants: [no-signature-validation]
+    detected_by_mutants: [no-signature-validation]   # ★ 非空が必須（下記）
+```
+
+`coverage.yaml` 側の `required_variants` も、並び替えに強い**安定 ID** を持つ形に変える。
+
+```yaml
+        required_variants:
+          - id: reject-when-configured
+            description_ja: 拒否設定にしたうえで完全未署名 Response → 拒否される
+          - id: accept-signed
+            description_ja: 署名済み Response → 受理される（対照）
 ```
 
 ### 通過条件
@@ -177,10 +189,35 @@ cases:
       （片方しかないケースは、その理由を `control_waiver_ja` に書く）
 - [ ] 各ケースに **`counterexample_ja`**（義務を満たさないのに PASS する実装）が書かれている。
       書けないなら検出力がないので設計をやり直す
+- [ ] ★ **各義務が「実行可能な mutant で検出される」か「waiver を持つ」**
+      （`detected_by_mutants` が非空、または `mutant_waiver` に理由と
+      **代替の実行可能な control fixture** を記録）。
+      これがないと、10 義務しか覆わない mutant セットでも
+      「全 mutant の期待結果が一致した」として G2 を通せてしまう
+- [ ] `covers_variants` が **variant の安定 ID** を参照している（配列インデックスは不可）
 - [ ] `depends_on` に循環がなく、`destroys_session` が実行順序に反映されている
-- [ ] 全ケースが **M0〜M3 のいずれか**に割り当てられている
+- [ ] 全ケースが **M1〜M3 のいずれか**に割り当てられている
+      （M0 は「テスト 0 件の骨格」なのでケースを持たない）
 - [ ] **実現性スパイク**が済んでいる（下記）
 - [ ] **ケース作成者以外**が設計をレビューして署名承認する（G1b と同じ方式）
+
+### G2 の検証基盤（Codex に実装させる単位）
+
+G2 は「レビューする」だけでは成立しない。G1 と同じ実体が要る。
+
+| 成果物 | 内容 |
+|---|---|
+| `schema/cases-v1.json` | `tests/cases.yaml` の JSON Schema |
+| `tests/cases.yaml` | ケース定義（上記の形） |
+| `tests/mutants/*.yaml` | mutant 定義（[00 §5](00-concept.md)） |
+| `tools/g2_validate.py` | G1 と同じく**生成処理から独立**した validator |
+| `tests/approvals/g2.yaml` | 署名済みの G2 承認記録（**承認対象 commit の外**） |
+| `case_digest` / `mutant_digest` | ケース・mutant の内容を固定する digest（G1 の `obligation_digest` と同じ方式） |
+| `g2.complete` | 完了判定。`g1.complete` と同じ形でレポートに出す |
+| `.github/workflows/g2.yml` | `g2-check` / `g2b-approval` |
+
+**作成者とレビュアーの分離規則も G1 と同じ**にする
+（`authored_by` 必須、`reviewer != authored_by`、署名済み記録、`C..A` の変更制限）。
 
 ### 実現性スパイク（G2 で先に潰す）
 
