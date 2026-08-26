@@ -276,6 +276,14 @@ PRED = [
   "既定は真（適用する）とし、偽にするには理由付きの明示的な除外申告が要る",
   "The target was declared to proxy only to SAML identity providers, so the rules that [SAML2Core] section "
   "3.4.1.5.1 scopes to a non-SAML authenticating identity provider do not apply. This was not verified by the Suite."),
+ ("uses_small_integer_sessionindex","CAPABILITY_BASED","対象が SessionIndex に『小さい正整数・繰り返し定数』方式を使うか",
+  ["declared_features.sessionindex_scheme"],
+  ["target_emitted_sessionindex_is_small_integer: true"],
+  "SAML2Core 2.7.2 は SessionIndex の相関防止のために **2 つの方式**を RECOMMENDED として示す: "
+  "(a) 小さい正整数・繰り返し定数を使う、(b) 囲む assertion の @ID を使う。"
+  "値域の濃度（SHOULD）とランダム選択（SHOULD）は **(a) の内部規則**なので、"
+  "(b) を採る実装には適用されない。★ 観測は方向付き: 対象が送出した SessionIndex の値が"
+  "小さい整数の集合に収まり、assertion の @ID と一致しないことが (a) の証拠"),
  ("uses_random_identifier_generation","CAPABILITY_BASED","対象が識別子の生成に乱数・擬似乱数を用いるか",
   ["declared_features.random_id_generation"],
   ["target_emitted_identifiers_are_high_entropy: true"],

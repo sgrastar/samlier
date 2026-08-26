@@ -2249,3 +2249,57 @@ open question 13
 ```
 
 **第 1 段階は未完了。** `IIP-SSO01.a` の 3 つの対応表の照合が残っている。
+
+---
+
+## G1b-R10 — 2026-08-27 取り込み句 B の精度（指摘 7 件）
+
+義務 273 → 279。今回はすべて「原文の読み違い」か「レベル・適用範囲の取り違え」。
+
+| # | 指摘 | 原文の確認 | 対応 |
+|---|---|---|---|
+| 1 | **`SessionNotOnOrAfter` の Core MUST が欠落** | §2.7.2「Specifies a time instant at which the session ... **MUST** be considered ended」 | `.dt`（MUST / sp）を新設。`.t`（SAML2Prof 4.1.4.3 の SHOULD）とはレベルも行為も違う |
+| 2 | `<AttributeValue>` の RECOMMENDED が欠落 | §2.7.3.1「If an attribute contains more than one discrete value, it is **RECOMMENDED** that each value appear in its own `<AttributeValue>`」 | `.du`（RECOMMENDED / idp）を新設 |
+| 3 | `.cg` の role 別 variant は**機械的に分離されていない** | variant に role フィールドはない | **4 義務に分割**: `.cg`（SP の AuthnRequest）/ `.dv`（IdP の Response）/ `.dw`（IdP の Assertion）/ `.dx`（Proxy IdP の AuthnRequest・条件付き） |
+| 4 | SessionIndex の判定が**原文の許す方式を不適合にする** | §2.7.2 は 2 方式を RECOMMENDED: (a) 小さい正整数・繰り返し定数、(b) 囲む assertion の @ID。**`.df` / `.dg` は (a) の内部規則** | `.de` を「同値か」ではなく「**相関できるか**」で判定。`.df` / `.dg` を述語 `uses_small_integer_sessionindex` で条件付きに。方式選択そのものを `.dy`（RECOMMENDED）に |
+| 5 | `.cz` が**意味上の複数主体を検査していない** | §2.4.1「A `<Subject>` element SHOULD NOT identify more than one principal」 | `<SubjectConfirmation>` 内の識別子・複数 `<SubjectConfirmation>`・属性との食い違いを variant に追加 |
+| 6 | `.db` が**開始側を見ていない** | §2.4.1.2 の SHOULD は一般の `<SubjectConfirmationData>` が対象 | **上限・下限の両端**を検査。非 bearer では `@NotBefore` ≥ `<Conditions>/@NotBefore` も見る |
+| 7 | 暗号化義務の範囲に**過不足** | §2.2.4 の許容型は `NameIDType` **または `AssertionType`**、およびそれらの派生型。ciphertext 一意性の MUST は **`<EncryptedID>` にのみ**置かれている | `.do` に `AssertionType` を追加（「an entire assertion can be encrypted into this element」）。`.dp` を `<EncryptedID>` に限定し、条件付きに |
+
+### 1 が示した区別
+
+`.dt`（Core / MUST）と `.t`（Prof / SHOULD）は同じ属性を扱うが行為が違う。
+
+- **Core**: `SessionNotOnOrAfter` の時点で、その **SAML セッションは終了したものとして扱う**（MUST）
+- **Prof**: SP 自身の**セキュリティコンテキストを破棄する**ことが望ましい（SHOULD）
+
+SP が自分のアプリセッションを独自ポリシーで継続すること自体は Core の MUST に違反しない。
+違反になるのは「当該 assertion を根拠に IdP セッションが継続中だと扱う」こと。
+
+### 4 が示したこと
+
+原文が**複数の実現方式**を示している場合、その一方の内部規則を全体に課してはならない。
+`.df`（値域の濃度）と `.dg`（ランダム選択）は方式 (a) の中に書かれた SHOULD であり、
+方式 (b)（assertion の @ID を使う）を採る実装には適用されない。
+また `.de` は「別 SP で値が異なるか」ではなく「主体を相関できるか」で判定する。
+方式 (a) は**多数の主体で同じ値を共有させて相関を防ぐ**方式なので、同値であること自体は違反ではない。
+
+### 3 が示したこと
+
+義務に `roles: [idp, sp]` を持たせ、variant の説明文で「SP が送る」「IdP が送る」と書き分けても、
+**variant に role フィールドはない**ので G2 では片方の role が他方の variant まで覆う必要があるように見える。
+生成側の義務は role ごとに分けるのが安全。
+
+### 現在の状態
+
+```
+要件 69 / 義務 279（273 → 279）/ variant 684 / 仕様 25 / 述語 22 / 検査 62
+IIP-SSO01 だけで 123 義務
+testability  BROWSER 120 / CONFIG 83 / AUTOMATED 40 / ATTESTED 35 / NOT_OBSERVABLE 1
+network 実行: 59/62 PASS・blocking 1（SR-40 = tools 未コミットのみ）
+SR-33  全 25 仕様を再取得し source_digest 一致
+SR-34  reference_evidence 216 件すべて locator 解決・節ダイジェスト一致
+open question 13
+```
+
+**第 1 段階は未完了。** `IIP-SSO01.a` の 3 つの対応表の照合が残っている。

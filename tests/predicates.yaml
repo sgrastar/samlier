@@ -1,6 +1,6 @@
 # tests/predicates.yaml — 条件述語の固定集合（G1 成果物）
 # 生成: build_g1.py / 手編集しない
-generated_at: 2026-08-26T19:04:10+00:00
+generated_at: 2026-08-26T19:20:21+00:00
 schema_version: 1
 # kind: CLAIM_BASED      = 申告そのものが条件（observed 不要）
 #       CAPABILITY_BASED = 実際の能力が条件（observed 必須。declaration-only FALSE は UNKNOWN）
@@ -108,6 +108,15 @@ predicates:
       requires_reason: true
       statement_en: "The target was declared to proxy only to SAML identity providers, so the rules that [SAML2Core] section 3.4.1.5.1 scopes to a non-SAML authenticating identity provider do not apply. This was not verified by the Suite."
     rationale_ja: "SAML2Core 3.4.1.5.1 の一部の規範句は『If the authenticating identity provider is not a SAML identity provider』が明示的な条件。SAML IdP にしかプロキシしない対象には適用されない。★ 訂正: 前版は CAPABILITY_BASED とし『<saml:AuthenticatingAuthority> が SAML メタデータで解決できないこと』を観測材料にしていたが、それは**メタデータ未登録・未取得の SAML IdP でも成立する**ため証拠にならなかった。上流の種別はプロトコル面に現れないので、設定の確認（申告）でしか判定できない。既定は真（適用する）とし、偽にするには理由付きの明示的な除外申告が要る"
+  uses_small_integer_sessionindex:
+    kind: CAPABILITY_BASED
+    description_ja: "対象が SessionIndex に『小さい正整数・繰り返し定数』方式を使うか"
+    declared:
+      - declared_features.sessionindex_scheme
+    observed:
+      - "target_emitted_sessionindex_is_small_integer: true"
+    on_conflict: inconsistent
+    rationale_ja: "SAML2Core 2.7.2 は SessionIndex の相関防止のために **2 つの方式**を RECOMMENDED として示す: (a) 小さい正整数・繰り返し定数を使う、(b) 囲む assertion の @ID を使う。値域の濃度（SHOULD）とランダム選択（SHOULD）は **(a) の内部規則**なので、(b) を採る実装には適用されない。★ 観測は方向付き: 対象が送出した SessionIndex の値が小さい整数の集合に収まり、assertion の @ID と一致しないことが (a) の証拠"
   uses_random_identifier_generation:
     kind: CAPABILITY_BASED
     description_ja: "対象が識別子の生成に乱数・擬似乱数を用いるか"
