@@ -107,14 +107,38 @@ tests/approvals/g1.yaml  tools/g1_validate.py   tools/g1_extract.py
 加えて **`tests/` 配下のファイル集合**が A と一致することも確認する（追加・削除の検出）。
 これがないと、A の後に coverage を書き換えて `obligation_digest` を再計算するだけで通ってしまう。
 
-**validator 自身を保護対象に含めている**のは、検査器を弱める改変を検出するためである。
+**validator 自身を保護対象に含めている**が、それだけでは足りない。
+**改変された validator を実行すると、その validator は自分の改変を報告しない**（自己検査の限界）。
+
+### ★ 承認の検証は `tools/g1_trusted_verify.py` から行う
+
+```bash
+python3 tools/g1_trusted_verify.py [--offline]
+#   0 = ブロッキング違反なし / 1 = あり / 2 = 検証の前提が崩れている
+```
+
+このランナーは**現在の checkout の validator を実行しない**。
+
+1. 承認記録を最後に変更した commit A を git から特定する
+2. A の署名を検証する（`signed-commit` は `git verify-commit`、
+   `signed-tag` は `git verify-tag` + tag が A を指すことの確認）
+3. **A の tree から** `g1_validate.py` / `g1_extract.py` を隔離ディレクトリに取り出す
+4. `python -I`（隔離モード）で実行し、検査対象リポジトリは `G1_REPO_ROOT` で渡す
+
+**shadow import の遮断**: python は `sys.path[0]` にスクリプトの位置を入れるため、
+未追跡の `tools/yaml.py` を置くだけで署名検証より前に任意コードが走る。
+ランナーは冒頭で自分のディレクトリを `sys.path` から外し、
+抽出した validator は `tools/` を `sys.path` に一切載せない
+（`g1_extract` は明示パスで `importlib` 読み込み）。
+併せて **SR-40**（`tools/` に未追跡 `.py` がない）と
+**`tools/` のファイル集合の一致**で、shim の設置自体を検出する。
 
 **限界の明示**（validator はこれ以上を主張しない）:
 
 | 保証できること | 保証できないこと |
 |---|---|
 | 署名鍵の保持者が承認記録に署名した | その鍵が**実在のレビュアー**のものか（`allowedSignersFile` / CODEOWNERS などリポジトリ運用側の設定に依存） |
-| 承認後に保護対象ファイルが変わっていない | **改変された validator を実行した場合**の結果（自己検査の原理的限界。CI では承認済み commit から checkout した validator を使うこと） |
+| 承認後に保護対象ファイルが変わっていない | このランナー（`g1_trusted_verify.py`）自身が改変された場合。ランナーは短く保ち、CI では**承認済み commit から取り出したランナー**を使う |
 | レビュアーが原文を読んだと**記録した**こと | レビュアーが**実際に**原文を読んだこと |
 
 **G1 完了の判定式**（レポートの `g1.complete`）:

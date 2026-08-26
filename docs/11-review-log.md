@@ -1084,7 +1084,7 @@ tests/approvals/g1.yaml   tools/g1_validate.py   tools/g1_extract.py
 |---|---|
 | A の後に coverage の `level` を改変 + digest 再計算（未コミット） | **BLOCK** |
 | さらに未署名 commit B にして tree を clean に | **BLOCK**（clean でも検出） |
-| `PROTECTED_PATHS` を空にして validator を無効化 | **BLOCK**（validator 自身が保護対象） |
+| `PROTECTED_PATHS` を空にして validator を無効化 | ⚠ **この試験は誤りだった**（G1a-R7 で訂正） |
 | `tests/` にファイルを追加 | **BLOCK**（ファイル集合の不一致） |
 | `evidence.reviewers` を空に | **BLOCK**（承認記録の改変として検出） |
 
@@ -1107,3 +1107,73 @@ tests/approvals/g1.yaml   tools/g1_validate.py   tools/g1_extract.py
 | レビュアーが原文を読んだと記録したこと | レビュアーが実際に原文を読んだこと |
 
 累計で塞いだ攻撃は **23 パターン**。
+
+---
+
+## G1a-R7 — 2026-08-26 信頼された実行入口と signed-tag
+
+**結論**: 指摘 2 件とも妥当。加えて **R6 の私の試験報告が誤っていた**ので訂正する。
+
+### 訂正: R6 の「`PROTECTED_PATHS` を空にして BLOCK」は誤り
+
+私が実行した置換は
+
+```python
+s.replace('PROTECTED_PATHS=(', 'PROTECTED_PATHS=() or (')
+```
+
+で、`() or ('tests/...', ...)` は **非空タプルを返す**（`()` は falsy）。
+つまり `PROTECTED_PATHS` は空になっておらず、観測した BLOCK は
+**ファイルを編集したこと自体**が保護対象比較に引っかかったものだった。
+検査が生き残ったからではない。
+
+レビュアーが正しく空にしたところ `50/50 PASS` になった。
+**validator の自己保護は実効的ではない**というご指摘が正しい。
+
+### 指摘 1: 信頼された実行入口を作った
+
+自己検査には原理的限界がある（改変された validator は自分の改変を報告しない）。
+`tools/g1_trusted_verify.py` を新設し、**現在の checkout の validator を実行しない**構成にした。
+
+1. 承認記録を最後に変更した commit A を git から特定
+2. A の署名を検証（`signed-commit` / `signed-tag`）
+3. **A の tree から** validator 一式を隔離ディレクトリへ取り出す
+4. `python -I` で実行し、検査対象は `G1_REPO_ROOT` で渡す
+
+**shadow import も塞いだ**。ランナーは冒頭で自分のディレクトリを `sys.path` から外し、
+validator は `tools/` を `sys.path` に載せず `g1_extract` を明示パスで `importlib` 読み込みする。
+併せて **SR-40**（`tools/` に未追跡 `.py` がない）と
+**`tools/` のファイル集合の一致**（commit された shim の検出）を追加した。
+
+### 指摘 2: signed-tag を実際に検証するようにした
+
+`signed-tag` を受理しながら `git verify-commit` しか実行していなかった。
+`evidence.tag` を必須にし、**`git verify-tag` + tag が承認 commit を指すこと**を確認する。
+
+### 実地試験（クリーンな clone、SSH 署名）
+
+| # | 状況 | 結果 |
+|---|---|---|
+| 0 | 正常系（signed-commit） | **51/51 PASS** / exit 0 |
+| 1 | `PROTECTED_PATHS` を**本当に**空にした validator | 直接実行では素通り → **trusted runner で BLOCK**（SR-38: coverage と validator の両方が承認時と不一致） |
+| 2 | 未追跡 `tools/yaml.py` で shadow import | **shim が実行されず** BLOCK（SR-40 + ファイル集合） |
+| 3 | shim を **commit** して clean にする | **BLOCK**（`tools/` のファイル集合が不一致） |
+| 4 | tag を作らず `kind: signed-tag` | **exit 2**（`evidence.tag` 必須） |
+| 5 | tag が別 commit を指す | **exit 2** |
+| 6 | 正しい署名 tag が承認 commit を指す | **51/51 PASS** / exit 0 |
+
+### 訂正: ワーキングツリーの「clean」報告
+
+前回「working tree: 0 件の変更」と報告したが、その後 validator を実行したため
+`build/spec-reconcile-report.json` が変更状態になっていた（`run_id` / `executed_at` が毎回変わる）。
+承認対象外のファイルなので承認はブロックしないが、**報告としては不正確だった**。
+
+### 限界（変わらず明示する）
+
+| 保証できる | 保証できない |
+|---|---|
+| 署名鍵の保持者が承認記録に署名した | その鍵が実在のレビュアーのものか |
+| 承認後に保護対象ファイルが変わっていない | **ランナー自身**が改変された場合（CI では承認済み commit から取り出したランナーを使う） |
+| レビュアーが原文を読んだと記録したこと | レビュアーが実際に読んだこと |
+
+累計で塞いだ攻撃は **29 パターン**。

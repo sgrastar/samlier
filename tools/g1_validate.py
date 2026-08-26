@@ -10,14 +10,19 @@
   出力  :  build/spec-reconcile-report.json  終了コード 0=PASS / 1=FAIL
 """
 import os,re,sys,json,html,hashlib,unicodedata,datetime,uuid,urllib.request
-sys.path.insert(0,os.path.dirname(os.path.abspath(__file__)))
-import g1_extract as X
+# ★ tools/ を sys.path に入れない。未追跡の tools/yaml.py 等で
+#   標準/サードパーティモジュールを shadow され、署名検証より先に任意コードが走る。
 try:
     import yaml
 except ImportError:
-    sys.exit("PyYAML が必要です:  pip install pyyaml")
+    sys.exit("PyYAML が必要です:  .venv/bin/pip install -r tools/requirements.txt")
+# g1_extract は「この validator と同じディレクトリのファイル」を明示パスで読み込む
+import importlib.util as _ilu
+_here=os.path.dirname(os.path.abspath(__file__))
+_spec=_ilu.spec_from_file_location('g1_extract_local',os.path.join(_here,'g1_extract.py'))
+X=_ilu.module_from_spec(_spec); _spec.loader.exec_module(X)
 
-ROOT=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT=os.environ.get('G1_REPO_ROOT') or os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TESTS=os.path.join(ROOT,'tests'); BUILD=os.path.join(ROOT,'build')
 CACHE=os.path.join(BUILD,'spec-cache'); os.makedirs(CACHE,exist_ok=True)
 OFFLINE='--offline' in sys.argv
@@ -295,12 +300,26 @@ if os.path.exists(APPROVAL_PATH):
     # ★ 承認記録の正本は「作業ツリーの内容」ではなく
     #    「その内容が入っている署名済み commit の中身」である。
     #    作業ツリーを信じると、署名済み commit を指したまま中身を書き換えられる。
+    try: appr_peek=yaml.safe_load(open(APPROVAL_PATH,encoding='utf-8'))
+    except Exception: appr_peek=None
     _lg=_git('log','-1','--format=%H','--',APPROVAL_REL)
     _sig_commit=_lg.stdout.strip() if _lg and _lg.returncode==0 else ''
     if not _sig_commit:
         appr_src_problems.append(f"{APPROVAL_REL} が git にコミットされていない（承認は commit されている必要がある）")
     else:
-        _v=_git('verify-commit',_sig_commit)
+        _kind=((appr_peek or {}).get('evidence') or {}).get('kind')
+        if _kind=='signed-tag':
+            _tag=((appr_peek or {}).get('evidence') or {}).get('tag')
+            if not _tag:
+                appr_src_problems.append("evidence.kind=signed-tag には evidence.tag が必須")
+                _v=None
+            else:
+                _v=_git('verify-tag',str(_tag))
+                _rt=_git('rev-list','-n','1',str(_tag))
+                if not _rt or _rt.returncode!=0 or _rt.stdout.strip()!=_sig_commit:
+                    appr_src_problems.append(f"tag {_tag} が承認記録を含む commit {_sig_commit[:12]} を指していない")
+        else:
+            _v=_git('verify-commit',_sig_commit)
         _si=_git('log','-1','--format=%GS|%GK|%GT',_sig_commit)
         if _si and _si.returncode==0 and _si.stdout.strip():
             _p=_si.stdout.strip().split('|')
@@ -308,7 +327,7 @@ if os.path.exists(APPROVAL_PATH):
                            key=_p[1] if len(_p)>1 else None,
                            trust=_p[2] if len(_p)>2 else None)
         if not _v or _v.returncode!=0:
-            appr_src_problems.append(f"承認記録を含む commit {_sig_commit[:12]} が署名検証に失敗した")
+            appr_src_problems.append(f"承認記録の署名検証に失敗（{_kind or 'signed-commit'} / commit {_sig_commit[:12]}）")
         else:
             _blob=_git('show',f'{_sig_commit}:{APPROVAL_REL}',binary=True)
             if not _blob or _blob.returncode!=0:
@@ -329,16 +348,25 @@ if os.path.exists(APPROVAL_PATH):
                     if X.sha(open(_cur,'rb').read())!=X.sha(_b.stdout):
                         appr_src_problems.append(f"{_rel} が署名済み承認 commit の内容と異なる（承認後に変更された）")
                 # 追加・削除も検出する（tests/ 配下のファイル集合の一致）
-                _ls=_git('ls-tree','-r','--name-only',_sig_commit,'tests')
-                if _ls and _ls.returncode==0:
+                for _dir in ('tests','tools'):
+                    _ls=_git('ls-tree','-r','--name-only',_sig_commit,_dir)
+                    if not _ls or _ls.returncode!=0: continue
                     _a=set(_ls.stdout.split())
                     _n=set()
-                    for _dp,_dn,_fn in os.walk(os.path.join(ROOT,'tests')):
+                    for _dp,_dn,_fn in os.walk(os.path.join(ROOT,_dir)):
+                        _dn[:]=[d for d in _dn if d!='__pycache__']
                         for _f in _fn:
+                            if _f.endswith('.pyc'): continue
                             _n.add(os.path.relpath(os.path.join(_dp,_f),ROOT))
+                    # gitignore されているもの（tools/g1_authoring.py 等）は集合から除く
+                    if _n:
+                        _ci=subprocess.run(['git','-C',ROOT,'check-ignore','--stdin'],
+                                           input='\n'.join(sorted(_n)),capture_output=True,text=True,timeout=30)
+                        _n-=set(_ci.stdout.split())
                     if _a!=_n:
                         appr_src_problems.append(
-                            f"tests/ のファイル集合が署名済み commit と異なる（追加 {sorted(_n-_a)[:3]} / 削除 {sorted(_a-_n)[:3]}）")
+                            f"{_dir}/ のファイル集合が署名済み commit と異なる"
+                            f"（追加 {sorted(_n-_a)[:3]} / 削除 {sorted(_a-_n)[:3]}）")
 
 # coverage.yaml 側の state は起票の記録であり、承認の正本ではない
 state_claims=[o['key'] for _,o in obs if (o.get('review') or {}).get('state')!='PENDING_REVIEW']
@@ -406,6 +434,11 @@ else:
     allowed=set(ev.get('reviewers') or [])
     bad_rv=sorted({e.get('reviewer') for e in (appr.get('approvals') or [])} - allowed - {None})
     if bad_rv: appr_problems.append(f"evidence.reviewers に無い reviewer: {bad_rv[:3]}")
+
+_ut=_git('status','--porcelain','--untracked-files=all','tools')
+_extra=[l[3:] for l in (_ut.stdout.splitlines() if _ut and _ut.returncode==0 else []) if l[3:].endswith('.py')]
+check("SR-40","tools/ に未追跡・未コミットの Python モジュールがない（shadow import の防止）",
+      not _extra,_extra[:5])
 
 check("SR-38","承認が対象 commit の外にある署名付き記録に拘束されている",
       not appr_problems and not appr_src_problems,(appr_src_problems+appr_problems)[:6])

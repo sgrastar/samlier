@@ -1,7 +1,7 @@
 {
   "task": ":specReconcile",
-  "run_id": "065f9518-a5ca-47a4-a841-e71f4f133cb6",
-  "executed_at": "2026-08-25T23:42:02+00:00",
+  "run_id": "f52f20f8-f103-48f4-a11f-94947ca29179",
+  "executed_at": "2026-08-26T00:08:30+00:00",
   "validator": "tools/g1_validate.py (生成処理から独立。値を書き戻さない)",
   "mode": "offline",
   "source": {
@@ -14,17 +14,19 @@
   "totals": {
     "requirements": 69,
     "obligations": 133,
-    "checks": 50,
+    "checks": 51,
     "passed": 49,
-    "failed": 1,
-    "blocking_failures": 0
+    "failed": 2,
+    "blocking_failures": 1
   },
   "g1_approval": null,
   "g1": {
     "state": "PENDING_REVIEW",
     "open_questions": [],
     "unapproved": 133,
-    "blocking_failures": [],
+    "blocking_failures": [
+      "SR-40"
+    ],
     "complete": false,
     "complete_formula": "no blocking failures AND no open questions AND all obligations approved via tests/approvals/g1.yaml AND coverage.g1_state == APPROVED"
   },
@@ -310,6 +312,12 @@
       "description": "全 obligation に authored_by がある（reviewer≠author の判定に必要）",
       "result": "PASS",
       "detail": "[]"
+    },
+    {
+      "id": "SR-40",
+      "description": "tools/ に未追跡・未コミットの Python モジュールがない（shadow import の防止）",
+      "result": "FAIL",
+      "detail": "['tools/g1_trusted_verify.py', 'tools/g1_validate.py']"
     },
     {
       "id": "SR-38",
