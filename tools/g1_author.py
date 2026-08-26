@@ -276,6 +276,27 @@ PRED = [
   "既定は真（適用する）とし、偽にするには理由付きの明示的な除外申告が要る",
   "The target was declared to proxy only to SAML identity providers, so the rules that [SAML2Core] section "
   "3.4.1.5.1 scopes to a non-SAML authenticating identity provider do not apply. This was not verified by the Suite."),
+ ("supports_encrypted_attribute","CAPABILITY_BASED","対象が <saml:EncryptedAttribute> を発行できるか",
+  ["declared_features.encrypted_attribute"],
+  ["target_emitted: saml:EncryptedAttribute"],
+  "SAML2Core 6 の規則は『その種類の暗号化を行う場合』が前提。"
+  "IIP-IDP09.b が識別子・属性の暗号化を OPTIONAL としているため、非対応なら NOT_APPLICABLE。"
+  "★ 観測は方向付き: 対象が *送信した* <saml:EncryptedAttribute> のみが証拠になる"),
+ ("target_signs_saml_messages","CAPABILITY_BASED","対象が SAML メッセージ・assertion に XML 署名を付けるか",
+  ["declared_features.signs_messages"],
+  ["target_emitted: ds:Signature"],
+  "SAML2Core 5.4 の XML Signature profile は『<ds:Signature> を付ける場合』の制約である。"
+  "IdP は POST バインディングで各 assertion の署名が必須（IIP-SSO01.v）なので常に真になるが、"
+  "SP の AuthnRequest 署名は SAML2Prof 4.1.4.1 で MAY。署名しない対象では NOT_APPLICABLE。"
+  "★ 観測は方向付き: 対象が *送出した* メッセージ・assertion に <ds:Signature> があることだけが証拠"),
+ ("accepts_nonstandard_signature_transforms","CAPABILITY_BASED","対象が許可外 transform を含む署名を拒否せず受理するか",
+  ["declared_features.accepts_nonstandard_transforms"],
+  ["target_accepted_signature_with_nonstandard_transform: true"],
+  "SAML2Core 5.4.4 は『Verifiers of signatures MAY reject signatures that contain other transform "
+  "algorithms as invalid. If they do not, verifiers MUST ensure that no content of the SAML message is "
+  "excluded from the signature』という二択。一律拒否する対象には後段の MUST が適用されない。"
+  "★ この述語は検査そのものの観測から決まる（許可外 transform 付き署名を送って受理されたか）。"
+  "偽なら NOT_APPLICABLE で、それが安全側の挙動である"),
  ("uses_small_integer_sessionindex","CAPABILITY_BASED","対象が SessionIndex に『小さい正整数・繰り返し定数』方式を使うか",
   ["declared_features.sessionindex_scheme"],
   ["target_emitted_sessionindex_is_small_integer: true"],

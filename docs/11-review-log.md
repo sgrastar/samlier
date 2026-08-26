@@ -2379,3 +2379,86 @@ SR-34  reference_evidence 247 件すべて locator 解決・節ダイジェス�
 ```
 
 **第 1 段階は未完了。** `IIP-SSO01.a` の対応表の照合が残っている。
+
+---
+
+## G1b-R12 — 2026-08-27 新設義務の精度（指摘 7 件）
+
+義務 309 → **316**。P0 が 3 件、P1 が 4 件。
+
+### 1 [P0] `.eo` の例外条件が原文より広かった
+
+§4.1.3.2 の except 節は**二次コード `RequestVersionTooHigh` の報告に限定**されている。
+前版は同節の別の箇条（最上位コードの規定＝`.ep`）から `VersionMismatch` を取ってきており、
+`RequestVersionTooLow` / `RequestVersionDeprecated` でも低い major の応答を許してしまっていた。
+`basis_ja` の引用も原文と一致していなかった。両方を直した。
+
+### 2 [P0] §6 の義務に適用条件がなかった
+
+§6 の規則はすべて「その種類の暗号化を行う場合」が前提。
+とくに `.ez` は全 IdP に `<EncryptedID>` と `<EncryptedAttribute>` を要求していたが、
+**IIP-IDP09.b は識別子・属性の暗号化を OPTIONAL** としている。
+暗号化する要素の種類ごとに義務を分けた。
+
+| 義務 | 対象 | 条件 |
+|---|---|---|
+| `.ez` | `<Assertion>` の位置 | なし（IIP-IDP09.a により対応必須。CONFIG 前提） |
+| `.fd` | `<EncryptedID>` の位置 | `supports_encrypted_nameid` |
+| `.fe` | `<EncryptedAttribute>` の位置 | `supports_encrypted_attribute` |
+| `.fb` | assertion は署名 → 暗号化 | なし（CONFIG 前提） |
+| `.fc` | 識別子は暗号化 → 外側署名 | `supports_encrypted_nameid` |
+| `.ff` | 属性は暗号化 → 外側署名 | `supports_encrypted_attribute` |
+
+### 3 [P0] `.fa` のケースでは処理順序を検出できなかった
+
+ご指摘の counterexample が成立する。
+
+> **復号 → 外側署名検証**という誤った順序で処理する実装でも、
+> 内側を壊せば拒否し、外側を壊せば拒否するので、**全 required_variants を通過する**。
+
+個別破壊のケースが証明するのは「両方を検証したこと」までで、**順序ではない**。
+testability を `BROWSER` → **`ATTESTED`** に変更し、
+verdict は内部トレース・ログ・申告・計装に限定した。
+得られない場合は `not_verified(processing_order_not_observable)`。
+2 つの破壊ケースは「両方を検証している」ことの確認として実行するが**補助証拠**に降格した。
+
+### 4 [P1] 落ちていた規範句
+
+無言で落とさず、義務として起こしたうえで判定上の扱いを controls に書いた。
+
+| 出典 | 規範句 | 義務 |
+|---|---|---|
+| §4.1.3.1 | 双方が対応する最高版で要求を出す（SHOULD） | `.fg` |
+| §4.1.3.1 | 応答元の能力が不明なら自身の最高版を仮定（SHOULD） | `.fh` |
+| §5.4.1 | RSA-SHA1 の署名・検証に対応（SHOULD） | `.fi` |
+
+`.fi` は SHA-1 が危殆化している一方で **IIP-ALG08.a が「特定アルゴリズムの使用を禁止できる」ことを MUST** としており、
+`rsa-sha1` を禁止する配備は IIP が明示的に認めた設定選択である。
+Evaluator は WARNING を出すが、結果にこの理由を advisory として併記し、
+G2 では `control_waiver_ja` に記録して mutant 検出力の評価から外す、と決めた。
+
+### 5〜7
+
+| # | 指摘 | 対応 |
+|---|---|---|
+| 5 | `.ec` は「NFD へ正規化する実装は違反」としていた | 原文が求めるのは **NFC + バイナリ比較と同じ結果**であって内部の正規化形式ではない。判定を結果の同値性にした。`.ed` は方向が逆だった（義務は**正規化が起きることを考慮する**こと） |
+| 6 | `.ee` が sorting order と**文書内の並び順**を混同 | 原文が禁じるのは**ロケール等で変わる照合・ソート順への依存**。「先頭値だけを使う」「文書順を入れ替える」を削除し、ソート処理を一切しない実装が満たすことを明記 |
+| 7 | 複数 role を一義務に入れる問題が再発 | `.et` を `.et`（IdP の Response）と **`.fj`**（SP の AuthnRequest）に分割。`.eu` は variant を **role 中立**（「対象が署名した要素のルート」）に書き換えて解決 |
+
+**補足への対応**: `.er` / `.eu` / `.ev` / `.ew` / `.ex` に述語 **`target_signs_saml_messages`**（XML 署名を付ける場合）、
+`.ey` に **`accepts_nonstandard_signature_transforms`**（許可外 transform を一律拒否しない場合）を条件として付けた。
+`.ey` の条件は本検査そのものの観測から決まり、**偽なら NOT_APPLICABLE でそれが安全側の挙動**である。
+
+### 現在の状態
+
+```
+要件 69 / 義務 316（309 → 316）/ variant 774 / 仕様 25 / 述語 25 / 検査 62
+IIP-SSO01 だけで 160 義務
+testability  BROWSER 130 / CONFIG 89 / AUTOMATED 53 / ATTESTED 43 / NOT_OBSERVABLE 1
+network 実行: 59/62 PASS・blocking 1（SR-40 = tools 未コミットのみ）
+SR-33  全 25 仕様を再取得し source_digest 一致
+SR-34  reference_evidence 254 件すべて locator 解決・節ダイジェスト一致
+open question 13
+```
+
+**第 1 段階は未完了。** `IIP-SSO01.a` の対応表の照合が残っており、実装には着手できない。

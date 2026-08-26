@@ -1,6 +1,6 @@
 # tests/predicates.yaml — 条件述語の固定集合（G1 成果物）
 # 生成: build_g1.py / 手編集しない
-generated_at: 2026-08-26T19:48:03+00:00
+generated_at: 2026-08-26T20:08:23+00:00
 schema_version: 1
 # kind: CLAIM_BASED      = 申告そのものが条件（observed 不要）
 #       CAPABILITY_BASED = 実際の能力が条件（observed 必須。declaration-only FALSE は UNKNOWN）
@@ -108,6 +108,33 @@ predicates:
       requires_reason: true
       statement_en: "The target was declared to proxy only to SAML identity providers, so the rules that [SAML2Core] section 3.4.1.5.1 scopes to a non-SAML authenticating identity provider do not apply. This was not verified by the Suite."
     rationale_ja: "SAML2Core 3.4.1.5.1 の一部の規範句は『If the authenticating identity provider is not a SAML identity provider』が明示的な条件。SAML IdP にしかプロキシしない対象には適用されない。★ 訂正: 前版は CAPABILITY_BASED とし『<saml:AuthenticatingAuthority> が SAML メタデータで解決できないこと』を観測材料にしていたが、それは**メタデータ未登録・未取得の SAML IdP でも成立する**ため証拠にならなかった。上流の種別はプロトコル面に現れないので、設定の確認（申告）でしか判定できない。既定は真（適用する）とし、偽にするには理由付きの明示的な除外申告が要る"
+  supports_encrypted_attribute:
+    kind: CAPABILITY_BASED
+    description_ja: "対象が <saml:EncryptedAttribute> を発行できるか"
+    declared:
+      - declared_features.encrypted_attribute
+    observed:
+      - "target_emitted: saml:EncryptedAttribute"
+    on_conflict: inconsistent
+    rationale_ja: "SAML2Core 6 の規則は『その種類の暗号化を行う場合』が前提。IIP-IDP09.b が識別子・属性の暗号化を OPTIONAL としているため、非対応なら NOT_APPLICABLE。★ 観測は方向付き: 対象が *送信した* <saml:EncryptedAttribute> のみが証拠になる"
+  target_signs_saml_messages:
+    kind: CAPABILITY_BASED
+    description_ja: "対象が SAML メッセージ・assertion に XML 署名を付けるか"
+    declared:
+      - declared_features.signs_messages
+    observed:
+      - "target_emitted: ds:Signature"
+    on_conflict: inconsistent
+    rationale_ja: "SAML2Core 5.4 の XML Signature profile は『<ds:Signature> を付ける場合』の制約である。IdP は POST バインディングで各 assertion の署名が必須（IIP-SSO01.v）なので常に真になるが、SP の AuthnRequest 署名は SAML2Prof 4.1.4.1 で MAY。署名しない対象では NOT_APPLICABLE。★ 観測は方向付き: 対象が *送出した* メッセージ・assertion に <ds:Signature> があることだけが証拠"
+  accepts_nonstandard_signature_transforms:
+    kind: CAPABILITY_BASED
+    description_ja: "対象が許可外 transform を含む署名を拒否せず受理するか"
+    declared:
+      - declared_features.accepts_nonstandard_transforms
+    observed:
+      - "target_accepted_signature_with_nonstandard_transform: true"
+    on_conflict: inconsistent
+    rationale_ja: "SAML2Core 5.4.4 は『Verifiers of signatures MAY reject signatures that contain other transform algorithms as invalid. If they do not, verifiers MUST ensure that no content of the SAML message is excluded from the signature』という二択。一律拒否する対象には後段の MUST が適用されない。★ この述語は検査そのものの観測から決まる（許可外 transform 付き署名を送って受理されたか）。偽なら NOT_APPLICABLE で、それが安全側の挙動である"
   uses_small_integer_sessionindex:
     kind: CAPABILITY_BASED
     description_ja: "対象が SessionIndex に『小さい正整数・繰り返し定数』方式を使うか"
