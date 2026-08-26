@@ -108,8 +108,10 @@ check("SR-03b","coverage.yaml の要件 ID が一意",len(cov_ids)==len(set(cov_
 badpar=[o['key'] for r in reqs for o in r['obligations']
         if not o['key'].startswith(r['id']+'.')]
 check("SR-03c","obligation key が親要件 ID + '.' で始まる",not badpar,badpar[:6])
-badsuf=[o['key'] for _,o in obs if not re.fullmatch(r'[a-z][0-9]?',o['key'].rsplit('.',1)[1])]
-check("SR-03d","obligation key の suffix が [a-z][0-9]? の形式",not badsuf,badsuf[:6])
+# suffix は [a-z] を基本とし、a–z を使い切った要件では 2 文字（aa, ab, ...）を認める。
+# 数字の付加（h1, k2 …）は「同じ規範句から派生した細目」を表す。
+badsuf=[o['key'] for _,o in obs if not re.fullmatch(r'[a-z]{1,2}[0-9]?',o['key'].rsplit('.',1)[1])]
+check("SR-03d","obligation key の suffix が [a-z]{1,2}[0-9]? の形式",not badsuf,badsuf[:6])
 check("SR-04","全 69 要件に 1 件以上の obligation がある",all(r['obligations'] for r in reqs),
       [r['id'] for r in reqs if not r['obligations']])
 
@@ -146,9 +148,7 @@ if SEC:
         if not S: continue
         clause=' '.join(S['text'][c['start']:c['end']] for c in o['source_clauses'])
         if cond.get('predicate_kind')=='CLAIM_BASED' and not re.search(r'claim',clause,re.I): bc.append(o['key'])
-        if cond.get('predicate_kind')=='CLASSIFICATION_BASED' and 'does not apply' not in S['text']: bx.append(o['key'])
     check("SR-13","CLAIM_BASED の条件が『claim』を含む句に紐づく",not bc,bc)
-    check("SR-14","CLASSIFICATION_BASED の義務の要件節に適用除外文が実在する",not bx,bx)
 
 # ---- 構造検査（原文なしでも動く） ----
 pk={n:d['kind'] for n,d in preds['predicates'].items()}
@@ -298,6 +298,35 @@ for rid,o in ([] if STRUCT_ONLY else obs):
             ev_bad.append(f"{o['key']}: section digest 不一致")
 if not STRUCT_ONLY: check("SR-34","reference_evidence の locator が解決でき、節ダイジェストが一致する",not ev_bad,
       f"n={ev_n} bad={ev_bad[:4]}")
+
+# ---- SR-14: 適用除外文の実在検証 ----
+# CLASSIFICATION_BASED の条件は「原文が明示的に除外している」ことが前提。
+# その除外文を verbatim で持たせ、IIP の要件節または参照仕様の節に実在することを確かめる。
+# （前版は要件節に 'does not apply' が含まれるかだけを見ていたため、
+#   参照仕様側に除外文がある義務を弾き、逆に無関係な 'does not apply' を通していた）
+cls=[(rid,o) for rid,o in obs if (o.get('condition') or {}).get('predicate_kind')=='CLASSIFICATION_BASED']
+noexcl=[o['key'] for _,o in cls if not o.get('exclusion_clause_en')]
+strayexcl=[o['key'] for _,o in obs
+           if o.get('exclusion_clause_en')
+           and (o.get('condition') or {}).get('predicate_kind')!='CLASSIFICATION_BASED']
+check("SR-14a","CLASSIFICATION_BASED の義務が exclusion_clause_en を持ち、他の義務は持たない",
+      not noexcl and not strayexcl,(noexcl+strayexcl)[:5])
+if not STRUCT_ONLY:
+    bx=[]
+    for rid,o in cls:
+        ex=o.get('exclusion_clause_en')
+        if not ex: continue
+        hay=[]
+        S=SEC.get(rid)
+        if S: hay.append(S['text'])
+        for ev in o.get('reference_evidence') or []:
+            t2=reftext.get(ev['spec'])
+            if t2 is None: continue
+            try: hay.append(X.section(t2,ev['locator']))
+            except KeyError: pass
+        if not any(ex in h for h in hay):
+            bx.append(f"{o['key']}: 除外文が IIP 節にも参照節にも実在しない")
+    check("SR-14","exclusion_clause_en が IIP 節または参照節に verbatim で実在する",not bx,bx[:5])
 
 # 参照根拠の要否は義務側の宣言（reference_derivation）から導く。ハードコードしない。
 nodecl=[o['key'] for _,o in obs if o.get('references_spec') and o.get('reference_derivation') is None]

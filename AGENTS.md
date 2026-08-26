@@ -33,7 +33,7 @@ tests/coverage.yaml   tests/specs.yaml   tests/predicates.yaml   tests/approvals
 
 `tools/g1_docgen.py --check` が CI で差分を検出する。
 
-**母数は本文に直書きしない。** `<!--g1:obligations-->147<!--/g1-->` のようにマーカーで書き、
+**母数は本文に直書きしない。** `<!--g1:obligations-->198<!--/g1-->` のようにマーカーで書き、
 `g1_docgen.py` に埋めさせる。説明のための架空の数を書くときは行に `<!--g1-literal-->` を置く。
 直書きは `g1_validate.py` の **SR-41** が検出して FAIL にする
 （義務を足したときに複数ファイルの数値が取り残される事故を防ぐため）。

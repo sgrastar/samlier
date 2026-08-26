@@ -1797,3 +1797,256 @@ open question 18 → SR-30 が FAIL、g1.complete = false
 **次**: 18 義務の参照節の分解。第 1 段階は
 `IIP-SSO01.a` / `IIP-SP12.a` / `IIP-IDP06.a` / `IIP-IDP07.a` / `IIP-IDP10.a` / `IIP-IDP12.a`。
 `IIP-SP04.a`（Discovery）と `IIP-SP14.a` / `IIP-IDP17.a` / `IIP-IDP17.b`（SLO）は第 2 段階へ。
+
+---
+
+## G1b-R4 — 2026-08-26 参照節の分解 第 1 段階（SAML2Core / SAML2Prof 共通規則）
+
+open question 18 件のうち、SAML2Core / SAML2Prof に依存する 6 件を分解した。
+
+| 要件 | 参照節 | 前 | 後 |
+|---|---|---|---|
+| `IIP-SSO01` | SAML2Prof §4.1（errata 反映） | 1 | **36** |
+| `IIP-SP12` | SAML2Core §8.3.7 | 1（NOT_OBSERVABLE） | **2** |
+| `IIP-IDP06` | SAML2Core §3.4.1 ForceAuthn | 2 | **3** |
+| `IIP-IDP07` | SAML2Core §3.4.1 IsPassive | 1 | 1（内容を全面改訂） |
+| `IIP-IDP10` | SAML2Core §3.4.1.1 NameIDPolicy | 1 | **4** |
+| `IIP-IDP12` | SAML2Core §3.4.1 ACS 属性 | 1 | **4** |
+
+### ★ errata の適用範囲を決めた
+
+IIP は `[SAML2Errata]` を**選択的に**取り込む。明記があるのは
+`IIP-MD05` / `IIP-SSO01` / `IIP-SP14` / `IIP-IDP17` と、個別 erratum を名指しする箇所（E92 / E62）だけで、
+`[SAML2Core]` の参照エントリは OS 版 PDF を指し「as updated by errata」を伴わない。
+
+**決定**: errata は IIP が取り込みを明記した箇所だけで規範として扱い、
+それ以外では **advisory として記録し判定に使わない**。
+
+| 適用した | 適用しなかった |
+|---|---|
+| `IIP-SSO01`（SAML2Prof §4.1）に **E17 / E26 / E52** | `IIP-IDP10` に **E14 / E15**（`[SAML2Core]` は errata 取り込みの明記がない） |
+| | **E90**（RelayState サニタイズ。`[SAMLBind]` への追記であって SAML2Prof の改訂ではない） |
+
+E26 は §4.1.4.2 / §4.1.4.3 / §4.1.4.5 を実質的に書き換えており、改訂前の文で義務を起こすと
+**適合実装を FAIL にする**。特に次の 3 点は改訂前後で判定が変わる。
+
+| | 改訂前 | E26 適用後 |
+|---|---|---|
+| bearer 確認 | AuthnStatement を含む assertion の**少なくとも 1 つ** | 本 profile で消費される assertion は**すべて** |
+| AudienceRestriction | bearer 確認を持つ assertion**（集合として）** | **各** bearer assertion |
+| POST 時の署名 | 「enclosed assertion(s) MUST be signed」 | **各 assertion が署名で保護**されること。**Response 署名でもよい**と明記 |
+
+3 つ目は特に重要で、改訂前の文から「Assertion に署名がある」ケースだけを書くと、
+**Response 署名のみの適合実装を FAIL にする**。
+
+### `IIP-SSO01` の 36 義務
+
+| 出典 | 義務 | 役割 |
+|---|---|---|
+| 包括（往復が成立する） | `.a` | idp/sp |
+| §4.1.4.1 AuthnRequest Usage | `.b`〜`.e` | sp 2 / idp 2 |
+| §4.1.4.2 Response Usage（E17 / E26 / E52） | `.f`〜`.m`（12 件） | idp |
+| §4.1.4.3 Response 処理規則（E26） | `.n`〜`.t`（9 件） | sp |
+| §4.1.4.4 Artifact（条件付き） | `.u` / `.u1` | idp/sp |
+| §4.1.4.5 POST（E26） | `.v` / `.w` | idp 1 / sp 1 |
+| §4.1.2 / §4.1.5 | `.x`〜`.y2` | idp 3 / sp 1 |
+
+**この分解で埋まった穴**: SP 側の応答処理規則（署名検証 / Recipient 照合 / NotOnOrAfter /
+InResponseTo 照合 / replay 防止）は SAML の中核的な検査だが、
+**IIP の他のどの要件にも入っておらず、カタログから丸ごと落ちていた**。
+
+重複は作っていない。§4.1.6（メタデータ）は `IIP-SSO06` が同じ節を直接扱う。
+§4.1.3.5 の「エラーでも `<Response>` を返すべき」は `IIP-IDP05` が MUST として持つ。
+ACS の検証義務は `IIP-IDP12.b` に置き、`IIP-SSO01` からは参照だけにした。
+
+### `IIP-SP12` — NOT_OBSERVABLE を撤回
+
+前版は「追加の意味づけを *要求するか* は設定面の性質でプロトコル面に現れない」として
+`NOT_OBSERVABLE` にしていた。これは誤り。**§8.3.7 は persistent 識別子の値空間を規定している**ので、
+「その範囲の任意の値を受理するか」は外部から観測できる。
+
+- `.a` **MUST_NOT / sp / BROWSER** — §8.3.7 に適合する値を内容を理由に拒否しない（長さ境界・文字種・区切りの有無を変えた 7 variant）
+- `.b` MUST_NOT / sp / ATTESTED — 設定・配備文書の上でも要求しない（観測できない残り）
+
+`NOT_OBSERVABLE` は 2 件 → **1 件**（`IIP-SSO05.a4` のみ）。
+
+### 原文を読んで直した誤り
+
+| 箇所 | 前版 | 原文 |
+|---|---|---|
+| `IIP-IDP07` | 「セッションなし + IsPassive=true → **NoPassive エラー**」を必須 variant にしていた | 二次 status code は §3.4.1.4 で **MAY**。NoPassive が返らないことを FAIL にしてはならない。判定は「可視の画面が出ない」ことまで |
+| `IIP-IDP10` | 「AllowCreate=true / false」を対応 variant にするだけ | AllowCreate に IdP への MUST は**ない**。E14 は「requester **tries to** constrain」と明示的に緩和している。「false なら絶対に作らない」を期待すると適合実装を FAIL にする |
+| `IIP-IDP12` | 「メタデータにない ACS URL → **拒否される**」 | 無効 index の扱いは **MAY error or MAY default**（`.d`）。ACS URL の検証義務（`.b`）とは別の規則 |
+| `IIP-IDP06` | ForceAuthn の 1 義務のみ | IsPassive 併用時の **MUST NOT** が未分解だった（`.c`） |
+
+### 追加した述語（いずれも CAPABILITY_BASED・観測は方向付き）
+
+`supports_slo_idp` / `supports_artifact_binding` / `supports_encrypted_nameid`
+
+### 現在の状態
+
+```
+要件 69 / 義務 190（147 → 190）/ variant 444 / 述語 13 / 検査 61
+level        MUST 134 / MUST_NOT 24 / SHOULD 11 / SHOULD_NOT 1 / REQUIRED 4 / RECOMMENDED 4 / MAY 6 / OPTIONAL 6
+testability  BROWSER 100 / CONFIG 63 / ATTESTED 18 / AUTOMATED 8 / NOT_OBSERVABLE 1
+open question 18 → 12
+```
+
+**次（第 2 段階: ECP / SLO / Discovery）**: `IIP-SP04`（IdPDisco）/ `IIP-SP14`・`IIP-IDP17.a`（SAML2Prof §4.4）/
+`IIP-IDP17.b`（SAML2ASLO）/ `IIP-IDP13.a`（SAML2ECP）。
+**第 3 段階**: `IIP-MD05.a`〜`.f` と `IIP-MD06.a` のメタデータ群。
+
+---
+
+## G1b-R5 — 2026-08-27 第 1 段階の再修正（指摘 5 件）
+
+第 1 段階は完了扱いにできない、という判断は妥当だった。5 件とも原文で確認し、修正した。
+
+| # | 指摘 | 事実確認 | 対応 |
+|---|---|---|---|
+| 1 | E90 の扱いが事実と異なる | **その通り**。E90 は `[SAMLBind]` だけでなく **`[SAMLProf]` §4.1.5 にも追記**し、さらに**新 §4.1.6「Use of Relay State」を挿入**する | `.aa`（SP は unsolicited 受理を無効化できるべき / SHOULD）と `.ab`（RelayState 由来 URL scheme を https / http に限る / SHOULD）を追加。「advisory のみ」という記述を削除 |
+| 2 | SSO01 が規範句を取りこぼしている | **その通り**。§4.1.3.1 の RelayState SHOULD と §4.1.3.4 の MUST が欠落。`.a` の unsolicited 必須 variant も誤り（§4.1.5 の開始は **MAY**） | `.ac` / `.ae` を追加。`.a` から unsolicited variant を削除し `.z`（MAY）に。`.y` / `.y1` を条件付きに。`.ad`（TLS RECOMMENDED）も追加 |
+| 3 | IDP10.d が errata 方針と矛盾 | **その通り**。§3.4.1.1 の MUST は「理解不能・受理不能ならエラー」までで、**「受理したなら従う」は含まない** | 根拠を **§3.4.1.4**「assertions that meet the specifications defined by the request」に置き直した。E15 は advisory のまま |
+| 4 | IDP12.a の Redirect variant が誤り | **その通り**。`<Response>` に HTTP-Redirect を使うことは §4.1.2 で禁止（`IIP-SSO01.x`）。適合 IdP を落とす | binding 切り替えの比較を **POST と Artifact** に変更。Redirect 指定に対しては「Redirect では返さない」だけを判定 |
+| 5 | SP12.a が原文より強い | **その通り**。原文は「NameID に追加の意味・構造を**要求してはならない**」で、未知の主体・未プロビジョニング等**構造以外の理由による拒否は禁じていない** | 義務文を原文に戻し、testability を **CONFIG / `test_precondition`** に。自動プロビジョニングをテスト前提とし、拒否理由を特定できなければ **NOT_VERIFIED** |
+
+### 1 の詳細 — E90 が `[SAMLProf]` に追記する内容
+
+```
+Add text to [SAMLProf] Section 4.1.5., before line 617:
+  Service providers SHOULD have a means of disabling the acceptance of
+  unsolicited responses if circumstances warrant.
+
+Add text to [SAMLProf] before line 617, after previous addition:
+  4.1.6 Use of Relay State
+  ... The URL scheme eventually derived SHOULD be limited to "https" or "http",
+  and protection against unencoded executable content must be applied.
+```
+
+`IIP-SSO01` は `[SAML2Prof]` を「as updated by `[SAML2Errata]`」で取り込むので、**この 2 つは規範として適用される**。
+一方、同じ E90 の `[SAMLBind]` 側の `MUST`（URL スキームのサニタイズ）は
+IIP が `[SAML2Bind]` を errata 込みで参照していないため判定に使わない。
+`protection against unencoded executable content must be applied` は**小文字の must** で、
+SAML2Prof §1.2 Notation が RFC2119 キーワードを大文字と定めているため規範キーワードではない（advisory 記録）。
+
+> ★ **節番号の衝突**: E90 は errata 反映版に新 §4.1.6 を挿入するため、
+> 「SAML2Prof §4.1.6」が OS 版（Use of Metadata）と errata 反映版（Use of Relay State）で別物を指す。
+> `IIP-SSO06` は節名も併記して OS 版を指しているので曖昧さはない。この点を `.a` の notes に記録した。
+
+### 2 の詳細 — §4.1 の全 RFC2119 句を機械的に洗い直した
+
+正規表現で §4.1 の RFC2119 句を全件抽出し（68 文）、1 件ずつ義務に対応づけた。
+**対応表は `IIP-SSO01.a` の `notes_ja` に全文を置いた**（`docs/04` から読める）。
+
+洗い直しで分かったこと:
+
+- **`.ac`（§4.1.3.1 RelayState SHOULD）と `.ae`（§4.1.3.4 MUST）が欠落していた** — ご指摘の通り
+- **`.ad`（§4.1.3.3 / §4.1.3.5 の TLS RECOMMENDED）も欠落していた** — 2 か所に同じ句がある
+- 「IdP MUST process the `<AuthnRequest>` as described in `[SAMLCore]`」等の**取り込み句**は
+  包括義務を作らず、中身を分解している既存要件（`IIP-IDP06`〜`IDP12` / `.n`〜`.r1`）を指す形にした
+- ★ **`[SAMLProf]` §4.1.4.1 の「SP が新規識別子の作成を望むなら `AllowCreate="true"` を含めなければならない」は
+  E14 が削除している**。errata 反映版には存在しないので義務を起こさない
+
+`IIP-SSO01.a` の `open_question` は**再度開いた**。閉じる条件は
+「対応表をレビュアーが 1 件ずつ照合し、取りこぼしがないことを確認する」こと。
+
+### 3 の詳細 — IDP10.d の根拠の置き直し
+
+前版の導出「受理して成功応答を返した以上、その内容に従わない選択肢は残らない」は成立しない。
+§3.4.1.1 の MUST は *acceptable* かどうかの分岐しか定めておらず、
+「受理可能と判断しつつ別の Format を返す」余地が残る。
+
+正しい根拠は **§3.4.1.4**:
+
+> The responder MUST ultimately reply to an `<AuthnRequest>` with a `<Response>` message containing
+> one or more assertions **that meet the specifications defined by the request**, or with a `<Response>`
+> message containing a `<Status>` describing the error that occurred.
+
+同節の「the identifier MAY be in a different format **if specified by `<NameIDPolicy>`**」も、
+識別子の形式が `<NameIDPolicy>` によって決まることを前提にしている。
+§3.4.1 が「See Section 3.4.1.4 for general processing rules」と述べるので、
+`IIP-IDP10` の「as defined in `[SAML2Core]`」に含まれる。**E15 は不要になった。**
+
+### 検査器の修正
+
+義務キーの suffix が `a`〜`z` を使い切ったため、**SR-03d が `.aa` 以降を BLOCK した**（正しい動作）。
+規則を `[a-z]{1,2}[0-9]?` に緩め、`.abc` / `.A` / `.a12` が FAIL することを負のテストで確認した。
+
+### 現在の状態
+
+```
+要件 69 / 義務 196（190 → 196）/ 述語 14 / 検査 61
+network 実行: 58/61 PASS・blocking 1（SR-40 = tools 未コミットのみ）
+SR-33  全 24 仕様を再取得し source_digest 一致
+SR-34  reference_evidence 112 件すべて locator 解決・節ダイジェスト一致
+open question 12 → 13（IIP-SSO01.a を再度開いたため）
+```
+
+**未コミット。** 第 1 段階は「完了」ではなく、`IIP-SSO01.a` の対応表照合が残っている。
+
+---
+
+## G1b-R6 — 2026-08-27 第 1 段階の再修正 2（意味レビュー 5 件 + 補足 1 件）
+
+いずれも「原文が要求していないことを義務にしていた」か「原文が要求していることを見落としていた」。
+
+| # | 指摘 | 原文の確認 | 対応 |
+|---|---|---|---|
+| 1 | `SSO01.aa` の無効化手段が**テスト前提扱い** | E90 は「**手段を持つこと**」自体を SHOULD としている | `configuration_failure_semantics` を **`normative_capability`** に。分岐を 3 つに明記。「有効化すると受理される」variant は E90 が要求していないので削除 |
+| 2 | `SSO01.ab` の positive control が**余分な要件**を追加 | E90 は「**URL を導出する場合の**スキーム制限」の SHOULD。http/https を受理・遷移する義務はない | 条件述語 **`derives_url_from_relaystate`** を追加。禁止スキームだけを verdict 対象にし、http/https は Suite 側の control fixture に降格 |
+| 3 | `SSO01.ad` の TLS 義務が**原文より強い**／独自の非本番例外 | 原文は「**このステップの HTTP 交換**」の RECOMMENDED。全エンドポイント HTTPS も非本番免除も導けない | 判定対象を **Transcript に現れた実際の交換**に限定。非本番免除を撤回（HTTP なら violated → WARNING） |
+| 4 | `SSO01.ae` の「画面上の認証なし＝身元未確立」は**成立しない** | 既存セッション・クライアント証明書・Kerberos / 統合認証でも身元は確立できる。ForceAuthn なしなら既存セッション利用も許される | testability を **`CONFIG` / `test_precondition`** に。ambient authentication を排除した構成を前提にし、作れなければ `not_verified(ambient_auth_not_excludable)` |
+| 5 | `IDP12.a` は **ProtocolBinding を無視する実装が PASS** できる | Artifact 非対応なら「POST 指定→POST」「Redirect 指定→Redirect でない」は**常に既定 POST で返す実装でも両方通過** | 原文の 3 属性の**列挙を義務に分割**（`.a` Index / `.e` URL / `.f` ProtocolBinding）。`.f` は**積極的証拠**（binding 切替 or 未対応 binding へのエラー）がなければ `not_verified(no_positive_evidence_for_protocol_binding)` |
+| 補足 | `SSO01.ac` の `unless` を**自己申告だけで通過**させていた | §4.1.3.1 の unless 節は原文が明示する適用除外 | 条件述語 **`relaystate_privacy_required`**（CLASSIFICATION_BASED + `declaration_only_exclusion`）に移した。「RelayState は不透明トークンであるべき」という原文にない variant も削除 |
+
+### 4 が一番危なかった
+
+「可視の認証操作がない成功応答＝違反」は、**非対話認証を使う適合 IdP を一律 FAIL にする**判定だった。
+`IIP-G01` で一度直したはずの「原文にない条件を足さない」に戻っていた。
+BROWSER 観測だけで結論できる話ではないので、CONFIG 前提と申告フォールバックに置き換えた。
+
+### 5 の分割理由
+
+原文は 3 属性を**列挙**している。属性ごとに検出力の作り方が違い、
+特に `ProtocolBinding` は Artifact 非対応の対象では**合法な値が HTTP-POST しかない**ため
+積極的証明ができないことがある。1 義務にまとめると
+「検証できた属性」と「できなかった属性」を区別できず、`not_verified` を `satisfied` に混ぜてしまう。
+
+`.f` が `satisfied` になれるのは次のどちらかが観測できたときだけ:
+
+- **A**: `HTTP-POST` ⇄ `HTTP-Artifact` で返送 binding が切り替わる
+- **B**: 応答に使えない binding を指定 → エラー `<Status>`（`UnsupportedBinding` は MAY なので値は問わない）
+
+黙って別 binding にフォールバックした場合は「属性を処理した」証拠にならないので `not_verified`。
+
+### 検査器の修正 — SR-14 を作り直した
+
+`SSO01.ac` を CLASSIFICATION_BASED にしたところ、**SR-14 が BLOCK した**（正しい動作）。
+旧 SR-14 は「IIP の要件節に `does not apply` という文字列が含まれるか」しか見ておらず、
+
+- 除外文が**参照仕様側**にある義務を弾く
+- 無関係な `does not apply` があれば通してしまう
+
+という二重の欠陥があった。**除外文を `exclusion_clause_en` として verbatim で持たせ**、
+IIP 節または参照節に実在することを検証する形に置き換えた。
+
+| 検査 | 内容 |
+|---|---|
+| `SR-14a` | CLASSIFICATION_BASED の義務が `exclusion_clause_en` を持ち、他の義務は持たない（構造検査。ネットワーク不要） |
+| `SR-14` | `exclusion_clause_en` が IIP 節または参照節に **verbatim で実在**する |
+
+負のテスト: 原文にない除外文 → `SR-14` FAIL ／ 除外文を削除 → `SR-14a` FAIL ／ 健全時 → 両方 PASS。
+既存の `IIP-IDP13.a`〜`.d` にも `exclusion_clause_en`（"This requirement does not apply to token translation Proxies."）を追加した。
+
+### 現在の状態
+
+```
+要件 69 / 義務 198（196 → 198）/ variant 467 / 述語 16 / 検査 62
+network 実行: 59/62 PASS・blocking 1（SR-40 = tools 未コミットのみ）
+SR-33  全 24 仕様を再取得し source_digest 一致
+SR-34  reference_evidence 114 件すべて locator 解決・節ダイジェスト一致
+SR-14 / SR-14a  適用除外文 5 件すべて原文に実在
+open question 13（IIP-SSO01.a の対応表照合が未了）
+```
+
+**第 1 段階は未完了。** `IIP-SSO01.a` の対応表照合が済むまで承認対象 commit にはしない。

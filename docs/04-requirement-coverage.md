@@ -15,13 +15,13 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 | 指標 | 値 |
 |---|---|
 | 要件 | 69 |
-| 義務（obligation） | 147 |
-| うち MUST_CLASS | 125 |
-| うち SHOULD_CLASS | 11 |
-| うち MAY_CLASS | 11 |
-| 条件付き義務 | 19 |
-| IdP プロファイル | 113 義務（Core 84 / Full 29） |
-| SP プロファイル | 102 義務（Core 77 / Full 25） |
+| 義務（obligation） | 198 |
+| うち MUST_CLASS | 165 |
+| うち SHOULD_CLASS | 20 |
+| うち MAY_CLASS | 13 |
+| 条件付き義務 | 27 |
+| IdP プロファイル | 148 義務（Core 114 / Full 34） |
+| SP プロファイル | 121 義務（Core 88 / Full 33） |
 | 非規範（イタリック）スパン | 26 |
 
 **Testability**
@@ -29,10 +29,10 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 | 記号 | 意味 | 件数 |
 |---|---|---|
 | `AUTOMATED` | Suite と対象の直接通信で完結（ブラウザ不要） | 8 |
-| `BROWSER` | 利用者のブラウザが必要 | 61 |
-| `ATTESTED` | 対象内部の挙動を利用者が申告 | 15 |
-| `CONFIG` | 対象側の設定変更を依頼したうえで実行 | 61 |
-| `NOT_OBSERVABLE` | 外部から原理的に検証不能。ケースを作らない | 2 |
+| `BROWSER` | 利用者のブラウザが必要 | 105 |
+| `ATTESTED` | 対象内部の挙動を利用者が申告 | 18 |
+| `CONFIG` | 対象側の設定変更を依頼したうえで実行 | 66 |
+| `NOT_OBSERVABLE` | 外部から原理的に検証不能。ケースを作らない | 1 |
 
 **判定に関する注意**
 
@@ -769,15 +769,683 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 
 | 義務 | Level | Role | Testability | 条件 | Core/Full | 要約 |
 |---|---|---|---|---|---|---|
-| `IIP-SSO01.a` | MUST | idp/sp | `BROWSER` | — | core | SAML V2.0 Web Browser SSO Profile に対応 |
+| `IIP-SSO01.a` | MUST | idp/sp | `BROWSER` | — | core | Web Browser SSO Profile が端から端まで成立する |
+| `IIP-SSO01.b` | MUST | sp | `BROWSER` | — | core | AuthnRequest の <Issuer> が存在し、SP の entityID で、Format は省略か entity |
+| `IIP-SSO01.c` | MUST_NOT | sp | `BROWSER` | — | core | AuthnRequest に <saml:Subject> を含める場合、<saml:SubjectConfirmation> を含めてはならない |
+| `IIP-SSO01.d` | MUST | idp | `BROWSER` | — | core | 要求の <Subject> が指す主体を認識できない場合、エラー status を持ち assertion を含まない <Response> を返す |
+| `IIP-SSO01.e` | MUST_NOT | idp | `ATTESTED` | — | core | 認証・完全性保護されていない AuthnRequest の情報を、advisory を超えて信頼してはならない |
+| `IIP-SSO01.f` | MUST_NOT | idp | `BROWSER` | — | core | エラーを返す場合、<Response> に assertion を含めてはならない |
+| `IIP-SSO01.g` | MUST | idp | `BROWSER` | — | core | 成功応答の <Response> は 1 つ以上の <Assertion> を含む |
+| `IIP-SSO01.h` | MUST | idp | `BROWSER` | — | core | <Response> の <Issuer> は省略してよいが、存在すれば IdP の entityID で、Format は省略か entity |
+| `IIP-SSO01.h1` | MUST | idp | `BROWSER` | — | core | [E17] <Response> が署名されている場合、または含まれる assertion が暗号化されている場合、<Issuer> は必須 |
+| `IIP-SSO01.i` | MUST | idp | `BROWSER` | — | core | 各 <Assertion> の <Issuer> は応答 IdP の entityID で、Format は省略か entity |
+| `IIP-SSO01.i1` | MUST | idp | `BROWSER` | — | core | [E26] 1 つの <Response> 内の全 assertion は同一エンティティが発行する |
+| `IIP-SSO01.i2` | MUST | idp | `BROWSER` | — | core | [E26] 複数 assertion を含む場合、各 <Subject> は同一の主体を指す |
+| `IIP-SSO01.j` | MUST | idp | `BROWSER` | — | core | [E26] 本 profile で消費される assertion は、bearer の <SubjectConfirmation> を持つ <Subject> を含む |
+| `IIP-SSO01.k` | MUST | idp | `BROWSER` | — | core | [E26/E52] bearer の <SubjectConfirmationData> に Recipient（SP の ACS URL）と NotOnOrAfter がある |
+| `IIP-SSO01.k1` | MUST_NOT | idp | `BROWSER` | — | core | bearer の <SubjectConfirmationData> に NotBefore 属性を含めてはならない |
+| `IIP-SSO01.k2` | MUST | idp | `BROWSER` | — | core | AuthnRequest への応答である場合、InResponseTo が要求の ID と一致する |
+| `IIP-SSO01.l` | MUST | idp | `BROWSER` | — | core | [E26] bearer assertion の集合は、主体の認証を表す <AuthnStatement> を 1 つ以上含む |
+| `IIP-SSO01.l1` | MUST | idp | `BROWSER` | `supports_slo_idp`<br>(CAPABILITY_BASED) | core | [E26] SLO に対応する IdP は、すべての <AuthnStatement> に SessionIndex を含める |
+| `IIP-SSO01.m` | MUST | idp | `BROWSER` | — | core | [E26] 各 bearer assertion は、SP の entityID を <Audience> とする <AudienceRestriction> を含む |
+| `IIP-SSO01.n` | MUST | sp | `BROWSER` | — | core | assertion / response に付いている署名を検証する |
+| `IIP-SSO01.o` | MUST | sp | `BROWSER` | — | core | bearer の <SubjectConfirmationData>/@Recipient が、実際に配送された ACS URL と一致することを検証する |
+| `IIP-SSO01.p` | MUST | sp | `BROWSER` | — | core | bearer の <SubjectConfirmationData>/@NotOnOrAfter を過ぎていないことを、クロックスキューを許容しつつ検証する |
+| `IIP-SSO01.q` | MUST | sp | `BROWSER` | — | core | bearer の <SubjectConfirmationData>/@InResponseTo が、自身が出した AuthnRequest の ID と一致することを検証する |
+| `IIP-SSO01.r` | MUST | sp | `BROWSER` | — | core | 依拠する assertion が、その他の点でも妥当であることを検証する |
+| `IIP-SSO01.r1` | MUST | sp | `BROWSER` | — | core | [E26] assertion が複数ある場合、各 assertion を独立に評価する |
+| `IIP-SSO01.s` | SHOULD | sp | `BROWSER` | — | full | 妥当でない、または subject confirmation の要件を満たせない assertion は破棄することが望ましい |
+| `IIP-SSO01.s1` | SHOULD_NOT | sp | `BROWSER` | — | full | 妥当でない assertion をセキュリティコンテキストの確立に使うべきでない |
+| `IIP-SSO01.t` | SHOULD | sp | `ATTESTED` | — | full | SessionNotOnOrAfter に達したらセキュリティコンテキストを破棄することが望ましい |
+| `IIP-SSO01.u` | MUST | idp/sp | `CONFIG` | `supports_artifact_binding`<br>(CAPABILITY_BASED) | core | HTTP Artifact バインディング使用時、artifact の解決は相互認証・完全性保護・機密性を持つ |
+| `IIP-SSO01.u1` | MUST | idp | `CONFIG` | `supports_artifact_binding`<br>(CAPABILITY_BASED) | core | ArtifactResolve に対し、当該 <Response> の発行先 SP にのみメッセージを渡す |
+| `IIP-SSO01.v` | MUST | idp | `BROWSER` | — | core | [E26] HTTP POST バインディングで配送する場合、各 assertion はデジタル署名で保護される |
+| `IIP-SSO01.w` | MUST | sp | `BROWSER` | — | core | bearer assertion の再送を防ぐ。NotOnOrAfter までの期間、使用済み ID の集合を保持する |
+| `IIP-SSO01.x` | MUST_NOT | idp | `BROWSER` | — | core | <Response> の配送に HTTP-Redirect バインディングを使ってはならない |
+| `IIP-SSO01.y` | MUST_NOT | idp | `BROWSER` | `supports_unsolicited_responses`<br>(CAPABILITY_BASED) | core | unsolicited の <Response> に InResponseTo 属性を含めてはならない |
+| `IIP-SSO01.y1` | SHOULD | idp | `BROWSER` | `supports_unsolicited_responses`<br>(CAPABILITY_BASED) | full | メタデータを使う場合、unsolicited の <Response> は既定に指定された ACS に配送することが望ましい |
+| `IIP-SSO01.z` | MAY | idp | `BROWSER` | — | full | IdP は unsolicited <Response> を配送してこの profile を開始してもよい |
+| `IIP-SSO01.aa` | SHOULD | sp | `CONFIG` | — | full | [E90] SP は、必要に応じて unsolicited response の受理を無効化する手段を持つことが望ましい |
+| `IIP-SSO01.ab` | SHOULD | idp/sp | `BROWSER` | `derives_url_from_relaystate`<br>(CAPABILITY_BASED) | full | [E90] RelayState から最終的に導出する URL scheme は https / http に限ることが望ましい |
+| `IIP-SSO01.ac` | SHOULD | sp | `BROWSER` | `relaystate_privacy_required`<br>(CLASSIFICATION_BASED) | full | SP は RelayState に元の要求内容をできるだけ露出しないことが望ましい |
+| `IIP-SSO01.ad` | RECOMMENDED | idp/sp | `BROWSER` | — | full | 要求ステップ・応答ステップの HTTP 交換は TLS 上で行うことが推奨される |
+| `IIP-SSO01.ae` | MUST | idp | `CONFIG` | — | core | IdP は、SP にエラーを返す場合を除き、principal の身元を確立しなければならない |
+| `IIP-SSO01.y2` | SHOULD | sp | `BROWSER` | — | full | SP は unsolicited 応答を扱えるよう、処理成功後の既定の遷移先を用意しておくことが望ましい |
 
 <details><summary><code>IIP-SSO01.a</code> の詳細</summary>
 
 - **必要な variant**:
-  - `v-5dfe0f0110` SP-initiated 正常系
-  - `v-56496ee074` IdP-initiated（unsolicited）正常系
-- **参照先仕様**: `SAML2Prof`
-- ⚠ **未解決**: 参照仕様 SAML2Prof#4.1 の該当節を読んで規範内容を分解する。4.1.1〜4.1.5 の規範的義務から variant を起こす。現状は正常系 2 件のみ
+  - `v-bf97fb30af` SP-initiated 正常系: 保護リソース → AuthnRequest → 認証 → Response → リソース取得
+  - `v-cb76d17f88` Redirect で要求 / POST で応答（IIP-SSO02・IIP-SSO03 と同じ組合せ）
+  - `v-b559d1b245` POST で要求 / POST で応答
+- **対照（negative control）**:
+  - ★ 本義務は『profile が成立すること』だけを見る包括ケース。個々の規範句を通したことにはしない
+  - ★ 正常系だけでは検出力がない。IIP-SSO01.b 以降の個別義務が対照を担う
+  - ★ 訂正: 前版は『IdP-initiated（unsolicited）正常系』を必須 variant にしていたが、§4.1.5 の開始は MAY である（IIP-SSO01.z）。必須にすると unsolicited を発行しない適合 IdP を FAIL にする。unsolicited 固有の義務は IIP-SSO01.y / .y1 に条件付きで置いた
+- **参照先仕様**: `SAML2Prof#4.1`
+- **注記**: 【§4.1 の RFC2119 句 → 義務の対応表】4.1.2: Redirect を応答に使わない → .x ／ SP が Discovery を使ってよい（MAY）→ IIP-SP04。4.1.3.1: RelayState を使ってよい（MAY）→ .ab の注記 ／ 元要求をできるだけ露出しない（SHOULD）→ .ac。4.1.3.2: Discovery / 別サービスへの誘導 / メタデータの利用（すべて MAY）→ 権限であり義務を起こさない。4.1.3.3: TLS 上で行うことが RECOMMENDED → .ad ／ AuthnRequest の署名は MAY → 権限 ／ 『IdP MUST process the <AuthnRequest> as described in [SAMLCore]』は取り込み句であり、その中身は IIP-IDP06・IDP07・IDP08・IDP10・IDP11・IDP12 が分解している（ここで包括義務を重ねない）。4.1.3.4: principal の identity を確立する（MUST）→ .ae。4.1.3.5: ACS 位置が SP の管理下だと確かめる（MUST）→ IIP-IDP12.b ／ 指定された binding と ACS を可能なら honor する（MUST）→ IIP-IDP12.a ／ TLS が RECOMMENDED → .ad ／ POST 時の Assertion 署名（MUST）→ .v ／ 『SP MUST process the <Response> as described in [SAMLCore]』は取り込み句で、中身は .n〜.r1。4.1.3.6: セキュリティコンテキストの確立は MAY → 権限。4.1.4.1: Issuer（MUST）→ .b ／ 要求を満たせないときのエラー応答（MUST）→ IIP-IDP05.a ／ Subject に SubjectConfirmation を入れない（MUST NOT）→ .c ／ 主体を認識できないときのエラー（MUST）→ .d ／ 未認証要求の情報を信頼しない（MUST NOT）→ .e ／ ACS の検証（MUST）→ IIP-IDP12.b ／ ★『SP が新規識別子の作成を望むなら AllowCreate=true を含めなければならない』は SAML2Errata E14 が §4.1.4.1 から削除しており、errata 反映版には存在しないため義務を起こさない。4.1.4.2（E17・E26・E52 反映）: .f〜.m ／ Address 属性・追加の statement・AttributeConsumingServiceIndex の無視は MAY → 権限 ／ 『条件は SP に理解・受理されなければ assertion は妥当でない』は SP 側の処理であり .r に含む。4.1.4.3（E26 反映）: .n〜.t ／ Address の照合は MAY → 権限。4.1.4.4: .u・.u1 ／ 4.1.4.5（E26 反映）: .v・.w。4.1.5（E90 追記を含む）: 開始は MAY → .z ／ InResponseTo を含めない（MUST NOT）→ .y ／ 既定 ACS への配送（SHOULD）→ .y1 ／ SP は unsolicited を扱えるようにしておく（SHOULD）→ .y2 ／ SP は unsolicited の受理を無効化できるべき（SHOULD, E90）→ .aa ／ RelayState の受け渡しは MAY → 権限。E90 が追加する新 §4.1.6『Use of Relay State』: URL scheme を https / http に限る（SHOULD）→ .ab。OS 版 §4.1.6『Use of Metadata』: IIP-SSO06 が同じ節を直接扱うのでここでは重複させない。★ E90 は errata 反映版に新 §4.1.6 を挿入するため、節番号 4.1.6 が OS 版（Use of Metadata）とerrata 反映版（Use of Relay State）で指す先が違う。IIP-SSO06 は節名も併記して OS 版を指しているので曖昧さはない。
+- ⚠ **未解決**: §4.1（errata 反映）の RFC2119 句と義務の対応表（notes_ja）をレビュアーが 1 件ずつ照合し、取りこぼしがないことを確認するまで open。照合が済めば閉じてよい
+- **source_clauses**: `[0, 125)` `sha256:ff1057626aaa…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-SSO01.b</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-f7a689744f` 対象 SP が送る AuthnRequest に <saml:Issuer> がある
+  - `v-e33a073689` その値が対象のメタデータの entityID と一致する
+  - `v-46bae7630f` @Format が省略されている、または urn:oasis:names:tc:SAML:2.0:nameid-format:entity である
+- **対照（negative control）**:
+  - ★ 3 つの条件（存在・値・Format）を個別に見る。存在確認だけでは値の誤りを検出できない
+  - ★ 対象が複数の entityID を持つ構成では、応答先の Test Peer に対応する entityID と比較する
+- **参照先仕様**: `SAML2Prof#4.1`
+- **source_clauses**: `[0, 125)` `sha256:ff1057626aaa…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-SSO01.c</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-4105eeb89b` 対象が送る全 AuthnRequest を Transcript 全件で検査し、<Subject>/<SubjectConfirmation> がない
+  - `v-741b5b172d` 対象が <Subject> を送らない構成でも満たされる（空虚に真）
+- **対照（negative control）**:
+  - ★ 受動的な常時チェック。全ケースに横断適用する
+  - ★ <Subject> を送らない対象では違反しようがない。『<Subject> を送る対象』を preflight で申告させ、送らない場合は satisfied_with_note（観測機会なし）として記録する
+- **参照先仕様**: `SAML2Prof#4.1`
+- **source_clauses**: `[0, 125)` `sha256:ff1057626aaa…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-SSO01.d</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-a2e391e5bf` 存在しない主体を指す <Subject> 付き AuthnRequest → エラー <Status> が返り、<Assertion> が 0 件
+  - `v-b7f9698d10` 対照: 実在する主体を指す <Subject> → 成功応答が返る（すべてエラーにする実装を落とす）
+  - `v-0e9562c953` エラー応答に <Assertion> も <EncryptedAssertion> も含まれていない
+- **対照（negative control）**:
+  - ★ 『エラーを返す』と『assertion を含めない』は別の観測。両方を確認する
+  - ★ 二次 status code は指定されていないので、特定の値を判定条件にしない
+  - ★ 対象が <Subject> 付き要求に非対応の場合はエラーを返すのが正しい挙動であり、この義務とは矛盾しない
+- **参照先仕様**: `SAML2Prof#4.1`
+- **source_clauses**: `[0, 125)` `sha256:ff1057626aaa…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-SSO01.e</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-974d8fa061` 未署名 AuthnRequest の内容をどう扱うか（信頼境界の設計）を申告で確認する
+  - `v-6075f19b80` 未署名要求の ProviderName / Scoping / Conditions を無検証で反映していないことを申告で確認する
+- **対照（negative control）**:
+  - ★ 唯一の直接観測できる帰結は ACS の検証（IIP-SSO01.f ではなく IIP-IDP12.b）。そちらで自動判定する
+  - ★ 『何を信頼したか』は内部処理なので、本義務自体は申告にとどめる。申告が IIP-IDP12.b の観測と矛盾したら INCONSISTENT
+- **参照先仕様**: `SAML2Prof#4.1`
+- **注記**: ACS の検証義務（署名の有無によらず要求元に紐づくことを確かめる）は IIP-IDP12.b が持つ。本義務はそれ以外の要求内容全般についての一般原則。
+- **source_clauses**: `[0, 125)` `sha256:ff1057626aaa…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-SSO01.f</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-0f9e07af7a` エラーを誘発する要求（未知 Format / 認識できない主体 / IsPassive 不成立）→ 返る <Response> に <Assertion> が 0 件
+  - `v-b4d3a9eccc` <saml:EncryptedAssertion> も 0 件であること
+  - `v-995d4f2a76` 対照: 成功要求 → <Assertion> が 1 件以上（IIP-SSO01.g）
+- **対照（negative control）**:
+  - ★ 暗号化された assertion も『assertion』である。EncryptedAssertion の有無も見る
+  - ★ 複数のエラー経路（Format / 主体 / IsPassive）で試す。1 経路だけでは実装差を拾えない
+- **参照先仕様**: `SAML2Prof#4.1`
+- **source_clauses**: `[0, 125)` `sha256:ff1057626aaa…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-SSO01.g</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-17a960ef8c` SP-initiated 成功時 → <Assertion> または <EncryptedAssertion> が 1 件以上
+  - `v-5f0e0c25fe` IdP-initiated（unsolicited）成功時 → 同上
+- **対照（negative control）**:
+  - ★ IIP-SSO01.f と対。エラー時 0 件・成功時 1 件以上の両方を見て初めて意味がある
+- **参照先仕様**: `SAML2Prof#4.1`
+- **source_clauses**: `[0, 125)` `sha256:ff1057626aaa…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-SSO01.h</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-bc85bdcb7a` <Response>/<Issuer> がある場合、値が対象の entityID と一致する
+  - `v-c2ae1da6b3` その @Format が省略されているか entity である
+  - `v-ab2843b49c` 対照: <Issuer> が省略されている応答を FAIL にしない（MAY である）
+- **対照（negative control）**:
+  - ★ 省略は許されている。存在を必須にすると適合実装を FAIL にする。存在が必須になるのは IIP-SSO01.h1 の条件を満たすときだけ
+- **参照先仕様**: `SAML2Prof#4.1`
+- **source_clauses**: `[0, 125)` `sha256:ff1057626aaa…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-SSO01.h1</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-c8a089dd65` Response 署名を有効にした構成 → <Response>/<Issuer> が存在する
+  - `v-a14f6ce644` Assertion 暗号化を有効にした構成 → <Response>/<Issuer> が存在する
+  - `v-e8b57e1b75` 対照: 署名も暗号化もない構成 → 省略されていてもよい
+- **対照（negative control）**:
+  - ★ IIP-SSO01.h（値の正しさ）と本義務（存在の必須化）は別の観測
+  - ★ 署名・暗号化の有無を切り替えられないと対照が作れない。IIP-SSO04 / IIP-IDP09 の設定と連動させる
+- **参照先仕様**: `SAML2Prof#4.1`
+- **source_clauses**: `[0, 125)` `sha256:ff1057626aaa…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-SSO01.i</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-6b1b4169f6` <Assertion>/<Issuer> が対象（応答してきた IdP）の entityID と一致する
+  - `v-78be213446` その @Format が省略されているか entity である
+  - `v-ef632d79d6` Proxy 構成: 上流 IdP の entityID ではなく、応答してきた対象自身の entityID であること
+- **対照（negative control）**:
+  - ★ <Response>/<Issuer> と <Assertion>/<Issuer> は別要素。両方を見る
+  - ★ Proxy 変種が最も検出力の高いケース。IIP-SSO05.a6（NameQualifier は元の生成者）と混同しないこと。Issuer は応答者、NameQualifier は識別子の生成者である
+- **参照先仕様**: `SAML2Prof#4.1`
+- **source_clauses**: `[0, 125)` `sha256:ff1057626aaa…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-SSO01.i1</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-9d33f372d6` 複数 assertion を返す構成 → すべての <Assertion>/<Issuer> が同一値
+  - `v-d6effae64f` assertion が 1 件の応答では空虚に真
+- **対照（negative control）**:
+  - ★ 複数 assertion を返させられない対象では観測機会がない。satisfied_with_note として記録し、『検証した』とは書かない
+- **参照先仕様**: `SAML2Prof#4.1`
+- **source_clauses**: `[0, 125)` `sha256:ff1057626aaa…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-SSO01.i2</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-09097c01ce` 複数 assertion を返す構成 → 各 <Subject> が同一主体を指す
+  - `v-24a17823f4` <Subject> の内容（<NameID> の Format や値）が異なること自体は許される。これを FAIL にしない
+- **対照（negative control）**:
+  - ★ 『同一主体』は値の一致ではない。Format 違いの識別子が同じ主体を指すことはある。判定は『Suite がログインさせた 1 人の主体に対応しているか』で行い、単純な文字列比較にしない
+- **参照先仕様**: `SAML2Prof#4.1`
+- **source_clauses**: `[0, 125)` `sha256:ff1057626aaa…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-SSO01.j</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-3524370027` 返る assertion に Method=urn:oasis:names:tc:SAML:2.0:cm:bearer の <SubjectConfirmation> がある
+  - `v-f56124b28d` 追加の <SubjectConfirmation> があってもよい（MAY）。これを FAIL にしない
+  - `v-e2f4d62d2e` bearer 確認を持たない assertion が同梱されていても、本 profile の対象外として扱う（MAY）
+- **対照（negative control）**:
+  - ★ E26 の改訂前は『AuthnStatement を含む assertion のうち少なくとも 1 つ』だった。改訂後は『消費される assertion はすべて』に強まっている。errata 適用版で判定する
+  - ★ holder-of-key など他の Method だけを返す実装を検出できること
+- **参照先仕様**: `SAML2Prof#4.1`
+- **source_clauses**: `[0, 125)` `sha256:ff1057626aaa…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-SSO01.k</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-72e7a03eef` Recipient が、実際に <Response> を配送した ACS URL と文字列一致する
+  - `v-9e7e821246` ACS を切り替えた variant で Recipient も追随する（既定値に固定していない）
+  - `v-bb1cb24674` NotOnOrAfter が存在し、応答時刻より後の時刻である
+  - `v-13803cd5f3` Address 属性はあってもなくてもよい（MAY）。これを FAIL にしない
+- **対照（negative control）**:
+  - ★ Recipient を固定値で埋める実装は、ACS を 2 つ持つメタデータでないと検出できない
+  - ★ NotOnOrAfter の『妥当な長さ』は原文に規定がない。値の大小を判定条件にしない（IIP-G01 と同じ理由）
+- **参照先仕様**: `SAML2Prof#4.1`
+- **source_clauses**: `[0, 125)` `sha256:ff1057626aaa…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-SSO01.k1</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-7751b62698` bearer の <SubjectConfirmationData> に @NotBefore がない
+  - `v-ebc4e3088f` <saml:Conditions>/@NotBefore は別要素であり、こちらにあってもよい。混同しない
+- **対照（negative control）**:
+  - ★ Conditions/@NotBefore と SubjectConfirmationData/@NotBefore を取り違えると、適合実装を FAIL にするか違反を見逃す。XPath を要素まで含めて固定する
+- **参照先仕様**: `SAML2Prof#4.1`
+- **source_clauses**: `[0, 125)` `sha256:ff1057626aaa…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-SSO01.k2</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-af5b2e498b` SP-initiated → bearer <SubjectConfirmationData>/@InResponseTo が AuthnRequest/@ID と一致
+  - `v-a50f05bd38` 同一セッションで 2 回続けて SSO → それぞれ対応する ID と一致する（前回の値を使い回していない）
+  - `v-98bbc1cf82` <Response>/@InResponseTo も同じ値であること
+- **対照（negative control）**:
+  - ★ 2 回連続で試さないと『最後の ID を使い回す実装』を検出できない
+  - ★ unsolicited の場合は IIP-SSO01.y（含めてはならない）に切り替わる
+- **参照先仕様**: `SAML2Prof#4.1`
+- **source_clauses**: `[0, 125)` `sha256:ff1057626aaa…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-SSO01.l</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-2d736bff36` 成功応答に <saml:AuthnStatement> が 1 つ以上ある
+  - `v-0b4035a68f` @AuthnInstant が実際の認証時刻を表している（要求より未来でない）
+  - `v-4da2a08f7b` 複数の <AuthnStatement> があってもよい（MAY）。これを FAIL にしない
+- **対照（negative control）**:
+  - ★ AttributeStatement だけを返す実装を検出できること
+- **参照先仕様**: `SAML2Prof#4.1`
+- **source_clauses**: `[0, 125)` `sha256:ff1057626aaa…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-SSO01.l1</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-5653700812` SLO 対応 IdP → <AuthnStatement>/@SessionIndex が存在する
+  - `v-943edfdf6b` 複数 <AuthnStatement> がある場合、すべてに存在する（E26 の『any』）
+  - `v-918d13c0de` SessionIndex の値が SLO の LogoutRequest で実際に使える（IIP-IDP17 と接続する）
+- **対照（negative control）**:
+  - ★ E26 改訂前は『any such authentication statements』（bearer 確認を持つ assertion のもの）だったが、改訂後は『any authentication statements』に広がっている
+  - ★ 条件が偽（SLO 非対応）なら NOT_APPLICABLE。ただし IIP-IDP17 が IdP に SLO を MUST としているため、IdP 対象で条件が偽になること自体が IIP-IDP17 の違反を示す
+- **参照先仕様**: `SAML2Prof#4.1`
+- **source_clauses**: `[0, 125)` `sha256:ff1057626aaa…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-SSO01.m</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-0b21e15caf` 各 bearer assertion に <saml:AudienceRestriction> があり、<saml:Audience> に Test Peer の entityID を含む
+  - `v-0d45fb14e4` 他の <Audience> が併記されていてもよい（MAY）。これを FAIL にしない
+  - `v-ac39e89644` 複数 assertion のとき、すべての bearer assertion に含まれる
+- **対照（negative control）**:
+  - ★ 『1 つの assertion にあれば足りる』と実装したケースは E26 改訂後の『Each』を検出できない
+  - ★ Audience が entityID と完全一致することを見る。末尾スラッシュ差などの正規化を勝手に行わない
+- **参照先仕様**: `SAML2Prof#4.1`
+- **source_clauses**: `[0, 125)` `sha256:ff1057626aaa…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-SSO01.n</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-35d073e34e` 署名を改竄した Response → 拒否される
+  - `v-6bc80eda92` 署名を改竄した Assertion → 拒否される
+  - `v-a44214996c` 対象のメタデータにない鍵で署名した Response → 拒否される
+  - `v-6d505057a4` 対照: 正しい署名 → 受理される
+- **対照（negative control）**:
+  - ★ 本義務は『存在する署名を検証する』こと。『署名を必須にする』ことではない（そちらは IIP-SP13）
+  - ★ Response 署名と Assertion 署名を別ケースにする。片方しか検証しない実装がある
+  - ★ 対照が必須。すべて拒否する実装は本義務を『満たす』ように見える
+- **参照先仕様**: `SAML2Prof#4.1`
+- **source_clauses**: `[0, 125)` `sha256:ff1057626aaa…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-SSO01.o</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-bed5f0531b` Recipient を別の ACS URL に差し替えた Response → 拒否される
+  - `v-1c6d7ced26` Recipient を対象の別エンティティの ACS URL にした Response → 拒否される
+  - `v-734f97ea87` Recipient を空にした Response → 拒否される
+  - `v-6510d28ad2` 対照: 正しい Recipient → 受理される
+- **対照（negative control）**:
+  - ★ ACS を 2 つ持つメタデータで、片方に配送しつつ Recipient をもう片方にする variant が最も強い
+- **参照先仕様**: `SAML2Prof#4.1`
+- **source_clauses**: `[0, 125)` `sha256:ff1057626aaa…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-SSO01.p</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-2f1575b89a` 申告されたスキュー許容幅 T を超えて過去の NotOnOrAfter → 拒否される
+  - `v-94ede0c2ae` NotOnOrAfter を欠いた bearer <SubjectConfirmationData> → 拒否される（IIP-SSO01.k で必須）
+  - `v-cde745c153` 対照: T の内側に収まる NotOnOrAfter → 受理される（IIP-G01 と同じ扱い）
+- **対照（negative control）**:
+  - ★ Samlier は絶対閾値を持たない。対象が申告した T の外側だけを判定に使う（IIP-G01 の決定に従う）
+  - ★ T を申告できない場合は not_verified。設定できないこと自体は違反ではない
+- **参照先仕様**: `SAML2Prof#4.1`
+- **source_clauses**: `[0, 125)` `sha256:ff1057626aaa…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-SSO01.q</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-510f61188f` 別の ID を入れた InResponseTo → 拒否される
+  - `v-7e097566e9` SP-initiated なのに InResponseTo を欠いた応答 → 拒否される
+  - `v-77339e68df` 前回のセッションの AuthnRequest ID を再利用した応答 → 拒否される
+  - `v-eff25a3956` unsolicited 応答に InResponseTo を付けた → 拒否される
+  - `v-a4484e6593` 対照: 正しい InResponseTo → 受理される。unsolicited で InResponseTo なし → 受理される
+- **対照（negative control）**:
+  - ★ この検査が SAML の代表的な脆弱性（応答の付け替え）に対応する。5 つの variant を対にする
+  - ★ unsolicited を受理しない SP もある。preflight で申告させ、非対応なら unsolicited variant を not_verified にする
+- **参照先仕様**: `SAML2Prof#4.1`
+- **source_clauses**: `[0, 125)` `sha256:ff1057626aaa…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-SSO01.r</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-f9a4a9e085` <saml:Conditions>/@NotOnOrAfter を過ぎた assertion → 拒否される
+  - `v-33674bc28d` <saml:Conditions>/@NotBefore が未来の assertion → 拒否される
+  - `v-c1f2233133` <AudienceRestriction> が対象の entityID を含まない assertion → 拒否される
+  - `v-a73595473c` 対照: すべて妥当な assertion → 受理される
+- **対照（negative control）**:
+  - ★ 『その他の点』の外延は原文にない。SAML2Core の Conditions 処理規則に限定し、Samlier 独自の追加検査を義務にしない
+  - ★ 各 variant を独立ケースにする。1 つでも見逃す実装を検出するため
+- **参照先仕様**: `SAML2Prof#4.1`
+- **source_clauses**: `[0, 125)` `sha256:ff1057626aaa…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-SSO01.r1</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-7b2ac684f1` 妥当な assertion と妥当でない assertion を 1 つの Response に同梱 → 妥当でないほうに依拠しない
+  - `v-f35a8abe5c` 1 つの bearer <SubjectConfirmation> が妥当なら、その assertion は確認できる（E26 の前段）
+- **対照（negative control）**:
+  - ★ 『1 つでも妥当なら全部受理する』実装を検出するのが目的。妥当・不当を混在させた variant を作らないと検出できない
+- **参照先仕様**: `SAML2Prof#4.1`
+- **source_clauses**: `[0, 125)` `sha256:ff1057626aaa…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-SSO01.s</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-aecca3ffcd` 妥当でない assertion を含む Response → その assertion を保持・利用していないことを観測する
+- **対照（negative control）**:
+  - ★ SHOULD_CLASS。満たさなくても WARNING であって FAIL ではない
+  - ★ 『破棄』は外部から直接は見えない。属性の反映有無など間接証拠で判定し、判定できなければ not_verified にする
+- **参照先仕様**: `SAML2Prof#4.1`
+- **source_clauses**: `[0, 125)` `sha256:ff1057626aaa…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-SSO01.s1</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-48242fef7c` 妥当でない assertion だけを含む Response → セッションが確立しない
+  - `v-ba90a062bc` 妥当な assertion と妥当でない assertion が同梱 → 妥当なほうだけでセッションが確立する
+- **対照（negative control）**:
+  - ★ IIP-SSO01.s（破棄）と本義務（利用しない）は別の観測。破棄していなくてもコンテキスト確立に使っていなければ本義務は満たされる
+- **参照先仕様**: `SAML2Prof#4.1`
+- **source_clauses**: `[0, 125)` `sha256:ff1057626aaa…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-SSO01.t</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-88a87c7b87` 短い SessionNotOnOrAfter を設定 → その時刻以降、保護リソースへのアクセスで再認証が要求される
+  - `v-f47b45ec4f` 複数 <AuthnStatement> がある場合、最も近い SessionNotOnOrAfter が使われる（E26。SHOULD）
+- **対照（negative control）**:
+  - ★ 待ち時間が要るため自動化しにくい。既定は申告とし、短い値を設定できる対象でのみ自動観測に格上げする
+  - ★ SHOULD_CLASS。満たさなくても WARNING
+- **参照先仕様**: `SAML2Prof#4.1`
+- **source_clauses**: `[0, 125)` `sha256:ff1057626aaa…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-SSO01.u</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-5703750f2f` ArtifactResolve の往復が TLS 上で行われる
+  - `v-3711172f64` 相互認証（クライアント証明書、またはメッセージ署名）が成立している
+  - `v-cb793870b0` 対照: 相互認証のない解決要求 → 拒否される
+- **対照（negative control）**:
+  - ★ IIP-SSO02 / IIP-SSO03 が要求するのは Redirect と POST だけ。Artifact 非対応は違反ではない
+  - ★ 『相互認証・完全性保護・機密性』は 3 条件。TLS だけでは相互認証を満たさない
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `SAML2Prof#4.1`
+- **source_clauses**: `[0, 125)` `sha256:ff1057626aaa…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-SSO01.u1</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-2968948759` 別エンティティとして ArtifactResolve を送る → 拒否される
+  - `v-5051eaf65b` 対照: 正当な SP として送る → <Response> が返る
+  - `v-3536fc07c2` 同じ artifact を 2 回解決しようとする → 2 回目は拒否される（1 回限りであること）
+- **対照（negative control）**:
+  - ★ 2 つ目の Test Peer（secondary_peer）を別エンティティとして使う。IIP-SP05 の構成を流用できる
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `SAML2Prof#4.1`
+- **source_clauses**: `[0, 125)` `sha256:ff1057626aaa…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-SSO01.v</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-9f6d31154e` POST 配送で <Assertion> 個別署名 → 適合
+  - `v-c3bee03f33` POST 配送で <Response> 署名のみ → 適合（E26 が明示的に許している）
+  - `v-f51ea98081` POST 配送で署名なし → 違反
+  - `v-21cfcfde82` 複数 assertion のうち一部だけ署名 → 違反（『each』）
+- **対照（negative control）**:
+  - ★ 改訂前の『assertion が署名されていること』だけを見ると、Response 署名のみの適合実装を FAIL にする。E26 の 2 通りをどちらも通す判定にする
+  - ★ IIP-SSO04（両方式に対応できること）は能力の義務、本義務は POST 使用時の禁止側。混同しない
+- **参照先仕様**: `SAML2Prof#4.1`
+- **source_clauses**: `[0, 125)` `sha256:ff1057626aaa…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-SSO01.w</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-f30d4c19c3` 同一の Assertion（同一 @ID）を 2 回 POST → 2 回目が拒否される
+  - `v-cdb8272c1c` 別セッション・別ブラウザから同じ Assertion を POST → 拒否される
+  - `v-da7a00ba92` 対照: @ID を変えた同等の Assertion → 受理される（ID ではなく内容で拒否していないことの確認）
+  - `v-41df57f9cb` NotOnOrAfter を過ぎてからの再送 → 拒否される（IIP-SSO01.p でも拒否されるため両方の理由が成立する）
+- **対照（negative control）**:
+  - ★ 対照が必須。『2 回目は必ず拒否』だけを見ると、そもそも 1 回しか受け付けない実装と区別できない
+  - ★ ★ ID を変えずに他の内容を変える variant を作らないこと。署名が壊れて別の理由で拒否され、検出力を失う
+- **参照先仕様**: `SAML2Prof#4.1`
+- **source_clauses**: `[0, 125)` `sha256:ff1057626aaa…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-SSO01.x</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-0bce22eb7b` 対象が返す <Response> がすべて POST（または Artifact）で配送されている
+  - `v-0ad23d56f2` メタデータの md:AssertionConsumerService に Redirect バインディングを載せても、Redirect では返さない
+- **対照（negative control）**:
+  - ★ IIP-SSO03（応答の POST 対応）が能力側、本義務が禁止側。両方ないと『Redirect でも返せてしまう』実装を素通しする
+  - ★ 観測は Transcript 全件の受動チェックでよい
+- **参照先仕様**: `SAML2Prof#4.1`
+- **source_clauses**: `[0, 125)` `sha256:ff1057626aaa…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-SSO01.y</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-1d63df0d0f` IdP-initiated SSO → <Response>/@InResponseTo がない
+  - `v-47f99ef92e` bearer <SubjectConfirmationData>/@InResponseTo もないことを記録する（原文は小文字 should なので advisory）
+- **対照（negative control）**:
+  - ★ 原文の 2 つ目は小文字の should であって RFC2119 キーワードではない。SubjectConfirmationData 側の有無は advisory として記録し、判定には使わない
+  - ★ IIP-SSO01.k2（SP-initiated では一致させる）と対。両方揃って初めて意味を持つ
+  - ★ unsolicited を発行しない IdP では条件が偽 → NOT_APPLICABLE。§4.1.5 の開始は MAY である
+- **参照先仕様**: `SAML2Prof#4.1`
+- **source_clauses**: `[0, 125)` `sha256:ff1057626aaa…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-SSO01.y1</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-fedf93fb6b` IdP-initiated SSO → isDefault="true" の ACS に配送される
+  - `v-ea196dddc8` isDefault を別の ACS に変えて再取得 → 配送先が変わる
+- **対照（negative control）**:
+  - ★ SHOULD_CLASS。別の ACS に配送しても WARNING であって FAIL ではない
+  - ★ ACS が 1 つしかないメタデータでは検出力がない
+  - ★ unsolicited を発行しない IdP では条件が偽 → NOT_APPLICABLE
+- **参照先仕様**: `SAML2Prof#4.1`
+- **source_clauses**: `[0, 125)` `sha256:ff1057626aaa…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-SSO01.z</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-f82dcc4c00` IdP-initiated SSO を実行 → AuthnRequest なしでセッションが確立する（対応している場合）
+  - `v-cc7b23da0f` 対応していない場合は NOT_SUPPORTED。適合違反ではない
+- **対照（negative control）**:
+  - ★ MAY_CLASS。unsolicited を発行しない IdP を FAIL にしてはならない
+  - ★ 本義務の観測結果が、IIP-SSO01.y / .y1 の条件述語 supports_unsolicited_responses の材料になる
+- **参照先仕様**: `SAML2Prof#4.1`
+- **source_clauses**: `[0, 125)` `sha256:ff1057626aaa…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-SSO01.aa</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-a68eb11ce9` unsolicited response の受理を無効化する手段が存在する（設定項目・ポリシー・ビルド構成のいずれか）
+  - `v-0e7d0b2cee` 無効化した状態で IdP-initiated SSO → 受理されない
+  - `v-e25ae5c02c` unsolicited を一切受け付けない実装（常時無効）→ E90 の安全目的を満たすので満たしていると扱う
+- **対照（negative control）**:
+  - ★ 判定対象は『無効化する手段を持つこと』そのもの（能力の SHOULD）。分岐は次の 3 つだけ:
+  -    (1) 無効化する手段がない → violated（SHOULD_CLASS なので WARNING）
+  -    (2) 手段はあるが権限・環境の都合でこの Run では切り替えられない → not_verified
+  -    (3) unsolicited を常時受け付けない → satisfied（無効化された状態が既定というだけで、E90 の目的は満たされている）
+  - ★ 訂正: 前版は configuration_failure_semantics を test_precondition にしていたため、『無効化機能がない』ケースまで not_verified に落ちていた。能力そのものが SHOULD なので normative_capability が正しい
+  - ★ 訂正: 前版は『有効化すると受理される』を必須 variant に置いていたが、E90 は unsolicited を受理する義務を課していない。常に拒否する実装も適合であり、verdict 対象にできない
+- **設定不能時の意味**: `normative_capability`
+- **参照先仕様**: `SAML2Prof#4.1`
+- **source_clauses**: `[0, 125)` `sha256:ff1057626aaa…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-SSO01.ab</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-9a46e9f36d` RelayState に javascript: スキームの URL を入れる → その URL に遷移しない
+  - `v-1aaf705ee8` RelayState に data: スキームの URL を入れる → 同上
+  - `v-f25d25e1f4` RelayState に file: スキームの URL を入れる → 同上
+  - `v-2fff19334b` RelayState に vbscript: / about: スキームの URL を入れる → 同上
+- **対照（negative control）**:
+  - ★ SHOULD_CLASS。判定対象は**禁止スキームに遷移しないこと**だけ
+  - ★ 訂正: 前版は『https / http の URL → 正常に遷移する』を必須 variant に置いていたが、E90 は http / https の RelayState を受理・遷移する義務を課していない。絶対 URL を一切受け付けない実装も、RelayState を不透明トークンとして扱う実装も適合する。http / https の遷移は **Suite 側の control fixture**（禁止スキームの判定が『何も遷移しない実装』で空虚に成立していないかの確認）としてのみ使い、対象の verdict には影響させない
+  - ★ 条件 derives_url_from_relaystate が偽なら NOT_APPLICABLE（URL を導出しない実装には適用されない）
+  - ★ 同じ E90 の『implementations MUST carefully sanitize the URL schemes』は [SAMLBind] への追記であり、IIP は [SAML2Bind] を errata 込みでは参照していないため、そちらの MUST は判定に使わない
+  - ★ 『protection against unencoded executable content must be applied』は小文字の must で、SAML2Prof §1.2 Notation が RFC2119 キーワードを大文字と定めているため規範キーワードではない。XSS 保護の観測は advisory として記録する
+- **参照先仕様**: `SAML2Prof#4.1`
+- **source_clauses**: `[0, 125)` `sha256:ff1057626aaa…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-SSO01.ac</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-fa3efc8a06` 保護リソースの URL にクエリ文字列・パス断片を含めて SSO を開始 → RelayState に元 URL・クエリがそのまま入っていない
+  - `v-7f1ed10a28` 元 URL に識別子らしい値（メールアドレス・ID）を含めて開始 → その値が RelayState に現れない
+- **対照（negative control）**:
+  - ★ SHOULD_CLASS
+  - ★ RelayState は SAML バインディングで 80 バイト以内と定められている。長さだけを見ると『短いから露出していない』と誤判定する。値そのものに元 URL が含まれるかを見る
+  - ★ 訂正 1: 前版は『RelayState が不透明なトークンであること』を必須 variant にしていたが、原文は『できるだけ露出しない』であって不透明化を要求していない。判定は『元要求の内容がそのまま現れていないか』に限る
+  - ★ 訂正 2: 前版は『プライバシー保護不要』の申告だけで satisfied_with_note にしていた。SHOULD を自己申告で通過させる経路になるため、原文の unless 節を**明示的な条件述語**relaystate_privacy_required に移した。除外は理由付きの申告でしか偽にできず、その Run は結果の最上位に『申告のみの除外』として現れる（docs/03 §申告のみの除外）
+- **参照先仕様**: `SAML2Prof#4.1`
+- **source_clauses**: `[0, 125)` `sha256:ff1057626aaa…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-SSO01.ad</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-35202e1b24` 要求ステップで実際に行われた HTTP 交換（AuthnRequest の配送）が TLS 上である
+  - `v-96501619b1` 応答ステップで実際に行われた HTTP 交換（<Response> の配送）が TLS 上である
+- **対照（negative control）**:
+  - ★ SHOULD_CLASS（RECOMMENDED）。TLS でなければ violated → WARNING
+  - ★ 訂正 1: 前版は『メタデータに載る全 SSO / ACS エンドポイントが https であること』を必須 variant にしていたが、原文は『このステップの HTTP 交換』についての推奨であって、使われなかったエンドポイントがメタデータに載っていることを禁じていない。**判定対象は Transcript に現れた実際の交換だけ**にする
+  - ★ 訂正 2: 前版は『非本番構成なら not_verified』としていたが、原文にそのような適用除外はない。Samlier 独自の免除を作らない（IIP-G01 と同じ理由）
+  - ★ 原文が挙げるのは SSL 3.0 / TLS 1.0 だが、いずれも現在は危殆化している。『TLS を使うこと』のみを判定に使い、版の妥当性は IIP-ALG07（RFC7457 と現行ベストプラクティス）に委ねる
+- **参照先仕様**: `SAML2Prof#4.1`
+- **source_clauses**: `[0, 125)` `sha256:ff1057626aaa…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-SSO01.ae</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-030129ce1b` 【前提】既存 IdP セッション（Cookie）・クライアント証明書・Kerberos / 統合認証・IP ベース認証など、非対話の身元確立手段をすべて無効化した構成にする
+  - `v-60181ec7f5` 上記の前提下で SSO を開始 → 認証が要求されるか、エラー <Status> が返る（成功 assertion が返らない）
+  - `v-f905f4208d` 対照: 前提を満たしたうえで正しく認証 → 成功応答が返る（常にエラーを返す実装を落とす）
+  - `v-600ea96aad` 前提を作れない場合の代替: 未認証主体に assertion を発行しないことを申告で確認する
+- **対照（negative control）**:
+  - ★ 訂正: 前版は『画面上の認証操作がない成功応答』を違反の証拠にしていたが、IdP は既存セッション・クライアント証明書・Kerberos / 統合認証などの非対話手段でも身元を確立できる。ForceAuthn のない通常要求では既存セッションの利用も許されている。**BROWSER 観測だけで『身元を確立していない』とは結論できず、適合 IdP を FAIL にする**
+  - ★ したがって判定には『ambient authentication を確実に排除した構成』が要る。testability を CONFIG とし、前提を作れない場合は not_verified(ambient_auth_not_excludable)。対象の不適合ではない
+  - ★ 申告に落とす場合、証拠ラダー上は自動観測より弱い。申告と観測が矛盾したら INCONSISTENT
+  - ★ ForceAuthn による再確立の義務は IIP-IDP06.a、IsPassive での制約は IIP-IDP07.a。本義務はそれらの前提となる一般規則
+  - ★ この義務だけを見て PASS にすると、任意の主体に assertion を発行する実装を素通しする。IIP-SSO01.f / .l と組にする
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `SAML2Prof#4.1`
+- **source_clauses**: `[0, 125)` `sha256:ff1057626aaa…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-SSO01.y2</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-a96365ada1` RelayState なしの unsolicited 応答 → 既定の遷移先に到達する（エラーにならない）
+  - `v-de1fa361b7` RelayState 付きの unsolicited 応答 → その URL に遷移する（MAY。原文は相互合意による）
+- **対照（negative control）**:
+  - ★ SHOULD_CLASS
+  - ★ RelayState を URL として解釈する場合のスキーム制限は IIP-SSO01.ab（E90 が追加する新 §4.1.6）で判定する
+  - ★ 既定の遷移先を持たない SP は、RelayState なしの unsolicited 応答でエラーになる。それが検出対象
+- **参照先仕様**: `SAML2Prof#4.1`
 - **source_clauses**: `[0, 125)` `sha256:ff1057626aaa…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
 
@@ -1752,13 +2420,47 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 
 | 義務 | Level | Role | Testability | 条件 | Core/Full | 要約 |
 |---|---|---|---|---|---|---|
-| `IIP-SP12.a` | MUST_NOT | sp | `NOT_OBSERVABLE` | — | core | persistent NameID に SAML2Core 8.3.7 を超える意味・内容を要求してはならない |
+| `IIP-SP12.a` | MUST_NOT | sp | `CONFIG` | — | core | persistent NameID の構造・内容に、SAML2Core 8.3.7 を超える要求を課してはならない |
+| `IIP-SP12.b` | MUST_NOT | sp | `ATTESTED` | — | core | 設定・配備文書の上でも、persistent NameID に §8.3.7 を超える構造・意味を要求しない |
 
 <details><summary><code>IIP-SP12.a</code> の詳細</summary>
 
-- **検証不能の理由**: 追加の意味づけを『要求するか』は設定面・内部ポリシーの性質であり、SAML のプロトコル面には現れない。不透明な識別子で 1 回ログインできても、適合／不適合を区別できない。
+- **必要な variant**:
+  - `v-a2762edca6` 【前提】未知の主体を自動的に受け入れる設定（自動プロビジョニング / JIT）にしたうえで実行する
+  - `v-85eb163259` 新規主体 A に不透明な擬似乱数値（英数 32 文字）→ 受理される
+  - `v-10a9719c14` 新規主体 B に長さ 1 コードポイントの値 → 受理される
+  - `v-2a577559f7` 新規主体 C に長さ 256 コードポイントの値 → 受理される
+  - `v-8e34c9b1f4` 新規主体 D に区切り記号（@ / = / :）を含む値 → 受理される
+  - `v-0e73bc8b6f` 新規主体 E に区切り記号を一切含まない値 → 受理される
+  - `v-c25b387f84` 新規主体 F に SPNameQualifier を省略した NameID → 受理される（§8.3.7 で省略が許されている）
+  - `v-ca630ac6b1` 対照: §8.3.7 に適合しない値（257 コードポイント）→ 拒否してよい。これを FAIL にしない
+  - `v-683419f892` 対照: 自動プロビジョニングを切った構成で新規主体 → 拒否される。これも FAIL にしない
+- **対照（negative control）**:
+  - ★ 訂正: 前版は『§8.3.7 に適合する任意の値を受理する』としていたが、原文は『NameID に §8.3.7 を超える意味・構造を要求してはならない』であって、未知の主体・未プロビジョニング・アカウント連携ポリシーなど**構造以外の正当な理由による拒否まで禁じてはいない**
+  - ★ したがって『自動プロビジョニングが有効で、任意の新規主体を受け入れられる』ことをテスト前提にする。前提を満たせない場合は not_verified(provisioning_precondition_unmet)。対象の不適合ではない
+  - ★ 訂正: 前版は『同一主体に別の不透明値を発行する』variant を置いていたが、これは persistent identifier の永続性そのものを壊す。値を変えるときは**別主体または別 IdP**を使う
+  - ★ 拒否理由が NameID の構造だと特定できなければ NOT_VERIFIED にする。属性は全 variant で固定し、変える値は NameID だけにする。エラー画面の文言・監査ログ・対象の申告のいずれかで理由を特定できたときだけ violated にできる
+  - ★ 『メールアドレス形式でないと動かない SP』はこの義務の典型的な違反であり、mutant SUT の候補にする
+- **設定不能時の意味**: `test_precondition`
 - **参照先仕様**: `SAML2Core#8.3.7`
-- ⚠ **未解決**: 参照仕様 SAML2Core#8.3.7 の該当節を読んで規範内容を分解する。「semantics or content beyond」が何を指すかを分解する（NOT_OBSERVABLE のままでも除外理由を §8.3.7 に即して書き直す）
+- **注記**: 訂正 1: 前版はこの義務を NOT_OBSERVABLE としていたが、§8.3.7 は persistent 識別子の値空間を規定しており、『構造を理由に範囲を狭めていないか』は観測できる。訂正 2: ただし観測できるのは『構造を理由とする拒否』だけで、『任意の値を必ず受理する』ことまでは原文が要求していない。テスト前提（プロビジョニング設定）が要るため testability は CONFIG とし、前提を満たせない場合は違反ではなく not_verified とする。設定・配備文書の上での要求は IIP-SP12.b（申告）で扱う。
+- **source_clauses**: `[0, 220)` `sha256:4487b42c2037…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-SP12.b</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-c4fc34691d` persistent NameID の形式・接頭辞・正規表現を必須設定にしていないことを申告で確認する
+  - `v-79788277d5` NameID を主キーやメールアドレスとして扱う前提がないことを申告で確認する
+  - `v-bda0025d23` NameID の値から所属・権限などの意味を読み取る処理がないことを申告で確認する
+- **対照（negative control）**:
+  - ★ IIP-SP12.a で観測できるのは『Suite が送った値の集合』に対する挙動だけ。対象が特定の形式を必須設定として要求している場合、その設定を満たす値しか試していない可能性がある
+  - ★ 申告が IIP-SP12.a の観測と矛盾したら INCONSISTENT（申告では要求なし、実際は構造を理由に拒否）
+  - ★ 『NameID を主キーに使っている』こと自体は違反ではない。違反になるのは『NameID がある形式であることを要求する』場合に限る
+- **参照先仕様**: `SAML2Core#8.3.7`
+- **注記**: IIP-SP12.a（観測）と本義務（申告）は同じ原文句の別側面。証拠ラダー上、a の自動観測のほうが強い。
 - **source_clauses**: `[0, 220)` `sha256:4487b42c2037…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
 
@@ -2046,17 +2748,23 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 
 | 義務 | Level | Role | Testability | 条件 | Core/Full | 要約 |
 |---|---|---|---|---|---|---|
-| `IIP-IDP06.a` | MUST | idp | `BROWSER` | — | core | SAML2Core に定義された AuthnRequest の ForceAuthn 属性に対応 |
+| `IIP-IDP06.a` | MUST | idp | `BROWSER` | — | core | ForceAuthn=true のとき、既存のセキュリティコンテキストに依拠せず直接認証する |
 | `IIP-IDP06.b` | MUST | idp | `ATTESTED` | — | core | 実装内の認証機構が ForceAuthn の指示にアクセスでき、その値によって動作を変えられる |
+| `IIP-IDP06.c` | MUST_NOT | idp | `BROWSER` | — | core | ForceAuthn と IsPassive がともに true のとき、IsPassive の制約を満たせない限り新規認証を行ってはならない |
 
 <details><summary><code>IIP-IDP06.a</code> の詳細</summary>
 
 - **必要な variant**:
-  - `v-e8ce359896` セッション確立後に ForceAuthn=true → 新規認証が行われ AuthnInstant が更新される
+  - `v-2aa2a2feb5` セッション確立後に ForceAuthn=true → 新たな認証操作が行われる
+  - `v-b50bafe8e2` 返る Assertion の AuthnStatement/@AuthnInstant が AuthnRequest の IssueInstant 以降になっている
+  - `v-cbbf766efc` 対照: ForceAuthn を省略（既定 false）+ 既存セッションあり → 既存コンテキストの再利用が許される。これを FAIL にしない
+  - `v-782a8c9281` 対照: ForceAuthn=false を明示 + 既存セッションあり → 同上
 - **対照（negative control）**:
-  - SAML2Core が禁じるのは true のときに既存のセキュリティコンテキストに依拠すること。false / 省略時の自主的な再認証は禁止されていないので判定に使わず advisory に記録する
+  - ★ 禁じられているのは true のときに既存コンテキストへ依拠すること。false / 省略時に自主的に再認証することは禁止されていない。『false なら必ず再利用する』を期待するケースを作ると、常に再認証する適合実装を FAIL にする
+  - ★ AuthnInstant だけでは弱い。既存セッションが有効な状態で始めること（そうでないと ForceAuthn の効果と区別できない）
+  - ★ SAML2Prof 4.1.3.4 も同旨を述べるが、IIP-IDP06 が参照するのは [SAML2Core] なので根拠は 3.4.1 に置く
 - **参照先仕様**: `SAML2Core#3.4.1`
-- ⚠ **未解決**: 参照仕様 SAML2Core#3.4.1 の該当節を読んで規範内容を分解する。true のとき既存セキュリティコンテキストに依拠しない／IsPassive 併用時の MUST NOT を variant に反映する
+- **注記**: 『If a value is not provided, the default is "false"』は既定値の定義であって IdP への義務ではない。IsPassive と併用したときの MUST NOT は IIP-IDP06.c に分けた。
 - **source_clauses**: `[0, 116)` `sha256:40cd2c53a3cb…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
 
@@ -2072,23 +2780,47 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 
 </details>
 
+<details><summary><code>IIP-IDP06.c</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-cf2b27728d` ForceAuthn=true + IsPassive=true + 対話的な認証しか使えない構成 → 利用者に可視の認証画面を出さず、エラー <Status> を持つ <Response> を返す
+  - `v-c7af3cd4e0` 対照: ForceAuthn=true + IsPassive=false → 可視の再認証が起きてよい（これを FAIL にしない）
+  - `v-026e724e21` 対照: ForceAuthn=true + IsPassive=true + 非対話の認証機構（証明書 / Kerberos 等）が使える構成 → 新規認証してよい
+- **対照（negative control）**:
+  - ★ 『ForceAuthn=true なら必ず再認証』と実装したケースは、この MUST NOT を検出できない。IsPassive との組合せを必ず対にする
+  - ★ 二次 status code は MAY なので、NoPassive が返ることを判定条件にしない（エラー <Status> であれば足りる）
+  - ★ 非対話の認証機構を持つ対象では条件が変わる。preflight で対象の認証方式を申告させ、期待値を切り替える
+- **参照先仕様**: `SAML2Core#3.4.1`
+- **注記**: IIP-IDP07（IsPassive）とは別の義務。あちらは IsPassive 単独の挙動、こちらは 2 属性の組合せ時の禁止。
+- **source_clauses**: `[0, 116)` `sha256:40cd2c53a3cb…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
 #### IIP-IDP07
 
 [原文](https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html#IIP-IDP07) ／ 節ダイジェスト `sha256:50adf1500e90…` ／ 節長 115 ／ 非規範スパン 0
 
 | 義務 | Level | Role | Testability | 条件 | Core/Full | 要約 |
 |---|---|---|---|---|---|---|
-| `IIP-IDP07.a` | MUST | idp | `BROWSER` | — | core | SAML2Core に定義された IsPassive 属性に対応 |
+| `IIP-IDP07.a` | MUST_NOT | idp | `BROWSER` | — | core | IsPassive=true のとき、UI を可視的に奪って利用者と目立つやり取りをしてはならない |
 
 <details><summary><code>IIP-IDP07.a</code> の詳細</summary>
 
 - **必要な variant**:
-  - `v-bd1d99871b` セッションあり + IsPassive=true → 無操作で Assertion
-  - `v-fd7a3c1375` セッションなし + IsPassive=true → NoPassive エラー
+  - `v-f3d6d26138` 既存セッションあり + IsPassive=true → 利用者操作なしで Assertion が返る（可視の画面遷移が発生しない）
+  - `v-ff14535163` 既存セッションなし + IsPassive=true → 認証画面・同意画面が一切出ない（判定対象はここ）
+  - `v-e4bf92c122` 同上のとき返る応答が、エラー <Status> を持つ <Response> であること（判定は IIP-IDP05.a。ここでは観測のみ記録する）
+  - `v-bc823d23ce` 対照: 既存セッションなし + IsPassive 省略（既定 false）→ 認証画面が出てよい。これを FAIL にしない
+  - `v-0aa2854948` 同意画面・属性リリース画面も『目立つやり取り』に含まれる（IsPassive=true では出さない）
 - **対照（negative control）**:
-  - 2 状態の対照が必須。片方だけでは対応を証明できない
+  - ★ 2 状態（セッションあり／なし）の対照が必須。片方だけでは対応を証明できない
+  - ★ 訂正: 前版は『セッションなし + IsPassive=true → NoPassive エラー』を必須 variant にしていたが、二次 status code は SAML2Core 3.4.1.4 で MAY。NoPassive が返らないことを FAIL にしてはならない。判定は『エラー <Status> を持つ <Response> が返る』かつ『可視の画面が出ない』まで
+  - ★ 『可視の UI 奪取』は Suite が直接観測する必要がある。ブラウザ自動化で中間ページ・フォーム表示の有無を記録する。リダイレクトが挟まっても、利用者の操作を要求しなければ違反ではない
+  - ★ 原文の名宛人は identity provider と user agent の両方だが、適合試験の対象は IdP 側だけである
+  - ★ 『エラー <Response> を返すこと』は SAML2Core 3.4.1.4 の一般規則であり、IIP では IIP-IDP05.a が持つ。ここで二重に判定しない
 - **参照先仕様**: `SAML2Core#3.4.1`
-- ⚠ **未解決**: 参照仕様 SAML2Core#3.4.1 の該当節を読んで規範内容を分解する。IdP と user agent が UI を可視的に奪わない、という規範内容を variant に反映する
+- **注記**: 『If a value is not provided, the default is "false"』は既定値の定義であって義務ではない。ForceAuthn と併用したときの禁止は IIP-IDP06.c で扱う。
 - **source_clauses**: `[0, 115)` `sha256:50adf1500e90…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
 
@@ -2149,17 +2881,80 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 
 | 義務 | Level | Role | Testability | 条件 | Core/Full | 要約 |
 |---|---|---|---|---|---|---|
-| `IIP-IDP10.a` | MUST | idp | `BROWSER` | — | core | AuthnRequest の samlp:NameIDPolicy に対応 |
+| `IIP-IDP10.a` | MUST | idp | `BROWSER` | — | core | samlp:NameIDPolicy 要素と Format / SPNameQualifier / AllowCreate 属性を受理して処理する |
+| `IIP-IDP10.b` | MUST | idp | `BROWSER` | — | core | NameIDPolicy の内容を理解できない・受け入れられない場合、エラー <Status> を持つ <Response> を返す |
+| `IIP-IDP10.c` | MUST | idp | `BROWSER` | `supports_encrypted_nameid`<br>(CAPABILITY_BASED) | core | Format が ...nameid-format:encrypted のとき、結果の assertion は平文でなく <EncryptedID> を含む |
+| `IIP-IDP10.d` | MUST | idp | `BROWSER` | — | core | NameIDPolicy を受理した場合、返す識別子はその内容に従う（従えないならエラーを返す） |
 
 <details><summary><code>IIP-IDP10.a</code> の詳細</summary>
 
 - **必要な variant**:
-  - `v-27e8202f84` Format 指定
-  - `v-0f374fddd6` AllowCreate=true / false
-  - `v-5cd136abd8` SPNameQualifier 指定
-  - `v-54bc462a9c` 要求と異なる Format を返さないこと（対照）
+  - `v-84d7c446ee` Format=persistent を指定 → 要求を処理できる（結果の検査は IIP-IDP10.d）
+  - `v-526e67bb48` Format=transient を指定 → 要求を処理できる
+  - `v-7f2708abf7` Format 省略 → IdP が任意の識別子を返してよい（エラーにしない）
+  - `v-a76b85ca08` Format=urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified → 同上
+  - `v-8d456513fa` SPNameQualifier を指定 → 要求を処理できる（結果の検査は IIP-IDP10.d）
+  - `v-b23e712354` AllowCreate=true を指定 → 要求を処理できる
+  - `v-0dc8b2fa76` AllowCreate=false を指定 → 要求を処理できる
+  - `v-791e386992` AllowCreate 省略 → 要求を処理できる
+  - `v-44e9f425df` NameIDPolicy 要素そのものを省略 → 要求を処理できる（IIP-SP03.a の生成側と対になる）
+- **対照（negative control）**:
+  - ★ AllowCreate=false を『新規識別子を絶対に作らない』と解釈して FAIL にしてはならない。原文に IdP への MUST はなく、SAML2Errata E14 は『the requester tries to constrain』『does not prevent the identity provider from assuming such information exists』と明示的に緩和している
+  - ★ 『処理できる』の判定は『SAML として妥当な応答（成功またはエラー <Status>）が返る』こと。どの識別子を返すかの正しさは IIP-IDP10.d、エラーの出し方は IIP-IDP10.b で見る
+  - ★ Format=unspecified / 省略のときに特定 Format を強制する検査を書かない（原文は『free to return any kind of identifier』）
 - **参照先仕様**: `SAML2Core#3.4.1.1`
-- ⚠ **未解決**: 参照仕様 SAML2Core#3.4.1.1 の該当節を読んで規範内容を分解する。Format / SPNameQualifier / AllowCreate の規範内容を variant に反映する
+- **注記**: SAML2Errata E14 は AllowCreate の意味を書き換えており、SAML2Prof 4.1.4.1 からは AllowCreate に関する記述を削除して [SAMLCore] に委ねている。IIP-IDP10 は [SAML2Core] を『as defined in』で参照しており errata の取り込みを明記していないため、errata でのみ導入される規則（transient と AllowCreate の併用禁止等）は判定に使わず advisory として記録する。
+- **source_clauses**: `[0, 124)` `sha256:02dce7a982bb…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-IDP10.b</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-80490b1670` 対象が対応していない Format（例: 未知の URI）を指定 → エラー <Status> を持つ <Response> が返る
+  - `v-d1f65d7c1a` 対象の知らない SPNameQualifier（別 SP の entityID）を指定 → 成功するかエラー <Status> を返すかのいずれかで、無言で無視しない
+  - `v-8cd04b82cd` 対照: 対応している Format を指定 → 成功応答が返る（すべてエラーにする実装を落とす）
+- **対照（negative control）**:
+  - ★ 二次 status code InvalidNameIDPolicy は MAY。返らないことを FAIL にしない
+  - ★ 『無言で別の Format を返す』は本義務の違反（受理も拒否もしていない）。IIP-IDP10.d と対で検査する
+  - ★ negative control 必須: 対応 Format でも常にエラーを返す実装は本義務を『満たす』ように見えるが、IIP-IDP10.a の成功ケースで落とす
+- **参照先仕様**: `SAML2Core#3.4.1.1`
+- **source_clauses**: `[0, 124)` `sha256:02dce7a982bb…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-IDP10.c</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-07e998bf8f` Format=urn:oasis:names:tc:SAML:2.0:nameid-format:encrypted → Subject に <saml:EncryptedID> があり <saml:NameID> の平文がない
+  - `v-4c05da8507` 復号すると、下地の識別子は IdP が対応する任意の型でよい（型を限定して FAIL にしない）
+- **対照（negative control）**:
+  - ★ 識別子の暗号化は IIP-IDP09.b で OPTIONAL。非対応なら条件が偽で NOT_APPLICABLE であり、その場合に期待されるのは IIP-IDP10.b のエラー応答である
+  - ★ Format に関わらず IdP が自らのポリシーで <EncryptedID> を返すことは MAY として許されている（IIP-IDP10.d の対照に注意）
+- **参照先仕様**: `SAML2Core#3.4.1.1`
+- **source_clauses**: `[0, 124)` `sha256:02dce7a982bb…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-IDP10.d</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-841e1ccc8c` Format=persistent を要求 → 返る <NameID>/@Format が要求値と一致する
+  - `v-9198552197` Format=transient を要求 → 返る <NameID>/@Format が要求値と一致する
+  - `v-c601eea237` SPNameQualifier を指定 → 返る <NameID>/@SPNameQualifier が指定値と一致する
+  - `v-6b6e41be77` 対照: 要求と異なる Format を無言で返す実装を検出できる（成功応答なのに Format が違う）
+  - `v-393e8c2dfa` 対照: Format 省略・unspecified・encrypted のときは本義務の対象外（任意の識別子でよい）
+- **対照（negative control）**:
+  - ★ 検出力の要: 『成功応答が返った』だけを見るケースでは、要求を無視して既定 Format を返す実装を素通しする
+  - ★ 適用範囲から unspecified と encrypted を除く（原文が『free to return any kind of identifier』と述べる範囲）
+  - ★ 訂正: 前版は根拠を §3.4.1.1 の『理解できない・受理できないならエラー』に置いていたが、その MUST は『受理したなら従う』までは含まない（受理可能と判断しつつ別の Format を返す余地が残る）。根拠を §3.4.1.4 の『assertions that meet the specifications defined by the request』に置き直した
+  - ★ SAML2Errata E15 は同じ結論を明文化しているが、IIP-IDP10 は [SAML2Core] を errata 込みで参照していないため判定の根拠にはしない（advisory として記録する）
+  - ★ IdP がポリシーで <EncryptedID> を返した場合は復号後の Format で比較する
+- **参照先仕様**: `SAML2Core#3.4.1.4`
+- **注記**: errata の適用方針（IIP が取り込みを明記した箇所だけ規範として扱う）に従い、E15 のみに依拠する規則は作らない。本義務は OS 版 §3.4.1.4 だけから導いている。
 - **source_clauses**: `[0, 124)` `sha256:02dce7a982bb…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
 
@@ -2189,18 +2984,107 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 
 | 義務 | Level | Role | Testability | 条件 | Core/Full | 要約 |
 |---|---|---|---|---|---|---|
-| `IIP-IDP12.a` | MUST | idp | `BROWSER` | — | core | AuthnRequest の AssertionConsumerServiceURL / ProtocolBinding / AssertionConsumerServiceIndex により応答先とバインディングを特定できる |
+| `IIP-IDP12.a` | MUST | idp | `BROWSER` | — | core | AuthnRequest の AssertionConsumerServiceIndex により応答先を特定できる |
+| `IIP-IDP12.e` | MUST | idp | `BROWSER` | — | core | AuthnRequest の AssertionConsumerServiceURL により応答先を特定できる |
+| `IIP-IDP12.f` | MUST | idp | `BROWSER` | — | core | AuthnRequest の ProtocolBinding により返送バインディングを特定できる |
+| `IIP-IDP12.b` | MUST | idp | `BROWSER` | — | core | AssertionConsumerServiceURL / Index が実際に要求元に紐づくことを、信頼できる手段で確認する |
+| `IIP-IDP12.c` | MUST | idp | `BROWSER` | — | core | AssertionConsumerServiceIndex が省略された場合、要求元の既定ロケーションに <Response> を返す |
+| `IIP-IDP12.d` | MAY | idp | `BROWSER` | — | full | 指定された index が無効な場合、エラー <Response> を返してもよいし、既定ロケーションを使ってもよい |
 
 <details><summary><code>IIP-IDP12.a</code> の詳細</summary>
 
 - **必要な variant**:
-  - `v-4876c65668` Index 指定 → 対応する ACS に返る
-  - `v-1d14cad825` URL + Binding 指定 → そこに返る
-  - `v-38d1449975` メタデータにない ACS URL 指定 → 拒否される（対照。IIP-IDP05 の acceptable location と整合）
+  - `v-8a720f637d` AssertionConsumerServiceIndex を指定 → メタデータの当該 index の ACS に <Response> が返る
+  - `v-f1489d1e17` 既定でない index を指定 → 既定 ACS ではなくその index の ACS に返る（既定に固定する実装を落とす）
+  - `v-e098afa042` 対照: 3 属性をすべて省略 → 既定 ACS に返る（IIP-IDP12.c）
 - **対照（negative control）**:
-  - 3 属性を個別 variant にする
+  - ★ ACS を 2 つ以上持つ Test Peer メタデータでないと検出力がない（既定に固定する実装と区別できない）
+  - ★ 『既定でない index』を必ず含める。既定 index だけを試すと、index を読まない実装と区別できない
 - **参照先仕様**: `SAML2Core#3.4.1`
-- ⚠ **未解決**: 参照仕様 SAML2Core#3.4.1 の該当節を読んで規範内容を分解する。Index 無効時は MAY error or default／URL 指定時は responder MUST ensure the value is associated with the requester／相互排他 を variant に反映する
+- **注記**: 原文は 3 属性を列挙しているので、属性ごとに義務を分けた: Index → .a / URL → .e / ProtocolBinding → .f。属性ごとに検出力の作り方が違い、特に ProtocolBinding は積極的証拠が得られないことがあるため、1 義務にまとめると『検証できた属性』と『できなかった属性』を区別できない。値の検証義務は IIP-IDP12.b、既定ロケーションへの返送は IIP-IDP12.c、無効 index の扱いは IIP-IDP12.d。
+- **source_clauses**: `[0, 247)` `sha256:3662ba485eda…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-IDP12.e</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-783d022276` メタデータにある既定でない ACS URL を指定 → その URL に <Response> が返る
+  - `v-7994c995f9` ProtocolBinding を伴わずに URL だけを指定 → その URL に返る（URL 単独で効くこと）
+  - `v-d3e44c643c` 対照: URL を省略 → 既定 ACS に返る（IIP-IDP12.c）
+- **対照（negative control）**:
+  - ★ 既定 ACS の URL を指定しても検出力がない。必ず既定でない ACS を指す
+  - ★ メタデータにない URL を指定したときの挙動は IIP-IDP12.b（検証義務）で扱う。ここでは扱わない
+- **参照先仕様**: `SAML2Core#3.4.1`
+- **source_clauses**: `[0, 247)` `sha256:3662ba485eda…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-IDP12.f</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-12255e19c1` 【積極的証拠 A】ProtocolBinding を HTTP-POST と HTTP-Artifact で切り替える → 返送 binding が切り替わる（対象が Artifact に対応している場合）
+  - `v-783e59a0c6` 【積極的証拠 B】応答に使えない binding（HTTP-Redirect / 未定義の binding URI）を指定 → エラー <Status>（例: 二次コード urn:oasis:names:tc:SAML:2.0:status:UnsupportedBinding）が返る
+  - `v-291e65c2b4` ProtocolBinding=HTTP-POST を指定 → POST で返る（積極的証拠にはならない。既定が POST のため）
+  - `v-6bffc31fab` ProtocolBinding=HTTP-Redirect を指定 → <Response> を HTTP-Redirect では返さない（これも単独では積極的証拠にならない。IIP-SSO01.x により Redirect は使えないため）
+- **対照（negative control）**:
+  - ★ 検出力の要: 『POST 指定 → POST で返る』と『Redirect 指定 → Redirect で返らない』は、**ProtocolBinding を一切読まずに常に既定 POST で返す実装でも両方通過する**。この 2 つだけで satisfied にしてはならない
+  - ★ satisfied にできるのは、積極的証拠 A または B のいずれかが得られたときだけ。どちらも得られない場合は not_verified(no_positive_evidence_for_protocol_binding)
+  - ★ 未対応 binding に対して黙って別の binding にフォールバックした場合、属性を処理したのか無視したのかを区別できない。これも not_verified とする
+  - ★ 二次 status code は SAML2Core 3.4.1.4 で MAY なので、UnsupportedBinding が返らないこと自体は違反にしない。『エラー <Status> が返る』ことが証拠 B の条件
+  - ★ SAML2Core 3.4.1 は Index と URL / ProtocolBinding の相互排他を述べるが、これは要求側（SP）への制約であり RFC2119 キーワードを持たないため IdP 側の義務は起こさない。両方を含む要求への挙動は advisory に記録する
+- **参照先仕様**: `SAML2Core#3.4.1`
+- **注記**: Web Browser SSO Profile では <Response> の配送に HTTP-Redirect を使えない（IIP-SSO01.x）。Artifact 非対応の対象では応答 binding の合法な値が HTTP-POST しかなく、属性を読んでいることの積極的証明は誤り応答の観測に頼るしかない。『検証できなかった』を『適合』と書かないために、not_verified の条件を明記している。
+- **source_clauses**: `[0, 247)` `sha256:3662ba485eda…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-IDP12.b</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-0716caa555` メタデータに存在しない ACS URL を指定 → その URL には返さない（エラー <Status> を返すか既定 ACS に返す）
+  - `v-970a87f472` 他エンティティのメタデータにある ACS URL を指定 → そこには返さない
+  - `v-415de228a1` メタデータに存在しない index を指定 → その扱いは IIP-IDP12.d、ただし要求元に紐づかない場所へは返さない
+  - `v-a3dfa1fe3e` 対照: メタデータに存在する ACS URL を指定 → そこに返る（すべて拒否する実装を落とす）
+- **対照（negative control）**:
+  - ★ この義務が SAML の代表的な脆弱性（オープンリダイレクタ化）に対応する。『メタデータにある URL は通る』ケースを対にしないと、全拒否実装を PASS にしてしまう
+  - ★ 署名済み AuthnRequest でも同じ。SAML2Prof 4.1.4.1 は『Whether the request is signed or not, the identity provider MUST ensure ...』と述べる。署名の有無で 2 ケースにする
+  - ★ 『返さない』の観測は、ブラウザの遷移先 URL と <Response> の宛先の両方で確認する。エラー画面を出すか既定 ACS に返すかは実装依存で、どちらでも違反ではない
+- **参照先仕様**: `SAML2Core#3.4.1`
+- **注記**: IIP-IDP05（エラー時の応答先が acceptable location であること）と対になる。SAML2Prof 4.1.3.5 の『The identity provider MUST have some means to establish that this location is in fact controlled by the service provider』も同旨だが、IIP-IDP12 の参照先は [SAML2Core] なので根拠は 3.4.1 に置く。
+- **source_clauses**: `[0, 247)` `sha256:3662ba485eda…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-IDP12.c</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-be44343de9` 3 属性すべて省略 → md:AssertionConsumerService/@isDefault="true" のエンドポイントに返る
+  - `v-51977ecb6d` isDefault の明示がないメタデータ → SAML2Meta の既定規則（最小 index）で選ばれたエンドポイントに返る
+  - `v-5c27acabef` 対照: 既定でない ACS を isDefault に変えて再取得 → 返送先が変わる（メタデータを読んでいることの証明）
+- **対照（negative control）**:
+  - ★ ACS が 1 つしかないメタデータでは検出力がない。2 つ以上を持つ variant で試す
+  - ★ 『既定』の決定は SAML2Meta の規則による。IIP-MD05 / IIP-SSO06 のメタデータ消費と重なるが、ここで判定するのは『既定ロケーションに返すこと』だけ
+- **参照先仕様**: `SAML2Core#3.4.1`
+- **source_clauses**: `[0, 247)` `sha256:3662ba485eda…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-IDP12.d</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-8f9d5055b6` メタデータに存在しない index を指定 → エラー <Status> を持つ <Response> が返る（許容）
+  - `v-29b7916187` メタデータに存在しない index を指定 → 既定 ACS に返る（許容）
+- **対照（negative control）**:
+  - ★ MAY 義務。どちらの挙動でも適合であり、判定は『この 2 つ以外の挙動をしていないこと』に限る。特に、要求元に紐づかない場所へ返したら IIP-IDP12.b の違反になる
+  - ★ 片方だけを期待するケースを書くと、もう片方を選んだ適合実装を FAIL にする
+- **参照先仕様**: `SAML2Core#3.4.1`
+- **注記**: MAY_CLASS なので Evaluator は PASS / NOT_SUPPORTED しか出さない。『どちらでもない第 3 の挙動』の検出は IIP-IDP12.b が担う。
 - **source_clauses**: `[0, 247)` `sha256:3662ba485eda…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
 
@@ -2518,9 +3402,9 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 
 ```
 g1_state       : PENDING_REVIEW
-obligations    : 147
-未承認         : 147
-未解決 open Q  : 18 ['IIP-MD05.a', 'IIP-MD05.b', 'IIP-MD05.c', 'IIP-MD05.d', 'IIP-MD05.e', 'IIP-MD05.f', 'IIP-MD06.a', 'IIP-SSO01.a', 'IIP-SP04.a', 'IIP-SP12.a', 'IIP-SP14.a', 'IIP-IDP06.a', 'IIP-IDP07.a', 'IIP-IDP10.a', 'IIP-IDP12.a', 'IIP-IDP13.a', 'IIP-IDP17.a', 'IIP-IDP17.b']
+obligations    : 198
+未承認         : 198
+未解決 open Q  : 13 ['IIP-MD05.a', 'IIP-MD05.b', 'IIP-MD05.c', 'IIP-MD05.d', 'IIP-MD05.e', 'IIP-MD05.f', 'IIP-MD06.a', 'IIP-SSO01.a', 'IIP-SP04.a', 'IIP-SP14.a', 'IIP-IDP13.a', 'IIP-IDP17.a', 'IIP-IDP17.b']
 ```
 
 作成者は `reviewer` / `approved_at` を埋めていません。

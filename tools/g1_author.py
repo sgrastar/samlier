@@ -263,6 +263,50 @@ PRED = [
   "★ 観測は方向付き: 対象が ManageNameIDRequest を *受理し* ManageNameIDResponse を *返した* ことが能力の証拠。"
   "メタデータの ManageNameIDService だけでは宣言であって能力の観測ではないが、"
   "IIP-MD01 が『メタデータは実際の設定を反映する』ことを求めるため補助証拠として採る"),
+ ("derives_url_from_relaystate","CAPABILITY_BASED","対象が RelayState の値から遷移先 URL を導出するか",
+  ["declared_features.relaystate_as_url"],
+  ["target_redirected_user_agent_to_relaystate_value: true"],
+  "SAML2Errata E90 が追加する [SAMLProf] 新 §4.1.6 は『The URL scheme eventually derived SHOULD be limited to "
+  "\"https\" or \"http\"』と述べており、**URL を導出する場合**の制限である。"
+  "RelayState を不透明トークンとして扱う実装、絶対 URL を一切受け付けない実装も適合するため、"
+  "導出しない対象では NOT_APPLICABLE。"
+  "★ 観測は方向付き: 対象が RelayState の値そのものへ user agent を遷移させたことだけが証拠になる"),
+ ("relaystate_privacy_required","CLASSIFICATION_BASED","この配備が RelayState のプライバシー保護を必要とするか",
+  ["target.relaystate_privacy"],[],
+  "SAML2Prof 4.1.3.1 の『unless the use of the profile does not require such privacy measures』。"
+  "原文が明示する適用除外だが、除外の根拠は配備側にしかないため申告でしか偽にできない。"
+  "★ 既定は真。偽にするには理由付きの明示的な除外申告が要り、その Run は結果の最上位に除外として現れる",
+  "The deployment declared that the use of the profile does not require privacy measures for RelayState, "
+  "as permitted by [SAML2Prof] section 4.1.3.1. This was not verified by the Suite."),
+ ("supports_unsolicited_responses","CAPABILITY_BASED","IdP が unsolicited <Response>（IdP-initiated SSO）を発行するか",
+  ["declared_features.idp_initiated_sso"],
+  ["target_emitted_unsolicited_response: true"],
+  "SAML2Prof 4.1.5 の 'An identity provider MAY initiate this profile by delivering an unsolicited <Response> message'。"
+  "★ 開始は MAY なので、発行しない IdP は違反ではなく NOT_APPLICABLE。"
+  "unsolicited 固有の義務（InResponseTo を含めない・既定 ACS に配送する）はこの条件の下でのみ適用される。"
+  "観測は方向付き: 対象が AuthnRequest なしに <Response> を送出したことだけが証拠になる"),
+ ("supports_slo_idp","CAPABILITY_BASED","IdP が SLO profile に対応しているか",
+  ["declared_features.single_logout"],
+  ["target_metadata_has: md:IDPSSODescriptor/md:SingleLogoutService",
+   "target_emitted: samlp:LogoutRequest",
+   "target_consumed: samlp:LogoutRequest"],
+  "SAML2Prof 4.1.4.2（E26 反映）の 'If the identity provider supports the Single Logout profile ... "
+  "any authentication statements MUST include a SessionIndex attribute'。"
+  "★ IIP-IDP17 は IdP に SLO を MUST としているので適合 IdP では常に真になるが、"
+  "義務の条件は原文どおり SLO 対応の有無に置く（IIP-IDP17 違反の対象で SessionIndex を二重に FAIL にしないため）"),
+ ("supports_artifact_binding","CAPABILITY_BASED","対象が HTTP Artifact バインディングに対応しているか",
+  ["declared_features.artifact_binding"],
+  ["target_metadata_has: md:ArtifactResolutionService",
+   "target_emitted: samlp:ArtifactResolve",
+   "target_consumed: samlp:ArtifactResolve"],
+  "SAML2Prof 4.1.4.4 は 'If the HTTP Artifact binding is used to deliver the <Response>' が前提。"
+  "IIP-SSO02 / SSO03 が要求するのは Redirect と POST だけなので、Artifact 非対応は違反ではなく NOT_APPLICABLE"),
+ ("supports_encrypted_nameid","CAPABILITY_BASED","対象が暗号化された名前識別子（saml:EncryptedID）を発行できるか",
+  ["declared_features.encrypted_nameid"],
+  ["target_emitted: saml:EncryptedID"],
+  "SAML2Core 3.4.1.1 の Format=...:encrypted は結果の assertion に <EncryptedID> を要求する。"
+  "ただし IIP-IDP09.b は識別子の暗号化を OPTIONAL としているため、非対応なら NOT_APPLICABLE。"
+  "★ 観測は方向付き: 対象が *送信した* <EncryptedID> のみが証拠になる"),
  ("reissues_foreign_persistent_identifier","CAPABILITY_BASED","対象が他エンティティ生成の persistent 識別子を再発行するか",
   ["declared_features.proxy_idp"],
   ["target_reissued_upstream_persistent_nameid: true"],
@@ -378,6 +422,14 @@ for rid in RIDS:
                  f"          predicate_kind: {cond['kind']}"]
         else:
             L.append("        condition: null")
+        if cond and cond['kind']=='CLASSIFICATION_BASED':
+            # 適用除外はカタログ内で「原文のどの文が除外を作っているか」を verbatim で持たせる。
+            # 検証側（SR-14）はこの文字列が IIP 節または参照節に実在することを確かめる。
+            if not o.get('exclusion_clause_en'):
+                raise SystemExit(f"{o['key']}: CLASSIFICATION_BASED の条件には exclusion_clause_en が必須")
+            L.append(f"        exclusion_clause_en: {y(o['exclusion_clause_en'])}")
+        elif o.get('exclusion_clause_en'):
+            raise SystemExit(f"{o['key']}: exclusion_clause_en は CLASSIFICATION_BASED の条件を持つ義務にだけ書ける")
         if o['testability']=='CONFIG':
             assert o.get('config_semantics'), f"{o['key']}: CONFIG は configuration_failure_semantics の明示が必須"
         if o.get('config_semantics'):

@@ -108,9 +108,9 @@ Core / Full の割り当ては `coverage.yaml` を正とし、
 
 | M | 内容 | 完了の目安 |
 |---|---|---|
-| **G1a** 作成 ✅ | 全 <!--g1:requirements-->69<!--/g1--> 要件を原文の節末まで読み、<!--g1:obligations-->147<!--/g1--> 義務に分解。`tests/{specs,coverage,predicates}.yaml` と `docs/04`（生成物）を作成 | **完了（PENDING_REVIEW）** |
+| **G1a** 作成 ✅ | 全 <!--g1:requirements-->69<!--/g1--> 要件を原文の節末まで読み、<!--g1:obligations-->198<!--/g1--> 義務に分解。`tests/{specs,coverage,predicates}.yaml` と `docs/04`（生成物）を作成 | **完了（PENDING_REVIEW）** |
 | **G1b** 承認 ⏳ | **作成者以外**が原文と `coverage.yaml` を直接照合し、**署名済みの `tests/approvals/g1.yaml`**（承認対象 commit の外）で全義務を承認する。`coverage.yaml` は編集しない | `g1_ci_verify.sh` が `g1.complete == true` を返す |
-| **G2** テスト設計 ⏳ | <!--g1:case_target-->145<!--/g1--> 義務を**ケース ID に割り当て**、`required_variants` の網羅と positive/negative control を定義。**作成者以外が設計をレビュー**（[G2 の詳細](#-設計ゲート-g2--テスト設計)） | 「義務は正しいがケースに検出力がない」を防ぐ |
+| **G2** テスト設計 ⏳ | <!--g1:case_target-->197<!--/g1--> 義務を**ケース ID に割り当て**、`required_variants` の網羅と positive/negative control を定義。**作成者以外が設計をレビュー**（[G2 の詳細](#-設計ゲート-g2--テスト設計)） | 「義務は正しいがケースに検出力がない」を防ぐ |
 | **M0** 骨格 | Test Peer のメタデータ発行、Transcript Recorder、Preflight、Test Plan の CRUD、SSE。テスト 0 件でも「Keycloak と SSO が 1 往復する」ところまで | Suite が SAML の相手役として成立する |
 | **M1** SSO コア | Common の SSO / Algorithms + IdP/SP の SSO 要件。判定語彙・証拠ラダー・attestation UI を実装。**G2 完了が前提** | 「クイック実行」モードが完成。**mutant peer** で検出力を確認する（[00 §5](00-concept.md)） |
 | **M2** メタデータ | Suite からのメタデータ配布 / MDQ / variant（IIP-MD01〜12）。`WAITING_CONFIG` ステップ | 対象側の再設定を伴うテストが回る |
@@ -134,7 +134,7 @@ M0（骨格）は G1b 後に着手してよいが、**判定ケースの実装�
 
 ### 対象
 
-`coverage.yaml` の <!--g1:obligations-->147<!--/g1--> 義務のうち、`NOT_OBSERVABLE`（<!--g1:not_observable_keys-->`IIP-SSO05.a4` / `IIP-SP12.a`<!--/g1-->）を除く **<!--g1:case_target-->145<!--/g1--> 義務**。
+`coverage.yaml` の <!--g1:obligations-->198<!--/g1--> 義務のうち、`NOT_OBSERVABLE`（<!--g1:not_observable_keys-->`IIP-SSO05.a4`<!--/g1-->）を除く **<!--g1:case_target-->197<!--/g1--> 義務**。
 
 > 母数はこの文書に直書きせず `tests/coverage.yaml` から差し込む（`tools/g1_docgen.py`）。
 > 義務を足したときに複数ファイルの数値が取り残される事故を防ぐため、
@@ -142,11 +142,11 @@ M0（骨格）は G1b 後に着手してよいが、**判定ケースの実装�
 
 | testability | 件数 | 備考 |
 |---|---|---|
-| `BROWSER` | <!--g1:tb_browser-->61<!--/g1--> | 利用者のブラウザが必要 |
-| `CONFIG` | <!--g1:tb_config-->61<!--/g1--> | 対象側の設定変更を依頼 |
-| `ATTESTED` | <!--g1:tb_attested-->15<!--/g1--> | 対象内部の挙動を申告 |
+| `BROWSER` | <!--g1:tb_browser-->105<!--/g1--> | 利用者のブラウザが必要 |
+| `CONFIG` | <!--g1:tb_config-->66<!--/g1--> | 対象側の設定変更を依頼 |
+| `ATTESTED` | <!--g1:tb_attested-->18<!--/g1--> | 対象内部の挙動を申告 |
 | `AUTOMATED` | <!--g1:tb_automated-->8<!--/g1--> | バックチャネルのみで完結 |
-| `NOT_OBSERVABLE` | <!--g1:tb_not_observable-->2<!--/g1--> | ケースを作らない |
+| `NOT_OBSERVABLE` | <!--g1:tb_not_observable-->1<!--/g1--> | ケースを作らない |
 
 ### 成果物 — `tests/cases.yaml`（機械可読）
 
@@ -177,7 +177,7 @@ cases:
 ```
 
 `coverage.yaml` の `required_variants` は **G1b の前に**安定 ID 付きに移行済み
-（<!--g1:variants-->299<!--/g1--> variant すべて）。G2 で G1 成果物を変更しない。
+（<!--g1:variants-->467<!--/g1--> variant すべて）。G2 で G1 成果物を変更しない。
 
 ```yaml
         required_variants:
@@ -193,7 +193,7 @@ ID は **義務キー + 説明文** から導出した内容ハッシュ（`v-` 
 
 ### 通過条件
 
-- [ ] **<!--g1:case_target-->145<!--/g1--> 義務すべてが 1 件以上のケースに割り当てられている**（CI で検証）
+- [ ] **<!--g1:case_target-->197<!--/g1--> 義務すべてが 1 件以上のケースに割り当てられている**（CI で検証）
 - [ ] 各義務の **`required_variants` が `covers_variants` で完全に網羅**されている
 - [ ] **`linked_obligations` の展開分も覆われている** — `kind: inherit_variants` のリンクを
       **推移的に展開**した variant 集合が母数になる（[03 §リンクの意味](03-test-model.md) L1）。
