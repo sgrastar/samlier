@@ -1,6 +1,6 @@
 # tests/coverage.yaml — 要件カタログ（G1 成果物 / 判定レベルの唯一の出典）
 # 生成: build_g1.py（原文からオフセットと digest を解決）/ 手編集しない
-generated_at: 2026-08-26T08:23:45+00:00
+generated_at: 2026-08-26T08:55:11+00:00
 schema_version: 1
 g1_state: PENDING_REVIEW
 # 作成者は reviewer / approved_at を埋めない。別のレビュアーが原文と直接照合して承認する。
@@ -44,19 +44,18 @@ requirements:
         source_clauses:
           - { start: 0, end: 155, digest: "sha256:9a9e31b61f2fc700fb8180ff896efb30e884c875e01cd0a64ed1af64615ce25e", occurrences: 1 }
         required_variants:
-          - id: v-fe36f1fde7
-            description_ja: "対象が申告した許容幅 T の内側（T-δ）に IssueInstant をずらす → 受理されるべき"
-          - id: v-e9ce768ecf
-            description_ja: "T の外側（T+δ）にずらす → 拒否されるべき"
-          - id: v-957b4c52ab
-            description_ja: "NotBefore / NotOnOrAfter でも同じ境界ペアを試す"
-          - id: v-f38f3b0851
-            description_ja: "メタデータの validUntil でも同じ境界ペアを試す"
-          - id: v-de1319d08c
-            description_ja: "許容幅そのものが設定・申告できるか（できなければ『合理的な許容』を判定できない）"
+          - id: v-e627eb2f62
+            description_ja: "対象が申告した許容幅 T の内側（T-δ）に IssueInstant をずらす → 受理されるべき（唯一の verdict 対象）"
+          - id: v-5b56a30a71
+            description_ja: "NotBefore / NotOnOrAfter を T-δ ずらす → 受理されるべき"
+          - id: v-b1b5108e0e
+            description_ja: "メタデータの validUntil を T-δ ずらす → 受理されるべき"
+          - id: v-332d560ed7
+            description_ja: "情報記録のみ: T の外側（T+δ）にずらしたときの挙動。受理しても違反ではない"
         controls:
-          - "★ Samlier は絶対閾値を持たない。対象が申告・設定した許容幅 T の境界ペアで判定する"
-          - "T-δ が拒否されたら違反、T+δ が受理されたら違反。どちらか一方だけでは検出力がない"
+          - "★ Samlier は絶対閾値を持たない。対象が申告した許容幅 T の内側が受理されることだけを判定する"
+          - "★ 訂正: 前版は T+δ の受理を violated にしていたが、原文は『合理的なスキューを許容する』義務であって『それ以上を拒否する』義務ではない。広い許容幅を持つ適合実装を FAIL にしてしまう。境界外は advisory clock_skew.very_permissive として記録し判定に使わない"
+          - "T を申告できない場合は NOT_VERIFIED。設定可能性は原文の義務ではないので違反にしない"
         notes_ja: "原文には普遍的な秒数の受理義務がない（『3–5 分』はイタリック＝非規範）。前版は ±180 秒の受理を必須 variant にしており、許容幅を 120 秒に設定した適合実装を違反にしうる誤りだった。T を申告・設定できない場合は NOT_VERIFIED。過大許容は advisory clock_skew.very_permissive として記録し判定に使わない。"
         authored_by: samlier-g1-builder
         review:
@@ -64,7 +63,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:9376b233e23e759c388fe39b23f2b17447876c590ed9605c5bb158cec5846bd3"
+          obligation_digest: "sha256:d49279f30d790b6ceef8b87ea3d253e96779ac57b6b62f5b7703f25117231ecb"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-G01"
@@ -98,10 +97,12 @@ requirements:
             description_ja: "【標準型】persistent NameID に 256 文字（SAML2Core 8.3.7 の上限と一致）"
           - id: v-fe0a924d7a
             description_ja: "【標準型】AuthnRequest/@ProviderName に 256 文字"
-          - id: v-2d77b7fa35
-            description_ja: "【利用者定義型】任意の NameFormat を持つ saml:Attribute の @Name に 256 文字"
-          - id: v-2655a7d212
-            description_ja: "【利用者定義型】同 @FriendlyName に 256 文字"
+          - id: v-47b175417d
+            description_ja: "【利用者定義型】<saml:AttributeValue xsi:type=\"myns:MyStringType\"> のように、利用者定義スキーマの xs:string 派生型の値に 256 文字"
+          - id: v-090387ce26
+            description_ja: "【利用者定義型】<samlp:Extensions> に置いた利用者定義要素の xs:string 型属性に 256 文字"
+          - id: v-8a37fd3044
+            description_ja: "【利用者定義型】<saml:Advice> に置いた利用者定義要素の xs:string 型要素内容に 256 文字"
           - id: v-111b055549
             description_ja: "文字種: len=255 境界"
           - id: v-e69ea25841
@@ -118,6 +119,7 @@ requirements:
             description_ja: "文字種: XML 構文上特別な文字（< & \" ' >）を文字参照・エンティティ参照で"
         controls:
           - "★ 【型種別】×【文字種】の両軸を試す。標準型だけ通しても『user-defined types にも適用される』ことを検証していない"
+          - "★ 訂正: 任意の NameFormat を使っても saml:Attribute/@Name・@FriendlyName の型は SAML スキーマで定義済みの xs:string であり、user-defined type の対照にならない。拡張点に載せた利用者定義スキーマの型を使う"
           - "リテラル TAB/LF は XML 属性値正規化で空白になる。リテラル版と文字参照版を別ケースにし、比較は XML 解析後の値で行う"
           - "長さは Unicode コードポイント数で数える"
         notes_ja: "適用対象は SAML 標準内の型(transient/persistent NameID 等)と利用者定義型の双方。型が xs:string と確定するフィールド(ProviderName / Attribute@Name / @FriendlyName)を使う。"
@@ -127,7 +129,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:4776a42b8481485964698b324852a791b422ea5d4154e492ab7d79a2a5e7e443"
+          obligation_digest: "sha256:62f2e4743307aa9516a481b55ee912b7f3eadd3dca9b220e09904e5c1c243f7a"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-G02"
@@ -1375,7 +1377,9 @@ requirements:
         level_assignment: { idp: core, sp: core }
         source_clauses:
           - { start: 177, end: 245, digest: "sha256:dc1cb942899adb43c6324864fbd5e5b7073e543083060ebace91ff7c909a8043", occurrences: 1 }
+          - { start: 246, end: 416, digest: "sha256:c60e9935f8d09ea9c22be346011c801c54428a7387dd8a111d6b0b52f6a42895", occurrences: 1 }
           - { start: 431, end: 569, digest: "sha256:85ad170631150c713b7e8dba73772ecf50afb5bf2c40ae9377769bd9bd4d1f4e", occurrences: 1 }
+          - { start: 571, end: 727, digest: "sha256:66a9a16a166f1ba1b2d64930e739d57ee10d47c27ea26cb01648ef193dd89884", occurrences: 1 }
         required_variants:
           - id: v-9ae8ef22df
             description_ja: "not-yet-valid 証明書（notBefore が未来）"
@@ -1402,7 +1406,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:f15fb6b624e5a6ddfa2adf2c5f74bb187fd909b74ef89c999f447676dd438286"
+          obligation_digest: "sha256:643f74b2ee9948fca90983cfb5215e2a745e841204b087757ce13907984f0a8f"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-MD12"
@@ -1602,49 +1606,177 @@ requirements:
         level: MUST
         testability: BROWSER
         condition: null
-        summary_en: "Support the persistent name identifier format in accordance with the normative obligations in SAML2Core sect. 8.3.7"
-        summary_ja: "persistent NameID Format に対応（SAML2Core 8.3.7 の規範的義務に従う）"
+        summary_en: "Support the persistent name identifier format"
+        summary_ja: "persistent NameID Format に対応する"
         references_spec: "SAML2Core#8.3.7"
         reference_derivation: true
         reference_evidence:
           - spec: SAML2Core
             locator: "8\\.3\\.7 Persistent Identifier||8\\.3\\.8 Transient Identifier"
             section_digest: "sha256:6add1e8cf39e4ece3e97563d6877daefe876ee1c20dd2c9fc253f8562a69de9e"
-            basis_ja: "persistent NameID の規範的義務。IIP-SSO05 が『in accordance with the normative obligations associated with them by [SAML2Core] sect. 8.3』と述べているため、検査内容は §8.3.7 を読まないと決まらない"
+            basis_ja: "persistent NameID の規範的義務（IIP-SSO05 が in accordance with ... [SAML2Core] sect. 8.3 と述べるため、検査内容は §8.3.7 から導く）"
         level_assignment: { idp: core, sp: core }
         source_clauses:
+          - { start: 0, end: 169, digest: "sha256:e66a1c4b4350bebadd4d4eea6620b79599bf4ccf39f39a3ea381665fbbc61d39", occurrences: 1 }
           - { start: 170, end: 222, digest: "sha256:200d6cc58795ef10f294b4748ce9f9f493f02626e206d1d73490711ce8f2561a", occurrences: 1 }
         required_variants:
           - id: v-409cc31391
             description_ja: "NameIDPolicy で persistent を要求 → 同じ Format が返る"
-          - id: v-db8f71ec67
-            description_ja: "【IdP 生成側】値が 256 文字を超えない（8.3.7: MUST NOT exceed a length of 256 characters）"
-          - id: v-30d41e2462
-            description_ja: "【IdP 生成側】同一主体・同一 SP で 2 回ログインしても値が一致する（persistent の意味）"
-          - id: v-45df222405
-            description_ja: "【IdP 生成側】secondary_peer（別 SP）では異なる値が返る（pair-wise pseudonym）"
-          - id: v-e11964e7bf
-            description_ja: "【IdP 生成側】値が主体の実識別子（ユーザー名等）と可視の対応を持たない"
-          - id: v-03db40bd99
-            description_ja: "【IdP 生成側】NameQualifier がある場合、IdP の entityID と一致する"
-          - id: v-2ee70816e1
-            description_ja: "【IdP 生成側】SPNameQualifier がある場合、SP の entityID（または affiliation）と一致する"
-          - id: v-56b5893afa
-            description_ja: "【IdP 生成側】SPProvidedID は SP が設定していなければ省略される"
-          - id: v-4dcf4cc363
-            description_ja: "【SP 消費側】上記の形の persistent NameID を受理する"
+          - id: v-aed424f97d
+            description_ja: "【SP 消費側】persistent Format の NameID を受理する"
         controls:
-          - "★ 『Format が返ること』だけでは 8.3.7 の義務を何も検証していない"
-          - "同一 SP での再現性と別 SP での非再現性を対にする（片方だけでは pair-wise を検証できない）"
-          - "opacity（実識別子との無対応）は完全には自動判定できない。ユーザー名を含む等の明白な違反のみ検出し、それ以外は情報記録に留める"
-        notes_ja: "8.3.7 の『clear text で他провайдер と共有しない』『ログに出さない』は外部プロトコル面から観測できないため variant にしない（NOT_OBSERVABLE 相当の内容を含む義務であることを明記する）。"
+          - "Format の往復だけを見る義務。8.3.7 の個別規則は .a1〜.a5 で検査する"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:349bbb766b73cbb1fde2849c581265c7d5a164af1dd44f9480aa108d6d9e4339"
+          obligation_digest: "sha256:59e47836dd7c0afb2a99f1054149401f04ec82b19dcf28752388c075a7f4a986"
+          source_spec: kantara-fedinterop-impl
+          spec_version: "1.1"
+          source_selector: "#IIP-SSO05"
+          source_section_digest: "sha256:b44add5bc36e84a022299a9d54b5df9df181a90cb892226c54d05eb112d692a4"
+      - key: IIP-SSO05.a1
+        roles: [idp]
+        level: MUST
+        testability: ATTESTED
+        condition: null
+        summary_en: "Persistent identifiers must be constructed using pseudo-random values with no discernible correspondence with the subject's actual identifier"
+        summary_ja: "persistent NameID は擬似乱数で構成し、主体の実識別子と可視の対応を持たない"
+        references_spec: "SAML2Core#8.3.7"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2Core
+            locator: "8\\.3\\.7 Persistent Identifier||8\\.3\\.8 Transient Identifier"
+            section_digest: "sha256:6add1e8cf39e4ece3e97563d6877daefe876ee1c20dd2c9fc253f8562a69de9e"
+            basis_ja: "persistent NameID の規範的義務（IIP-SSO05 が in accordance with ... [SAML2Core] sect. 8.3 と述べるため、検査内容は §8.3.7 から導く）"
+        level_assignment: { idp: core }
+        source_clauses:
+          - { start: 0, end: 169, digest: "sha256:e66a1c4b4350bebadd4d4eea6620b79599bf4ccf39f39a3ea381665fbbc61d39", occurrences: 1 }
+          - { start: 170, end: 222, digest: "sha256:200d6cc58795ef10f294b4748ce9f9f493f02626e206d1d73490711ce8f2561a", occurrences: 1 }
+        required_variants:
+          - id: v-d642fe2312
+            description_ja: "観測した値がユーザー名・メールアドレス等を含まない（明白な違反の検出）"
+          - id: v-5dbb2217c8
+            description_ja: "生成方式が擬似乱数であることを申告で確認する"
+        controls:
+          - "★ 擬似乱数性そのものは 1 件の観測では判定できない。明白な違反のみ自動検出し、残りは申告"
+        authored_by: samlier-g1-builder
+        review:
+          # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
+          state: PENDING_REVIEW
+          reviewer: null
+          approved_at: null
+          obligation_digest: "sha256:ddfe731447a7f9303d7523d83bf0d658a6010deafd5f61581a7721b22da3a541"
+          source_spec: kantara-fedinterop-impl
+          spec_version: "1.1"
+          source_selector: "#IIP-SSO05"
+          source_section_digest: "sha256:b44add5bc36e84a022299a9d54b5df9df181a90cb892226c54d05eb112d692a4"
+      - key: IIP-SSO05.a2
+        roles: [idp]
+        level: MUST_NOT
+        testability: BROWSER
+        condition: null
+        summary_en: "Persistent name identifier values must not exceed a length of 256 characters"
+        summary_ja: "persistent NameID の値は 256 文字を超えてはならない"
+        references_spec: "SAML2Core#8.3.7"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2Core
+            locator: "8\\.3\\.7 Persistent Identifier||8\\.3\\.8 Transient Identifier"
+            section_digest: "sha256:6add1e8cf39e4ece3e97563d6877daefe876ee1c20dd2c9fc253f8562a69de9e"
+            basis_ja: "persistent NameID の規範的義務（IIP-SSO05 が in accordance with ... [SAML2Core] sect. 8.3 と述べるため、検査内容は §8.3.7 から導く）"
+        level_assignment: { idp: core }
+        source_clauses:
+          - { start: 0, end: 169, digest: "sha256:e66a1c4b4350bebadd4d4eea6620b79599bf4ccf39f39a3ea381665fbbc61d39", occurrences: 1 }
+          - { start: 170, end: 222, digest: "sha256:200d6cc58795ef10f294b4748ce9f9f493f02626e206d1d73490711ce8f2561a", occurrences: 1 }
+        required_variants:
+          - id: v-0f03f41642
+            description_ja: "返された persistent NameID の長さが 256 コードポイント以下"
+        controls:
+          - "IIP-G02.a の 256 文字境界と対になる（あちらは受理側、こちらは生成側）"
+        authored_by: samlier-g1-builder
+        review:
+          # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
+          state: PENDING_REVIEW
+          reviewer: null
+          approved_at: null
+          obligation_digest: "sha256:2867a6ead14de2305449941251918a35082835a447cb69ca6f62b88e1f759fde"
+          source_spec: kantara-fedinterop-impl
+          spec_version: "1.1"
+          source_selector: "#IIP-SSO05"
+          source_section_digest: "sha256:b44add5bc36e84a022299a9d54b5df9df181a90cb892226c54d05eb112d692a4"
+      - key: IIP-SSO05.a3
+        roles: [idp]
+        level: MUST
+        testability: BROWSER
+        condition: null
+        summary_en: "NameQualifier / SPNameQualifier / SPProvidedID must carry the values defined by SAML2Core 8.3.7 when present"
+        summary_ja: "NameQualifier / SPNameQualifier / SPProvidedID が存在する場合、8.3.7 の規定どおりの値である"
+        references_spec: "SAML2Core#8.3.7"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2Core
+            locator: "8\\.3\\.7 Persistent Identifier||8\\.3\\.8 Transient Identifier"
+            section_digest: "sha256:6add1e8cf39e4ece3e97563d6877daefe876ee1c20dd2c9fc253f8562a69de9e"
+            basis_ja: "persistent NameID の規範的義務（IIP-SSO05 が in accordance with ... [SAML2Core] sect. 8.3 と述べるため、検査内容は §8.3.7 から導く）"
+        level_assignment: { idp: core }
+        source_clauses:
+          - { start: 0, end: 169, digest: "sha256:e66a1c4b4350bebadd4d4eea6620b79599bf4ccf39f39a3ea381665fbbc61d39", occurrences: 1 }
+          - { start: 170, end: 222, digest: "sha256:200d6cc58795ef10f294b4748ce9f9f493f02626e206d1d73490711ce8f2561a", occurrences: 1 }
+        required_variants:
+          - id: v-1bef5a007f
+            description_ja: "NameQualifier がある場合、IdP の entityID と一致する"
+          - id: v-b44303e924
+            description_ja: "SPNameQualifier がある場合、SP の entityID（または affiliation）と一致する"
+          - id: v-5f50dda9b3
+            description_ja: "SP が代替識別子を設定していなければ SPProvidedID が省略される"
+          - id: v-4b2177d011
+            description_ja: "secondary_peer（別 SP）では異なる値が返る（pair-wise pseudonym）"
+        controls:
+          - "★ pair-wise は 2 つの SP を対にしないと検証できない"
+        authored_by: samlier-g1-builder
+        review:
+          # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
+          state: PENDING_REVIEW
+          reviewer: null
+          approved_at: null
+          obligation_digest: "sha256:19db41f2312ba4a6c0dfcca27a965f5dd8af78c82be3d30aaa4a06946175e547"
+          source_spec: kantara-fedinterop-impl
+          spec_version: "1.1"
+          source_selector: "#IIP-SSO05"
+          source_section_digest: "sha256:b44add5bc36e84a022299a9d54b5df9df181a90cb892226c54d05eb112d692a4"
+      - key: IIP-SSO05.a4
+        roles: [idp, sp]
+        level: MUST_NOT
+        testability: NOT_OBSERVABLE
+        condition: null
+        summary_en: "Persistent identifiers must not be shared in clear text with other providers, and must not appear in log files without appropriate controls"
+        summary_ja: "persistent NameID を他プロバイダに平文で共有せず、適切な管理なしにログ等に出さない"
+        references_spec: "SAML2Core#8.3.7"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2Core
+            locator: "8\\.3\\.7 Persistent Identifier||8\\.3\\.8 Transient Identifier"
+            section_digest: "sha256:6add1e8cf39e4ece3e97563d6877daefe876ee1c20dd2c9fc253f8562a69de9e"
+            basis_ja: "persistent NameID の規範的義務（IIP-SSO05 が in accordance with ... [SAML2Core] sect. 8.3 と述べるため、検査内容は §8.3.7 から導く）"
+        level_assignment: { idp: core, sp: core }
+        source_clauses:
+          - { start: 0, end: 169, digest: "sha256:e66a1c4b4350bebadd4d4eea6620b79599bf4ccf39f39a3ea381665fbbc61d39", occurrences: 1 }
+          - { start: 170, end: 222, digest: "sha256:200d6cc58795ef10f294b4748ce9f9f493f02626e206d1d73490711ce8f2561a", occurrences: 1 }
+        not_observable_reason_en: "Whether an identifier is shared with third parties or written to log files is not exposed through the SAML protocol surface. No external black-box test can distinguish a conforming from a non-conforming deployment."
+        not_observable_reason_ja: "識別子を第三者に共有するか、ログに書くかは SAML のプロトコル面に現れない。外部からのブラックボックス試験では適合／不適合を区別できない。"
+        required_variants: []
+        controls:
+          - "—"
+        authored_by: samlier-g1-builder
+        review:
+          # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
+          state: PENDING_REVIEW
+          reviewer: null
+          approved_at: null
+          obligation_digest: "sha256:ae3c139bd330246566a8d32f321a94615e8c3c28e3494f561f8c2f21ee2be6c8"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SSO05"
@@ -1654,40 +1786,137 @@ requirements:
         level: MUST
         testability: BROWSER
         condition: null
-        summary_en: "Support the transient name identifier format in accordance with the normative obligations in SAML2Core sect. 8.3.8"
-        summary_ja: "transient NameID Format に対応（SAML2Core 8.3.8 の規範的義務に従う）"
+        summary_en: "Support the transient name identifier format"
+        summary_ja: "transient NameID Format に対応する"
         references_spec: "SAML2Core#8.3.8"
         reference_derivation: true
         reference_evidence:
           - spec: SAML2Core
             locator: "8\\.3\\.8 Transient Identifier||8\\.4 "
             section_digest: "sha256:12b55781d3d8270f8718378e5d36b9fea9c832256378b52fbc3d2ecd07111a0a"
-            basis_ja: "transient NameID の規範的義務。値の一時性・長さ上限・SAML 識別子規則が §8.3.8 に定義されている"
+            basis_ja: "transient NameID の規範的義務"
         level_assignment: { idp: core, sp: core }
         source_clauses:
+          - { start: 0, end: 169, digest: "sha256:e66a1c4b4350bebadd4d4eea6620b79599bf4ccf39f39a3ea381665fbbc61d39", occurrences: 1 }
           - { start: 223, end: 274, digest: "sha256:5bab1ac68cbe9cf5e98f1d62b5748e1b5129e0a0a8e80ecb59cda3c2c939a701", occurrences: 1 }
         required_variants:
           - id: v-c7f144b559
             description_ja: "NameIDPolicy で transient を要求 → 同じ Format が返る"
-          - id: v-18e736f887
-            description_ja: "【IdP 生成側】値が 256 文字を超えない（8.3.8: MUST NOT exceed a length of 256 characters）"
-          - id: v-a5b28ecde2
-            description_ja: "【IdP 生成側】2 回のログインで値が変わる（transient の意味）"
-          - id: v-7eb6aceae2
-            description_ja: "【IdP 生成側】値が SAML 識別子の規則（SAML2Core 1.3.4）に従う（先頭が数字でない等）"
-          - id: v-8b438582f1
-            description_ja: "【SP 消費側】transient NameID を受理し、値を永続識別子として扱わない"
+          - id: v-bb8f5db306
+            description_ja: "【SP 消費側】transient Format の NameID を受理する"
         controls:
-          - "★ 『2 回で値が変わる』だけでは長さ上限と識別子規則を検証していない"
-          - "SP 側の『永続識別子として扱わない』は ATTESTED（内部の扱いは観測できない）"
-        notes_ja: "8.3.8 の『SHOULD be treated as an opaque and temporary value by the relying party』は SP 側の SHOULD。違反は WARNING。"
+          - "Format の往復だけを見る義務。8.3.8 の個別規則は .b1〜.b3 で検査する"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:9c628fee8b15a1c0032faacce27a1b382ec37fa8c5f91fcd85bb91fc8179d615"
+          obligation_digest: "sha256:f4972fdd642168001279b5156b196e5257b3baa17bf27189aee8519ad76ae7c4"
+          source_spec: kantara-fedinterop-impl
+          spec_version: "1.1"
+          source_selector: "#IIP-SSO05"
+          source_section_digest: "sha256:b44add5bc36e84a022299a9d54b5df9df181a90cb892226c54d05eb112d692a4"
+      - key: IIP-SSO05.b1
+        roles: [idp]
+        level: MUST_NOT
+        testability: BROWSER
+        condition: null
+        summary_en: "Transient name identifier values must not exceed a length of 256 characters"
+        summary_ja: "transient NameID の値は 256 文字を超えてはならない"
+        references_spec: "SAML2Core#8.3.8"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2Core
+            locator: "8\\.3\\.8 Transient Identifier||8\\.4 "
+            section_digest: "sha256:12b55781d3d8270f8718378e5d36b9fea9c832256378b52fbc3d2ecd07111a0a"
+            basis_ja: "transient NameID の規範的義務"
+        level_assignment: { idp: core }
+        source_clauses:
+          - { start: 0, end: 169, digest: "sha256:e66a1c4b4350bebadd4d4eea6620b79599bf4ccf39f39a3ea381665fbbc61d39", occurrences: 1 }
+          - { start: 223, end: 274, digest: "sha256:5bab1ac68cbe9cf5e98f1d62b5748e1b5129e0a0a8e80ecb59cda3c2c939a701", occurrences: 1 }
+        required_variants:
+          - id: v-a68419921a
+            description_ja: "返された transient NameID の長さが 256 コードポイント以下"
+        controls:
+          - "IIP-SSO05.a2 と同じ検査を transient に対して行う"
+        authored_by: samlier-g1-builder
+        review:
+          # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
+          state: PENDING_REVIEW
+          reviewer: null
+          approved_at: null
+          obligation_digest: "sha256:2df3156d8dc5e9c90b8116cdd8adacf8b3042ada3b9f9f9b5aa30ce71e254c76"
+          source_spec: kantara-fedinterop-impl
+          spec_version: "1.1"
+          source_selector: "#IIP-SSO05"
+          source_section_digest: "sha256:b44add5bc36e84a022299a9d54b5df9df181a90cb892226c54d05eb112d692a4"
+      - key: IIP-SSO05.b2
+        roles: [idp]
+        level: MUST
+        testability: BROWSER
+        condition: null
+        summary_en: "Transient identifier values must be generated in accordance with the rules for SAML identifiers (SAML2Core 1.3.4)"
+        summary_ja: "transient NameID は SAML 識別子の規則（SAML2Core 1.3.4）に従って生成する"
+        references_spec: "SAML2Core#8.3.8"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2Core
+            locator: "8\\.3\\.8 Transient Identifier||8\\.4 "
+            section_digest: "sha256:12b55781d3d8270f8718378e5d36b9fea9c832256378b52fbc3d2ecd07111a0a"
+            basis_ja: "transient NameID の規範的義務"
+        level_assignment: { idp: core }
+        source_clauses:
+          - { start: 0, end: 169, digest: "sha256:e66a1c4b4350bebadd4d4eea6620b79599bf4ccf39f39a3ea381665fbbc61d39", occurrences: 1 }
+          - { start: 223, end: 274, digest: "sha256:5bab1ac68cbe9cf5e98f1d62b5748e1b5129e0a0a8e80ecb59cda3c2c939a701", occurrences: 1 }
+        required_variants:
+          - id: v-aae29e53f8
+            description_ja: "値が SAML 識別子の字句規則に適合する（先頭が数字でない等）"
+          - id: v-2552085041
+            description_ja: "2 回のログインで値が変わる（transient の意味）"
+        controls:
+          - "★ 『2 回で値が変わる』だけでは字句規則を検証していない"
+        authored_by: samlier-g1-builder
+        review:
+          # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
+          state: PENDING_REVIEW
+          reviewer: null
+          approved_at: null
+          obligation_digest: "sha256:9c71e1a8a498009070793fd0e30bc25ea47d1b548b39fce3e5c758df97e3d84e"
+          source_spec: kantara-fedinterop-impl
+          spec_version: "1.1"
+          source_selector: "#IIP-SSO05"
+          source_section_digest: "sha256:b44add5bc36e84a022299a9d54b5df9df181a90cb892226c54d05eb112d692a4"
+      - key: IIP-SSO05.b3
+        roles: [sp]
+        level: SHOULD
+        testability: ATTESTED
+        condition: null
+        summary_en: "Relying parties should treat transient identifiers as opaque and temporary values"
+        summary_ja: "SP は transient NameID を不透明かつ一時的な値として扱うことが望ましい"
+        references_spec: "SAML2Core#8.3.8"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2Core
+            locator: "8\\.3\\.8 Transient Identifier||8\\.4 "
+            section_digest: "sha256:12b55781d3d8270f8718378e5d36b9fea9c832256378b52fbc3d2ecd07111a0a"
+            basis_ja: "transient NameID の規範的義務"
+        level_assignment: { sp: full }
+        source_clauses:
+          - { start: 0, end: 169, digest: "sha256:e66a1c4b4350bebadd4d4eea6620b79599bf4ccf39f39a3ea381665fbbc61d39", occurrences: 1 }
+          - { start: 223, end: 274, digest: "sha256:5bab1ac68cbe9cf5e98f1d62b5748e1b5129e0a0a8e80ecb59cda3c2c939a701", occurrences: 1 }
+        required_variants:
+          - id: v-7c610424a4
+            description_ja: "transient NameID を永続識別子として保存していないかを申告で確認する"
+        controls:
+          - "★ SHOULD なので違反は WARNING。SP 内部の扱いは観測できない"
+        authored_by: samlier-g1-builder
+        review:
+          # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
+          state: PENDING_REVIEW
+          reviewer: null
+          approved_at: null
+          obligation_digest: "sha256:b8291fb25d69b9e6fa6bb9773a9c76d249a23ca5a423cb8afada7e38dea1f05e"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SSO05"
@@ -2347,7 +2576,7 @@ requirements:
       - key: IIP-ALG07.a
         roles: [idp, sp]
         level: RECOMMENDED
-        testability: AUTOMATED
+        testability: ATTESTED
         condition: null
         summary_en: "Recommended: consider RFC7457 and current TLS best practice"
         summary_ja: "推奨: RFC7457 と現行の TLS ベストプラクティスを考慮する"
@@ -2357,14 +2586,16 @@ requirements:
         required_variants:
           - id: v-886e696760
             description_ja: "Suite→対象エンドポイントの TLS ハンドシェイクを観測（プロトコル版・暗号スイート）"
-        notes_ja: "原文は『This document is not normative with respect to TLS security』と述べており、判定は RECOMMENDED の範囲に限る。ブラウザ経路の TLS は観測できないため観測範囲を結果に明記する。"
+        controls:
+          - "★ TLS ハンドシェイク 1 回の観測から『RFC7457 と現行ベストプラクティスを考慮した』全体は証明できない。観測結果は情報として記録し、判定は利用者の申告による"
+        notes_ja: "★ 訂正: 前版は AUTOMATED。観測できるのは事実（使われた TLS 版・スイート）であって『考慮したか』ではない。原文も『This document is not normative with respect to TLS security』と述べる。"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:2cde17d8ad8b385e864134c2915184d585548cd331076272e24f15afb8ed1f56"
+          obligation_digest: "sha256:909a4638ae04cd336b1a7141530b803420104c7571dac47eeb550520622f779d"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-ALG07"
@@ -2965,6 +3196,7 @@ requirements:
         level_assignment: { sp: core }
         source_clauses:
           - { start: 0, end: 141, digest: "sha256:87fc6164d0a768ea97befdaa8da85d573030654d0d14dffd6d4cb8e4b98dc012", occurrences: 1 }
+          - { start: 142, end: 318, digest: "sha256:4c34496f13452763d4901c6a26f954af83a7562b0af412140d2c8bdfe35ae45a", occurrences: 1 }
         required_variants:
           - id: v-0d2d4a8a02
             description_ja: "保護リソース URL に未認証でアクセス → SSO 後に元 URL に到達"
@@ -2976,7 +3208,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:0491c2cecfae826b6a2596318fd9c161f1dea0f3dcbc507c34314f27e7adb5d5"
+          obligation_digest: "sha256:839f0a79a485ce3e605f3871098f89696ffef668ab2413807b10caa4a5b392f0"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SP09"
@@ -4092,8 +4324,16 @@ requirements:
         summary_en: "Support Bearer subject confirmation in ECP"
         summary_ja: "ECP で Bearer subject confirmation をサポートする"
         references_spec: SAML2ECP
-        reference_derivation: false
-        reference_derivation_note: "参照仕様は義務の対象を特定するために引用しているだけで、required_variants は IIP 原文の句そのものから導いている。参照節を読まないと変わる内容はない"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2Core
+            locator: "2\\.4\\.1\\.1 Element <SubjectConfirmation>||2\\.4\\.1\\.3 Complex Type KeyInfoConfirmationDataType"
+            section_digest: "sha256:74be5dbe8abb69176634837f1ff229d6b3d0fd73807500aa4d133b5b4badd93b"
+            basis_ja: "Bearer subject confirmation の Method URI と SubjectConfirmationData の規範内容（@Recipient / @NotOnOrAfter / @InResponseTo）"
+          - spec: SAML2Prof
+            locator: "4\\.1\\.4\\.3 <Response> Message Processing Rules||4\\.1\\.4\\.4 Artifact-Specific"
+            section_digest: "sha256:3450350691e1686939e1e0c1799a874842fa7e5f3e3b8a5a52c89c3210ade454"
+            basis_ja: "Web Browser SSO における bearer confirmation の検証規則（Recipient が ACS と一致すること等）"
         level_assignment: { idp: full }
         source_clauses:
           - { start: 133, end: 195, digest: "sha256:01939572cebe26efefd8b65899f283dd537575b30ce0b3552aad5f907bad7fdc", occurrences: 1 }
@@ -4108,7 +4348,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:2cb91d86c2eba70d5c115ef25a9395802018fff3e3bc88c074eeeb879178af3d"
+          obligation_digest: "sha256:a52daade7a3b6ed53e9a070bc7287eccad32cc9cd5a5a8f9859e2078ab8f490d"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-IDP13"
@@ -4241,10 +4481,19 @@ requirements:
         source_clauses:
           - { start: 0, end: 121, digest: "sha256:d68561769b7a0558208f4ba9a7d36889a57260bd637c5e56b6eefbed5b6ceab7", occurrences: 1 }
         required_variants:
-          - id: v-58b2894ffc
-            description_ja: "SAML-EC 用の要求を送り、Assertion の saml:Advice 内の samlec:GeneratedKey を検査"
+          - id: v-e5ebf8a047
+            description_ja: "Assertion の <saml:Advice> 内に <samlec:GeneratedKey> がある"
+          - id: v-a6475a34d2
+            description_ja: "<samlec:GeneratedKey> の値が base64 で、擬似乱数として十分な長さがある"
+          - id: v-1d6f9d9d72
+            description_ja: "★ IdP が Assertion を暗号化している（§5.3.1: The identity provider MUST encrypt the assertion）"
+          - id: v-7ccd52f3e6
+            description_ja: "★ 同要素のコピーが IdP→client の SOAP ヘッダブロックにも入っている（§5.3.1: A copy of the element is also added as a SOAP header block）"
+          - id: v-2e0e58cfc2
+            description_ja: "複数 Assertion を返す場合、いずれか 1 つに含まれていればよい"
         controls:
           - "通常の ECP + HTTP Basic 往復では検証できない。SAML-EC 拡張クライアントの別ケースが要る"
+          - "★ Advice 内だけを見ると、SOAP ヘッダを出さない実装や Assertion を暗号化しない実装が PASS する"
         notes_ja: "参照先は ECP Profile ではなく IETF kitten の SAML Enhanced Client SASL and GSS-API Mechanisms（draft-ietf-kitten-sasl-saml-ec-16）。版を specs.yaml に固定する。"
         authored_by: samlier-g1-builder
         review:
@@ -4252,7 +4501,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:bc9bd41eea67ebe22262845344a26dda9aedf7a0780531c050a9fa320410058b"
+          obligation_digest: "sha256:cb5bb685ce6305b037e7354f95a8540ef27117b7968f97a972511aa6399f5c2a"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-IDP15"
@@ -4284,25 +4533,31 @@ requirements:
         source_clauses:
           - { start: 0, end: 237, digest: "sha256:0e06ebedf8f565afaa3b23e14f2c579395fbb61e018b9f9028f8769ed6a34c64", occurrences: 1 }
         required_variants:
+          - id: v-3464a8d5b9
+            description_ja: "★ §2.3.10 冒頭が継承する Web Browser SSO §4.1.6 の全要素（IIP-SSO06.a の variant 一式をそのまま適用する）"
           - id: v-13ac186e94
             description_ja: "md:AssertionConsumerService Binding=PAOS"
           - id: v-23ad8b1ba3
             description_ja: "md:SingleSignOnService Binding=SOAP"
-          - id: v-1c01e57c78
-            description_ja: "cb:supportsChannelBindings"
-          - id: v-f4e78c5a6b
-            description_ja: "HoK 対応時の hoksso:ProtocolBinding（条件付き）"
+          - id: v-986fdd0cb6
+            description_ja: "cb:supportsChannelBindings（両エンドポイント）"
+          - id: v-604094e8b6
+            description_ja: "HoK 対応時の hoksso:ProtocolBinding（SOAP / PAOS。条件付き）"
+          - id: v-e1d6c5e615
+            description_ja: "HoK 対応時の holder-of-key browser バインディング"
           - id: v-d04e147196
             description_ja: "ACS の index / isDefault"
+        linked_obligations: [IIP-SSO06.a]
         controls:
           - "ecp:Response/@AssertionConsumerServiceURL がメタデータの PAOS ACS と一致するかを検証する"
+          - "★ ECP 固有要素だけでは §2.3.10 冒頭が継承する §4.1.6 の対象を落とす"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:11fea1bc5429898f6eeabbdee209e45a5990a71de0b14c322b7a01cc4b2ee1a8"
+          obligation_digest: "sha256:223770929bdc209887ce3aab5ae34405b09142081ab3ec28e3a20f6b9c9c8525"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-IDP16"

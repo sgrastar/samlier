@@ -1641,3 +1641,65 @@ g1.complete = false（承認は構造的に不可能）
 
 **次にやること**: 18 義務の参照節を読んで規範内容を分解する。
 `open_question` に「どの仕様のどの節を読むか」を義務ごとに書いてある。
+
+---
+
+## G1b-R2 — 2026-08-26 前回報告の訂正と再修正
+
+### ★ 訂正: G1b-R1 の報告は誤っていた
+
+「IDP15 / IDP16 / ALG07 / SP09 / SP16 を修正した」と報告したが、
+**成果物には 1 件も入っていなかった**。
+
+原因は、編集スクリプトが `repl()` の `assert` で中断し、
+**ファイル書き込み（スクリプト末尾）に到達しなかった**こと。
+その batch の変更は全て破棄されていたのに、
+**私は成果物を確認せずに報告した**。
+
+今回は各編集の適用可否を個別に記録し、**書き出した `coverage.yaml` を読み直して
+1 件ずつ検証**した（下表）。同じ失敗を繰り返さないため、以後この確認を必ず行う。
+
+### 反映結果（すべて成果物で確認済み）
+
+| # | 指摘 | 対応 | 検証 |
+|---|---|---|---|
+| 1 | G01 が原文にない上限判定を追加 | `T+δ` の拒否要求を撤回。**verdict 対象は「T−δ が受理されること」のみ**にし、境界外は advisory | variants に「情報記録のみ」を確認 |
+| 2 | G02 の user-defined type が対照になっていない | ご指摘の通り `@Name` / `@FriendlyName` の型は SAML スキーマ定義済み。**`xsi:type` による利用者定義型、`samlp:Extensions` / `saml:Advice` に載せた利用者定義要素**に置き換え | variants に `xsi:type` / `samlp:Extensions` を確認 |
+| 3 | IDP15 の 2 規定が未反映 | **Assertion 暗号化**と **SOAP ヘッダのコピー**を variant に追加 | 文字列一致で確認 |
+| 4 | IDP16 の §4.1.6 継承と `linked_obligations` が未実装 | variant に追加し、**builder が `linked_obligations` を出力**するようにした。validator に **SR-22d/e/f**（参照先の実在・自己参照・循環）を追加 | `linked: ['IIP-SSO06.a']` を確認 |
+| 5 | SSO05 が異なる level / testability を 1 義務に畳んでいた | **9 義務に分解**（下表）。§8.3.7 / §8.3.8 から継承する規範内容を level・役割・testability ごとに独立させた | 分解結果を確認 |
+| 6 | ALG07 が `AUTOMATED` のまま | **`ATTESTED`** に | 確認 |
+| 7 | SP09.a の 2 つ目の MUST が範囲外 | `source_clauses` を **2 範囲**に | 確認 |
+| 8 | MD12.d の義務化根拠文が範囲外 | 「証明書内容への要件はない」「証明書構造には意味がない」を含め **4 範囲**に | 確認 |
+| 9 | IDP13.c の `reference_derivation: false` と variant が矛盾 | **`true`** にし、SAML2Core §2.4.1.1（SubjectConfirmation）と SAML2Prof §4.1.4.3（Response 処理規則）を根拠に | 確認 |
+
+### SSO05 の分解
+
+| 義務 | level | role | testability | 内容 |
+|---|---|---|---|---|
+| `SSO05.a` | MUST | idp/sp | BROWSER | persistent Format への対応 |
+| `SSO05.a1` | MUST | idp | ATTESTED | 擬似乱数・実識別子との無対応 |
+| `SSO05.a2` | MUST_NOT | idp | BROWSER | 256 文字を超えない |
+| `SSO05.a3` | MUST | idp | BROWSER | NameQualifier / SPNameQualifier / SPProvidedID の規則 |
+| `SSO05.a4` | MUST_NOT | idp/sp | **NOT_OBSERVABLE** | 平文共有・ログ出力の禁止 |
+| `SSO05.b` | MUST | idp/sp | BROWSER | transient Format への対応 |
+| `SSO05.b1` | MUST_NOT | idp | BROWSER | 256 文字を超えない |
+| `SSO05.b2` | MUST | idp | BROWSER | SAML 識別子規則（§1.3.4） |
+| `SSO05.b3` | **SHOULD** | sp | ATTESTED | 不透明・一時的な値として扱う |
+
+ご指摘の通り、`SHOULD` を親 MUST の注記に書いても Evaluator は WARNING に変換できない。
+`NOT_OBSERVABLE` 内容も BROWSER 義務の注記に埋めていた。両方とも独立義務にした。
+
+### 現在の状態
+
+```
+要件 69 / 義務 141（SSO05 の分解で 134 → 141）
+level        MUST 102 / MUST_NOT 13 / REQUIRED 4 / SHOULD 7 / RECOMMENDED 4 / MAY 5 / OPTIONAL 6
+testability  BROWSER 60 / CONFIG 58 / ATTESTED 13 / AUTOMATED 8 / NOT_OBSERVABLE 2
+検査 56 件（SR-22d/e/f を追加）
+open question 18 → SR-30 が FAIL、g1.complete = false
+```
+
+**次**: 18 義務の参照節の分解。ご提案の順序に従い
+**SAML2Core / Profile 共通規則 → ECP / SLO / Discovery → MD05・MD06 メタデータ群**の
+3 段階に分けて進める。

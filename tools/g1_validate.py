@@ -169,6 +169,26 @@ badlv=[o['key'] for _,o in obs if o['level'] not in LV]
 check("SR-21","level が RFC2119 の既定値",not badlv,badlv)
 novar=[o['key'] for _,o in obs if o['testability']!='NOT_OBSERVABLE' and not o.get('required_variants')]
 check("SR-22","NOT_OBSERVABLE 以外の全 obligation に required_variants がある",not novar,novar)
+# linked_obligations の参照整合性
+_keys={o['key'] for _,o in obs}
+_dang=[(o['key'],x) for _,o in obs for x in (o.get('linked_obligations') or []) if x not in _keys]
+check("SR-22d","linked_obligations の参照先が実在する",not _dang,_dang[:5])
+_self=[o['key'] for _,o in obs if o['key'] in (o.get('linked_obligations') or [])]
+check("SR-22e","linked_obligations が自己参照していない",not _self,_self[:5])
+_link={o['key']:set(o.get('linked_obligations') or []) for _,o in obs}
+def _cyc():
+    seen=set()
+    for k in _link:
+        st=[(k,[k])]
+        while st:
+            cur,path=st.pop()
+            for nx in _link.get(cur,()):
+                if nx in path: return path+[nx]
+                st.append((nx,path+[nx]))
+    return None
+_c=_cyc()
+check("SR-22f","linked_obligations に循環がない",_c is None,_c or '')
+
 badv=[o['key'] for _,o in obs
       for v in (o.get('required_variants') or [])
       if not isinstance(v,dict) or not v.get('id') or not v.get('description_ja')]

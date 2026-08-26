@@ -404,6 +404,8 @@ for rid in RIDS:
                 vid='v-'+hashlib.sha256((o['key']+'\x00'+v).encode('utf-8')).hexdigest()[:10]
                 L.append(f"          - id: {vid}")
                 L.append(f"            description_ja: {y(v)}")
+        if o.get('linked_obligations'):
+            L.append("        linked_obligations: ["+", ".join(o['linked_obligations'])+"]")
         if o.get('controls'):
             L.append("        controls:")
             for v in o['controls']: L.append(f"          - {y(v)}")

@@ -1,7 +1,7 @@
 {
   "task": ":specReconcile",
-  "run_id": "1a364e81-4de6-4bb6-aa30-6041ebd32a27",
-  "executed_at": "2026-08-26T08:25:08+00:00",
+  "run_id": "b78dca35-a625-4348-b4bd-657110c4a9ef",
+  "executed_at": "2026-08-26T08:56:27+00:00",
   "validator": "tools/g1_validate.py (生成処理から独立。値を書き戻さない)",
   "provenance": {
     "repo_root": "/Users/yuta/Documents/Samlier",
@@ -20,11 +20,11 @@
   },
   "totals": {
     "requirements": 69,
-    "obligations": 134,
-    "checks": 53,
-    "passed": 51,
-    "failed": 2,
-    "blocking_failures": 0
+    "obligations": 141,
+    "checks": 56,
+    "passed": 53,
+    "failed": 3,
+    "blocking_failures": 1
   },
   "g1_approval": null,
   "g1": {
@@ -50,8 +50,10 @@
       "IIP-IDP17.a",
       "IIP-IDP17.b"
     ],
-    "unapproved": 134,
-    "blocking_failures": [],
+    "unapproved": 141,
+    "blocking_failures": [
+      "SR-40"
+    ],
     "complete": false,
     "complete_formula": "no blocking failures AND no open questions AND all obligations approved via tests/approvals/g1.yaml (coverage.yaml は承認時に編集しない)"
   },
@@ -219,6 +221,24 @@
       "detail": "[]"
     },
     {
+      "id": "SR-22d",
+      "description": "linked_obligations の参照先が実在する",
+      "result": "PASS",
+      "detail": "[]"
+    },
+    {
+      "id": "SR-22e",
+      "description": "linked_obligations が自己参照していない",
+      "result": "PASS",
+      "detail": "[]"
+    },
+    {
+      "id": "SR-22f",
+      "description": "linked_obligations に循環がない",
+      "result": "PASS",
+      "detail": ""
+    },
+    {
       "id": "SR-22b",
       "description": "required_variants が {id, description_ja} の形で、安定 ID を持つ",
       "result": "PASS",
@@ -312,7 +332,7 @@
       "id": "SR-34",
       "description": "reference_evidence の locator が解決でき、節ダイジェストが一致する",
       "result": "PASS",
-      "detail": "n=32 bad=[]"
+      "detail": "n=41 bad=[]"
     },
     {
       "id": "SR-35",
@@ -353,8 +373,8 @@
     {
       "id": "SR-40",
       "description": "tools/ に未追跡・未コミットの Python モジュールがない（shadow import の防止）",
-      "result": "PASS",
-      "detail": "[]"
+      "result": "FAIL",
+      "detail": "['tools/g1_author.py', 'tools/g1_validate.py']"
     },
     {
       "id": "SR-38",
@@ -366,7 +386,7 @@
       "id": "SR-31",
       "description": "全 obligation が承認済み（G1 承認の条件）",
       "result": "FAIL",
-      "detail": "134/134 が未承認"
+      "detail": "141/141 が未承認"
     },
     {
       "id": "SR-39",

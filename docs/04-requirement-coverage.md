@@ -15,24 +15,24 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 | 指標 | 値 |
 |---|---|
 | 要件 | 69 |
-| 義務（obligation） | 134 |
-| うち MUST_CLASS | 113 |
-| うち SHOULD_CLASS | 10 |
+| 義務（obligation） | 141 |
+| うち MUST_CLASS | 119 |
+| うち SHOULD_CLASS | 11 |
 | うち MAY_CLASS | 11 |
 | 条件付き義務 | 16 |
-| IdP プロファイル | 102 義務（Core 73 / Full 29） |
-| SP プロファイル | 99 義務（Core 75 / Full 24） |
+| IdP プロファイル | 108 義務（Core 79 / Full 29） |
+| SP プロファイル | 101 義務（Core 76 / Full 25） |
 | 非規範（イタリック）スパン | 26 |
 
 **Testability**
 
 | 記号 | 意味 | 件数 |
 |---|---|---|
-| `AUTOMATED` | Suite と対象の直接通信で完結（ブラウザ不要） | 9 |
-| `BROWSER` | 利用者のブラウザが必要 | 56 |
-| `ATTESTED` | 対象内部の挙動を利用者が申告 | 10 |
+| `AUTOMATED` | Suite と対象の直接通信で完結（ブラウザ不要） | 8 |
+| `BROWSER` | 利用者のブラウザが必要 | 60 |
+| `ATTESTED` | 対象内部の挙動を利用者が申告 | 13 |
 | `CONFIG` | 対象側の設定変更を依頼したうえで実行 | 58 |
-| `NOT_OBSERVABLE` | 外部から原理的に検証不能。ケースを作らない | 1 |
+| `NOT_OBSERVABLE` | 外部から原理的に検証不能。ケースを作らない | 2 |
 
 **判定に関する注意**
 
@@ -56,14 +56,14 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 <details><summary><code>IIP-G01.a</code> の詳細</summary>
 
 - **必要な variant**:
-  - `v-fe36f1fde7` 対象が申告した許容幅 T の内側（T-δ）に IssueInstant をずらす → 受理されるべき
-  - `v-e9ce768ecf` T の外側（T+δ）にずらす → 拒否されるべき
-  - `v-957b4c52ab` NotBefore / NotOnOrAfter でも同じ境界ペアを試す
-  - `v-f38f3b0851` メタデータの validUntil でも同じ境界ペアを試す
-  - `v-de1319d08c` 許容幅そのものが設定・申告できるか（できなければ『合理的な許容』を判定できない）
+  - `v-e627eb2f62` 対象が申告した許容幅 T の内側（T-δ）に IssueInstant をずらす → 受理されるべき（唯一の verdict 対象）
+  - `v-5b56a30a71` NotBefore / NotOnOrAfter を T-δ ずらす → 受理されるべき
+  - `v-b1b5108e0e` メタデータの validUntil を T-δ ずらす → 受理されるべき
+  - `v-332d560ed7` 情報記録のみ: T の外側（T+δ）にずらしたときの挙動。受理しても違反ではない
 - **対照（negative control）**:
-  - ★ Samlier は絶対閾値を持たない。対象が申告・設定した許容幅 T の境界ペアで判定する
-  - T-δ が拒否されたら違反、T+δ が受理されたら違反。どちらか一方だけでは検出力がない
+  - ★ Samlier は絶対閾値を持たない。対象が申告した許容幅 T の内側が受理されることだけを判定する
+  - ★ 訂正: 前版は T+δ の受理を violated にしていたが、原文は『合理的なスキューを許容する』義務であって『それ以上を拒否する』義務ではない。広い許容幅を持つ適合実装を FAIL にしてしまう。境界外は advisory clock_skew.very_permissive として記録し判定に使わない
+  - T を申告できない場合は NOT_VERIFIED。設定可能性は原文の義務ではないので違反にしない
 - **設定不能時の意味**: `test_precondition`
 - **注記**: 原文には普遍的な秒数の受理義務がない（『3–5 分』はイタリック＝非規範）。前版は ±180 秒の受理を必須 variant にしており、許容幅を 120 秒に設定した適合実装を違反にしうる誤りだった。T を申告・設定できない場合は NOT_VERIFIED。過大許容は advisory clock_skew.very_permissive として記録し判定に使わない。
 - **source_clauses**: `[0, 155)` `sha256:9a9e31b61f2f…`
@@ -85,8 +85,9 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
   - `v-c5fdf4c301` 【標準型】transient NameID に 256 文字（SAML2Core 8.3.8 の上限と一致）
   - `v-07274cb7c4` 【標準型】persistent NameID に 256 文字（SAML2Core 8.3.7 の上限と一致）
   - `v-fe0a924d7a` 【標準型】AuthnRequest/@ProviderName に 256 文字
-  - `v-2d77b7fa35` 【利用者定義型】任意の NameFormat を持つ saml:Attribute の @Name に 256 文字
-  - `v-2655a7d212` 【利用者定義型】同 @FriendlyName に 256 文字
+  - `v-47b175417d` 【利用者定義型】<saml:AttributeValue xsi:type="myns:MyStringType"> のように、利用者定義スキーマの xs:string 派生型の値に 256 文字
+  - `v-090387ce26` 【利用者定義型】<samlp:Extensions> に置いた利用者定義要素の xs:string 型属性に 256 文字
+  - `v-8a37fd3044` 【利用者定義型】<saml:Advice> に置いた利用者定義要素の xs:string 型要素内容に 256 文字
   - `v-111b055549` 文字種: len=255 境界
   - `v-e69ea25841` 文字種: len=256 境界
   - `v-b3e41d759d` 文字種: 非 ASCII（CJK / キリル）
@@ -96,6 +97,7 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
   - `v-16ec37dcf7` 文字種: XML 構文上特別な文字（< & " ' >）を文字参照・エンティティ参照で
 - **対照（negative control）**:
   - ★ 【型種別】×【文字種】の両軸を試す。標準型だけ通しても『user-defined types にも適用される』ことを検証していない
+  - ★ 訂正: 任意の NameFormat を使っても saml:Attribute/@Name・@FriendlyName の型は SAML スキーマで定義済みの xs:string であり、user-defined type の対照にならない。拡張点に載せた利用者定義スキーマの型を使う
   - リテラル TAB/LF は XML 属性値正規化で空白になる。リテラル版と文字参照版を別ケースにし、比較は XML 解析後の値で行う
   - 長さは Unicode コードポイント数で数える
 - **適用範囲**: 冒頭に『SAML 標準やプロファイル文書に固有の制約がない場合』という限定がある。SAML が長さ・文字種を制約していないフィールドを選ぶこと。
@@ -713,7 +715,7 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 - **設定不能時の意味**: `test_precondition`
 - **参照先仕様**: `SAML2MDIOP`
 - **注記**: 前版は not-yet-valid を MD12.b の注記に混ぜ、残りを注記だけにしていた。引用部分は非イタリックなので G1 の規則上は規範内容であり、拒否理由にされうる項目を全て variant にする。
-- **source_clauses**: `[177, 245)` `sha256:dc1cb942899a…` , `[431, 569)` `sha256:85ad17063115…`
+- **source_clauses**: `[177, 245)` `sha256:dc1cb942899a…` , `[246, 416)` `sha256:c60e9935f8d0…` , `[431, 569)` `sha256:85ad17063115…` , `[571, 727)` `sha256:66a9a16a166f…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
 
 </details>
@@ -821,28 +823,76 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 
 | 義務 | Level | Role | Testability | 条件 | Core/Full | 要約 |
 |---|---|---|---|---|---|---|
-| `IIP-SSO05.a` | MUST | idp/sp | `BROWSER` | — | core | persistent NameID Format に対応（SAML2Core 8.3.7 の規範的義務に従う） |
-| `IIP-SSO05.b` | MUST | idp/sp | `BROWSER` | — | core | transient NameID Format に対応（SAML2Core 8.3.8 の規範的義務に従う） |
+| `IIP-SSO05.a` | MUST | idp/sp | `BROWSER` | — | core | persistent NameID Format に対応する |
+| `IIP-SSO05.a1` | MUST | idp | `ATTESTED` | — | core | persistent NameID は擬似乱数で構成し、主体の実識別子と可視の対応を持たない |
+| `IIP-SSO05.a2` | MUST_NOT | idp | `BROWSER` | — | core | persistent NameID の値は 256 文字を超えてはならない |
+| `IIP-SSO05.a3` | MUST | idp | `BROWSER` | — | core | NameQualifier / SPNameQualifier / SPProvidedID が存在する場合、8.3.7 の規定どおりの値である |
+| `IIP-SSO05.a4` | MUST_NOT | idp/sp | `NOT_OBSERVABLE` | — | core | persistent NameID を他プロバイダに平文で共有せず、適切な管理なしにログ等に出さない |
+| `IIP-SSO05.b` | MUST | idp/sp | `BROWSER` | — | core | transient NameID Format に対応する |
+| `IIP-SSO05.b1` | MUST_NOT | idp | `BROWSER` | — | core | transient NameID の値は 256 文字を超えてはならない |
+| `IIP-SSO05.b2` | MUST | idp | `BROWSER` | — | core | transient NameID は SAML 識別子の規則（SAML2Core 1.3.4）に従って生成する |
+| `IIP-SSO05.b3` | SHOULD | sp | `ATTESTED` | — | full | SP は transient NameID を不透明かつ一時的な値として扱うことが望ましい |
 
 <details><summary><code>IIP-SSO05.a</code> の詳細</summary>
 
 - **必要な variant**:
   - `v-409cc31391` NameIDPolicy で persistent を要求 → 同じ Format が返る
-  - `v-db8f71ec67` 【IdP 生成側】値が 256 文字を超えない（8.3.7: MUST NOT exceed a length of 256 characters）
-  - `v-30d41e2462` 【IdP 生成側】同一主体・同一 SP で 2 回ログインしても値が一致する（persistent の意味）
-  - `v-45df222405` 【IdP 生成側】secondary_peer（別 SP）では異なる値が返る（pair-wise pseudonym）
-  - `v-e11964e7bf` 【IdP 生成側】値が主体の実識別子（ユーザー名等）と可視の対応を持たない
-  - `v-03db40bd99` 【IdP 生成側】NameQualifier がある場合、IdP の entityID と一致する
-  - `v-2ee70816e1` 【IdP 生成側】SPNameQualifier がある場合、SP の entityID（または affiliation）と一致する
-  - `v-56b5893afa` 【IdP 生成側】SPProvidedID は SP が設定していなければ省略される
-  - `v-4dcf4cc363` 【SP 消費側】上記の形の persistent NameID を受理する
+  - `v-aed424f97d` 【SP 消費側】persistent Format の NameID を受理する
 - **対照（negative control）**:
-  - ★ 『Format が返ること』だけでは 8.3.7 の義務を何も検証していない
-  - 同一 SP での再現性と別 SP での非再現性を対にする（片方だけでは pair-wise を検証できない）
-  - opacity（実識別子との無対応）は完全には自動判定できない。ユーザー名を含む等の明白な違反のみ検出し、それ以外は情報記録に留める
+  - Format の往復だけを見る義務。8.3.7 の個別規則は .a1〜.a5 で検査する
 - **参照先仕様**: `SAML2Core#8.3.7`
-- **注記**: 8.3.7 の『clear text で他провайдер と共有しない』『ログに出さない』は外部プロトコル面から観測できないため variant にしない（NOT_OBSERVABLE 相当の内容を含む義務であることを明記する）。
-- **source_clauses**: `[170, 222)` `sha256:200d6cc58795…`
+- **source_clauses**: `[0, 169)` `sha256:e66a1c4b4350…` , `[170, 222)` `sha256:200d6cc58795…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-SSO05.a1</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-d642fe2312` 観測した値がユーザー名・メールアドレス等を含まない（明白な違反の検出）
+  - `v-5dbb2217c8` 生成方式が擬似乱数であることを申告で確認する
+- **対照（negative control）**:
+  - ★ 擬似乱数性そのものは 1 件の観測では判定できない。明白な違反のみ自動検出し、残りは申告
+- **参照先仕様**: `SAML2Core#8.3.7`
+- **source_clauses**: `[0, 169)` `sha256:e66a1c4b4350…` , `[170, 222)` `sha256:200d6cc58795…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-SSO05.a2</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-0f03f41642` 返された persistent NameID の長さが 256 コードポイント以下
+- **対照（negative control）**:
+  - IIP-G02.a の 256 文字境界と対になる（あちらは受理側、こちらは生成側）
+- **参照先仕様**: `SAML2Core#8.3.7`
+- **source_clauses**: `[0, 169)` `sha256:e66a1c4b4350…` , `[170, 222)` `sha256:200d6cc58795…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-SSO05.a3</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-1bef5a007f` NameQualifier がある場合、IdP の entityID と一致する
+  - `v-b44303e924` SPNameQualifier がある場合、SP の entityID（または affiliation）と一致する
+  - `v-5f50dda9b3` SP が代替識別子を設定していなければ SPProvidedID が省略される
+  - `v-4b2177d011` secondary_peer（別 SP）では異なる値が返る（pair-wise pseudonym）
+- **対照（negative control）**:
+  - ★ pair-wise は 2 つの SP を対にしないと検証できない
+- **参照先仕様**: `SAML2Core#8.3.7`
+- **source_clauses**: `[0, 169)` `sha256:e66a1c4b4350…` , `[170, 222)` `sha256:200d6cc58795…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-SSO05.a4</code> の詳細</summary>
+
+- **検証不能の理由**: 識別子を第三者に共有するか、ログに書くかは SAML のプロトコル面に現れない。外部からのブラックボックス試験では適合／不適合を区別できない。
+- **対照（negative control）**:
+  - —
+- **参照先仕様**: `SAML2Core#8.3.7`
+- **source_clauses**: `[0, 169)` `sha256:e66a1c4b4350…` , `[170, 222)` `sha256:200d6cc58795…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
 
 </details>
@@ -851,16 +901,48 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 
 - **必要な variant**:
   - `v-c7f144b559` NameIDPolicy で transient を要求 → 同じ Format が返る
-  - `v-18e736f887` 【IdP 生成側】値が 256 文字を超えない（8.3.8: MUST NOT exceed a length of 256 characters）
-  - `v-a5b28ecde2` 【IdP 生成側】2 回のログインで値が変わる（transient の意味）
-  - `v-7eb6aceae2` 【IdP 生成側】値が SAML 識別子の規則（SAML2Core 1.3.4）に従う（先頭が数字でない等）
-  - `v-8b438582f1` 【SP 消費側】transient NameID を受理し、値を永続識別子として扱わない
+  - `v-bb8f5db306` 【SP 消費側】transient Format の NameID を受理する
 - **対照（negative control）**:
-  - ★ 『2 回で値が変わる』だけでは長さ上限と識別子規則を検証していない
-  - SP 側の『永続識別子として扱わない』は ATTESTED（内部の扱いは観測できない）
+  - Format の往復だけを見る義務。8.3.8 の個別規則は .b1〜.b3 で検査する
 - **参照先仕様**: `SAML2Core#8.3.8`
-- **注記**: 8.3.8 の『SHOULD be treated as an opaque and temporary value by the relying party』は SP 側の SHOULD。違反は WARNING。
-- **source_clauses**: `[223, 274)` `sha256:5bab1ac68cbe…`
+- **source_clauses**: `[0, 169)` `sha256:e66a1c4b4350…` , `[223, 274)` `sha256:5bab1ac68cbe…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-SSO05.b1</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-a68419921a` 返された transient NameID の長さが 256 コードポイント以下
+- **対照（negative control）**:
+  - IIP-SSO05.a2 と同じ検査を transient に対して行う
+- **参照先仕様**: `SAML2Core#8.3.8`
+- **source_clauses**: `[0, 169)` `sha256:e66a1c4b4350…` , `[223, 274)` `sha256:5bab1ac68cbe…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-SSO05.b2</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-aae29e53f8` 値が SAML 識別子の字句規則に適合する（先頭が数字でない等）
+  - `v-2552085041` 2 回のログインで値が変わる（transient の意味）
+- **対照（negative control）**:
+  - ★ 『2 回で値が変わる』だけでは字句規則を検証していない
+- **参照先仕様**: `SAML2Core#8.3.8`
+- **source_clauses**: `[0, 169)` `sha256:e66a1c4b4350…` , `[223, 274)` `sha256:5bab1ac68cbe…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-SSO05.b3</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-7c610424a4` transient NameID を永続識別子として保存していないかを申告で確認する
+- **対照（negative control）**:
+  - ★ SHOULD なので違反は WARNING。SP 内部の扱いは観測できない
+- **参照先仕様**: `SAML2Core#8.3.8`
+- **source_clauses**: `[0, 169)` `sha256:e66a1c4b4350…` , `[223, 274)` `sha256:5bab1ac68cbe…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
 
 </details>
@@ -1182,13 +1264,15 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 
 | 義務 | Level | Role | Testability | 条件 | Core/Full | 要約 |
 |---|---|---|---|---|---|---|
-| `IIP-ALG07.a` | RECOMMENDED | idp/sp | `AUTOMATED` | — | full | 推奨: RFC7457 と現行の TLS ベストプラクティスを考慮する |
+| `IIP-ALG07.a` | RECOMMENDED | idp/sp | `ATTESTED` | — | full | 推奨: RFC7457 と現行の TLS ベストプラクティスを考慮する |
 
 <details><summary><code>IIP-ALG07.a</code> の詳細</summary>
 
 - **必要な variant**:
   - `v-886e696760` Suite→対象エンドポイントの TLS ハンドシェイクを観測（プロトコル版・暗号スイート）
-- **注記**: 原文は『This document is not normative with respect to TLS security』と述べており、判定は RECOMMENDED の範囲に限る。ブラウザ経路の TLS は観測できないため観測範囲を結果に明記する。
+- **対照（negative control）**:
+  - ★ TLS ハンドシェイク 1 回の観測から『RFC7457 と現行ベストプラクティスを考慮した』全体は証明できない。観測結果は情報として記録し、判定は利用者の申告による
+- **注記**: ★ 訂正: 前版は AUTOMATED。観測できるのは事実（使われた TLS 版・スイート）であって『考慮したか』ではない。原文も『This document is not normative with respect to TLS security』と述べる。
 - **source_clauses**: `[61, 198)` `sha256:54ab3c733ee5…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
 
@@ -1495,7 +1579,7 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
   - `v-0d2d4a8a02` 保護リソース URL に未認証でアクセス → SSO 後に元 URL に到達
 - **対照（negative control）**:
   - 非規範の注記により、unsolicited response（IdP-initiated SSO）はこの要件の代替にならない
-- **source_clauses**: `[0, 141)` `sha256:87fc6164d0a7…`
+- **source_clauses**: `[0, 141)` `sha256:87fc6164d0a7…` , `[142, 318)` `sha256:4c34496f1345…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
 
 </details>
@@ -2114,9 +2198,14 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 <details><summary><code>IIP-IDP15.a</code> の詳細</summary>
 
 - **必要な variant**:
-  - `v-58b2894ffc` SAML-EC 用の要求を送り、Assertion の saml:Advice 内の samlec:GeneratedKey を検査
+  - `v-e5ebf8a047` Assertion の <saml:Advice> 内に <samlec:GeneratedKey> がある
+  - `v-a6475a34d2` <samlec:GeneratedKey> の値が base64 で、擬似乱数として十分な長さがある
+  - `v-1d6f9d9d72` ★ IdP が Assertion を暗号化している（§5.3.1: The identity provider MUST encrypt the assertion）
+  - `v-7ccd52f3e6` ★ 同要素のコピーが IdP→client の SOAP ヘッダブロックにも入っている（§5.3.1: A copy of the element is also added as a SOAP header block）
+  - `v-2e0e58cfc2` 複数 Assertion を返す場合、いずれか 1 つに含まれていればよい
 - **対照（negative control）**:
   - 通常の ECP + HTTP Basic 往復では検証できない。SAML-EC 拡張クライアントの別ケースが要る
+  - ★ Advice 内だけを見ると、SOAP ヘッダを出さない実装や Assertion を暗号化しない実装が PASS する
 - **参照先仕様**: `SAML-EC#5.3.1`
 - **注記**: 参照先は ECP Profile ではなく IETF kitten の SAML Enhanced Client SASL and GSS-API Mechanisms（draft-ietf-kitten-sasl-saml-ec-16）。版を specs.yaml に固定する。
 - **source_clauses**: `[0, 121)` `sha256:d68561769b7a…`
@@ -2135,13 +2224,16 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 <details><summary><code>IIP-IDP16.a</code> の詳細</summary>
 
 - **必要な variant**:
+  - `v-3464a8d5b9` ★ §2.3.10 冒頭が継承する Web Browser SSO §4.1.6 の全要素（IIP-SSO06.a の variant 一式をそのまま適用する）
   - `v-13ac186e94` md:AssertionConsumerService Binding=PAOS
   - `v-23ad8b1ba3` md:SingleSignOnService Binding=SOAP
-  - `v-1c01e57c78` cb:supportsChannelBindings
-  - `v-f4e78c5a6b` HoK 対応時の hoksso:ProtocolBinding（条件付き）
+  - `v-986fdd0cb6` cb:supportsChannelBindings（両エンドポイント）
+  - `v-604094e8b6` HoK 対応時の hoksso:ProtocolBinding（SOAP / PAOS。条件付き）
+  - `v-e1d6c5e615` HoK 対応時の holder-of-key browser バインディング
   - `v-d04e147196` ACS の index / isDefault
 - **対照（negative control）**:
   - ecp:Response/@AssertionConsumerServiceURL がメタデータの PAOS ACS と一致するかを検証する
+  - ★ ECP 固有要素だけでは §2.3.10 冒頭が継承する §4.1.6 の対象を落とす
 - **設定不能時の意味**: `normative_capability`
 - **参照先仕様**: `SAML2ECP#2.3.10`
 - **source_clauses**: `[0, 237)` `sha256:0e06ebedf8f5…`
@@ -2312,8 +2404,8 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 
 ```
 g1_state       : PENDING_REVIEW
-obligations    : 134
-未承認         : 134
+obligations    : 141
+未承認         : 141
 未解決 open Q  : 18 ['IIP-MD05.a', 'IIP-MD05.b', 'IIP-MD05.c', 'IIP-MD05.d', 'IIP-MD05.e', 'IIP-MD05.f', 'IIP-MD06.a', 'IIP-SSO01.a', 'IIP-SP04.a', 'IIP-SP12.a', 'IIP-SP14.a', 'IIP-IDP06.a', 'IIP-IDP07.a', 'IIP-IDP10.a', 'IIP-IDP12.a', 'IIP-IDP13.a', 'IIP-IDP17.a', 'IIP-IDP17.b']
 ```
 
