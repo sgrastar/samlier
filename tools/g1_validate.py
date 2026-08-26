@@ -169,15 +169,23 @@ badlv=[o['key'] for _,o in obs if o['level'] not in LV]
 check("SR-21","level が RFC2119 の既定値",not badlv,badlv)
 novar=[o['key'] for _,o in obs if o['testability']!='NOT_OBSERVABLE' and not o.get('required_variants')]
 check("SR-22","NOT_OBSERVABLE 以外の全 obligation に required_variants がある",not novar,novar)
-# linked_obligations の参照整合性
+# ---- linked_obligations（参照による取り込み）----
+# 意味は docs/03-test-model.md §リンクの意味 で定義されている。
+# ここでは「G2 が展開規則を機械適用できる形になっているか」だけを検査する。
+LINK_KINDS={'inherit_variants'}   # 種別を増やすときは docs/03 と g1_author.py を同時に更新する
 _keys={o['key'] for _,o in obs}
-_dang=[(o['key'],x) for _,o in obs for x in (o.get('linked_obligations') or []) if x not in _keys]
+_obl={o['key']:o for _,o in obs}
+_badshape=[(o['key'],lk) for _,o in obs for lk in (o.get('linked_obligations') or [])
+           if not isinstance(lk,dict) or not lk.get('obligation') or not lk.get('kind') or not lk.get('note_ja')]
+check("SR-22g-shape","linked_obligations が {obligation, kind, note_ja} の形",not _badshape,_badshape[:5])
+def _links(o):
+    return [lk for lk in (o.get('linked_obligations') or []) if isinstance(lk,dict) and lk.get('obligation')]
+_dang=[(o['key'],lk['obligation']) for _,o in obs for lk in _links(o) if lk['obligation'] not in _keys]
 check("SR-22d","linked_obligations の参照先が実在する",not _dang,_dang[:5])
-_self=[o['key'] for _,o in obs if o['key'] in (o.get('linked_obligations') or [])]
+_self=[o['key'] for _,o in obs if o['key'] in [lk['obligation'] for lk in _links(o)]]
 check("SR-22e","linked_obligations が自己参照していない",not _self,_self[:5])
-_link={o['key']:set(o.get('linked_obligations') or []) for _,o in obs}
+_link={o['key']:[lk['obligation'] for lk in _links(o)] for _,o in obs}
 def _cyc():
-    seen=set()
     for k in _link:
         st=[(k,[k])]
         while st:
@@ -188,6 +196,34 @@ def _cyc():
     return None
 _c=_cyc()
 check("SR-22f","linked_obligations に循環がない",_c is None,_c or '')
+_badkind=[(o['key'],lk['kind']) for _,o in obs for lk in _links(o) if lk['kind'] not in LINK_KINDS]
+check("SR-22g","linked_obligations の kind が定義済みの語彙",not _badkind,_badkind[:5])
+# 展開（推移閉包）が有限かつ非空であること。G2 の covers_variants はこの集合を母数にする。
+def _expand(key,depth=0):
+    """inherit_variants を推移的にたどって variant 参照集合を作る。SR-22f で循環がないことは保証済み。
+
+    ★ 実在しないキー・未知の kind でも例外を投げない。ここで落ちると SR-22d / SR-22g の
+      指摘そのものがレポートに出ず、検査器が黙って死ぬ（実際にそうなっていた）。
+    """
+    o=_obl.get(key)
+    if o is None: return set()          # 実在しない参照は SR-22d が報告する
+    if depth>4: raise RuntimeError(f"{key}: リンクの深さが 4 を超えた")
+    out={f"{key}#{v['id']}" for v in (o.get('required_variants') or [])}
+    for lk in _links(o):
+        if lk['kind']=='inherit_variants':
+            out |= _expand(lk['obligation'],depth+1)
+    return out
+_empty=[];_deep=[]
+for _,o in obs:
+    if not _links(o): continue
+    try:
+        if not _expand(o['key']): _empty.append(o['key'])
+    except RuntimeError as e: _deep.append(str(e))
+check("SR-22h","linked_obligations の展開が有限（深さ 4 以内）で非空",not _empty and not _deep,(_empty+_deep)[:5])
+# 取り込み元が NOT_OBSERVABLE（variant を持たない）だと展開しても増えない＝リンクが無意味
+_noop=[(o['key'],lk['obligation']) for _,o in obs for lk in _links(o)
+       if lk['kind']=='inherit_variants' and _obl.get(lk['obligation'],{}).get('testability')=='NOT_OBSERVABLE']
+check("SR-22i","inherit_variants の参照先が NOT_OBSERVABLE でない",not _noop,_noop[:5])
 
 badv=[o['key'] for _,o in obs
       for v in (o.get('required_variants') or [])
@@ -524,6 +560,33 @@ check("SR-38","承認が対象 commit の外にある署名付き記録に拘束
 
 pending=[o['key'] for _,o in obs if o['key'] not in approved_keys]
 check("SR-31","全 obligation が承認済み（G1 承認の条件）",not pending,f"{len(pending)}/{len(obs)} が未承認")
+
+# ---- SR-41: 母数の直書き検出 ----
+# docs の本文に「N 義務 / N 要件 / N 仕様 / N 述語」を直書きすると、義務を足したときに
+# 必ず取り残される（実際 133 / 132 のまま 4 ファイルが古くなっていた）。
+# 数値は <!--g1:KEY-->…<!--/g1--> のマーカー経由でしか書けないことを機械で強制する。
+#   例外 1: 04-requirement-coverage.md は全文が生成物（g1_docgen.py --check が担保）
+#   例外 2: 11-review-log.md はレビュー記録。当時の数値をそのまま残す（docgen の対象からも外す）
+#   例外 3: 行に <!--g1-literal--> がある場合（説明のための架空の数）
+_STAT_SKIP={'04-requirement-coverage.md','11-review-log.md'}
+_MARK_SPAN=re.compile(r'<!--g1:[a-z_]+-->.*?<!--/g1-->',re.S)
+_BARE=re.compile(r'(?<![\d.])(\d+)\s*(義務|要件|仕様|述語|variant)')
+_scan=[]
+for _d,_fs in (('docs',sorted(os.listdir(os.path.join(ROOT,'docs')))),
+               ('tools',['ci-stages.md','README.md']),('.',['AGENTS.md'])):
+    for _f in _fs:
+        if not _f.endswith('.md') or _f in _STAT_SKIP: continue
+        _p=os.path.join(ROOT,_d,_f)
+        if os.path.exists(_p): _scan.append((os.path.relpath(_p,ROOT),_p))
+_hard=[]
+for _rel,_p in _scan:
+    for _n,_line in enumerate(open(_p,encoding='utf-8').read().split('\n'),1):
+        if '<!--g1-literal-->' in _line: continue
+        for _m in _BARE.finditer(_MARK_SPAN.sub('',_line)):
+            if _m.group(1)=='1': continue     # 「1 要件」「1 義務」は構造の説明であって母数ではない
+            _hard.append(f"{_rel}:{_n}: {_m.group(0)}")
+check("SR-41","母数が本文に直書きされていない（<!--g1:KEY--> マーカー経由であること）",
+      not _hard,_hard[:8])
 
 check("SR-39","coverage.yaml の g1_state が起票値（PENDING_REVIEW）のまま変更されていない",
       cov.get('g1_state')=='PENDING_REVIEW',

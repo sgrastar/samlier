@@ -28,7 +28,7 @@ SAML にはこれに相当する、広く認知された仕組みが存在しな
 ### なぜ Kantara Implementation Profile から始めるのか
 
 - 実装者（software implementer）向けに書かれており、配備固有の事情に依存しない
-- 全 69 要件に `[IIP-xxNN]` の一意な識別子が振られている（テストとの 1:1 / 1:N 対応が作れる）
+- 全 <!--g1:requirements-->69<!--/g1--> 要件に `[IIP-xxNN]` の一意な識別子が振られている（テストとの 1:1 / 1:N 対応が作れる）
 - ほぼ全てが MUST。「守っているか」の二値判定に適する
 - Keycloak / Shibboleth / SimpleSAMLphp / Authentik といった実装が実際に参照している
 
@@ -130,7 +130,7 @@ baselines:
     profile: idp-core
     declared_features: { ecp: false }
     config_fixture: tests/fixtures/sut/idp-core-no-ecp/
-outcomes:                        # baseline ごとの期待 outcome（全 133 義務）
+outcomes:                        # baseline ごとの期待 outcome（全 <!--g1:case_target-->145<!--/g1--> 義務）
   sp-full-slo-enc:
     IIP-SP13.a: satisfied
     IIP-SP13.b: satisfied

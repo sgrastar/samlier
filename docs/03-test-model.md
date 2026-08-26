@@ -204,6 +204,47 @@ IDP14（HTTP Basic）・IDP15（SAML-EC の鍵）・IDP16（ECP 設定のメタ�
    結果 JSON に**全件**記録する（[06 §1](06-results-and-publication.md)）
 4. `ApplicabilityEvaluation` は `Evaluator.evaluate()` の明示的な入力である（§6.2, §7.5）
 
+### ★ リンクの意味 — `linked_obligations`
+
+原文が **別の節の規則をそのまま取り込む**ことがある。
+例: IIP-IDP16（ECP, §2.3.10）の冒頭は Browser SSO **§4.1.6 の規則を継承**する。
+これを注記だけで表すと、G2 でケースを起こすときに継承分が落ちる。
+そこで `coverage.yaml` に**機械可読なリンク**を持たせる。
+
+```yaml
+linked_obligations:
+  - obligation: IIP-SSO06.a
+    kind: inherit_variants          # 現時点で定義されている唯一の種別
+    note_ja: "…なぜ取り込むのか…"
+```
+
+**意味の定義**（G2 / 実装はこの通りに扱うこと）:
+
+| # | 規則 | 理由 |
+|---|---|---|
+| **L1** | `kind: inherit_variants` は「**A のケースは B の `required_variants` も覆わなければならない**」。展開は**推移的** | 継承分をケース設計から落とさないため |
+| **L2** | **`role` / `level` / `condition` / `testability` は継承しない**。常に A 自身の値を使う | A は別の文脈（ECP / SLO 等）で成立する義務。B の条件や役割を持ち込むと誤適用になる |
+| **L3** | 展開後の variant は **`<obligation-key>#<variant-id>`** で参照する（`covers_variants` の記法） | どの義務由来の variant かを判別できるようにするため |
+| **L4** | **二重計上しない**。A のケースが B の variant を覆っても **B の網羅は満たされない**（逆も同じ）。completeness / mutant coverage の母数は**義務単位**で数える | 「A のケースがあるから B も済み」を防ぐ |
+| **L5** | ケースの digest には**展開後の variant ID 集合**を含める。B の variant を編集すると A のケースの digest も変わり、**再レビューが必要**になる | B の変更が A のケースに黙って波及するのを防ぐ |
+| **L6** | `docs/04` は A 側に「**参照取り込み**」、B 側に「**被参照**」を出力する | 片方向だけだと B の編集者が影響範囲に気づけない |
+
+**CI で強制していること**（`tools/g1_validate.py`）:
+
+| 検査 | 内容 |
+|---|---|
+| `SR-22g-shape` | `{obligation, kind, note_ja}` の形であること |
+| `SR-22d` | 参照先が実在すること |
+| `SR-22e` | 自己参照でないこと |
+| `SR-22f` | 循環がないこと |
+| `SR-22g` | `kind` が定義済みの語彙（現在は `inherit_variants` のみ）であること |
+| `SR-22h` | 展開が有限（深さ 4 以内）で、空でないこと |
+| `SR-22i` | 取り込み先が `NOT_OBSERVABLE` でないこと（variant がなくリンクが無意味になる） |
+
+> **種別を増やすときは、`docs/03`（この表）→ `g1_author.py` の `LINK_KINDS` →
+> `g1_validate.py` の `SR-22g` を同時に更新する。**
+> 意味の定義がない `kind` が成果物に入ることを禁じている。
+
 ## 2. Test Plan の構成項目
 
 元メモの UI 案は「Profile / metadata URL / オプション」だけだったが、

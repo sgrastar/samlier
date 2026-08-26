@@ -40,7 +40,7 @@ tasks.named("dockerPush") { dependsOn(":specReconcile", ":releaseCheck") }
 | job | trigger | ネットワーク | 内容 |
 |---|---|---|---|
 | `g1-check` | PR / push | 不要 | `g1_docgen.py --check` + **`--structural-only`**（CI 側に除外リストを書かない） |
-| `spec-reconcile` | push / 定期 / 手動 | **必要** | 原文と全 22 仕様を強制再取得して照合 |
+| `spec-reconcile` | push / 定期 / 手動 | **必要** | 原文と全 <!--g1:specs-->24<!--/g1--> 仕様を強制再取得して照合 |
 | `g1b-approval` | **常に実行**（ジョブ条件を置かない） | 必要 | 署名済み承認の検証。**固定 SHA から runner と依存を取り出して隔離実行**し、`g1.complete` / provenance / pin の一致を確認 |
 
 `g1b-approval` は **`tools/g1_ci_verify.sh` を呼ばず、同等の処理を workflow に展開している**。
@@ -74,7 +74,7 @@ branch protection で「CODEOWNERS のレビュー必須」にすること。**
 | ステージ | 実体 | 状態 |
 |---|---|---|
 | `g1Check` | `tools/g1_validate.py --offline` の構造検査部（SR-15〜SR-29, SR-36）+ `tools/g1_docgen.py --check` | 通る |
-| `specReconcile` | `tools/g1_validate.py`（**強制再取得**で原文と全 22 仕様を照合） | **50/51 PASS / blocking 0**（承認後は 51/51） |
+| `specReconcile` | `tools/g1_validate.py`（**強制再取得**で原文と全 <!--g1:specs-->24<!--/g1--> 仕様を照合） | **`totals.blocking_failures == 0`**（承認前は SR-30 / SR-31 が FAIL のまま残る）。★ PASS 数は検査項目を足すたびに変わるので固定値を書かない |
 | `releaseCheck` | 未実装。テストケースが 0 件のため（G2 完了後） | 未実施 |
 
 `build/spec-reconcile-report.json` の `checks[]` は、どの検査がブロッキングかを
@@ -171,7 +171,7 @@ python3 tools/g1_trusted_verify.py [--offline]
 7. `python -I` で実行し、検査対象リポジトリは `G1_REPO_ROOT` で渡す
 
 > **なぜ A から取ってはいけないか**: A の署名者が承認記録と一緒に validator を
-> 弱体化できてしまう。実際、A に「即座に `51/51 PASS` を出して終了する validator」を
+> 弱体化できてしまう。実際、A に「即座に全件 PASS を出して終了する validator」を
 > 含めて署名すると、署名検証を通ったうえで `exit 0` になった。
 >
 > C から取る場合も、C 自体を署名者が作れる余地は残る。

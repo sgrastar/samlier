@@ -1,7 +1,9 @@
 # Build output
 build/*
-# ただし :specReconcile レポートは G1 提出物なので追跡する
-!build/spec-reconcile-report.json
+# ★ :specReconcile レポートは追跡しない。
+#   実行のたびに run_id / executed_at / tools の commit 状態で内容が変わるため、
+#   コミットに含めると必ず古い結果が残る（実際 53/56・SR-40 blocking のまま残っていた）。
+#   正本は CI の artifact（.github/workflows/g1.yml の upload-artifact）。
 out/
 .gradle/
 bin/

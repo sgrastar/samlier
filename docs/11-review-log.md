@@ -1703,3 +1703,97 @@ open question 18 → SR-30 が FAIL、g1.complete = false
 **次**: 18 義務の参照節の分解。ご提案の順序に従い
 **SAML2Core / Profile 共通規則 → ECP / SLO / Discovery → MD05・MD06 メタデータ群**の
 3 段階に分けて進める。
+
+---
+
+## G1b-R3 — 2026-08-26 母数の生成化・§8.3.7 の補完・リンクの意味定義
+
+前回の 9 件は成果物に入っていることを確認いただいたうえで、新たに 4 件の指摘。
+
+| # | 指摘 | 対応 | 検証 |
+|---|---|---|---|
+| 1 | **G2 の母数が 133 / 132 のまま**。4 ファイルに直書きされており、義務を足すたびに取り残される | 数値を **`<!--g1:KEY--><!--/g1-->` マーカー**にし、`g1_docgen.py` が `coverage.yaml` から差し込む方式へ。さらに **SR-41** で「マーカー外の直書き」を検出して FAIL にする | マーカー値を手で書き換え → `docgen --check` が exit 1。直書きを追加 → SR-41 FAIL。健全時は PASS |
+| 2 | **SSO05.a3 に §8.3.7 の必須ケースが不足**（SPProvidedID の正方向・再発行時の NameQualifier 維持） | 条件・testability が違うため variant ではなく**独立義務 3 件**に分離: `a5`（SPProvidedID 正方向・条件付き）/ `a6`（再発行時に元の生成者を指す）/ `a7`（再発行時に省略しない）。加えて §8.3.7 の未分解 MUST NOT を `a8` に | 4 義務が `coverage.yaml` に存在することを確認 |
+| 3 | **G02 の user-defined variant は「切り詰めなし」を確認できない** | `.a`（**受理**）と `.b`（SP の**非切り詰め**・読み戻し経路が前提）/ `.c`（IdP の非切り詰め・原則 ATTESTED）に分離。旧 `@Name` / `@FriendlyName` の記述も更新 | 3 義務と `configuration_failure_semantics: test_precondition` を確認 |
+| 4 | **`linked_obligations` の実行上の意味が未定義** | `docs/03 §リンクの意味` に **L1〜L6** を定義。スキーマを `{obligation, kind, note_ja}` に変更し、**SR-22g-shape / SR-22g / SR-22h / SR-22i** を追加。`docs/04` に「参照取り込み」「被参照」を両方向で出力 | 未知 kind / 実在しない参照 / 自己参照 / 循環 / NOT_OBSERVABLE 参照 / 旧形式の 6 パターンで対応する検査が FAIL することを確認 |
+
+### 1 の再発防止の形
+
+母数は本文に書けない。`g1_docgen.py` が `coverage.yaml` から差し込む。
+
+```markdown
+`coverage.yaml` の <!--g1:obligations-->147<!--/g1--> 義務のうち、
+`NOT_OBSERVABLE`（<!--g1:not_observable_keys-->`IIP-SSO05.a4` / `IIP-SP12.a`<!--/g1-->）を除く
+**<!--g1:case_target-->145<!--/g1--> 義務**。
+```
+
+説明のための架空の数（「10 義務しか覆わない mutant セット」等）は
+行に `<!--g1-literal-->` を置いて明示的に逃がす。逃がし忘れは SR-41 が FAIL にする。
+
+### 2 の分解（SAML2Core §8.3.7）
+
+原文の分岐を variant ではなく義務に分けた理由は、**条件と testability が違う**ため。
+`a3`（無条件・BROWSER）に混ぜると、§3.6 非対応の対象で `a3` 全体が判定不能になる。
+
+| 義務 | level | testability | 条件 | 内容 |
+|---|---|---|---|---|
+| `SSO05.a5` | MUST | BROWSER | `supports_name_identifier_management` | 代替識別子が設定済みなら SPProvidedID に**最新の値** |
+| `SSO05.a6` | MUST | CONFIG | `reissues_foreign_persistent_identifier` | 再発行時、NameQualifier は**元の生成者**を指し続ける |
+| `SSO05.a7` | MUST_NOT | CONFIG | 同上 | 再発行時、NameQualifier を**省略しない** |
+| `SSO05.a8` | MUST_NOT | ATTESTED | — | persistent Format に**永続だが不透明でない値**を載せない |
+
+述語 2 件（`supports_name_identifier_management` / `reissues_foreign_persistent_identifier`）を
+`predicates.yaml` に追加。いずれも **CAPABILITY_BASED で観測は方向付き**。
+
+> `a6` / `a7` の原文は "Note that ..." で始まるが MUST / MUST NOT を含むため規範として扱う。
+> 同段落末尾の "Finally, note that ..." は RFC2119 キーワードを持たないので義務を起こさない。
+
+**途中で見つけた自分の誤り**: `a5` の variant に
+「`<samlp:Terminate>` で解除すると SPProvidedID が省略される」と書いていたが、
+§3.6.3 の `<Terminate>` は「識別子の利用終了」であって SPProvidedID の解除ではない。
+`secondary_peer` との pair-wise 分離に差し替え、誤解を控え書きとして残した。
+
+### 3 の分離（IIP-G02）
+
+`<samlp:Extensions>` / `<saml:Advice>` の未知内容は**無視してよい**ので、
+成功応答は「受理した」「無視した」「切り詰めた」を区別しない。
+
+| 義務 | role | testability | 判定するもの | 証拠 |
+|---|---|---|---|---|
+| `G02.a` | idp/sp | BROWSER | **エラーにならないこと** | トランスクリプト |
+| `G02.b` | sp | CONFIG（`test_precondition`） | **切り詰めないこと** | 対象の読み戻し面と送信値をコードポイント列で比較。経路がなければ `not_verified(no_readback_path)` |
+| `G02.c` | idp | ATTESTED | 同上 | `<NewID>`（`type="string"`）→ `SPProvidedID` の往復があれば自動照合、なければ申告 |
+
+### 4 のリンクの意味
+
+`kind: inherit_variants` = 「リンク先の `required_variants` も覆え」。
+**推移的に展開**するが、**role / level / condition / testability は継承しない**。
+展開して覆っても**リンク先義務の網羅にはならない**（二重計上しない）。
+`covers_variants` は `<義務キー>#<variant ID>` で修飾する。全文は `docs/03`。
+
+### 検査器のバグ（自分で見つけた）
+
+リンク展開 `_expand()` が実在しないキーで `KeyError` を投げ、**検査器ごと落ちていた**。
+落ちるとレポートが生成されず、SR-22d の指摘そのものが出ない。
+参照先が無ければ空集合を返すよう修正し、負のテストで確認した。
+
+### その他
+
+`build/spec-reconcile-report.json` を **Git 管理から外す**方針にした（`.gitignore` を更新）。
+実行のたびに `run_id` / `executed_at` / tools のコミット状態で内容が変わるため、
+コミットに含めると必ず古い結果が残る。正本は CI の artifact。
+
+### 現在の状態
+
+```
+要件 69 / 義務 147（141 → 147: G02 +2 / SSO05 +4）
+variant 299
+level        MUST 106 / MUST_NOT 15 / REQUIRED 4 / SHOULD 7 / RECOMMENDED 4 / MAY 5 / OPTIONAL 6
+testability  BROWSER 61 / CONFIG 61 / ATTESTED 15 / AUTOMATED 8 / NOT_OBSERVABLE 2
+述語 10 / 検査 61 件（SR-22g-shape / SR-22g / SR-22h / SR-22i / SR-41 を追加）
+open question 18 → SR-30 が FAIL、g1.complete = false
+```
+
+**次**: 18 義務の参照節の分解。第 1 段階は
+`IIP-SSO01.a` / `IIP-SP12.a` / `IIP-IDP06.a` / `IIP-IDP07.a` / `IIP-IDP10.a` / `IIP-IDP12.a`。
+`IIP-SP04.a`（Discovery）と `IIP-SP14.a` / `IIP-IDP17.a` / `IIP-IDP17.b`（SLO）は第 2 段階へ。

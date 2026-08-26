@@ -1,13 +1,13 @@
 # tests/coverage.yaml — 要件カタログ（G1 成果物 / 判定レベルの唯一の出典）
 # 生成: build_g1.py（原文からオフセットと digest を解決）/ 手編集しない
-generated_at: 2026-08-26T08:55:11+00:00
+generated_at: 2026-08-26T09:24:31+00:00
 schema_version: 1
 g1_state: PENDING_REVIEW
 # 作成者は reviewer / approved_at を埋めない。別のレビュアーが原文と直接照合して承認する。
 spec: kantara-fedinterop-impl
 spec_version: "1.1"
 source_digest: "sha256:6cbc97a652651d6a5cff26a41c51195b8b914ed59dc63ed1d6ce254e88edd13d"
-catalog_digest: "sha256:b931ea3f4552471d23eee4365c242a3963370e6957a74d5741e3284c7a608175"   # specs.yaml + predicates.yaml 全体（後処理で埋める）
+catalog_digest: "sha256:cc23185da974b61d8610de60ecebf44b03b8b22758f797388b7d4f02401b8490"   # specs.yaml + predicates.yaml 全体（後処理で埋める）
 # 承認記録はこのファイルに置かない。tests/approvals/g1.yaml（対象 commit の外）に置く。
 clause_offset_convention:
   base: normalized requirement section
@@ -82,8 +82,8 @@ requirements:
         level: MUST
         testability: BROWSER
         condition: null
-        summary_en: "Accept without error or truncation xs:string values of any valid XML characters up to 256 characters"
-        summary_ja: "有効な XML 文字の任意の組合せからなる 256 文字までの xs:string 値をエラーなく・切り詰めずに受け入れる"
+        summary_en: "Accept, without error, xs:string values of any valid XML characters up to 256 characters"
+        summary_ja: "有効な XML 文字の任意の組合せからなる 256 文字までの xs:string 値をエラーなく受理する"
         applicability_note_en: "Scoped by the opening clause 'When specific constraints are absent in the SAML standards or profile documents' — test fields on which SAML imposes no length/charset constraint."
         applicability_note_ja: "冒頭に『SAML 標準やプロファイル文書に固有の制約がない場合』という限定がある。SAML が長さ・文字種を制約していないフィールドを選ぶこと。"
         level_assignment: { idp: core, sp: core }
@@ -119,17 +119,97 @@ requirements:
             description_ja: "文字種: XML 構文上特別な文字（< & \" ' >）を文字参照・エンティティ参照で"
         controls:
           - "★ 【型種別】×【文字種】の両軸を試す。標準型だけ通しても『user-defined types にも適用される』ことを検証していない"
-          - "★ 訂正: 任意の NameFormat を使っても saml:Attribute/@Name・@FriendlyName の型は SAML スキーマで定義済みの xs:string であり、user-defined type の対照にならない。拡張点に載せた利用者定義スキーマの型を使う"
+          - "★ 本義務が判定するのは『エラーにならないこと』だけ。切り詰めの有無は IIP-G02.b（SP）/ IIP-G02.c（IdP）で判定する"
+          - "★ 対照: 255 文字は通り 256 文字で拒否される実装を検出できること（境界を跨ぐ 2 ケースが必須）"
           - "リテラル TAB/LF は XML 属性値正規化で空白になる。リテラル版と文字参照版を別ケースにし、比較は XML 解析後の値で行う"
           - "長さは Unicode コードポイント数で数える"
-        notes_ja: "適用対象は SAML 標準内の型(transient/persistent NameID 等)と利用者定義型の双方。型が xs:string と確定するフィールド(ProviderName / Attribute@Name / @FriendlyName)を使う。"
+        notes_ja: "受理の証拠はトランスクリプトで足りる（エラー応答がなく、フローが完了する）。ただし <samlp:Extensions> / <saml:Advice> に置いた利用者定義型は『無視してよい』ため、成功応答は『受理した』と『無視した』を区別しない。無視されていないこと・切り詰められていないことは IIP-G02.b / .c で別途観測する。型が xs:string と確定するフィールドを使うこと（saml:Attribute/@Name・@FriendlyName は SAML スキーマ定義済みの型なので user-defined type の対照にはならない）。"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:62f2e4743307aa9516a481b55ee912b7f3eadd3dca9b220e09904e5c1c243f7a"
+          obligation_digest: "sha256:5c91d7a1eacbe3935d008a8c6a1c168c0fa23719c7d43ef6c47baff35340d93a"
+          source_spec: kantara-fedinterop-impl
+          spec_version: "1.1"
+          source_selector: "#IIP-G02"
+          source_section_digest: "sha256:1ca7eb8542d7834f85702e88a23d4bbbc59c4750e4ff0624527491ffb874c09a"
+      - key: IIP-G02.b
+        roles: [sp]
+        level: MUST
+        testability: CONFIG
+        condition: null
+        configuration_failure_semantics: test_precondition
+        summary_en: "A Service Provider must not truncate received xs:string values of up to 256 characters"
+        summary_ja: "SP は受信した 256 文字までの xs:string 値を切り詰めない"
+        applicability_note_en: "Same scoping clause as IIP-G02.a. This obligation covers the 'without truncation' half, which requires a read-back path."
+        applicability_note_ja: "適用範囲は IIP-G02.a と同じ。本義務は『切り詰めなし』の側だけを扱い、値の読み戻し経路を必要とする。"
+        level_assignment: { sp: core }
+        source_clauses:
+          - { start: 81, end: 291, digest: "sha256:d07e84e7979b443c9b7a1a30f67d6bd7f54d0722dfebb4b8c9e2bf809b343e66", occurrences: 1 }
+          - { start: 293, end: 435, digest: "sha256:fe98afa5ffc20d38dfca4e5a2e80b7d93b86969943bdeb9edd8565dce8972654", occurrences: 1 }
+        required_variants:
+          - id: v-08c453934f
+            description_ja: "受信した NameID（transient / persistent）を読み戻し、256 コードポイントのまま保持されている"
+          - id: v-bb65fb78d9
+            description_ja: "受信した <saml:AttributeValue>（標準型）を読み戻し、256 コードポイントのまま保持されている"
+          - id: v-9a4cea85bb
+            description_ja: "受信した利用者定義型の AttributeValue（xsi:type）を読み戻し、値が保持されている"
+          - id: v-c4c199e46b
+            description_ja: "文字種: 非 ASCII / 結合文字 / 補助平面のコードポイントが失われていない"
+          - id: v-e12a741841
+            description_ja: "文字種: 文字参照で送った TAB / LF が XML 解析後の値として保持されている"
+          - id: v-814d4ab87d
+            description_ja: "対照: 255 文字は完全一致、256 文字だけ末尾が欠ける実装を検出できる"
+        controls:
+          - "★ 成功応答は『切り詰めなし』の証拠にならない。<samlp:Extensions> / <saml:Advice> の未知内容は無視してよいので、『無視した』『切り詰めた』『保持した』の 3 つを成功応答だけでは区別できない"
+          - "★ 読み戻しは対象側の観測面から行う。Suite が送った値と、対象が読み戻した値を Unicode コードポイント列として比較する"
+          - "★ 読み戻し経路が用意できない場合は not_verified(no_readback_path)。対象の不適合ではない"
+        notes_ja: "読み戻し経路の例: SP の属性表示エンドポイント（Shibboleth の Session ハンドラ等）、対象アプリに置いた診断用ページ、対象が発行するセッション情報。いずれも Test Plan の preflight で URL と読み取り方を登録し、値の突き合わせは Suite が自動で行う。経路がない場合は IIP-G02.c と同じく申告に落とすのではなく not_verified を返す（SP は読み戻し面を持つのが通例で、申告に落とすと検出力を失うため）。"
+        authored_by: samlier-g1-builder
+        review:
+          # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
+          state: PENDING_REVIEW
+          reviewer: null
+          approved_at: null
+          obligation_digest: "sha256:6824883c717f5f7effea91f41e159f2f543d8bca9092ba10ce96ab54e61d65db"
+          source_spec: kantara-fedinterop-impl
+          spec_version: "1.1"
+          source_selector: "#IIP-G02"
+          source_section_digest: "sha256:1ca7eb8542d7834f85702e88a23d4bbbc59c4750e4ff0624527491ffb874c09a"
+      - key: IIP-G02.c
+        roles: [idp]
+        level: MUST
+        testability: ATTESTED
+        condition: null
+        summary_en: "An Identity Provider must not truncate received xs:string values of up to 256 characters"
+        summary_ja: "IdP は受信した 256 文字までの xs:string 値を切り詰めない"
+        applicability_note_en: "Same scoping clause as IIP-G02.a. Most Identity Providers do not re-emit the xs:string values they accept, so the observation is normally an attestation."
+        applicability_note_ja: "適用範囲は IIP-G02.a と同じ。IdP は受理した xs:string 値をプロトコル面に再出力しないものが多く、観測は原則として申告になる。"
+        level_assignment: { idp: core }
+        source_clauses:
+          - { start: 81, end: 291, digest: "sha256:d07e84e7979b443c9b7a1a30f67d6bd7f54d0722dfebb4b8c9e2bf809b343e66", occurrences: 1 }
+          - { start: 293, end: 435, digest: "sha256:fe98afa5ffc20d38dfca4e5a2e80b7d93b86969943bdeb9edd8565dce8972654", occurrences: 1 }
+        required_variants:
+          - id: v-b69b5e2e3f
+            description_ja: "往復経路がある場合: <samlp:ManageNameIDRequest>/<samlp:NewID>（schema 上 type=\"string\"）に 256 文字を設定し、以降の Assertion の SPProvidedID が同一の 256 コードポイントで返る（SAML2Core 3.6 対応時のみ自動照合できる）"
+          - id: v-c7e5452835
+            description_ja: "往復経路がない場合: AuthnRequest/@ProviderName・NameIDPolicy/@SPNameQualifier・<samlp:Extensions> に送った 256 文字が、対象の管理画面・監査ログ・セッション情報で切り詰められていないことを申告で確認する"
+          - id: v-cf2254ee2d
+            description_ja: "文字種: 非 ASCII / 結合文字 / 補助平面のコードポイントが失われていないこと（同上の経路で確認）"
+        controls:
+          - "★ 往復経路のある variant（SPProvidedID）を優先する。申告のみの結果と自動照合の結果は証拠ラダー上の等級が異なる"
+          - "★ SPProvidedID による往復は IIP-SSO05.a5 と同じ観測を使うが、判定対象は別（あちらは値の出所、こちらは長さの保存）"
+          - "★ 申告できない場合は not_verified(attestation_unavailable)。対象の不適合ではない"
+        notes_ja: "IIP-G02.a（受理）と本義務（非切り詰め）を分けたのは、成功応答が『無視した』と区別できないため。IdP 側は読み戻し面が標準化されておらず、SAML2Core 3.6 の Name Identifier Management に対応する実装だけが自動照合できる。"
+        authored_by: samlier-g1-builder
+        review:
+          # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
+          state: PENDING_REVIEW
+          reviewer: null
+          approved_at: null
+          obligation_digest: "sha256:ec675f63b4bbdd32bad6eebd219baed6d9184c2c821088428684abb74468bcf8"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-G02"
@@ -1625,14 +1705,14 @@ requirements:
           - id: v-aed424f97d
             description_ja: "【SP 消費側】persistent Format の NameID を受理する"
         controls:
-          - "Format の往復だけを見る義務。8.3.7 の個別規則は .a1〜.a5 で検査する"
+          - "Format の往復だけを見る義務。8.3.7 の個別規則は本要件の他の義務（IIP-SSO05.a1 以降）で検査する"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:59e47836dd7c0afb2a99f1054149401f04ec82b19dcf28752388c075a7f4a986"
+          obligation_digest: "sha256:fd27bb3b2cec63f5a9a0aa595e5ca2c20667d407e5ab9e9a68fb89dfd5d1d7c6"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SSO05"
@@ -1730,19 +1810,21 @@ requirements:
             description_ja: "NameQualifier がある場合、IdP の entityID と一致する"
           - id: v-b44303e924
             description_ja: "SPNameQualifier がある場合、SP の entityID（または affiliation）と一致する"
-          - id: v-5f50dda9b3
-            description_ja: "SP が代替識別子を設定していなければ SPProvidedID が省略される"
+          - id: v-a7d1f6c1b4
+            description_ja: "SP が代替識別子を一度も設定していなければ SPProvidedID が省略される（設定済みの場合の正方向は IIP-SSO05.a5）"
           - id: v-4b2177d011
             description_ja: "secondary_peer（別 SP）では異なる値が返る（pair-wise pseudonym）"
         controls:
           - "★ pair-wise は 2 つの SP を対にしないと検証できない"
+          - "★ NameQualifier の期待値は『識別子を生成したエンティティの entityID』であって『送信者の entityID』ではない。対象が他エンティティ生成の識別子を再発行する構成は IIP-SSO05.a6 / .a7 で扱う"
+          - "★ NameQualifier / SPNameQualifier の省略は 8.3.7 で MAY として許されている。省略を FAIL にしないこと"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:19db41f2312ba4a6c0dfcca27a965f5dd8af78c82be3d30aaa4a06946175e547"
+          obligation_digest: "sha256:d7581f66ce04019e5c880395b3ddbddc507c8bc342c08f41927b3ad6c65f8f06"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SSO05"
@@ -1781,6 +1863,175 @@ requirements:
           spec_version: "1.1"
           source_selector: "#IIP-SSO05"
           source_section_digest: "sha256:b44add5bc36e84a022299a9d54b5df9df181a90cb892226c54d05eb112d692a4"
+      - key: IIP-SSO05.a5
+        roles: [idp]
+        level: MUST
+        testability: BROWSER
+        condition:
+          predicate: supports_name_identifier_management
+          predicate_kind: CAPABILITY_BASED
+        summary_en: "SPProvidedID must contain the alternative identifier of the principal most recently set by the service provider or affiliation"
+        summary_ja: "SP（または affiliation）が代替識別子を設定済みなら、SPProvidedID にその最新の値を入れる"
+        references_spec: "SAML2Core#8.3.7"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2Core
+            locator: "8\\.3\\.7 Persistent Identifier||8\\.3\\.8 Transient Identifier"
+            section_digest: "sha256:6add1e8cf39e4ece3e97563d6877daefe876ee1c20dd2c9fc253f8562a69de9e"
+            basis_ja: "正方向の根拠。§8.3.7『The element's SPProvidedID attribute MUST contain the alternative identifier of the principal most recently set by the service provider or affiliation, if any (see Section 3.6)』"
+          - spec: SAML2Core
+            locator: "3\\.6\\.1 Element <ManageNameIDRequest>||3\\.6\\.2 Element <ManageNameIDResponse>"
+            section_digest: "sha256:24a8baecb61705b2532950a0779b5b778fe8f2a1352901d89f8c2ff5d6d656f9"
+            basis_ja: "代替識別子の設定手段。§3.6.1『if the requester is the service provider, the new identifier MUST appear in subsequent <NameID> elements in the SPProvidedID attribute』。<NewID> は type=\"string\" なので IIP-G02.c の xs:string 往復にも使える"
+        level_assignment: { idp: core }
+        source_clauses:
+          - { start: 0, end: 169, digest: "sha256:e66a1c4b4350bebadd4d4eea6620b79599bf4ccf39f39a3ea381665fbbc61d39", occurrences: 1 }
+          - { start: 170, end: 222, digest: "sha256:200d6cc58795ef10f294b4748ce9f9f493f02626e206d1d73490711ce8f2561a", occurrences: 1 }
+        required_variants:
+          - id: v-17bd18194a
+            description_ja: "SP（Samlier）が <samlp:ManageNameIDRequest>/<samlp:NewID> で代替識別子を設定 → 以降の Assertion の SPProvidedID がその値になる"
+          - id: v-0c1b285f7c
+            description_ja: "代替識別子を 2 回更新 → SPProvidedID が最新の値になる（1 回目の値が残っていない）"
+          - id: v-c71d4ea87c
+            description_ja: "secondary_peer（別 SP）が設定した代替識別子が、こちらの SP 向けの SPProvidedID に現れない（pair-wise の分離）"
+        controls:
+          - "★ 1 回設定して一致を見るだけでは『最も最近に設定された値』を検証していない。2 回更新し、古い値が残らないことを確認する"
+          - "★ 対象が SAML2Core 3.6 の Name Identifier Management に対応しない場合、代替識別子は成立しえないので NOT_APPLICABLE。省略側（IIP-SSO05.a3）だけが適用される"
+          - "★ <samlp:Terminate> は「識別子の利用終了」であって「SPProvidedID の解除」ではない（§3.6.3）。解除で省略に戻ることを期待するケースを作らない"
+        notes_ja: "原文は「MUST contain the alternative identifier of the principal most recently set by the service provider or affiliation, if any」。if any が条件節で、設定済みなら正方向の MUST、未設定なら省略の MUST（IIP-SSO05.a3）に分岐する。前版はこの分岐の省略側しか variant に持っておらず、正方向を検査していなかった。"
+        authored_by: samlier-g1-builder
+        review:
+          # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
+          state: PENDING_REVIEW
+          reviewer: null
+          approved_at: null
+          obligation_digest: "sha256:fdc2a05d660087f3141fcdcdfa993cb7f26105ccbc11003bf249bb9fd8ec23b1"
+          source_spec: kantara-fedinterop-impl
+          spec_version: "1.1"
+          source_selector: "#IIP-SSO05"
+          source_section_digest: "sha256:b44add5bc36e84a022299a9d54b5df9df181a90cb892226c54d05eb112d692a4"
+      - key: IIP-SSO05.a6
+        roles: [idp]
+        level: MUST
+        testability: CONFIG
+        condition:
+          predicate: reissues_foreign_persistent_identifier
+          predicate_kind: CAPABILITY_BASED
+        configuration_failure_semantics: test_precondition
+        summary_en: "When re-issuing an identifier created by another entity, NameQualifier must continue to identify the entity that originally created it"
+        summary_ja: "他エンティティが生成した persistent 識別子を再発行する場合、NameQualifier は元の生成者を指し続ける"
+        references_spec: "SAML2Core#8.3.7"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2Core
+            locator: "8\\.3\\.7 Persistent Identifier||8\\.3\\.8 Transient Identifier"
+            section_digest: "sha256:6add1e8cf39e4ece3e97563d6877daefe876ee1c20dd2c9fc253f8562a69de9e"
+            basis_ja: "§8.3.7 の当該文は 'Note that a different system entity might later issue...' で始まるが、MUST / MUST NOT を含むため規範として扱う。IIP-SSO05 が §8.3 の normative obligations を取り込むため対象になる"
+        level_assignment: { idp: core }
+        source_clauses:
+          - { start: 0, end: 169, digest: "sha256:e66a1c4b4350bebadd4d4eea6620b79599bf4ccf39f39a3ea381665fbbc61d39", occurrences: 1 }
+          - { start: 170, end: 222, digest: "sha256:200d6cc58795ef10f294b4748ce9f9f493f02626e206d1d73490711ce8f2561a", occurrences: 1 }
+        required_variants:
+          - id: v-cad20b6af1
+            description_ja: "Samlier を上流 IdP・対象を Proxy・Samlier を下流 SP に置き、上流が発行した persistent NameID を対象が再発行する"
+          - id: v-020855ffa9
+            description_ja: "再発行された NameID の NameQualifier が上流 Samlier-IdP の entityID のまま（対象自身の entityID に書き換わっていない）"
+          - id: v-045afbcd40
+            description_ja: "対照: 対象が自前の persistent 識別子を新規生成して返す構成では NameQualifier は対象自身になる。これを FAIL にしない"
+        controls:
+          - "★ 『NameQualifier == 応答を送ってきた IdP の entityID』を無条件に期待する検査は、この再発行ケースを誤判定する"
+          - "★ 上流 Samlier-IdP と下流 Samlier-SP の 2 役を同一 Test Plan の Test Peer で演じる。testability を CONFIG にしているのは対象側の再構成が前提になるため。実行時にはブラウザ操作も要る"
+          - "★ 対象が Proxy として振る舞えない場合は条件が偽 → NOT_APPLICABLE。構成できないだけの場合は not_verified"
+        notes_ja: "原文の当該文は Note that で始まるが MUST / MUST NOT を含む。同段落末尾の「Finally, note that ...」は RFC2119 キーワードを含まない再説明なので義務を起こさない。"
+        authored_by: samlier-g1-builder
+        review:
+          # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
+          state: PENDING_REVIEW
+          reviewer: null
+          approved_at: null
+          obligation_digest: "sha256:7c8bf44681770d8081edb9dcd177ef3ee4bba17609d6e5d644238eb0148448b8"
+          source_spec: kantara-fedinterop-impl
+          spec_version: "1.1"
+          source_selector: "#IIP-SSO05"
+          source_section_digest: "sha256:b44add5bc36e84a022299a9d54b5df9df181a90cb892226c54d05eb112d692a4"
+      - key: IIP-SSO05.a7
+        roles: [idp]
+        level: MUST_NOT
+        testability: CONFIG
+        condition:
+          predicate: reissues_foreign_persistent_identifier
+          predicate_kind: CAPABILITY_BASED
+        configuration_failure_semantics: test_precondition
+        summary_en: "When re-issuing an identifier created by another entity, the NameQualifier attribute must not be omitted"
+        summary_ja: "他エンティティが生成した persistent 識別子を再発行する場合、NameQualifier を省略してはならない"
+        references_spec: "SAML2Core#8.3.7"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2Core
+            locator: "8\\.3\\.7 Persistent Identifier||8\\.3\\.8 Transient Identifier"
+            section_digest: "sha256:6add1e8cf39e4ece3e97563d6877daefe876ee1c20dd2c9fc253f8562a69de9e"
+            basis_ja: "§8.3.7 の当該文は 'Note that a different system entity might later issue...' で始まるが、MUST / MUST NOT を含むため規範として扱う。IIP-SSO05 が §8.3 の normative obligations を取り込むため対象になる"
+        level_assignment: { idp: core }
+        source_clauses:
+          - { start: 0, end: 169, digest: "sha256:e66a1c4b4350bebadd4d4eea6620b79599bf4ccf39f39a3ea381665fbbc61d39", occurrences: 1 }
+          - { start: 170, end: 222, digest: "sha256:200d6cc58795ef10f294b4748ce9f9f493f02626e206d1d73490711ce8f2561a", occurrences: 1 }
+        required_variants:
+          - id: v-0b113308aa
+            description_ja: "再発行された Assertion の NameID に NameQualifier 属性が存在する"
+          - id: v-de050a75fa
+            description_ja: "対照: 対象が自前生成した識別子では、文脈から導出できる場合の省略が MAY として許される。これを FAIL にしない"
+        controls:
+          - "★ 一般規則（8.3.7）では NameQualifier は文脈から導出できるなら省略してよい。再発行の場合だけ省略が禁止される。この 2 ケースを対にしないと「常に省略しない実装」と「規則どおりの実装」を区別できない"
+        notes_ja: "IIP-SSO05.a6（値の正しさ）と本義務（存在すること）は別の観測。省略されていれば a6 も満たせないが、a6 を満たす値であっても省略されうるため、存在検査を独立に持つ。"
+        authored_by: samlier-g1-builder
+        review:
+          # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
+          state: PENDING_REVIEW
+          reviewer: null
+          approved_at: null
+          obligation_digest: "sha256:293fd3c7afdb677e47da769b4dde1c43d92a0c07dad72cdb256b572203e215c0"
+          source_spec: kantara-fedinterop-impl
+          spec_version: "1.1"
+          source_selector: "#IIP-SSO05"
+          source_section_digest: "sha256:b44add5bc36e84a022299a9d54b5df9df181a90cb892226c54d05eb112d692a4"
+      - key: IIP-SSO05.a8
+        roles: [idp]
+        level: MUST_NOT
+        testability: ATTESTED
+        condition: null
+        summary_en: "Deployments must not overload the persistent format with persistent but non-opaque values"
+        summary_ja: "persistent Format に「永続だが不透明でない」値を載せてはならない"
+        references_spec: "SAML2Core#8.3.7"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2Core
+            locator: "8\\.3\\.7 Persistent Identifier||8\\.3\\.8 Transient Identifier"
+            section_digest: "sha256:6add1e8cf39e4ece3e97563d6877daefe876ee1c20dd2c9fc253f8562a69de9e"
+            basis_ja: "persistent NameID の規範的義務（IIP-SSO05 が in accordance with ... [SAML2Core] sect. 8.3 と述べるため、検査内容は §8.3.7 から導く）"
+        level_assignment: { idp: core }
+        source_clauses:
+          - { start: 0, end: 169, digest: "sha256:e66a1c4b4350bebadd4d4eea6620b79599bf4ccf39f39a3ea381665fbbc61d39", occurrences: 1 }
+          - { start: 170, end: 222, digest: "sha256:200d6cc58795ef10f294b4748ce9f9f493f02626e206d1d73490711ce8f2561a", occurrences: 1 }
+        required_variants:
+          - id: v-22a94e73ca
+            description_ja: "明白な違反の自動検出: 返る値がメールアドレス形式・LDAP DN 形式・申告済みユーザー識別子と一致する、のいずれでもない"
+          - id: v-77f0fa432d
+            description_ja: "値が社員番号・学籍番号等の業務識別子でないことを申告で確認する"
+        controls:
+          - "★ IIP-SSO05.a1（擬似乱数で構成する）と観測面は重なるが、名宛人と義務内容が違う。a1 は IdP の生成方式、本義務はプライバシー要件を持たない配備が Format を流用することへの禁止"
+          - "★ 不透明性は否定的性質なので自動検出できるのは明白な違反だけ。残りは申告"
+        notes_ja: "原文「Deployments without such requirements are free to use other kinds of identifiers in their SAML exchanges, but MUST NOT overload this format with persistent but non-opaque values」。名宛人は deployment だが、適合試験の対象は「配備された対象実装」なので検査できる。"
+        authored_by: samlier-g1-builder
+        review:
+          # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
+          state: PENDING_REVIEW
+          reviewer: null
+          approved_at: null
+          obligation_digest: "sha256:edaf7159bbcd4ea02faa831aa3b40162cf9b228aa3240368cf076281f4575fd3"
+          source_spec: kantara-fedinterop-impl
+          spec_version: "1.1"
+          source_selector: "#IIP-SSO05"
+          source_section_digest: "sha256:b44add5bc36e84a022299a9d54b5df9df181a90cb892226c54d05eb112d692a4"
       - key: IIP-SSO05.b
         roles: [idp, sp]
         level: MUST
@@ -1805,14 +2056,14 @@ requirements:
           - id: v-bb8f5db306
             description_ja: "【SP 消費側】transient Format の NameID を受理する"
         controls:
-          - "Format の往復だけを見る義務。8.3.8 の個別規則は .b1〜.b3 で検査する"
+          - "Format の往復だけを見る義務。8.3.8 の個別規則は本要件の他の義務（IIP-SSO05.b1 以降）で検査する"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:f4972fdd642168001279b5156b196e5257b3baa17bf27189aee8519ad76ae7c4"
+          obligation_digest: "sha256:872055a29fbc2f98e003890effef7461ca3b8fee7fb8048afca69676df8ff342"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SSO05"
@@ -4547,7 +4798,10 @@ requirements:
             description_ja: "HoK 対応時の holder-of-key browser バインディング"
           - id: v-d04e147196
             description_ja: "ACS の index / isDefault"
-        linked_obligations: [IIP-SSO06.a]
+        linked_obligations:
+          - obligation: IIP-SSO06.a
+            kind: inherit_variants
+            note_ja: "IIP-IDP16（§2.3.10）冒頭が Browser SSO §4.1.6 の規則を ECP に継承するため、IIP-SSO06.a の required_variants を ECP 文脈でも覆う必要がある。role / level / condition / testability は本義務のものを使う"
         controls:
           - "ecp:Response/@AssertionConsumerServiceURL がメタデータの PAOS ACS と一致するかを検証する"
           - "★ ECP 固有要素だけでは §2.3.10 冒頭が継承する §4.1.6 の対象を落とす"
@@ -4557,7 +4811,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:223770929bdc209887ce3aab5ae34405b09142081ab3ec28e3a20f6b9c9c8525"
+          obligation_digest: "sha256:6daab137a0737c25b5a67117a0578bbf9a11ad1945da8334ce3f56a99e4909a8"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-IDP16"

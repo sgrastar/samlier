@@ -252,7 +252,24 @@ PRED = [
   "IIP-SSO06 の (b) 'corresponds to settings supported by the implementation'。要素ごとに評価する"),
  ("not_token_translation_proxy","CLASSIFICATION_BASED","対象が token translation Proxy ではないか",
   ["target.kind"],[],
-  "IIP-IDP13 末尾の 'This requirement does not apply to token translation Proxies.'。観測材料が存在しないため明示的な除外申告のみが FALSE を作れる"),
+  "IIP-IDP13 末尾の 'This requirement does not apply to token translation Proxies.'。観測材料が存在しないため明示的な除外申告のみが FALSE を作れる",
+  "The target was declared to be a token translation Proxy, to which IIP-IDP13 does not apply. This was not verified by the Suite."),
+ ("supports_name_identifier_management","CAPABILITY_BASED","対象が SAML2Core 3.6 の Name Identifier Management に対応しているか",
+  ["declared_features.name_identifier_management"],
+  ["target_metadata_has: md:IDPSSODescriptor/md:ManageNameIDService",
+   "target_consumed: samlp:ManageNameIDRequest",
+   "target_emitted: samlp:ManageNameIDResponse"],
+  "IIP-SSO05.a5 の条件。SAML2Core 8.3.7 の SPProvidedID は『SP が設定した代替識別子』を前提とし、その設定手段が §3.6 しかない。"
+  "★ 観測は方向付き: 対象が ManageNameIDRequest を *受理し* ManageNameIDResponse を *返した* ことが能力の証拠。"
+  "メタデータの ManageNameIDService だけでは宣言であって能力の観測ではないが、"
+  "IIP-MD01 が『メタデータは実際の設定を反映する』ことを求めるため補助証拠として採る"),
+ ("reissues_foreign_persistent_identifier","CAPABILITY_BASED","対象が他エンティティ生成の persistent 識別子を再発行するか",
+  ["declared_features.proxy_idp"],
+  ["target_reissued_upstream_persistent_nameid: true"],
+  "IIP-SSO05.a6 / .a7 の条件。SAML2Core 8.3.7 の再発行規則は『a different system entity might later issue its own "
+  "protocol message or assertion containing the identifier』に該当する構成でのみ適用される。"
+  "★ 観測は方向付き: 上流 Samlier-IdP が発行した NameID と同一の値を、対象が自身の Assertion で送出したことだけが証拠になる。"
+  "対象が Proxy を名乗るだけでは能力の観測ではない"),
 ]
 L=["# tests/predicates.yaml — 条件述語の固定集合（G1 成果物）",
    "# 生成: build_g1.py / 手編集しない",
@@ -261,7 +278,11 @@ L=["# tests/predicates.yaml — 条件述語の固定集合（G1 成果物）",
    "#       CAPABILITY_BASED = 実際の能力が条件（observed 必須。declaration-only FALSE は UNKNOWN）",
    "#       CLASSIFICATION_BASED = 製品分類が条件（declaration_only_exclusion のみ FALSE 可）",
    "predicates:"]
-for name,kind,desc,decl,obs,note in PRED:
+for _p in PRED:
+    name,kind,desc,decl,obs,note = _p[:6]
+    excl = _p[6] if len(_p)>6 else None
+    assert (kind=="CLASSIFICATION_BASED")==(excl is not None), \
+        f"{name}: CLASSIFICATION_BASED は declaration_only_exclusion.statement_en が必須、それ以外は持ってはならない"
     L+=[f"  {name}:",f"    kind: {kind}",f"    description_ja: {y(desc)}"]
     L.append("    declared:"+(" []" if not decl else ""))
     for d in decl: L.append(f"      - {y(d)}")
@@ -270,7 +291,7 @@ for name,kind,desc,decl,obs,note in PRED:
     L.append("    on_conflict: inconsistent")
     if kind=="CLASSIFICATION_BASED":
         L+=["    declaration_only_exclusion:","      allowed: true","      requires_reason: true",
-            "      statement_en: \"The target was declared to be a token translation Proxy, to which IIP-IDP13 does not apply. This was not verified by the Suite.\""]
+            f"      statement_en: {yq(excl)}"]
     L.append(f"    rationale_ja: {y(note)}")
 L.append("")
 open(os.path.join(TESTS,'predicates.yaml'),'w',encoding='utf-8').write('\n'.join(L))
@@ -294,6 +315,10 @@ for rid in RIDS:
 
 MUSTC={'MUST','MUST_NOT','REQUIRED'}
 CORE_SECTIONS={'2.1','2.2','2.3','2.4','2.5'}
+# linked_obligations で使える種別。増やすときは docs/03 §リンクの意味 と
+# g1_validate.py の SR-22g を同時に更新すること（意味の定義がない種別を成果物に入れない）。
+LINK_KINDS = {'inherit_variants'}
+
 def level_assignment(rid,o):
     """Core = MUST_CLASS かつ SLO/ECP/Discovery 以外。Samlier 独自分類。"""
     sec=SECTION_OF[rid][0]
@@ -405,7 +430,17 @@ for rid in RIDS:
                 L.append(f"          - id: {vid}")
                 L.append(f"            description_ja: {y(v)}")
         if o.get('linked_obligations'):
-            L.append("        linked_obligations: ["+", ".join(o['linked_obligations'])+"]")
+            L.append("        linked_obligations:")
+            for lk in o['linked_obligations']:
+                if lk.get('kind') not in LINK_KINDS:
+                    raise SystemExit(f"{o['key']}: linked_obligations.kind は {sorted(LINK_KINDS)} のいずれか"
+                                     f"（受け取った値: {lk.get('kind')!r}）。"
+                                     f"新しい種別を足すには docs/03 §リンクの意味 と g1_validate.py SR-22g を先に更新すること")
+                if not lk.get('note_ja'):
+                    raise SystemExit(f"{o['key']}: linked_obligations には note_ja（何を取り込むかの説明）が必須")
+                L+= [f"          - obligation: {lk['obligation']}",
+                     f"            kind: {lk['kind']}",
+                     f"            note_ja: {y(lk['note_ja'])}"]
         if o.get('controls'):
             L.append("        controls:")
             for v in o['controls']: L.append(f"          - {y(v)}")

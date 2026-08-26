@@ -13,7 +13,7 @@
 ```bash
 python3 tools/g1_docgen.py            # docs/04 を再生成
 python3 tools/g1_docgen.py --check    # 生成物と一致するかだけ確認（CI 用）
-python3 tools/g1_validate.py          # 原文を取得して照合 → build/spec-reconcile-report.json
+python3 tools/g1_validate.py          # 原文を取得して照合 → build/spec-reconcile-report.json（Git 管理外）
 python3 tools/g1_validate.py --offline
 ```
 

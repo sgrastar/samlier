@@ -27,10 +27,16 @@ tests/coverage.yaml   tests/specs.yaml   tests/predicates.yaml   tests/approvals
 | 生成物 | 生成元 | コマンド |
 |---|---|---|
 | `docs/04-requirement-coverage.md` | `tests/coverage.yaml` | `tools/g1_docgen.py` |
-| `build/spec-reconcile-report.json` | validator の実行結果 | `tools/g1_validate.py` |
+| `build/spec-reconcile-report.json` | validator の実行結果（**Git 管理外**。正本は CI artifact） | `tools/g1_validate.py` |
 | ドキュメント中の `result.json` 例 | `Evaluator` の golden fixture | （M1 で実装） |
+| ドキュメント中の母数（義務数・要件数など） | `tests/coverage.yaml` | `tools/g1_docgen.py` |
 
 `tools/g1_docgen.py --check` が CI で差分を検出する。
+
+**母数は本文に直書きしない。** `<!--g1:obligations-->147<!--/g1-->` のようにマーカーで書き、
+`g1_docgen.py` に埋めさせる。説明のための架空の数を書くときは行に `<!--g1-literal-->` を置く。
+直書きは `g1_validate.py` の **SR-41** が検出して FAIL にする
+（義務を足したときに複数ファイルの数値が取り残される事故を防ぐため）。
 
 ### 3. ケースは Verdict を返さない
 
@@ -74,6 +80,12 @@ tests/coverage.yaml   tests/specs.yaml   tests/predicates.yaml   tests/approvals
 
 「この期待値を満たすが義務は満たしていない実装」が作れるなら、そのケースに検出力はない。
 positive / negative control を必ず対にする（[docs/01 の G2](docs/01-scope-and-roadmap.md)）。
+
+**`linked_obligations` の展開分も覆う。** `kind: inherit_variants` のリンクは
+「リンク先の `required_variants` も覆え」という意味で、**推移的**に展開する。
+`role` / `level` / `condition` / `testability` は**継承しない**（義務自身の値を使う）。
+覆っても**リンク先義務の網羅にはならない**（二重計上しない）。
+規則の全文は [docs/03 §リンクの意味](docs/03-test-model.md)。
 
 ### 8. 生のリクエストを壊さない
 

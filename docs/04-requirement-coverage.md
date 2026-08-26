@@ -15,13 +15,13 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 | 指標 | 値 |
 |---|---|
 | 要件 | 69 |
-| 義務（obligation） | 141 |
-| うち MUST_CLASS | 119 |
+| 義務（obligation） | 147 |
+| うち MUST_CLASS | 125 |
 | うち SHOULD_CLASS | 11 |
 | うち MAY_CLASS | 11 |
-| 条件付き義務 | 16 |
-| IdP プロファイル | 108 義務（Core 79 / Full 29） |
-| SP プロファイル | 101 義務（Core 76 / Full 25） |
+| 条件付き義務 | 19 |
+| IdP プロファイル | 113 義務（Core 84 / Full 29） |
+| SP プロファイル | 102 義務（Core 77 / Full 25） |
 | 非規範（イタリック）スパン | 26 |
 
 **Testability**
@@ -29,9 +29,9 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 | 記号 | 意味 | 件数 |
 |---|---|---|
 | `AUTOMATED` | Suite と対象の直接通信で完結（ブラウザ不要） | 8 |
-| `BROWSER` | 利用者のブラウザが必要 | 60 |
-| `ATTESTED` | 対象内部の挙動を利用者が申告 | 13 |
-| `CONFIG` | 対象側の設定変更を依頼したうえで実行 | 58 |
+| `BROWSER` | 利用者のブラウザが必要 | 61 |
+| `ATTESTED` | 対象内部の挙動を利用者が申告 | 15 |
+| `CONFIG` | 対象側の設定変更を依頼したうえで実行 | 61 |
 | `NOT_OBSERVABLE` | 外部から原理的に検証不能。ケースを作らない | 2 |
 
 **判定に関する注意**
@@ -77,7 +77,9 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 
 | 義務 | Level | Role | Testability | 条件 | Core/Full | 要約 |
 |---|---|---|---|---|---|---|
-| `IIP-G02.a` | MUST | idp/sp | `BROWSER` | — | core | 有効な XML 文字の任意の組合せからなる 256 文字までの xs:string 値をエラーなく・切り詰めずに受け入れる |
+| `IIP-G02.a` | MUST | idp/sp | `BROWSER` | — | core | 有効な XML 文字の任意の組合せからなる 256 文字までの xs:string 値をエラーなく受理する |
+| `IIP-G02.b` | MUST | sp | `CONFIG` | — | core | SP は受信した 256 文字までの xs:string 値を切り詰めない |
+| `IIP-G02.c` | MUST | idp | `ATTESTED` | — | core | IdP は受信した 256 文字までの xs:string 値を切り詰めない |
 
 <details><summary><code>IIP-G02.a</code> の詳細</summary>
 
@@ -97,11 +99,50 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
   - `v-16ec37dcf7` 文字種: XML 構文上特別な文字（< & " ' >）を文字参照・エンティティ参照で
 - **対照（negative control）**:
   - ★ 【型種別】×【文字種】の両軸を試す。標準型だけ通しても『user-defined types にも適用される』ことを検証していない
-  - ★ 訂正: 任意の NameFormat を使っても saml:Attribute/@Name・@FriendlyName の型は SAML スキーマで定義済みの xs:string であり、user-defined type の対照にならない。拡張点に載せた利用者定義スキーマの型を使う
+  - ★ 本義務が判定するのは『エラーにならないこと』だけ。切り詰めの有無は IIP-G02.b（SP）/ IIP-G02.c（IdP）で判定する
+  - ★ 対照: 255 文字は通り 256 文字で拒否される実装を検出できること（境界を跨ぐ 2 ケースが必須）
   - リテラル TAB/LF は XML 属性値正規化で空白になる。リテラル版と文字参照版を別ケースにし、比較は XML 解析後の値で行う
   - 長さは Unicode コードポイント数で数える
 - **適用範囲**: 冒頭に『SAML 標準やプロファイル文書に固有の制約がない場合』という限定がある。SAML が長さ・文字種を制約していないフィールドを選ぶこと。
-- **注記**: 適用対象は SAML 標準内の型(transient/persistent NameID 等)と利用者定義型の双方。型が xs:string と確定するフィールド(ProviderName / Attribute@Name / @FriendlyName)を使う。
+- **注記**: 受理の証拠はトランスクリプトで足りる（エラー応答がなく、フローが完了する）。ただし <samlp:Extensions> / <saml:Advice> に置いた利用者定義型は『無視してよい』ため、成功応答は『受理した』と『無視した』を区別しない。無視されていないこと・切り詰められていないことは IIP-G02.b / .c で別途観測する。型が xs:string と確定するフィールドを使うこと（saml:Attribute/@Name・@FriendlyName は SAML スキーマ定義済みの型なので user-defined type の対照にはならない）。
+- **source_clauses**: `[81, 291)` `sha256:d07e84e7979b…` , `[293, 435)` `sha256:fe98afa5ffc2…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-G02.b</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-08c453934f` 受信した NameID（transient / persistent）を読み戻し、256 コードポイントのまま保持されている
+  - `v-bb65fb78d9` 受信した <saml:AttributeValue>（標準型）を読み戻し、256 コードポイントのまま保持されている
+  - `v-9a4cea85bb` 受信した利用者定義型の AttributeValue（xsi:type）を読み戻し、値が保持されている
+  - `v-c4c199e46b` 文字種: 非 ASCII / 結合文字 / 補助平面のコードポイントが失われていない
+  - `v-e12a741841` 文字種: 文字参照で送った TAB / LF が XML 解析後の値として保持されている
+  - `v-814d4ab87d` 対照: 255 文字は完全一致、256 文字だけ末尾が欠ける実装を検出できる
+- **対照（negative control）**:
+  - ★ 成功応答は『切り詰めなし』の証拠にならない。<samlp:Extensions> / <saml:Advice> の未知内容は無視してよいので、『無視した』『切り詰めた』『保持した』の 3 つを成功応答だけでは区別できない
+  - ★ 読み戻しは対象側の観測面から行う。Suite が送った値と、対象が読み戻した値を Unicode コードポイント列として比較する
+  - ★ 読み戻し経路が用意できない場合は not_verified(no_readback_path)。対象の不適合ではない
+- **設定不能時の意味**: `test_precondition`
+- **適用範囲**: 適用範囲は IIP-G02.a と同じ。本義務は『切り詰めなし』の側だけを扱い、値の読み戻し経路を必要とする。
+- **注記**: 読み戻し経路の例: SP の属性表示エンドポイント（Shibboleth の Session ハンドラ等）、対象アプリに置いた診断用ページ、対象が発行するセッション情報。いずれも Test Plan の preflight で URL と読み取り方を登録し、値の突き合わせは Suite が自動で行う。経路がない場合は IIP-G02.c と同じく申告に落とすのではなく not_verified を返す（SP は読み戻し面を持つのが通例で、申告に落とすと検出力を失うため）。
+- **source_clauses**: `[81, 291)` `sha256:d07e84e7979b…` , `[293, 435)` `sha256:fe98afa5ffc2…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-G02.c</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-b69b5e2e3f` 往復経路がある場合: <samlp:ManageNameIDRequest>/<samlp:NewID>（schema 上 type="string"）に 256 文字を設定し、以降の Assertion の SPProvidedID が同一の 256 コードポイントで返る（SAML2Core 3.6 対応時のみ自動照合できる）
+  - `v-c7e5452835` 往復経路がない場合: AuthnRequest/@ProviderName・NameIDPolicy/@SPNameQualifier・<samlp:Extensions> に送った 256 文字が、対象の管理画面・監査ログ・セッション情報で切り詰められていないことを申告で確認する
+  - `v-cf2254ee2d` 文字種: 非 ASCII / 結合文字 / 補助平面のコードポイントが失われていないこと（同上の経路で確認）
+- **対照（negative control）**:
+  - ★ 往復経路のある variant（SPProvidedID）を優先する。申告のみの結果と自動照合の結果は証拠ラダー上の等級が異なる
+  - ★ SPProvidedID による往復は IIP-SSO05.a5 と同じ観測を使うが、判定対象は別（あちらは値の出所、こちらは長さの保存）
+  - ★ 申告できない場合は not_verified(attestation_unavailable)。対象の不適合ではない
+- **適用範囲**: 適用範囲は IIP-G02.a と同じ。IdP は受理した xs:string 値をプロトコル面に再出力しないものが多く、観測は原則として申告になる。
+- **注記**: IIP-G02.a（受理）と本義務（非切り詰め）を分けたのは、成功応答が『無視した』と区別できないため。IdP 側は読み戻し面が標準化されておらず、SAML2Core 3.6 の Name Identifier Management に対応する実装だけが自動照合できる。
 - **source_clauses**: `[81, 291)` `sha256:d07e84e7979b…` , `[293, 435)` `sha256:fe98afa5ffc2…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
 
@@ -828,6 +869,10 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 | `IIP-SSO05.a2` | MUST_NOT | idp | `BROWSER` | — | core | persistent NameID の値は 256 文字を超えてはならない |
 | `IIP-SSO05.a3` | MUST | idp | `BROWSER` | — | core | NameQualifier / SPNameQualifier / SPProvidedID が存在する場合、8.3.7 の規定どおりの値である |
 | `IIP-SSO05.a4` | MUST_NOT | idp/sp | `NOT_OBSERVABLE` | — | core | persistent NameID を他プロバイダに平文で共有せず、適切な管理なしにログ等に出さない |
+| `IIP-SSO05.a5` | MUST | idp | `BROWSER` | `supports_name_identifier_management`<br>(CAPABILITY_BASED) | core | SP（または affiliation）が代替識別子を設定済みなら、SPProvidedID にその最新の値を入れる |
+| `IIP-SSO05.a6` | MUST | idp | `CONFIG` | `reissues_foreign_persistent_identifier`<br>(CAPABILITY_BASED) | core | 他エンティティが生成した persistent 識別子を再発行する場合、NameQualifier は元の生成者を指し続ける |
+| `IIP-SSO05.a7` | MUST_NOT | idp | `CONFIG` | `reissues_foreign_persistent_identifier`<br>(CAPABILITY_BASED) | core | 他エンティティが生成した persistent 識別子を再発行する場合、NameQualifier を省略してはならない |
+| `IIP-SSO05.a8` | MUST_NOT | idp | `ATTESTED` | — | core | persistent Format に「永続だが不透明でない」値を載せてはならない |
 | `IIP-SSO05.b` | MUST | idp/sp | `BROWSER` | — | core | transient NameID Format に対応する |
 | `IIP-SSO05.b1` | MUST_NOT | idp | `BROWSER` | — | core | transient NameID の値は 256 文字を超えてはならない |
 | `IIP-SSO05.b2` | MUST | idp | `BROWSER` | — | core | transient NameID は SAML 識別子の規則（SAML2Core 1.3.4）に従って生成する |
@@ -839,7 +884,7 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
   - `v-409cc31391` NameIDPolicy で persistent を要求 → 同じ Format が返る
   - `v-aed424f97d` 【SP 消費側】persistent Format の NameID を受理する
 - **対照（negative control）**:
-  - Format の往復だけを見る義務。8.3.7 の個別規則は .a1〜.a5 で検査する
+  - Format の往復だけを見る義務。8.3.7 の個別規則は本要件の他の義務（IIP-SSO05.a1 以降）で検査する
 - **参照先仕様**: `SAML2Core#8.3.7`
 - **source_clauses**: `[0, 169)` `sha256:e66a1c4b4350…` , `[170, 222)` `sha256:200d6cc58795…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
@@ -876,10 +921,12 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 - **必要な variant**:
   - `v-1bef5a007f` NameQualifier がある場合、IdP の entityID と一致する
   - `v-b44303e924` SPNameQualifier がある場合、SP の entityID（または affiliation）と一致する
-  - `v-5f50dda9b3` SP が代替識別子を設定していなければ SPProvidedID が省略される
+  - `v-a7d1f6c1b4` SP が代替識別子を一度も設定していなければ SPProvidedID が省略される（設定済みの場合の正方向は IIP-SSO05.a5）
   - `v-4b2177d011` secondary_peer（別 SP）では異なる値が返る（pair-wise pseudonym）
 - **対照（negative control）**:
   - ★ pair-wise は 2 つの SP を対にしないと検証できない
+  - ★ NameQualifier の期待値は『識別子を生成したエンティティの entityID』であって『送信者の entityID』ではない。対象が他エンティティ生成の識別子を再発行する構成は IIP-SSO05.a6 / .a7 で扱う
+  - ★ NameQualifier / SPNameQualifier の省略は 8.3.7 で MAY として許されている。省略を FAIL にしないこと
 - **参照先仕様**: `SAML2Core#8.3.7`
 - **source_clauses**: `[0, 169)` `sha256:e66a1c4b4350…` , `[170, 222)` `sha256:200d6cc58795…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
@@ -897,13 +944,78 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 
 </details>
 
+<details><summary><code>IIP-SSO05.a5</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-17bd18194a` SP（Samlier）が <samlp:ManageNameIDRequest>/<samlp:NewID> で代替識別子を設定 → 以降の Assertion の SPProvidedID がその値になる
+  - `v-0c1b285f7c` 代替識別子を 2 回更新 → SPProvidedID が最新の値になる（1 回目の値が残っていない）
+  - `v-c71d4ea87c` secondary_peer（別 SP）が設定した代替識別子が、こちらの SP 向けの SPProvidedID に現れない（pair-wise の分離）
+- **対照（negative control）**:
+  - ★ 1 回設定して一致を見るだけでは『最も最近に設定された値』を検証していない。2 回更新し、古い値が残らないことを確認する
+  - ★ 対象が SAML2Core 3.6 の Name Identifier Management に対応しない場合、代替識別子は成立しえないので NOT_APPLICABLE。省略側（IIP-SSO05.a3）だけが適用される
+  - ★ <samlp:Terminate> は「識別子の利用終了」であって「SPProvidedID の解除」ではない（§3.6.3）。解除で省略に戻ることを期待するケースを作らない
+- **参照先仕様**: `SAML2Core#8.3.7`
+- **注記**: 原文は「MUST contain the alternative identifier of the principal most recently set by the service provider or affiliation, if any」。if any が条件節で、設定済みなら正方向の MUST、未設定なら省略の MUST（IIP-SSO05.a3）に分岐する。前版はこの分岐の省略側しか variant に持っておらず、正方向を検査していなかった。
+- **source_clauses**: `[0, 169)` `sha256:e66a1c4b4350…` , `[170, 222)` `sha256:200d6cc58795…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-SSO05.a6</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-cad20b6af1` Samlier を上流 IdP・対象を Proxy・Samlier を下流 SP に置き、上流が発行した persistent NameID を対象が再発行する
+  - `v-020855ffa9` 再発行された NameID の NameQualifier が上流 Samlier-IdP の entityID のまま（対象自身の entityID に書き換わっていない）
+  - `v-045afbcd40` 対照: 対象が自前の persistent 識別子を新規生成して返す構成では NameQualifier は対象自身になる。これを FAIL にしない
+- **対照（negative control）**:
+  - ★ 『NameQualifier == 応答を送ってきた IdP の entityID』を無条件に期待する検査は、この再発行ケースを誤判定する
+  - ★ 上流 Samlier-IdP と下流 Samlier-SP の 2 役を同一 Test Plan の Test Peer で演じる。testability を CONFIG にしているのは対象側の再構成が前提になるため。実行時にはブラウザ操作も要る
+  - ★ 対象が Proxy として振る舞えない場合は条件が偽 → NOT_APPLICABLE。構成できないだけの場合は not_verified
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `SAML2Core#8.3.7`
+- **注記**: 原文の当該文は Note that で始まるが MUST / MUST NOT を含む。同段落末尾の「Finally, note that ...」は RFC2119 キーワードを含まない再説明なので義務を起こさない。
+- **source_clauses**: `[0, 169)` `sha256:e66a1c4b4350…` , `[170, 222)` `sha256:200d6cc58795…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-SSO05.a7</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-0b113308aa` 再発行された Assertion の NameID に NameQualifier 属性が存在する
+  - `v-de050a75fa` 対照: 対象が自前生成した識別子では、文脈から導出できる場合の省略が MAY として許される。これを FAIL にしない
+- **対照（negative control）**:
+  - ★ 一般規則（8.3.7）では NameQualifier は文脈から導出できるなら省略してよい。再発行の場合だけ省略が禁止される。この 2 ケースを対にしないと「常に省略しない実装」と「規則どおりの実装」を区別できない
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `SAML2Core#8.3.7`
+- **注記**: IIP-SSO05.a6（値の正しさ）と本義務（存在すること）は別の観測。省略されていれば a6 も満たせないが、a6 を満たす値であっても省略されうるため、存在検査を独立に持つ。
+- **source_clauses**: `[0, 169)` `sha256:e66a1c4b4350…` , `[170, 222)` `sha256:200d6cc58795…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-SSO05.a8</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-22a94e73ca` 明白な違反の自動検出: 返る値がメールアドレス形式・LDAP DN 形式・申告済みユーザー識別子と一致する、のいずれでもない
+  - `v-77f0fa432d` 値が社員番号・学籍番号等の業務識別子でないことを申告で確認する
+- **対照（negative control）**:
+  - ★ IIP-SSO05.a1（擬似乱数で構成する）と観測面は重なるが、名宛人と義務内容が違う。a1 は IdP の生成方式、本義務はプライバシー要件を持たない配備が Format を流用することへの禁止
+  - ★ 不透明性は否定的性質なので自動検出できるのは明白な違反だけ。残りは申告
+- **参照先仕様**: `SAML2Core#8.3.7`
+- **注記**: 原文「Deployments without such requirements are free to use other kinds of identifiers in their SAML exchanges, but MUST NOT overload this format with persistent but non-opaque values」。名宛人は deployment だが、適合試験の対象は「配備された対象実装」なので検査できる。
+- **source_clauses**: `[0, 169)` `sha256:e66a1c4b4350…` , `[170, 222)` `sha256:200d6cc58795…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
 <details><summary><code>IIP-SSO05.b</code> の詳細</summary>
 
 - **必要な variant**:
   - `v-c7f144b559` NameIDPolicy で transient を要求 → 同じ Format が返る
   - `v-bb8f5db306` 【SP 消費側】transient Format の NameID を受理する
 - **対照（negative control）**:
-  - Format の往復だけを見る義務。8.3.8 の個別規則は .b1〜.b3 で検査する
+  - Format の往復だけを見る義務。8.3.8 の個別規則は本要件の他の義務（IIP-SSO05.b1 以降）で検査する
 - **参照先仕様**: `SAML2Core#8.3.8`
 - **source_clauses**: `[0, 169)` `sha256:e66a1c4b4350…` , `[223, 274)` `sha256:5bab1ac68cbe…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
@@ -970,6 +1082,7 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
   - 各要素について Suite メタデータの値を変更し、対象の挙動が追従するかを見る
   - 追従しない要素があれば、その要素に対応する設定を対象が備えているか（IIP-SSO06 の条件 (b)）を確認してから判定する
   - ★ md:SingleSignOnService と md:AssertionConsumerService は §4.1.6 で RFC2119 キーワードを伴わずに記述されているため、IIP-SSO06 の条件 (a)（"MUST" or "MAY" と示された要素）に該当せず、この義務の対象外とする
+- **被参照**: `IIP-IDP16.a` が `inherit_variants` でこの義務を取り込む。この義務の variant を編集すると `IIP-IDP16.a` のケースにも影響する
 - **設定不能時の意味**: `normative_capability`
 - **参照先仕様**: `SAML2Prof#4.1.6`
 - **注記**: Errata 05 E58 により KeyDescriptor の use 値は signing / encryption。
@@ -2234,6 +2347,7 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 - **対照（negative control）**:
   - ecp:Response/@AssertionConsumerServiceURL がメタデータの PAOS ACS と一致するかを検証する
   - ★ ECP 固有要素だけでは §2.3.10 冒頭が継承する §4.1.6 の対象を落とす
+- **参照取り込み**: `IIP-SSO06.a`（`inherit_variants` / variant 8 件）— IIP-IDP16（§2.3.10）冒頭が Browser SSO §4.1.6 の規則を ECP に継承するため、IIP-SSO06.a の required_variants を ECP 文脈でも覆う必要がある。role / level / condition / testability は本義務のものを使う
 - **設定不能時の意味**: `normative_capability`
 - **参照先仕様**: `SAML2ECP#2.3.10`
 - **source_clauses**: `[0, 237)` `sha256:0e06ebedf8f5…`
@@ -2404,8 +2518,8 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 
 ```
 g1_state       : PENDING_REVIEW
-obligations    : 141
-未承認         : 141
+obligations    : 147
+未承認         : 147
 未解決 open Q  : 18 ['IIP-MD05.a', 'IIP-MD05.b', 'IIP-MD05.c', 'IIP-MD05.d', 'IIP-MD05.e', 'IIP-MD05.f', 'IIP-MD06.a', 'IIP-SSO01.a', 'IIP-SP04.a', 'IIP-SP12.a', 'IIP-SP14.a', 'IIP-IDP06.a', 'IIP-IDP07.a', 'IIP-IDP10.a', 'IIP-IDP12.a', 'IIP-IDP13.a', 'IIP-IDP17.a', 'IIP-IDP17.b']
 ```
 

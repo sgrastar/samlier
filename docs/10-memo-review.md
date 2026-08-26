@@ -15,7 +15,7 @@ Phase 1 を Kantara Implementation Profile に絞る判断は特に良い。
 
 > メモ: 「実装されていない Optional 機能は FAIL とは区別し、NOT SUPPORTED のように結果を表現します」
 
-Kantara IIP v1.1 の 69 要件のうち、**SHOULD / MAY / OPTIONAL は 6 件程度**で、
+Kantara IIP v1.1 の <!--g1:requirements-->69<!--/g1--> 要件のうち、**SHOULD / MAY / OPTIONAL は 6 件程度**で、
 残りは全て MUST である。MUST 要件を「実装していない」と申告することは、
 定義上そのプロファイルに適合していないということであり、FAIL と区別してはいけない。
 

@@ -1,6 +1,6 @@
 # tests/predicates.yaml — 条件述語の固定集合（G1 成果物）
 # 生成: build_g1.py / 手編集しない
-generated_at: 2026-08-26T08:55:11+00:00
+generated_at: 2026-08-26T09:24:31+00:00
 schema_version: 1
 # kind: CLAIM_BASED      = 申告そのものが条件（observed 不要）
 #       CAPABILITY_BASED = 実際の能力が条件（observed 必須。declaration-only FALSE は UNKNOWN）
@@ -85,3 +85,23 @@ predicates:
       requires_reason: true
       statement_en: "The target was declared to be a token translation Proxy, to which IIP-IDP13 does not apply. This was not verified by the Suite."
     rationale_ja: "IIP-IDP13 末尾の 'This requirement does not apply to token translation Proxies.'。観測材料が存在しないため明示的な除外申告のみが FALSE を作れる"
+  supports_name_identifier_management:
+    kind: CAPABILITY_BASED
+    description_ja: "対象が SAML2Core 3.6 の Name Identifier Management に対応しているか"
+    declared:
+      - declared_features.name_identifier_management
+    observed:
+      - "target_metadata_has: md:IDPSSODescriptor/md:ManageNameIDService"
+      - "target_consumed: samlp:ManageNameIDRequest"
+      - "target_emitted: samlp:ManageNameIDResponse"
+    on_conflict: inconsistent
+    rationale_ja: "IIP-SSO05.a5 の条件。SAML2Core 8.3.7 の SPProvidedID は『SP が設定した代替識別子』を前提とし、その設定手段が §3.6 しかない。★ 観測は方向付き: 対象が ManageNameIDRequest を *受理し* ManageNameIDResponse を *返した* ことが能力の証拠。メタデータの ManageNameIDService だけでは宣言であって能力の観測ではないが、IIP-MD01 が『メタデータは実際の設定を反映する』ことを求めるため補助証拠として採る"
+  reissues_foreign_persistent_identifier:
+    kind: CAPABILITY_BASED
+    description_ja: "対象が他エンティティ生成の persistent 識別子を再発行するか"
+    declared:
+      - declared_features.proxy_idp
+    observed:
+      - "target_reissued_upstream_persistent_nameid: true"
+    on_conflict: inconsistent
+    rationale_ja: "IIP-SSO05.a6 / .a7 の条件。SAML2Core 8.3.7 の再発行規則は『a different system entity might later issue its own protocol message or assertion containing the identifier』に該当する構成でのみ適用される。★ 観測は方向付き: 上流 Samlier-IdP が発行した NameID と同一の値を、対象が自身の Assertion で送出したことだけが証拠になる。対象が Proxy を名乗るだけでは能力の観測ではない"

@@ -11,7 +11,7 @@ OIDF Conformance Suite の SAML 版に相当するものを目指す。
 |---|---|
 | プロダクト名 | **Samlier**（repo `github.com/sgrastar/samlier` / package `org.samlier.*` / image `samlier/suite`） |
 | ライセンス | **Apache-2.0**（DCO、CLA なし） |
-| v0.1 のスコープ | **Phase 1 完全** — IIP v1.1 全 69 要件、SLO / ECP を含む |
+| v0.1 のスコープ | **Phase 1 完全** — IIP v1.1 全 <!--g1:requirements-->69<!--/g1--> 要件、SLO / ECP を含む |
 | 結果公開の信頼モデル | **Level 0（ローカルエクスポート）+ Level 2（Hosted 実行のみ共有 URL）**。self-hosted 結果のアップロードは不採用 |
 | バックエンド | **Java 21 + Javalin/Jetty + OpenSAML 5 + Apache Santuario + SQLite** |
 | フロントエンド | **React + Vite (TypeScript)**。`report.html` も同じアプリから静的ビルド |
@@ -31,10 +31,10 @@ OIDF Conformance Suite の SAML 版に相当するものを目指す。
 
 | 成果物 | 内容 |
 |---|---|
-| `tests/specs.yaml` | 仕様カタログ（22 仕様。外部ドラフトは版を固定） |
-| `tests/coverage.yaml` | **要件カタログ＝判定レベルの唯一の出典**。69 要件 → **133 義務**（うち 25 は複数範囲の `source_clauses`） |
-| `tests/predicates.yaml` | 条件述語の固定集合（8 述語） |
-| `build/spec-reconcile-report.json` | 独立 validator の結果（**50/51 PASS・ブロッキング 0**。残り 1 は「未承認」＝ G1 完了条件） |
+| `tests/specs.yaml` | 仕様カタログ（<!--g1:specs-->24<!--/g1--> 仕様。外部ドラフトは版を固定） |
+| `tests/coverage.yaml` | **要件カタログ＝判定レベルの唯一の出典**。<!--g1:requirements-->69<!--/g1--> 要件 → **<!--g1:obligations-->147<!--/g1--> 義務**（うち <!--g1:multi_clause-->41<!--/g1--> は複数範囲の `source_clauses`） |
+| `tests/predicates.yaml` | 条件述語の固定集合（<!--g1:predicates-->10<!--/g1--> 述語） |
+| `build/spec-reconcile-report.json` | 独立 validator の結果（**`totals.blocking_failures == 0`** を満たすこと。承認前は SR-30〈open question 残存〉と SR-31〈未承認〉が FAIL のまま残る＝ G1 の完了条件）。**ビルド生成物なので Git 管理下に置かない**（CI artifact として保存する） |
 | `docs/04-requirement-coverage.md` | `coverage.yaml` からの**生成物**（手編集禁止） |
 | `tools/ci-stages.md` | ゲートごとの CI ステージと trust anchor の所在 |
 | `.github/workflows/g1.yml` | 実体の CI（`g1-check` / `spec-reconcile` / `g1b-approval`） |
@@ -56,7 +56,7 @@ G1b  義務の意味レビュー   ⏳ 作成者以外が原文と coverage.yaml
   ↓                        検証: G1_TOOLS_COMMIT=<SHA> tools/g1_ci_verify.sh
 M0   骨格実装            G1b 後に着手してよい（Test Peer / Transcript / Preflight。テスト 0 件）
   ↓
-G2   テスト設計          ⏳ 132 義務をケース ID に割り当て、対照ケース・反例・mutant を定義
+G2   テスト設計          ⏳ <!--g1:case_target-->145<!--/g1--> 義務をケース ID に割り当て、対照ケース・反例・mutant を定義
   ↓                        検証基盤（schema / g2_validate / approvals/g2.yaml / CI）も含む
 M1〜 判定ケースの実装     ★ G2 完了後
 ```
@@ -79,7 +79,7 @@ G2 は「ケースに検出力があるか」を見ます。
 | 01 | [scope-and-roadmap.md](01-scope-and-roadmap.md) | Phase 1〜5 の定義と各 Phase の完了条件 |
 | 02 | [architecture.md](02-architecture.md) | システム構成、技術スタック、Test Peer 設計 |
 | 03 | [test-model.md](03-test-model.md) | Test Plan / Test Case / 実行モード / 判定語彙 |
-| 04 | [requirement-coverage.md](04-requirement-coverage.md) | Kantara IIP v1.1 全 69 要件のテスト可能性マッピング |
+| 04 | [requirement-coverage.md](04-requirement-coverage.md) | Kantara IIP v1.1 全 <!--g1:requirements-->69<!--/g1--> 要件のテスト可能性マッピング |
 | 05 | [test-definition-format.md](05-test-definition-format.md) | テスト定義 YAML のスキーマ |
 | 06 | [results-and-publication.md](06-results-and-publication.md) | 結果フォーマット、共有 URL、信頼モデル |
 | 07 | [deployment-and-networking.md](07-deployment-and-networking.md) | Docker、URL/TLS 要件、Hosted 版 |
