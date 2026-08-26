@@ -2188,3 +2188,64 @@ open question 13
 ```
 
 **第 1 段階は未完了。** `IIP-SSO01.a` の対応表（§4.1・取り込み句 A・取り込み句 B）の照合が残っている。
+
+---
+
+## G1b-R9 — 2026-08-27 取り込み句 B の完成（指摘 6 件）
+
+### 1 [P0] 取り込み句 B が Assertion 全体を覆っていなかった
+
+前版は §2.5 Conditions 中心に限定していた。**§2 SAML Assertions 全体**を節ごとに洗い直し、
+**22 義務を追加**（義務 251 → 273）。義務を起こさない節にも**理由を書いた**（対応表は `.a` の `notes_ja`）。
+
+| 節 | 規範句 | 義務 |
+|---|---|---|
+| §2.2.1 / §2.2.2 | `NameQualifier` / `SPNameQualifier` の省略(SHOULD) | `.cy` |
+| §2.2.4 / §2.3.4 / §2.7.3.2 | `@Type` の存在(SHOULD)・値・暗号化内容の型・**ciphertext の一意性**・wrapped key の `Recipient`(SHOULD) | `.dm` `.dn` `.do` `.dp` `.dq` |
+| §2.3.3 | 必須 `@Version` / `@IssueInstant` / `<Issuer>`（生成）／ **受信側の拒否** | `.cg` ／ **`.cx`** |
+| §2.4.1 | `<Subject>` は 2 人以上を識別しない(SHOULD NOT) | `.cz` |
+| §2.4.1.2 | 拡張属性の名前空間 ／ 妥当期間(SHOULD) ／ `NotBefore` < `NotOnOrAfter` ／ `@Address` の表記(SHOULD) | `.da` `.db` `.dc` `.ds` |
+| §2.7.2 | `<Subject>` 必須 ／ 必須 `@AuthnInstant` / `<AuthnContext>` ／ SessionIndex の相関防止・値域・ランダム性 | `.dd` `.cg`/`.cx` `.de` `.df` `.dg` |
+| §2.7.3 / §2.7.3.1 / §2.7.3.1.1 | `<Subject>` 必須 ／ 拡張属性 ／ 値なしは省略 ／ 空値 ／ null 値 | `.dh` `.di` `.dj` `.dk` `.dl` |
+
+**義務を起こさない節と理由**（対応表に記録）:
+
+- §2.3.1 / §2.3.2 assertion 参照形式 — 規範句なし。本 profile は assertion を値で運ぶ
+- §2.4.1.3 `KeyInfoConfirmationDataType` — 「確認方式が機構を定義する」は**仕様の書き手への規範**。残りは holder-of-key 固有で、本 profile は bearer（`.j`）。ECP の HoK は `IIP-IDP13`
+- §2.7.3.1 「他の用途は semantics を定義しなければならない」— 同じく仕様の書き手への規範
+- §2.7.4 `<AuthzDecisionStatement>` 以下 — 本 profile は認可決定 statement を使わない。同梱された場合は `IIP-SSO07.b`
+
+`.cg` は前版が **samlp メッセージだけ**を検査していたので、`SAML2-xsd`（assertion schema）も根拠に加え、
+variant を **role ごとに明示**した（SP は AuthnRequest、IdP は Response と Assertion）。
+
+### 2〜6
+
+| # | 指摘 | 対応 |
+|---|---|---|
+| 2 | `.cc` が**別の規則**を見ていた | 「1 オブジェクトの宣言はちょうど 1 つ」に戻し、同一文書内の重複宣言・整形式・スキーマ制約として検査。オブジェクト間の重複は `.af` / `.ao` の variant に移した |
+| 3 | `.n` に `.ai` と同じ**署名者評価の混同**が残っていた | 「メタデータにない鍵 → 拒否」を削除（それは `.at` の SHOULD）。variant を `<ds:SignatureValue>` 改竄・署名対象改竄・`<ds:Reference>/@URI` 差し替えに |
+| 4 | 非 SAML 上流の**観測条件が成立しない** | ご指摘のとおり「`AuthenticatingAuthority` が SAML メタデータで解決できない」は**未登録・未取得の SAML IdP でも成立**する。述語を **`CLASSIFICATION_BASED` + `declaration_only_exclusion`** に変更（観測材料なし・理由付き申告でのみ偽）。`.az` / `.bh` の「空虚に真」variant も削除 |
+| 5 | `.cw` が原文より強く、一部を見落としていた | 「発行自体の禁止」を撤回し、原文の 2 要件に: **要件 1** 元の `<Audience>` を 1 つ以上含む ／ **要件 2** 元になかった `<Audience>` を含まない |
+| 6 | Proxy IdP が生成する AuthnRequest の ID 規則が対象外 | `.af`（SP・無条件）と **`.dr`**（Proxy IdP・`supports_authnrequest_proxying` 条件付き）に分割。`.cg` の variant も role を明示 |
+
+### 4 が示したこと
+
+観測材料は「その事象が条件を含意するか」で選ばなければならない。
+`<AuthenticatingAuthority>` の未解決は**上流が非 SAML であること**を含意しない。
+このままだと本来 N/A の義務が適用されるか、申告との `INCONSISTENT` が出る。
+`declaration_only_exclusion` に変えたことで、除外は結果の最上位に現れる。
+
+### 現在の状態
+
+```
+要件 69 / 義務 273（251 → 273）/ variant 659 / 仕様 25 / 述語 21 / 検査 62
+IIP-SSO01 だけで 117 義務
+level        MUST 181 / MUST_NOT 34 / SHOULD 32 / SHOULD_NOT 3 / REQUIRED 4 / RECOMMENDED 5 / MAY 8 / OPTIONAL 6
+testability  BROWSER 120 / CONFIG 82 / AUTOMATED 37 / ATTESTED 33 / NOT_OBSERVABLE 1
+network 実行: 59/62 PASS・blocking 1（SR-40 = tools 未コミットのみ）
+SR-33  全 25 仕様を再取得し source_digest 一致
+SR-34  reference_evidence 209 件すべて locator 解決・節ダイジェスト一致
+open question 13
+```
+
+**第 1 段階は未完了。** `IIP-SSO01.a` の 3 つの対応表の照合が残っている。

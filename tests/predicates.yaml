@@ -1,6 +1,6 @@
 # tests/predicates.yaml — 条件述語の固定集合（G1 成果物）
 # 生成: build_g1.py / 手編集しない
-generated_at: 2026-08-26T18:46:42+00:00
+generated_at: 2026-08-26T19:04:10+00:00
 schema_version: 1
 # kind: CLAIM_BASED      = 申告そのものが条件（observed 不要）
 #       CAPABILITY_BASED = 実際の能力が条件（observed 必須。declaration-only FALSE は UNKNOWN）
@@ -97,14 +97,17 @@ predicates:
     on_conflict: inconsistent
     rationale_ja: "IIP-SSO05.a5 の条件。SAML2Core 8.3.7 の SPProvidedID は『SP が設定した代替識別子』を前提とし、その設定手段が §3.6 しかない。★ 観測は方向付き: 対象が ManageNameIDRequest を *受理し* ManageNameIDResponse を *返した* ことが能力の証拠。メタデータの ManageNameIDService だけでは宣言であって能力の観測ではないが、IIP-MD01 が『メタデータは実際の設定を反映する』ことを求めるため補助証拠として採る"
   proxies_to_non_saml_provider:
-    kind: CAPABILITY_BASED
+    kind: CLASSIFICATION_BASED
     description_ja: "対象が非 SAML の上流 provider へプロキシするか"
     declared:
-      - declared_features.non_saml_upstream
-    observed:
-      - "target_emitted_authenticating_authority_not_in_saml_metadata: true"
+      - target.upstream_kind
+    observed: []
     on_conflict: inconsistent
-    rationale_ja: "SAML2Core 3.4.1.5.1 の一部の規範句は『If the authenticating identity provider is not a SAML identity provider』が明示的な条件。SAML IdP にしかプロキシしない対象には適用されないので NOT_APPLICABLE。★ supports_authnrequest_proxying だけを条件にすると、SAML IdP のみへプロキシする対象で『空虚に真』として満足扱いになってしまう。観測は方向付き: 対象が <saml:AuthenticatingAuthority> に、SAML メタデータで解決できない値を入れたことが証拠"
+    declaration_only_exclusion:
+      allowed: true
+      requires_reason: true
+      statement_en: "The target was declared to proxy only to SAML identity providers, so the rules that [SAML2Core] section 3.4.1.5.1 scopes to a non-SAML authenticating identity provider do not apply. This was not verified by the Suite."
+    rationale_ja: "SAML2Core 3.4.1.5.1 の一部の規範句は『If the authenticating identity provider is not a SAML identity provider』が明示的な条件。SAML IdP にしかプロキシしない対象には適用されない。★ 訂正: 前版は CAPABILITY_BASED とし『<saml:AuthenticatingAuthority> が SAML メタデータで解決できないこと』を観測材料にしていたが、それは**メタデータ未登録・未取得の SAML IdP でも成立する**ため証拠にならなかった。上流の種別はプロトコル面に現れないので、設定の確認（申告）でしか判定できない。既定は真（適用する）とし、偽にするには理由付きの明示的な除外申告が要る"
   uses_random_identifier_generation:
     kind: CAPABILITY_BASED
     description_ja: "対象が識別子の生成に乱数・擬似乱数を用いるか"
