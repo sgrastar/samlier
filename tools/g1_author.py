@@ -396,7 +396,14 @@ for rid in RIDS:
             L.append("        required_variants: []")
         else:
             L.append("        required_variants:")
-            for v in o.get('variants',[]): L.append(f"          - {y(v)}")
+            for v in o.get('variants',[]):
+                # ★ 安定 ID: 説明文の内容から導出する。
+                #   配列インデックスだと並び替えで参照が壊れる。
+                #   内容が変われば ID も変わる（= variant が変わったということ）。
+                # 義務キーを混ぜて、別義務の同一説明文が衝突しないようにする
+                vid='v-'+hashlib.sha256((o['key']+'\x00'+v).encode('utf-8')).hexdigest()[:10]
+                L.append(f"          - id: {vid}")
+                L.append(f"            description_ja: {y(v)}")
         if o.get('controls'):
             L.append("        controls:")
             for v in o['controls']: L.append(f"          - {y(v)}")

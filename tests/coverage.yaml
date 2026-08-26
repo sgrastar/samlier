@@ -1,6 +1,6 @@
 # tests/coverage.yaml — 要件カタログ（G1 成果物 / 判定レベルの唯一の出典）
 # 生成: build_g1.py（原文からオフセットと digest を解決）/ 手編集しない
-generated_at: 2026-08-25T22:50:56+00:00
+generated_at: 2026-08-26T07:20:00+00:00
 schema_version: 1
 g1_state: PENDING_REVIEW
 # 作成者は reviewer / approved_at を埋めない。別のレビュアーが原文と直接照合して承認する。
@@ -43,10 +43,14 @@ requirements:
         source_clauses:
           - { start: 0, end: 155, digest: "sha256:9a9e31b61f2fc700fb8180ff896efb30e884c875e01cd0a64ed1af64615ce25e", occurrences: 1 }
         required_variants:
-          - "skew -180s on IssueInstant"
-          - "skew +180s on IssueInstant"
-          - "skew -180s on NotBefore/NotOnOrAfter"
-          - "skew on metadata validUntil"
+          - id: v-66e190df62
+            description_ja: "skew -180s on IssueInstant"
+          - id: v-68db46c861
+            description_ja: "skew +180s on IssueInstant"
+          - id: v-748ee7840e
+            description_ja: "skew -180s on NotBefore/NotOnOrAfter"
+          - id: v-7357157eea
+            description_ja: "skew on metadata validUntil"
         controls:
           - "対象が拒否する境界を測るため、許容側(±180s)と対象が明示設定した閾値超の両方を送る"
         notes_ja: "原文に上限や『許容しすぎ』の不適合条件はない（3–5分の記述はイタリック＝非規範）。過大許容は advisory clock_skew.very_permissive として記録し判定に使わない。"
@@ -56,7 +60,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:34464ddbc502d16b439bc7eb08acf410cd8c109792717a665f101ff1c34dd44b"
+          obligation_digest: "sha256:a5cc91ed45e259a1bbab6b8738876e77c09fbdce1dcb2cda74203985d53a5722"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-G01"
@@ -83,13 +87,20 @@ requirements:
         source_clauses:
           - { start: 81, end: 291, digest: "sha256:d07e84e7979b443c9b7a1a30f67d6bd7f54d0722dfebb4b8c9e2bf809b343e66", occurrences: 1 }
         required_variants:
-          - "len=255 boundary"
-          - "len=256 boundary"
-          - "non-ASCII (CJK/Cyrillic)"
-          - "combining marks"
-          - "supplementary-plane code points (no lone surrogates)"
-          - "TAB/LF via character references"
-          - "XML-special chars (< & \" ' >) via references"
+          - id: v-59156be205
+            description_ja: "len=255 boundary"
+          - id: v-a63a57c1da
+            description_ja: "len=256 boundary"
+          - id: v-09712a89e6
+            description_ja: "non-ASCII (CJK/Cyrillic)"
+          - id: v-df455bd536
+            description_ja: "combining marks"
+          - id: v-ee0e83e3ca
+            description_ja: "supplementary-plane code points (no lone surrogates)"
+          - id: v-494bef69cf
+            description_ja: "TAB/LF via character references"
+          - id: v-fd0ff828e5
+            description_ja: "XML-special chars (< & \" ' >) via references"
         controls:
           - "リテラル TAB/LF は XML 属性値正規化で空白になる。リテラル版と文字参照版を別ケースにし、比較は XML 解析後の値で行う"
           - "長さは Unicode コードポイント数で数える"
@@ -100,7 +111,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:0bfb6a8ce78e863e5c787a7e262dfee2cc9bf499141fc93dbf26168302f17d80"
+          obligation_digest: "sha256:293f77e8ae6b79fdf7e48ff9507477ff277f10aa2cf9dddf4262494d7955acbd"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-G02"
@@ -124,7 +135,8 @@ requirements:
         source_clauses:
           - { start: 0, end: 29, digest: "sha256:0c97ff7a8417735b2134c7f4dda6d12810ba80232847c73b0958c3f2fd264b6d", occurrences: 1 }
         required_variants:
-          - "対象が生成した全 SAML プロトコルメッセージを Transcript 全件で検査"
+          - id: v-b0fbefde6c
+            description_ja: "対象が生成した全 SAML プロトコルメッセージを Transcript 全件で検査"
         controls:
           - "受動的な常時チェック。全ケースに横断適用する"
         authored_by: samlier-g1-builder
@@ -133,7 +145,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:1380d40c994cd1241e4b534e9b6661e62950ad31a909d95d1270fd87761be95c"
+          obligation_digest: "sha256:977f1cb79429b722e3911c0ed8de31945c48e6e7ffb355a573e0a2afbb4f3712"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-G03"
@@ -150,9 +162,12 @@ requirements:
         source_clauses:
           - { start: 34, end: 133, digest: "sha256:c96995d7bd6048308b3dc5b71e83ea469521eb79fc4c26a7fa692b1ecf853ae7", occurrences: 1 }
         required_variants:
-          - "DOCTYPE 付き AuthnRequest"
-          - "DOCTYPE 付き Response"
-          - "DOCTYPE + 外部エンティティ参照"
+          - id: v-9b68bf247b
+            description_ja: "DOCTYPE 付き AuthnRequest"
+          - id: v-d96f020574
+            description_ja: "DOCTYPE 付き Response"
+          - id: v-56b1a00942
+            description_ja: "DOCTYPE + 外部エンティティ参照"
         controls:
           - "拒否の証拠は 03 の証拠ラダーに従う。無反応を PASS にしない"
         authored_by: samlier-g1-builder
@@ -161,7 +176,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:cdfa9b652a3eb82cd8e726750d522092b6a0475b8a3465a8d1f4889482fe13e7"
+          obligation_digest: "sha256:4738cd095ff07b394c78594106d6e0963891c6fe256edd43f4eb2569ed84b770"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-G03"
@@ -186,14 +201,15 @@ requirements:
         source_clauses:
           - { start: 0, end: 166, digest: "sha256:137fea64b4d3c5424a687e93eafc01797ec65838694e74e6008bb4892b5ad705", occurrences: 1 }
         required_variants:
-          - "対象を Suite の /mdq/{entityID} に向ける"
+          - id: v-87e4be2b8e
+            description_ja: "対象を Suite の /mdq/{entityID} に向ける"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:ed388051831eac12cd7557e575e0c2d9739606c0b3a4be889bdf7d8527f00083"
+          obligation_digest: "sha256:77f6946f8dd063855930da918606a0c09391110ac21a245a6b13c27642894b8f"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-MD01"
@@ -210,14 +226,15 @@ requirements:
         source_clauses:
           - { start: 0, end: 166, digest: "sha256:137fea64b4d3c5424a687e93eafc01797ec65838694e74e6008bb4892b5ad705", occurrences: 1 }
         required_variants:
-          - "同上"
+          - id: v-01c4e55224
+            description_ja: "同上"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:1ccdc56ba38f2671624efb39815f79c0d4913b0b4a65ed931247e4e1f5bb1916"
+          obligation_digest: "sha256:fd28e80e9fef1a5be8638a1f321e8bdc14e504a7a0380a4849d6140477316a52"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-MD01"
@@ -236,7 +253,8 @@ requirements:
         source_clauses:
           - { start: 201, end: 398, digest: "sha256:1a71b947a778a0864d1a7906d3f601a1a9f1cda01d8d795c07ea1744efd515b5", occurrences: 1 }
         required_variants:
-          - "事前登録していない第 2 の entityID(secondary_peer)からメッセージを送り、MDQ で動的取得できるか"
+          - id: v-512b5f8fcb
+            description_ja: "事前登録していない第 2 の entityID(secondary_peer)からメッセージを送り、MDQ で動的取得できるか"
         controls:
           - "『任意のピア』が要点。事前登録済みの entityID だけで PASS にしない"
         authored_by: samlier-g1-builder
@@ -245,7 +263,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:7c9705f5b233964840264d1bac7a725b006f2c54e176cee23c690869ddebd3d3"
+          obligation_digest: "sha256:c1fc1fcbe7adb88e509f31afc4bcf271cc25188d18d1e3eab4270a2327d2e057"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-MD01"
@@ -271,7 +289,8 @@ requirements:
         source_clauses:
           - { start: 0, end: 215, digest: "sha256:cead52521318480db86e3853fec603079d221a8d0e62b8cefa3d8ac3dd53fd64", occurrences: 1 }
         required_variants:
-          - "Suite 側メタデータを変更し metadata_refresh_wait_seconds 経過後に反映を確認"
+          - id: v-97c3cf9c26
+            description_ja: "Suite 側メタデータを変更し metadata_refresh_wait_seconds 経過後に反映を確認"
         controls:
           - "ETag / Last-Modified は原文にないので判定に使わない"
         authored_by: samlier-g1-builder
@@ -280,7 +299,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:5d8e3cfdc26b0c3d8df71938a43df20323ec48453bfc67c5598a67d4c52434ff"
+          obligation_digest: "sha256:2d1fab8391eb117390449cc13e8f0a8dfd8b9dcf5954153aec5e602917f75e46"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-MD02"
@@ -297,9 +316,12 @@ requirements:
         source_clauses:
           - { start: 216, end: 284, digest: "sha256:1d899d31d0988ed85b9cfec02094dfdae236fb547d918efe957a408cd571364b", occurrences: 1 }
         required_variants:
-          - "301 を返す metadata URL"
-          - "302 を返す metadata URL"
-          - "307 を返す metadata URL"
+          - id: v-f59c1e5d2a
+            description_ja: "301 を返す metadata URL"
+          - id: v-ad139f6037
+            description_ja: "302 を返す metadata URL"
+          - id: v-d97fc1a4de
+            description_ja: "307 を返す metadata URL"
         controls:
           - "3 つのステータスコードを個別 variant にする。1 つで PASS にしない"
         authored_by: samlier-g1-builder
@@ -308,7 +330,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:2d51905709bfa5c7e9cf586aa4feac785218df1d7e657d5dbb86c0a80c006d9e"
+          obligation_digest: "sha256:81bfa59546a07858c60a0f5bc668813aa28291b998813283520a99f0b30ec73e"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-MD02"
@@ -325,8 +347,10 @@ requirements:
         source_clauses:
           - { start: 285, end: 439, digest: "sha256:e846fa6f6c575087a4c439735405bca765bd39b477959d5cefbe3230e295492e", occurrences: 1 }
         required_variants:
-          - "EntityDescriptor をルートとする variant"
-          - "EntitiesDescriptor をルートとする variant"
+          - id: v-f1b5914003
+            description_ja: "EntityDescriptor をルートとする variant"
+          - id: v-ffde7d6bc0
+            description_ja: "EntitiesDescriptor をルートとする variant"
         controls:
           - "両方を個別 variant にする"
         authored_by: samlier-g1-builder
@@ -335,7 +359,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:dac085dc60dbf014c34440497844677550e6d9cb16ad0122248a214563d84371"
+          obligation_digest: "sha256:a850ced727b1ab768a669a3cf8340c82e4cb205bdd17bfaca3964d9e237e0516"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-MD02"
@@ -352,16 +376,19 @@ requirements:
         source_clauses:
           - { start: 440, end: 505, digest: "sha256:6ad7c544c3e50c39dd3a5c03ed1ec9df9f5783f30a6eeaed9e89d0cb4621c8c5", occurrences: 1 }
         required_variants:
-          - "子 1 個"
-          - "子 2 個"
-          - "子 50 個"
+          - id: v-b8bdb7fc14
+            description_ja: "子 1 個"
+          - id: v-6e369e76cd
+            description_ja: "子 2 個"
+          - id: v-48d8016661
+            description_ja: "子 50 個"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:272f71876b0ea6de4d86e44492095145991825c9e70cc784ccde1e141c9f337c"
+          obligation_digest: "sha256:ce687ab10a92634ac55e83aa8b1f94f32280448d170f6fe9ce6a34f4fdaf7d53"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-MD02"
@@ -386,10 +413,14 @@ requirements:
         source_clauses:
           - { start: 0, end: 183, digest: "sha256:3dac3bd944877a2caaa9d90018dd16e30fde9009daaae97443a2188be15ab8ae", occurrences: 1 }
         required_variants:
-          - "variant=unsigned"
-          - "variant=badsig"
-          - "variant=signed-with-other-key"
-          - "正常署名（対照）"
+          - id: v-ca7aad37fa
+            description_ja: "variant=unsigned"
+          - id: v-ae722a3ed5
+            description_ja: "variant=badsig"
+          - id: v-85d90c9bab
+            description_ja: "variant=signed-with-other-key"
+          - id: v-8f2580aad3
+            description_ja: "正常署名（対照）"
         controls:
           - "正常署名が受理されることを対照に置く。全部拒否する実装を PASS にしない"
         authored_by: samlier-g1-builder
@@ -398,7 +429,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:e896c543ca28f74fefa02979ea00f71eccfc11ed45404e9a38d47a2e1c65e384"
+          obligation_digest: "sha256:a1a3cda5f1cfd1eb72055dab35957b73d6b1b98839f8cc5e3e6ac2a5d41e6ce5"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-MD03"
@@ -415,7 +446,8 @@ requirements:
         source_clauses:
           - { start: 184, end: 275, digest: "sha256:92864e274facc63545b8172dd9abaa99c37cc8f73d264e09fcf887c78a978b2c", occurrences: 1 }
         required_variants:
-          - "メタデータ内の証明書とは異なる鍵で署名した variant を配布し、帯域外設定鍵で検証されるか"
+          - id: v-2cc9590bfd
+            description_ja: "メタデータ内の証明書とは異なる鍵で署名した variant を配布し、帯域外設定鍵で検証されるか"
         controls:
           - "メタデータ自身に含まれる鍵で検証している実装は .b 違反"
         authored_by: samlier-g1-builder
@@ -424,7 +456,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:804ba1a043b4428dd22e60e6f1c1385ffb6ec5a0d56eb215624f7687cbfaf95f"
+          obligation_digest: "sha256:d6b8ba4f8a8d2d4273d3dd91bf06a49ec22b38343c01af7a68773a46c0f5b8d7"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-MD03"
@@ -441,17 +473,21 @@ requirements:
         source_clauses:
           - { start: 330, end: 457, digest: "sha256:0cb7cf156c409e1521df9d8b43c604eb797f54d3c8c0fbc6b7741732a5511ee2", occurrences: 1 }
         required_variants:
-          - "期限切れ証明書で署名"
-          - "not-yet-valid 証明書で署名"
-          - "KeyUsage が digitalSignature を含まない証明書で署名"
-          - "critical extension 付き証明書で署名"
+          - id: v-bdd3ed37f0
+            description_ja: "期限切れ証明書で署名"
+          - id: v-49e86093e7
+            description_ja: "not-yet-valid 証明書で署名"
+          - id: v-ae2ddb08aa
+            description_ja: "KeyUsage が digitalSignature を含まない証明書で署名"
+          - id: v-9f36507189
+            description_ja: "critical extension 付き証明書で署名"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:553addc8666816fe12cb1b198cc97adf8bbce28e94ef59cad1d3215911142b96"
+          obligation_digest: "sha256:06a4c4b7716604db87e4c5dcd61cf98500873c1e8230fecb9abbcfcb29768025"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-MD03"
@@ -468,7 +504,8 @@ requirements:
         source_clauses:
           - { start: 459, end: 541, digest: "sha256:cff82511463accd5bba9f89f07ad7eee93ae0502d9e08c2d5c9f4aed2b711a66", occurrences: 1 }
         required_variants:
-          - "ソース A に鍵 K を紐づけ、同じ鍵 K で署名したソース B を配布 → B が拒否されるか"
+          - id: v-b7e6dd766f
+            description_ja: "ソース A に鍵 K を紐づけ、同じ鍵 K で署名したソース B を配布 → B が拒否されるか"
         controls:
           - "ソース A が受理されることを対照に置く"
         authored_by: samlier-g1-builder
@@ -477,7 +514,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:d674048e448c8569138cc68f9bc991c1248f02e679a494254e96c31bfbac1ae3"
+          obligation_digest: "sha256:889f0147735ac4f2ef4a3aa066c6b62e45476e7fdc1a61f447be2d18251e733d"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-MD03"
@@ -494,8 +531,10 @@ requirements:
         source_clauses:
           - { start: 276, end: 325, digest: "sha256:d3aa92e8b211df1a19be45ee968a1fe02cca22d12767891b75c6c8bb3d4bb8f6", occurrences: 1 }
         required_variants:
-          - "裸の公開鍵（RSAKeyValue）で設定"
-          - "X.509 証明書に格納した鍵で設定"
+          - id: v-60dc7f87fb
+            description_ja: "裸の公開鍵（RSAKeyValue）で設定"
+          - id: v-42a220b9a3
+            description_ja: "X.509 証明書に格納した鍵で設定"
         controls:
           - "どちらの形式でも設定できることを見る。証明書形式しか受け付けない実装は .e の許容範囲だが .c と併せて評価する"
         authored_by: samlier-g1-builder
@@ -504,7 +543,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:43943ddc06f3a9f23a2627cb670023e6ed1d866e71f9aa75f7de98fe582217c9"
+          obligation_digest: "sha256:414f4461a6ece30978563e99c8013e7a483705ed6b2f4916fc01052ffb00b76d"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-MD03"
@@ -531,7 +570,8 @@ requirements:
           - { start: 0, end: 106, digest: "sha256:bf7b40e687da946a304df0383f488dd552566a8d0ea6c5a781ada833d4355762", occurrences: 1 }
           - { start: 107, end: 166, digest: "sha256:8effeb7d5621ee78cf6ed49c16f62d71c8e29854620b7d66ccac5d9dfabc2481", occurrences: 1 }
         required_variants:
-          - "variant=no-validuntil"
+          - id: v-c1f4c2ad09
+            description_ja: "variant=no-validuntil"
         controls:
           - "validUntil ありの正常 variant を対照に置く"
         notes_ja: "非規範の注記に『この要件はルート要素にのみ適用される』とある。子要素の validUntil は SAML2Meta に従う。"
@@ -541,7 +581,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:64cc227139db2a15ada41bbe5da2a15d8cc574f84b01e8e7768dd9529822932b"
+          obligation_digest: "sha256:a3ebf0c3860bbe6ebdbea46532e97301467fd7623ced858f5e3452d5bd0c6efc"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-MD04"
@@ -559,7 +599,8 @@ requirements:
           - { start: 0, end: 106, digest: "sha256:bf7b40e687da946a304df0383f488dd552566a8d0ea6c5a781ada833d4355762", occurrences: 1 }
           - { start: 167, end: 258, digest: "sha256:2b13ca2967ebe3c7d6e6b76f563a62d672aba6f2375a5820c4458f5cb7fc5494", occurrences: 1 }
         required_variants:
-          - "variant=expired (now-24h)"
+          - id: v-58140e1e12
+            description_ja: "variant=expired (now-24h)"
         controls:
           - "有効な validUntil の正常 variant を対照に置く"
         authored_by: samlier-g1-builder
@@ -568,7 +609,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:8206b6f94fd6812b26adbd3bee42ba1935315d8a443fb7b730766b54389eb49f"
+          obligation_digest: "sha256:0081741f1dd9ea04d4db0abc315e1c651e230bcac5c317f258f057a103e27682"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-MD04"
@@ -586,8 +627,10 @@ requirements:
           - { start: 0, end: 106, digest: "sha256:bf7b40e687da946a304df0383f488dd552566a8d0ea6c5a781ada833d4355762", occurrences: 1 }
           - { start: 259, end: 421, digest: "sha256:850cfc185ebb536c9a55eda0c4ff7378fbd7268d465a9323a8dc09227ca5c0db", occurrences: 1 }
         required_variants:
-          - "対象側で閾値 T を設定させ、now+T-δ（受理されるべき）"
-          - "now+T+δ（拒否されるべき）"
+          - id: v-f65daa765c
+            description_ja: "対象側で閾値 T を設定させ、now+T-δ（受理されるべき）"
+          - id: v-a58b093589
+            description_ja: "now+T+δ（拒否されるべき）"
         controls:
           - "Samlier は絶対閾値を持たない。対象の設定閾値の境界値ペアで判定する"
         notes_ja: "閾値が設定可能であること自体が義務に含まれる。設定機能がなければ outcome=violated / capability_absent。"
@@ -597,7 +640,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:cb6702c63959978016448a1704b04cc94b3c8b6898fea4c955866167026e908d"
+          obligation_digest: "sha256:291312a668ffc0fcda2ed3515086cae4daf13f464c3994388191dc6b96ac9e81"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-MD04"
@@ -625,14 +668,15 @@ requirements:
         source_clauses:
           - { start: 0, end: 92, digest: "sha256:7dfacaaae6f1628a334526662ac0d62563407dd4dfcfba6aca718084508215b5", occurrences: 1 }
         required_variants:
-          - "基本 EntityDescriptor / RoleDescriptor 構造"
+          - id: v-a1abd52b12
+            description_ja: "基本 EntityDescriptor / RoleDescriptor 構造"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:919f1054a765fcdbc0c3de280a7864df51d97af00de7c581124b671452a1cdca"
+          obligation_digest: "sha256:48391b2e722c3090c50185452c016501501d2fe1423cfe3d5d1ff4d00846b3be"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-MD05"
@@ -653,14 +697,15 @@ requirements:
           - { start: 0, end: 92, digest: "sha256:7dfacaaae6f1628a334526662ac0d62563407dd4dfcfba6aca718084508215b5", occurrences: 1 }
           - { start: 160, end: 199, digest: "sha256:7843eb17ece7a794fdd86ba8acff346ca3a69aa70d81caa3a8baef3969f16315", occurrences: 1 }
         required_variants:
-          - "スキーマ上の任意要素を含む variant"
+          - id: v-9fe94830c4
+            description_ja: "スキーマ上の任意要素を含む variant"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:f90a4575239eeb93d05b1beaa974df7e5b7aa6500a4df54d9247285d3e8ad824"
+          obligation_digest: "sha256:dd4025116b7e79928a1e3894c0a5ec0e3d49c4d36e2a977b1b0c165bfd5bb3a0"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-MD05"
@@ -681,14 +726,15 @@ requirements:
           - { start: 0, end: 92, digest: "sha256:7dfacaaae6f1628a334526662ac0d62563407dd4dfcfba6aca718084508215b5", occurrences: 1 }
           - { start: 200, end: 256, digest: "sha256:889fb918741c65730914f59b63e081b7655fbf6e2b4aa5debd3a73cfce419e1b", occurrences: 1 }
         required_variants:
-          - "MDIOP に沿った鍵記述"
+          - id: v-8487f69009
+            description_ja: "MDIOP に沿った鍵記述"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:f0a92289d2ee1feea4ab58ca2b1e495ed3e5a19aac778f0e734d98a89ef79275"
+          obligation_digest: "sha256:54c4c59bbd5924a20ebe2389a1e2e982d6ffc5d01abef82f55b6b66a3f0bc8c0"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-MD05"
@@ -709,14 +755,15 @@ requirements:
           - { start: 0, end: 92, digest: "sha256:7dfacaaae6f1628a334526662ac0d62563407dd4dfcfba6aca718084508215b5", occurrences: 1 }
           - { start: 257, end: 318, digest: "sha256:2dfa8c656abb7632ee1bbcd6dc0661a2a2d9f8c593ba10372d3c9766525d1a8a", occurrences: 1 }
         required_variants:
-          - "mdattr:EntityAttributes を含む variant"
+          - id: v-b1ae256c32
+            description_ja: "mdattr:EntityAttributes を含む variant"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:822f8aa2974f65d5db8bb16b603aab4c369d4f1343004da7da64a387fcc911cf"
+          obligation_digest: "sha256:cc04f1c9d3c2f0756dffcd7ef95a6ebc4aa9c6d5bbeb11cb09156dd6661329e0"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-MD05"
@@ -737,14 +784,15 @@ requirements:
           - { start: 0, end: 92, digest: "sha256:7dfacaaae6f1628a334526662ac0d62563407dd4dfcfba6aca718084508215b5", occurrences: 1 }
           - { start: 319, end: 387, digest: "sha256:c5226e0be20d118f31b029a207914ee40e17770413aaa62b7d0d04f23f79e1f6", occurrences: 1 }
         required_variants:
-          - "alg:DigestMethod / alg:SigningMethod を含む variant"
+          - id: v-1bfe5128d6
+            description_ja: "alg:DigestMethod / alg:SigningMethod を含む variant"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:049cca009c6d01a2362714f57c93b6bd73ce660bdc0a563ca455b5dea3e17499"
+          obligation_digest: "sha256:e10db5ba1a8617af08d9a27615229bf99e79b9ef8b209aa3e51766f6b7b1590f"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-MD05"
@@ -765,14 +813,15 @@ requirements:
           - { start: 0, end: 92, digest: "sha256:7dfacaaae6f1628a334526662ac0d62563407dd4dfcfba6aca718084508215b5", occurrences: 1 }
           - { start: 388, end: 465, digest: "sha256:62b5f48cfcc216e864e1cde934458eb24dbabe26d755c0059359994c91da50ca", occurrences: 1 }
         required_variants:
-          - "mdui:UIInfo を含む variant"
+          - id: v-c57012a3f1
+            description_ja: "mdui:UIInfo を含む variant"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:c4d5b43cc82999440713927a82a2b79978960f6124a7bc4e91ab94ac78f48cd6"
+          obligation_digest: "sha256:70081b78281ff48c099f3d1a2e464786d1428cb5afafd5979977f8774e3f6b23"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-MD05"
@@ -790,8 +839,10 @@ requirements:
           - { start: 0, end: 92, digest: "sha256:7dfacaaae6f1628a334526662ac0d62563407dd4dfcfba6aca718084508215b5", occurrences: 1 }
           - { start: 657, end: 761, digest: "sha256:6fcd730941898f98a7fbfeeb7978a0597c4b0a6f54489718e39e642573d04980", occurrences: 1 }
         required_variants:
-          - "未知の名前空間の well-formed な拡張要素"
-          - "mdrpi:RegistrationInfo（必須 6 仕様に含まれない実在の拡張）"
+          - id: v-cd0b898e7c
+            description_ja: "未知の名前空間の well-formed な拡張要素"
+          - id: v-257e9c4a7a
+            description_ja: "mdrpi:RegistrationInfo（必須 6 仕様に含まれない実在の拡張）"
         controls:
           - "mdrpi だけにすると mdrpi に特別対応した実装を誤って合格させる。実装が知りようのない未知名前空間を必ず併用する"
         authored_by: samlier-g1-builder
@@ -800,7 +851,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:0aa160c7176fb07ef5ec6bb0a0f4504c422f1398f3484a0b671ea1641ab3b884"
+          obligation_digest: "sha256:053483f2bd3af7c35c20eb48a010110955bddaf8c9c2f066c4a5cd3d6071eee7"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-MD05"
@@ -830,7 +881,8 @@ requirements:
         source_clauses:
           - { start: 0, end: 151, digest: "sha256:85cd4426cdc6390a7863c650494ac4d43f17977aa2ba2cf3a238a5f206877c5b", occurrences: 1 }
         required_variants:
-          - "MDIOP の鍵解決規則に従うか（PKIX 検証を課していないか）"
+          - id: v-36f04a6457
+            description_ja: "MDIOP の鍵解決規則に従うか（PKIX 検証を課していないか）"
         notes_ja: "trust store に関する記述（As an example, a separate trust store must not be required…）はイタリック＝非規範。義務にしない。"
         authored_by: samlier-g1-builder
         review:
@@ -838,7 +890,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:fa51735f88e655328e17c84fd39388d25a6104236451e8426a5bdb323a4b6951"
+          obligation_digest: "sha256:b8f4ac2df0f7bd32f12c017dd236c7913ef5c08a8ecf743a7157cd90a50f4c49"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-MD06"
@@ -855,7 +907,8 @@ requirements:
         source_clauses:
           - { start: 168, end: 401, digest: "sha256:0a652b7b66ca51bf536e027a99c6bfc2e64ef6fda47ce714a6894e187f285fc7", occurrences: 1 }
         required_variants:
-          - "secondary_peer で 2 つ目の entityID を追加し、追加設定なしで動くか"
+          - id: v-660ebb2185
+            description_ja: "secondary_peer で 2 つ目の entityID を追加し、追加設定なしで動くか"
         controls:
           - "『追加入力なし』が要点。手入力が必要だった事実を利用者に申告させる"
         authored_by: samlier-g1-builder
@@ -864,7 +917,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:17c545db7dfa1a06a603a349d303e1784cdb64082312ecf9fec8b335a41563f0"
+          obligation_digest: "sha256:17ebfc11db79327f3610053d84538ddd43d4decb06187ec2964dcbfdca26e080"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-MD06"
@@ -881,7 +934,8 @@ requirements:
           - { start: 403, end: 501, digest: "sha256:b2afc74e43b9b827b355514289a364f0817e20f2fa475190314938eec0ff1911", occurrences: 1 }
           - { start: 503, end: 789, digest: "sha256:910c64c040d0fdb3db4e8e853fe15b847bd0ce2379df54922c30ded23770cb84", occurrences: 1 }
         required_variants:
-          - "メタデータ登録以外に信頼設定（CA 証明書のインポート等）が必要だったかを申告"
+          - id: v-32ad5ce1d6
+            description_ja: "メタデータ登録以外に信頼設定（CA 証明書のインポート等）が必要だったかを申告"
         notes_ja: "引用は SAML2MDIOP からのもので規範。ただし外部から直接観測しづらいため ATTESTED。"
         authored_by: samlier-g1-builder
         review:
@@ -889,7 +943,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:aa3e1e9593fca37f19d2a4b43bace0993e2be0a7e0054213c34be9eb55e83acc"
+          obligation_digest: "sha256:66e88aae6dc024f5c3ea0b3ae7fb807816da64581d313381d13c76baa1b453b3"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-MD06"
@@ -914,16 +968,19 @@ requirements:
         source_clauses:
           - { start: 0, end: 138, digest: "sha256:a42a2153ec96ed1eab8faf911e44bff142f3dbc244631ffcb9316dd6896f4086", occurrences: 1 }
         required_variants:
-          - "鍵 1 個"
-          - "鍵 2 個"
-          - "鍵 3 個"
+          - id: v-3966a4dc94
+            description_ja: "鍵 1 個"
+          - id: v-f1677e314e
+            description_ja: "鍵 2 個"
+          - id: v-d9de9e7e74
+            description_ja: "鍵 3 個"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:b7681a77521f42e6d525eb7a1ae8783fbf21260b45b1c9361f89065b68631ca1"
+          obligation_digest: "sha256:977395c34708dbc3a24d4a38211562c37c038da6aa7a531229bc77ce17dd4271"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-MD07"
@@ -940,8 +997,10 @@ requirements:
         source_clauses:
           - { start: 174, end: 369, digest: "sha256:148333ca84dc5d184b17ffc4b1493af5628343f546937684b03fd6f42d2f2052", occurrences: 1 }
         required_variants:
-          - "鍵 A・B を載せ B（2 番目）で署名 → 受理"
-          - "メタデータにない鍵で署名 → 拒否（対照）"
+          - id: v-d26517e828
+            description_ja: "鍵 A・B を載せ B（2 番目）で署名 → 受理"
+          - id: v-8ae3d43c8a
+            description_ja: "メタデータにない鍵で署名 → 拒否（対照）"
         controls:
           - "『尽きたら失敗』側の対照が必須。未登録鍵の署名を受理する実装を検出する"
         authored_by: samlier-g1-builder
@@ -950,7 +1009,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:3bfb2cfefd9d6222f59294171695f6d701162402bc5fec5aa40f6f78a137880d"
+          obligation_digest: "sha256:7d7a186d6997fdea59e3892fbc778766862fa353bc5e1ccfb5b22c6a392e4489"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-MD07"
@@ -977,9 +1036,12 @@ requirements:
         source_clauses:
           - { start: 0, end: 154, digest: "sha256:8b1c5bad9782829bcb950283e2b25fc069eecf553e736ad41287b53fd5398cc3", occurrences: 1 }
         required_variants:
-          - "暗号鍵 1 個"
-          - "2 個"
-          - "3 個 の Suite メタデータ variant"
+          - id: v-75c65cc892
+            description_ja: "暗号鍵 1 個"
+          - id: v-559fb7f654
+            description_ja: "2 個"
+          - id: v-ab14245e74
+            description_ja: "3 個 の Suite メタデータ variant"
         notes_ja: "これは『ピアの複数暗号鍵を消費できるか』の義務。自身の復号鍵ロールオーバー（SP08 / IDP19）とは別物。"
         authored_by: samlier-g1-builder
         review:
@@ -987,7 +1049,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:79f185d49108af29bfc20da584ecc9b64fa1fe31f27844e98462680106115ca9"
+          obligation_digest: "sha256:e940b0977ef008b08e72598f3d3a5394dc3de2b51fc66590a4f352b457d2f187"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-MD08"
@@ -1011,8 +1073,10 @@ requirements:
         source_clauses:
           - { start: 0, end: 153, digest: "sha256:a62935618447f8807410ae6603381415912e41927f4846eee40a7b1b69590e46", occurrences: 1 }
         required_variants:
-          - "対象メタデータに alg:* 宣言があるか（静的検査）"
-          - "なければ『公開する機能があるか』を申告"
+          - id: v-ce5e99d071
+            description_ja: "対象メタデータに alg:* 宣言があるか（静的検査）"
+          - id: v-9e312fac6b
+            description_ja: "なければ『公開する機能があるか』を申告"
         controls:
           - "メタデータに宣言がないだけでは違反にしない。公開する機能の有無が義務"
         authored_by: samlier-g1-builder
@@ -1021,7 +1085,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:fd56d6b58ba156adb19ad3aaff380f1431df50b3860525119a2e66d51ebbe7aa"
+          obligation_digest: "sha256:a72023a26ae6b6ce6f7a0d56f46fc3f5de4d4135d6d2f01e55fc2a5babe01c67"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-MD09"
@@ -1037,14 +1101,15 @@ requirements:
         source_clauses:
           - { start: 154, end: 348, digest: "sha256:3827b367d3a9fc95adf91a7d976eba3e11558361f0bad38ac922e9b412a2f80e", occurrences: 1 }
         required_variants:
-          - "alg:* が実構成から動的に生成されているかを申告"
+          - id: v-887132dee5
+            description_ja: "alg:* が実構成から動的に生成されているかを申告"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:4fb4766bebe9aae0b887ff5b9b02293d1f9871246be068db6d7d8eb78c2760a8"
+          obligation_digest: "sha256:c59b5856f3ed122efd35d32bbd8df420f42e0c920334047ff32983795ef7f3c2"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-MD09"
@@ -1072,15 +1137,17 @@ requirements:
         source_clauses:
           - { start: 94, end: 279, digest: "sha256:2d1ad89d04d5db5e9b1ad270dd3a85fca46cff69864383138d2c2590c478fa2f", occurrences: 1 }
         required_variants:
-          - "Suite が SHA-256 のみ宣言 → SHA-1 署名で返さないか"
-          - "GCM のみ宣言 → CBC で暗号化しないか"
+          - id: v-981483a1cb
+            description_ja: "Suite が SHA-256 のみ宣言 → SHA-1 署名で返さないか"
+          - id: v-f8eaed9d89
+            description_ja: "GCM のみ宣言 → CBC で暗号化しないか"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:248b0f745bb60d29ab9aa83ba3363db801552cec9066a4b00bc461306f38024d"
+          obligation_digest: "sha256:c02ea537f14cbc739da7982823f7470b61a8143b7234e05b7066711d110dd7f5"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-MD10"
@@ -1099,14 +1166,15 @@ requirements:
         source_clauses:
           - { start: 94, end: 279, digest: "sha256:2d1ad89d04d5db5e9b1ad270dd3a85fca46cff69864383138d2c2590c478fa2f", occurrences: 1 }
         required_variants:
-          - "同上"
+          - id: v-de3cc5f1c3
+            description_ja: "同上"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:308e6516a49cde692283775e9979f0d3682f6543bafe4a94c629d32e04a36c8b"
+          obligation_digest: "sha256:7787ee08f5a97fbbb54df250d43471c6a8020047750df68a902a6e940c94801b"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-MD10"
@@ -1131,8 +1199,10 @@ requirements:
         source_clauses:
           - { start: 0, end: 128, digest: "sha256:561322c88cc5b931cd889f477c60743d8cda4d8512f11373c0228cb9c2388251", occurrences: 1 }
         required_variants:
-          - "use なし鍵のみの variant で署名検証が通るか"
-          - "同 variant で暗号化に使われるか"
+          - id: v-d0deb3bdbd
+            description_ja: "use なし鍵のみの variant で署名検証が通るか"
+          - id: v-bf171e8959
+            description_ja: "同 variant で暗号化に使われるか"
         controls:
           - "署名側・暗号側の両方を確認する。片方だけで PASS にしない"
         authored_by: samlier-g1-builder
@@ -1141,7 +1211,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:2fff50bacd9397845a7b06575ec33710542d6e5aac74756253fc78b6b8d702bf"
+          obligation_digest: "sha256:fa641a125332eeb534dd50db28d85bee8f6a51cba42eae48a15a70d8fbe152bf"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-MD11"
@@ -1166,16 +1236,19 @@ requirements:
         source_clauses:
           - { start: 0, end: 85, digest: "sha256:efe1ac438853bb94165515dc7324e94c04d6a928162eae36756de0caf1a9ea42", occurrences: 1 }
         required_variants:
-          - "自己署名 1 枚"
-          - "自己署名 3 枚"
-          - "有効期間 20 年"
+          - id: v-814e3d22ee
+            description_ja: "自己署名 1 枚"
+          - id: v-de3b2a9db4
+            description_ja: "自己署名 3 枚"
+          - id: v-5d3efc50f3
+            description_ja: "有効期間 20 年"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:059ea30585b9b1edacb41313750b41358aedca0ce2e865f85078347378edc7b3"
+          obligation_digest: "sha256:120a05928dba4fc057f5e01dac21249c479c70560415890d6a98517d4bc89989"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-MD12"
@@ -1193,8 +1266,10 @@ requirements:
           - { start: 0, end: 85, digest: "sha256:efe1ac438853bb94165515dc7324e94c04d6a928162eae36756de0caf1a9ea42", occurrences: 1 }
           - { start: 86, end: 124, digest: "sha256:be414b37d7855c3bf36f12e0a5c9a33ae368f19f1f6267ddea45cd1b33629b54", occurrences: 1 }
         required_variants:
-          - "期限切れ証明書"
-          - "not-yet-valid 証明書"
+          - id: v-5bbace1e8c
+            description_ja: "期限切れ証明書"
+          - id: v-a6bb86d4de
+            description_ja: "not-yet-valid 証明書"
         notes_ja: "引用された MDIOP は not yet valid / critical・non-critical extensions / usage flags も鍵利用を妨げないとする。"
         authored_by: samlier-g1-builder
         review:
@@ -1202,7 +1277,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:50b7267d0eb461d0718f104a1cfdea3995a0d1e15df5f47d356b7a8d9eabaec7"
+          obligation_digest: "sha256:9b5012232c4493e19b4307793c5d5d0c3a920dcbf8064240fc3a47436441d0a1"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-MD12"
@@ -1220,15 +1295,17 @@ requirements:
           - { start: 0, end: 85, digest: "sha256:efe1ac438853bb94165515dc7324e94c04d6a928162eae36756de0caf1a9ea42", occurrences: 1 }
           - { start: 126, end: 175, digest: "sha256:731dafad9c7e4b57508409911a6827904d8ba6cf4a9f3f860ccd401498325814", occurrences: 1 }
         required_variants:
-          - "SHA-1 署名証明書"
-          - "SHA-512 署名証明書"
+          - id: v-172aa0dc8e
+            description_ja: "SHA-1 署名証明書"
+          - id: v-851e554dea
+            description_ja: "SHA-512 署名証明書"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:4f934ab22209d273518b26a9effaf6ef80292fb70cbbe9420dbe4b199eb8ecc4"
+          obligation_digest: "sha256:c6b824792a2ae0d189188a614f3e7b0c32199ffcc46097ffc0693f9028c127c6"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-MD12"
@@ -1255,15 +1332,17 @@ requirements:
         source_clauses:
           - { start: 0, end: 125, digest: "sha256:ff1057626aaa898cc4a76e1e0e4e9f6ad908c018ad60ce09d95e71634b08fac5", occurrences: 1 }
         required_variants:
-          - "SP-initiated 正常系"
-          - "IdP-initiated（unsolicited）正常系"
+          - id: v-5dfe0f0110
+            description_ja: "SP-initiated 正常系"
+          - id: v-56496ee074
+            description_ja: "IdP-initiated（unsolicited）正常系"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:6c44e4164869406ae1fa3d19354a0bb45c42a9c15d6ffebffd8c71b1b6238d4f"
+          obligation_digest: "sha256:e36e92a69b9e36038cfd8e740bfef3f8a713cf610d2b0abd921bb31d431ecf19"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SSO01"
@@ -1288,10 +1367,14 @@ requirements:
         source_clauses:
           - { start: 0, end: 98, digest: "sha256:32e4a914797eb2162927745eea38b2d117633ebef59223516ec8e9cf73f57b15", occurrences: 1 }
         required_variants:
-          - "IdP: Redirect で AuthnRequest 受信"
-          - "IdP: POST で AuthnRequest 受信"
-          - "SP: SSO endpoint を Redirect のみにして発行"
-          - "SP: POST のみにして発行"
+          - id: v-ebc0e3a974
+            description_ja: "IdP: Redirect で AuthnRequest 受信"
+          - id: v-b9e19b5e08
+            description_ja: "IdP: POST で AuthnRequest 受信"
+          - id: v-b683e4f722
+            description_ja: "SP: SSO endpoint を Redirect のみにして発行"
+          - id: v-a369a1a095
+            description_ja: "SP: POST のみにして発行"
         controls:
           - "SP 側は 2 構成で発行させる。片方の観測だけでは両対応を証明できない"
         authored_by: samlier-g1-builder
@@ -1300,7 +1383,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:8f67a8c1d7fcbec1b5eea05e0f87bd1f2c72bc7a8076adbd69d7eadc2cb2c15c"
+          obligation_digest: "sha256:e43cda3d7c6ddffbc710595c3ae06fc514ba01c87e40402beda4e0bf1ffde3f6"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SSO02"
@@ -1324,14 +1407,15 @@ requirements:
         source_clauses:
           - { start: 0, end: 90, digest: "sha256:9e1f7ca1df32a4e2faab7d40df392b89aa538f846727a94f6caf233ad7b168bb", occurrences: 1 }
         required_variants:
-          - "成功 Response を POST で送受信"
+          - id: v-0f707e3cea
+            description_ja: "成功 Response を POST で送受信"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:16fc54c4485a8fe64d803727f856d946a911eb9b681f22e34798c16fa6c67d88"
+          obligation_digest: "sha256:d7ab45eab91eb5392b941cfaf5891f55e6cca7663c82028e14793959bd43c1a3"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SSO03"
@@ -1347,8 +1431,10 @@ requirements:
         source_clauses:
           - { start: 0, end: 90, digest: "sha256:9e1f7ca1df32a4e2faab7d40df392b89aa538f846727a94f6caf233ad7b168bb", occurrences: 1 }
         required_variants:
-          - "SP: Status がエラーの Response を POST → エラーとして扱うか"
-          - "IdP: 満たせない要求 → エラー Response が POST で返るか"
+          - id: v-55d60c5484
+            description_ja: "SP: Status がエラーの Response を POST → エラーとして扱うか"
+          - id: v-ffcc77f301
+            description_ja: "IdP: 満たせない要求 → エラー Response が POST で返るか"
         controls:
           - "SP 側でエラー Response を成功扱いしたら違反（対照）"
         authored_by: samlier-g1-builder
@@ -1357,7 +1443,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:8e66328a16e70041a5696c96ef28eaa445ac20690052dc3ec3b1e20f767b5531"
+          obligation_digest: "sha256:7331008b2a0eb3732b5e23089c61c98fe089736c964e680e2ef23498ea3ffa98"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SSO03"
@@ -1382,9 +1468,12 @@ requirements:
         source_clauses:
           - { start: 0, end: 102, digest: "sha256:23dda2a90643ee37599b3dec71cdc1d5cce896659f21127551e82908542ec58b", occurrences: 1 }
         required_variants:
-          - "Assertion のみ署名"
-          - "Response のみ署名"
-          - "両方署名"
+          - id: v-e70255eff9
+            description_ja: "Assertion のみ署名"
+          - id: v-46389ad86a
+            description_ja: "Response のみ署名"
+          - id: v-a1f9128f62
+            description_ja: "両方署名"
         controls:
           - "3 構成すべてを送信側・受信側の双方で確認する。1 構成の観測では検出力がない"
         authored_by: samlier-g1-builder
@@ -1393,7 +1482,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:a207485adceca8793a43fec1e4d70b2a809add8a3ecd13b1aeee9f6eff536341"
+          obligation_digest: "sha256:5288d040b889d1d0464c3c8bb5fa227a34947f7e1f9a1e80eb580ef040ece309"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SSO04"
@@ -1421,14 +1510,15 @@ requirements:
           - { start: 0, end: 169, digest: "sha256:e66a1c4b4350bebadd4d4eea6620b79599bf4ccf39f39a3ea381665fbbc61d39", occurrences: 1 }
           - { start: 170, end: 222, digest: "sha256:200d6cc58795ef10f294b4748ce9f9f493f02626e206d1d73490711ce8f2561a", occurrences: 1 }
         required_variants:
-          - "NameIDPolicy で persistent を要求 → persistent が返る"
+          - id: v-e064d2092a
+            description_ja: "NameIDPolicy で persistent を要求 → persistent が返る"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:0b6b2061a597efe3f452f326988f4b8a9ee873c0d39441beb7fd7fddbceb51fd"
+          obligation_digest: "sha256:131e662434f6989fab280c59d4150891c96bc335020c6f987a4df24779fc1470"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SSO05"
@@ -1448,15 +1538,17 @@ requirements:
           - { start: 0, end: 169, digest: "sha256:e66a1c4b4350bebadd4d4eea6620b79599bf4ccf39f39a3ea381665fbbc61d39", occurrences: 1 }
           - { start: 223, end: 274, digest: "sha256:5bab1ac68cbe9cf5e98f1d62b5748e1b5129e0a0a8e80ecb59cda3c2c939a701", occurrences: 1 }
         required_variants:
-          - "NameIDPolicy で transient を要求 → transient が返る"
-          - "2 回のログインで値が変わること"
+          - id: v-472de8a356
+            description_ja: "NameIDPolicy で transient を要求 → transient が返る"
+          - id: v-93864fa604
+            description_ja: "2 回のログインで値が変わること"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:5c92b43414be802baf21853d7e8d1f4a737c9e501bd414cc1ef0bff7a4c7393b"
+          obligation_digest: "sha256:0fff37c6f7ed69d65c29120179ce8830e8beb67726c8052ae5a9b4c8892c03df"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SSO05"
@@ -1493,14 +1585,22 @@ requirements:
         source_clauses:
           - { start: 0, end: 376, digest: "sha256:7bf32b4a620f48a0a471abd2fe2b41640c95265faa6f315d2f92295ed3411cda", occurrences: 1 }
         required_variants:
-          - "md:IDPSSODescriptor/@WantAuthnRequestsSigned — MAY be used by an identity provider to document a requirement that requests be signed"
-          - "md:SPSSODescriptor/@AuthnRequestsSigned — MAY be used by a service provider to document the intention to sign all of its requests"
-          - "md:KeyDescriptor use=signing — providers MAY document the key(s) used to sign requests, responses, and assertions（Errata 05 E58 により sign→signing）"
-          - "md:KeyDescriptor use=encryption — MAY be used to document supported encryption algorithms and settings, and public keys（Errata 05 E58 により encrypt→encryption）"
-          - "md:SPSSODescriptor/@WantAssertionsSigned — MAY be used by a service provider to document a requirement that assertions be signed"
-          - "md:ArtifactResolutionService — 条件付き MUST: HTTP Artifact バインディングで配送する場合、artifact issuer は少なくとも 1 つ提供しなければならない"
-          - "md:IDPSSODescriptor が含みうる md:NameIDFormat / md:AttributeProfile / saml:Attribute — MAY"
-          - "md:AttributeConsumingService — One or more ... MAY be included in its metadata（@index / @isDefault はこの要素の一部であり、個別に MAY とはされていない）"
+          - id: v-03f60bb35b
+            description_ja: "md:IDPSSODescriptor/@WantAuthnRequestsSigned — MAY be used by an identity provider to document a requirement that requests be signed"
+          - id: v-7b96873711
+            description_ja: "md:SPSSODescriptor/@AuthnRequestsSigned — MAY be used by a service provider to document the intention to sign all of its requests"
+          - id: v-43efff0abe
+            description_ja: "md:KeyDescriptor use=signing — providers MAY document the key(s) used to sign requests, responses, and assertions（Errata 05 E58 により sign→signing）"
+          - id: v-4cac5e94f1
+            description_ja: "md:KeyDescriptor use=encryption — MAY be used to document supported encryption algorithms and settings, and public keys（Errata 05 E58 により encrypt→encryption）"
+          - id: v-87b1079472
+            description_ja: "md:SPSSODescriptor/@WantAssertionsSigned — MAY be used by a service provider to document a requirement that assertions be signed"
+          - id: v-a7d66b92a1
+            description_ja: "md:ArtifactResolutionService — 条件付き MUST: HTTP Artifact バインディングで配送する場合、artifact issuer は少なくとも 1 つ提供しなければならない"
+          - id: v-3b8c1d97c6
+            description_ja: "md:IDPSSODescriptor が含みうる md:NameIDFormat / md:AttributeProfile / saml:Attribute — MAY"
+          - id: v-f9e3fcd6af
+            description_ja: "md:AttributeConsumingService — One or more ... MAY be included in its metadata（@index / @isDefault はこの要素の一部であり、個別に MAY とはされていない）"
         controls:
           - "各要素について Suite メタデータの値を変更し、対象の挙動が追従するかを見る"
           - "追従しない要素があれば、その要素に対応する設定を対象が備えているか（IIP-SSO06 の条件 (b)）を確認してから判定する"
@@ -1512,7 +1612,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:6d75097c7d6981a77e7389d79d81901c1d72e2446d67f13fe7cd46dca37af9ed"
+          obligation_digest: "sha256:4068587e6ef68d9c3cce88d3df5322eacae1ef2a603602e8fdf7586cd17902dd"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SSO06"
@@ -1537,7 +1637,8 @@ requirements:
         source_clauses:
           - { start: 75, end: 217, digest: "sha256:4502107e9167a16c9587e5a6d260c52b7cf214b79f3674eaf8bf66117b67d50f", occurrences: 1 }
         required_variants:
-          - "対象が任意要素を生成するかを情報として記録（判定しない）"
+          - id: v-a74fd792d3
+            description_ja: "対象が任意要素を生成するかを情報として記録（判定しない）"
         controls:
           - "生成しないことを違反にしない"
         authored_by: samlier-g1-builder
@@ -1546,7 +1647,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:7e19bfb4a53da93941db22f60dbed20ef4c5cfa664d2925954fa7f950be36bfa"
+          obligation_digest: "sha256:f1f4dcdea5e193a1c48455dd86c15c83bc4a1645080709f196fc4441c9158588"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SSO07"
@@ -1577,12 +1678,18 @@ requirements:
         source_clauses:
           - { start: 219, end: 497, digest: "sha256:ea583e6744f8cb5ffb277e3b0d91947b4d91f058196e4e197ffaff2bfa6b9079", occurrences: 1 }
         required_variants:
-          - "verdict 対象: <saml:Subject> 付き AuthnRequest。SAML2Core 3.4.1.4 が一意の結果を規定する（返る Assertion の Subject が要求と strongly match する、または要求された主体を認識できなければ error <Status> を返す）。要求と異なる主体の Assertion を返したら違反"
-          - "情報記録のみ: <saml:Conditions>（SAML2Core 3.4.1: 'The responder MAY modify or supplement this set as it deems necessary'）"
-          - "情報記録のみ: <Scoping> / ProxyCount / <IDPList> / <RequesterID>（SAML2Core 3.4.1.2: 'the intermediary MAY examine the list and return a <Response> message with an error <Status>' — 二択）"
-          - "情報記録のみ: 無効な AssertionConsumerServiceIndex（SAML2Core 3.4.1: 'MAY return an error <Response> or it MAY use the default location' — 二択が明示）"
-          - "情報記録のみ: ProviderName / Consent — SAML2Core に処理規則の記述がない"
-          - "対象外（IIP の他要件が specifically call out している）: <NameIDPolicy>→IIP-IDP10 / <RequestedAuthnContext>→IIP-IDP08 / ForceAuthn→IIP-IDP06 / IsPassive→IIP-IDP07 / AssertionConsumerServiceURL・ProtocolBinding・AssertionConsumerServiceIndex→IIP-IDP12 / AttributeConsumingServiceIndex→IIP-IDP04.b / <Extensions>・<Advice>→IIP-EXT01"
+          - id: v-c3c71223f7
+            description_ja: "verdict 対象: <saml:Subject> 付き AuthnRequest。SAML2Core 3.4.1.4 が一意の結果を規定する（返る Assertion の Subject が要求と strongly match する、または要求された主体を認識できなければ error <Status> を返す）。要求と異なる主体の Assertion を返したら違反"
+          - id: v-b7935a4c4d
+            description_ja: "情報記録のみ: <saml:Conditions>（SAML2Core 3.4.1: 'The responder MAY modify or supplement this set as it deems necessary'）"
+          - id: v-e9efba5270
+            description_ja: "情報記録のみ: <Scoping> / ProxyCount / <IDPList> / <RequesterID>（SAML2Core 3.4.1.2: 'the intermediary MAY examine the list and return a <Response> message with an error <Status>' — 二択）"
+          - id: v-912088ec9a
+            description_ja: "情報記録のみ: 無効な AssertionConsumerServiceIndex（SAML2Core 3.4.1: 'MAY return an error <Response> or it MAY use the default location' — 二択が明示）"
+          - id: v-67f70ac118
+            description_ja: "情報記録のみ: ProviderName / Consent — SAML2Core に処理規則の記述がない"
+          - id: v-2d79e767d3
+            description_ja: "対象外（IIP の他要件が specifically call out している）: <NameIDPolicy>→IIP-IDP10 / <RequestedAuthnContext>→IIP-IDP08 / ForceAuthn→IIP-IDP06 / IsPassive→IIP-IDP07 / AssertionConsumerServiceURL・ProtocolBinding・AssertionConsumerServiceIndex→IIP-IDP12 / AttributeConsumingServiceIndex→IIP-IDP04.b / <Extensions>・<Advice>→IIP-EXT01"
         controls:
           - "判定規則: SAML2Core が一意の結果（エラー XOR 無視）を規定する要素のみ verdict 対象にする。二択が許される要素は verdict を付けず情報記録のみとする"
           - "★ 横断調査の結論: AuthnRequest の任意コンテンツのうち、IIP の他要件が call out していないものは <saml:Subject> / <saml:Conditions> / <Scoping>系 / ProviderName / Consent であり、このうち一意の処理規則を持つのは <saml:Subject> だけである"
@@ -1594,7 +1701,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:72c0c88534e77aaa20c9801a49e22656d941eddd582c5dba018d122c81d61532"
+          obligation_digest: "sha256:502888afc2b578f583283939fab13f8c41069b111b366bf4e28d39b75bec8b75"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SSO07"
@@ -1618,14 +1725,15 @@ requirements:
         source_clauses:
           - { start: 0, end: 77, digest: "sha256:fbe3e14936db07cff713147ac8f338b386b238ab8b8b27c3630daddec8cb3488", occurrences: 1 }
         required_variants:
-          - "未知名前空間の拡張要素を含む正常フロー"
+          - id: v-5325e3098c
+            description_ja: "未知名前空間の拡張要素を含む正常フロー"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:660171cbe9c29aa5d6ff332f4381ceb308c973579b9c9d33a05d05e864dc939c"
+          obligation_digest: "sha256:72b9f5a1821c0a386ef1e219eb88d631155032eac1c46832205c944d4b225ce3"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-EXT01"
@@ -1641,7 +1749,8 @@ requirements:
         source_clauses:
           - { start: 118, end: 211, digest: "sha256:b791ed59cb10c0822a36f2c62ad13df4bc914dca8d0e2e62c9ca1d2a5f0b1f26", occurrences: 1 }
         required_variants:
-          - "拡張内容が反映されないことを情報として記録（判定しない）"
+          - id: v-1841fdf9ed
+            description_ja: "拡張内容が反映されないことを情報として記録（判定しない）"
         controls:
           - "無視されたことを違反にしない。これは許可であって義務ではない"
         authored_by: samlier-g1-builder
@@ -1650,7 +1759,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:8d451de3524f68ff22e389ecb17caa4fb90c7ab5c34538ce44f7091728d46585"
+          obligation_digest: "sha256:2e2233df0cbf1f529163105393b7707adcb6bf2e2f8cd67b44b552f208d2d141"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-EXT01"
@@ -1666,9 +1775,12 @@ requirements:
         source_clauses:
           - { start: 188, end: 252, digest: "sha256:b34c8c238913527c62df5f8bcf1839060eb5d7e71c685fccf327e3ec1cf2901b", occurrences: 1 }
         required_variants:
-          - "samlp:Extensions に未知要素"
-          - "md:Extensions に未知要素"
-          - "saml:Advice に未知要素"
+          - id: v-5736a729fa
+            description_ja: "samlp:Extensions に未知要素"
+          - id: v-8f806e8b57
+            description_ja: "md:Extensions に未知要素"
+          - id: v-983298b7bb
+            description_ja: "saml:Advice に未知要素"
         controls:
           - "3 つの要素を個別 variant にする。判定対象は『障害を起こさないこと』のみで、内容が反映されないことを違反にしない"
         authored_by: samlier-g1-builder
@@ -1677,7 +1789,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:96d15ad449b1ceb12263d6d91215f3c242a7fa176d6333a66e8677616020118d"
+          obligation_digest: "sha256:089e427d50a8e20531b2f6f652a6b2b3f4d20aeebfbe84213b5629d86e8f1a92"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-EXT01"
@@ -1693,14 +1805,15 @@ requirements:
         source_clauses:
           - { start: 432, end: 468, digest: "sha256:798d677c4e7ea177e341aec834f298195052d35d5757b30baea871e80cc37099", occurrences: 1 }
         required_variants:
-          - "未知属性が反映されないことを情報として記録（判定しない）"
+          - id: v-cdd0052383
+            description_ja: "未知属性が反映されないことを情報として記録（判定しない）"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:fd0db9778d2a2111cb48d71b7dee307e37de071759e1bd05ab131a1365cebfb9"
+          obligation_digest: "sha256:d12580f0debba1f9fac59b1222f098f015d5d9fe41502fcf892ec1a680a161cb"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-EXT01"
@@ -1716,9 +1829,12 @@ requirements:
         source_clauses:
           - { start: 432, end: 510, digest: "sha256:c0b40d046c810916c8752530f49bb557b45324dbdb885531d53e425c79352729", occurrences: 1 }
         required_variants:
-          - "samlp:Extensions への未知属性"
-          - "md:EntityDescriptor への未知属性"
-          - "saml:Advice への未知属性"
+          - id: v-d83f83ed6e
+            description_ja: "samlp:Extensions への未知属性"
+          - id: v-fe7441b2a6
+            description_ja: "md:EntityDescriptor への未知属性"
+          - id: v-250e346130
+            description_ja: "saml:Advice への未知属性"
         controls:
           - "未知『属性』は未知『要素』とは別経路。両方試す"
         authored_by: samlier-g1-builder
@@ -1727,7 +1843,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:b8fe9fb04324ab45218472fcbb9da0793dc513021156defa7daf00637abd2312"
+          obligation_digest: "sha256:a7c139ced18283e16077bd70ff2569c4e8c7e217b6db5d42f9710234ba352146"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-EXT01"
@@ -1752,8 +1868,10 @@ requirements:
           - { start: 0, end: 161, digest: "sha256:b6bf2b68df09a06282a6f62593c90c876c504af743af0c26c59192031e1b5473", occurrences: 1 }
           - { start: 162, end: 210, digest: "sha256:af381b64781baec167e4e992e82f403a9d3c5f11f07de7c10ac601e2bdd3bf8d", occurrences: 1 }
         required_variants:
-          - "Suite が SHA-256 で署名 → 検証される"
-          - "対象が生成する署名の DigestMethod を観測"
+          - id: v-8000d594bf
+            description_ja: "Suite が SHA-256 で署名 → 検証される"
+          - id: v-b319cbf40c
+            description_ja: "対象が生成する署名の DigestMethod を観測"
         controls:
           - "生成側・検証側の双方を見る"
         authored_by: samlier-g1-builder
@@ -1762,7 +1880,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:3c927a4357158e9c22ff28da64ab9913ccd8543320a27b7e1a2d11258ddf3b66"
+          obligation_digest: "sha256:ce09d62913aa3bc491040ae3d8c0430f3e2d5cf146db39e6376f8be571ec8345"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-ALG01"
@@ -1787,15 +1905,17 @@ requirements:
           - { start: 0, end: 164, digest: "sha256:0f8cfe5f768ed4135e0f9a26a7c799df86fd31801509bc7297a5011e8d783a66", occurrences: 1 }
           - { start: 165, end: 224, digest: "sha256:cd9524eeed3518f03a2722989335bd5e4d27c2ec84f8fa06a33c81683afb0e05", occurrences: 1 }
         required_variants:
-          - "Suite が RSA-SHA256 で署名 → 検証される"
-          - "対象が生成する SignatureMethod を観測"
+          - id: v-6067312a4a
+            description_ja: "Suite が RSA-SHA256 で署名 → 検証される"
+          - id: v-f672223ec4
+            description_ja: "対象が生成する SignatureMethod を観測"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:4fac9b01b3aa6e496d1e778ff4aa74864a51b95fedcabd2b0c70a9c766c229ea"
+          obligation_digest: "sha256:540ed98432c310dd59ebb525dd64e3e32ef47ef0e215965a7a63a221043269ba"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-ALG02"
@@ -1820,14 +1940,15 @@ requirements:
           - { start: 0, end: 166, digest: "sha256:b1a3ee05b976dc500f94caaa0256a530848ab94ba4216f8d222f7afc00a33898", occurrences: 1 }
           - { start: 167, end: 228, digest: "sha256:01026de6d26fa0c76f5235abf4a49f6b566452c9400abc90e963b21438718c9d", occurrences: 1 }
         required_variants:
-          - "EC 鍵を載せた Suite メタデータ + ECDSA-SHA256 署名"
+          - id: v-7f52757c99
+            description_ja: "EC 鍵を載せた Suite メタデータ + ECDSA-SHA256 署名"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:532dc13962b9db245464296fa735e7e9b8d31d6e0c988fbf025695aa81dabdb9"
+          obligation_digest: "sha256:9bf1155495321518c885fd249e0363b511cbf8ab762aa469827844879c4b1724"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-ALG03"
@@ -1852,8 +1973,10 @@ requirements:
           - { start: 0, end: 149, digest: "sha256:13d87f311f30ff997661608f5265b298f27f661d2ea8e21bcb7a4542e66bd862", occurrences: 1 }
           - { start: 150, end: 201, digest: "sha256:9f1a39f71c800e42d3209a714c570ee18e2bd022b84c4aaaed145efcdd311a72", occurrences: 1 }
         required_variants:
-          - "AES128-GCM で暗号化した Assertion → 復号される"
-          - "対象が生成する EncryptionMethod を観測"
+          - id: v-f9e2354ac8
+            description_ja: "AES128-GCM で暗号化した Assertion → 復号される"
+          - id: v-5b0c526ec5
+            description_ja: "対象が生成する EncryptionMethod を観測"
         controls:
           - "ALG04.b と別 variant。片方だけ対応する実装を検出する"
         authored_by: samlier-g1-builder
@@ -1862,7 +1985,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:ee26c8a0732e59b8ead33e1a3f4842e0c54a4d2bcce2ba16ea43c7f4883a30d1"
+          obligation_digest: "sha256:66ac383554227d4419efb9f93a923cc7736d955d700f5397db665254bca0bfe3"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-ALG04"
@@ -1879,14 +2002,15 @@ requirements:
           - { start: 0, end: 149, digest: "sha256:13d87f311f30ff997661608f5265b298f27f661d2ea8e21bcb7a4542e66bd862", occurrences: 1 }
           - { start: 202, end: 253, digest: "sha256:c51f189a975059bfc29d5badb64700fdcefe1d2007bd4f04f28cb9fa9bddafd3", occurrences: 1 }
         required_variants:
-          - "AES256-GCM で暗号化した Assertion → 復号される"
+          - id: v-18f96c40cf
+            description_ja: "AES256-GCM で暗号化した Assertion → 復号される"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:8a0c32e777437c841ef8c9f022d1ac8cbd50b3edfac12fc1a5fa64b5e03ecc10"
+          obligation_digest: "sha256:62177b192ce8c514dce375209060a24c43af91cc35102104df74b2428eca9d13"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-ALG04"
@@ -1912,8 +2036,10 @@ requirements:
           - { start: 177, end: 229, digest: "sha256:c14640817b7bba527fa0a6774198c639c5979047b53ab094a211690581e03d3c", occurrences: 1 }
           - { start: 230, end: 282, digest: "sha256:57d120372c50e1a0aff51a311dccbd640a8fb672a63d8a9e9ef2a6f0b2cf113d", occurrences: 1 }
         required_variants:
-          - AES128-CBC
-          - AES256-CBC
+          - id: v-c16fcb2cd4
+            description_ja: AES128-CBC
+          - id: v-dc06f9c264
+            description_ja: AES256-CBC
         controls:
           - "未対応は NOT_SUPPORTED であって違反ではない"
         authored_by: samlier-g1-builder
@@ -1922,7 +2048,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:bb6b8641cc4e6dfb68ddea4f173c57326816d2067a628a015ed703f77bc79e4e"
+          obligation_digest: "sha256:feedbd2a2b2d7f9d36617438a2f1af563c4c4df7029eb6e4f765ea99c3f848a7"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-ALG05"
@@ -1941,7 +2067,8 @@ requirements:
         source_clauses:
           - { start: 434, end: 485, digest: "sha256:092e01d660bbad3192df756fd6d55ba73c482c1ecb7e6c0e2c354491b7ad797f", occurrences: 1 }
         required_variants:
-          - "CBC を使う構成にしてもらい、ログ・UI・設定画面に警告が出るかを申告"
+          - id: v-342d148bbb
+            description_ja: "CBC を使う構成にしてもらい、ログ・UI・設定画面に警告が出るかを申告"
         notes_ja: "この SHOULD は非イタリック＝規範。前版にあった『CBC が既定なら WARNING』は原文になく削除済み。"
         authored_by: samlier-g1-builder
         review:
@@ -1949,7 +2076,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:eb5a50487479c0fcf7821960d61715a5a29c2faab6dcb6e89b7c5704a1dccc94"
+          obligation_digest: "sha256:780541703e3daf05eeccd3dd1be80d4a8c459fe61d9406bd32c799821df15777"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-ALG05"
@@ -1974,14 +2101,15 @@ requirements:
           - { start: 0, end: 146, digest: "sha256:95da6649c89669ec7503a75957f08644a00d706f07d304ce3da185bd8eb15fe4", occurrences: 1 }
           - { start: 147, end: 203, digest: "sha256:9fe50ef0a275f00863b7e657de90982deadc931e5c7bd802e823d1977d3e829a", occurrences: 1 }
         required_variants:
-          - "rsa-oaep-mgf1p で鍵輸送した Assertion"
+          - id: v-6ccc958d9f
+            description_ja: "rsa-oaep-mgf1p で鍵輸送した Assertion"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:84d84a10c31fa34963f7eedaaa2a20ad76cab13e9fe42985867062132ae3b63d"
+          obligation_digest: "sha256:33cb04a67458e966a5c45df46f3ce9ee3055fcb73f5f7dcb37af6eb6f120f2ad"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-ALG06"
@@ -1998,14 +2126,15 @@ requirements:
           - { start: 0, end: 146, digest: "sha256:95da6649c89669ec7503a75957f08644a00d706f07d304ce3da185bd8eb15fe4", occurrences: 1 }
           - { start: 204, end: 253, digest: "sha256:dcccf3518c1f5eb56fc6017b39dc3eacb0c8543d118f961af30e4eea285c1266", occurrences: 1 }
         required_variants:
-          - "rsa-oaep で鍵輸送した Assertion"
+          - id: v-6fc7ceea67
+            description_ja: "rsa-oaep で鍵輸送した Assertion"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:77175c84d1a034552a44fe43615ce86ae606ab33c61714a566feb12d533577ed"
+          obligation_digest: "sha256:2353d5cbb6140bd8e735d61a2b0cf42cd3f810192ed743398b851744be5c563f"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-ALG06"
@@ -2022,10 +2151,14 @@ requirements:
           - { start: 0, end: 146, digest: "sha256:95da6649c89669ec7503a75957f08644a00d706f07d304ce3da185bd8eb15fe4", occurrences: 1 }
           - { start: 254, end: 357, digest: "sha256:3a58e24fe6c6e6463d1a6afc02deec519d0b4e95f0785d589fcf7b6fd62b2247", occurrences: 1 }
         required_variants:
-          - "oaep-mgf1p + sha256"
-          - "oaep-mgf1p + sha1"
-          - "rsa-oaep + sha256"
-          - "rsa-oaep + sha1"
+          - id: v-8812cd0959
+            description_ja: "oaep-mgf1p + sha256"
+          - id: v-ea0501e2c5
+            description_ja: "oaep-mgf1p + sha1"
+          - id: v-2a76534278
+            description_ja: "rsa-oaep + sha256"
+          - id: v-0791ed212e
+            description_ja: "rsa-oaep + sha1"
         controls:
           - "2 アルゴリズム × 2 digest の 4 組合せをすべて試す"
         authored_by: samlier-g1-builder
@@ -2034,7 +2167,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:ac8772ed420af5cd8afd060e4cdc73d8a6b613c919f2a765981152ad0b401307"
+          obligation_digest: "sha256:0bc848d9b3695adaf4c1397ddac3f5f275f9f6710d19da28a4411456846544ad"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-ALG06"
@@ -2051,14 +2184,15 @@ requirements:
           - { start: 0, end: 146, digest: "sha256:95da6649c89669ec7503a75957f08644a00d706f07d304ce3da185bd8eb15fe4", occurrences: 1 }
           - { start: 437, end: 595, digest: "sha256:3af2f3ce27e966bd893c3337a29e51f03a170d244bf45988ac8440ad33dc7227", occurrences: 1 }
         required_variants:
-          - "rsa-oaep + MGF1-SHA1（MGF を明示しない既定ケース）"
+          - id: v-de0e0500ed
+            description_ja: "rsa-oaep + MGF1-SHA1（MGF を明示しない既定ケース）"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:683186fcb9f2d92eb0fc79002f2d1a6bcecdad1f5e5ad842d0689d77cbf0fe90"
+          obligation_digest: "sha256:8abbf09418f1f4488e9a30be16948e221f6b97d2c3e6707cc59c48edfa035c4d"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-ALG06"
@@ -2082,7 +2216,8 @@ requirements:
         source_clauses:
           - { start: 61, end: 198, digest: "sha256:54ab3c733ee5970809f21f7927a4707346a28c19c707d8d2a5bb50f728e6de62", occurrences: 1 }
         required_variants:
-          - "Suite→対象エンドポイントの TLS ハンドシェイクを観測（プロトコル版・暗号スイート）"
+          - id: v-886e696760
+            description_ja: "Suite→対象エンドポイントの TLS ハンドシェイクを観測（プロトコル版・暗号スイート）"
         notes_ja: "原文は『This document is not normative with respect to TLS security』と述べており、判定は RECOMMENDED の範囲に限る。ブラウザ経路の TLS は観測できないため観測範囲を結果に明記する。"
         authored_by: samlier-g1-builder
         review:
@@ -2090,7 +2225,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:f8ad78da6d82f15e9387c541228edd46266382db5eae5f45ecdd0cb66da0d2d1"
+          obligation_digest: "sha256:2cde17d8ad8b385e864134c2915184d585548cd331076272e24f15afb8ed1f56"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-ALG07"
@@ -2115,15 +2250,17 @@ requirements:
         source_clauses:
           - { start: 0, end: 158, digest: "sha256:c63a3041cf05e797637fd4f87c811304dc37724f4f45aaee153321c38b3ccecb", occurrences: 1 }
         required_variants:
-          - "利用者に RSA-1.5 を禁止設定にしてもらい、RSA-1.5 で暗号化した Assertion が拒否されるか"
-          - "禁止していないアルゴリズムは受理されること（対照）"
+          - id: v-7af4251496
+            description_ja: "利用者に RSA-1.5 を禁止設定にしてもらい、RSA-1.5 で暗号化した Assertion が拒否されるか"
+          - id: v-1cc87aacf7
+            description_ja: "禁止していないアルゴリズムは受理されること（対照）"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:a5fa66af64e23ee408d7e2f7a979c050039720267644c8f9330a30f7d81e479d"
+          obligation_digest: "sha256:351c4da68acad0dd09bd6f08f563057d08335f0cd9c659a859df8c25a13e221f"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-ALG08"
@@ -2140,14 +2277,15 @@ requirements:
         source_clauses:
           - { start: 159, end: 206, digest: "sha256:31a9af35cd3f0461ae7dd94a5961dd658229933455ce199046f5f4da60c9fa20", occurrences: 1 }
         required_variants:
-          - "集合に追加・削除できるか"
+          - id: v-962633cd09
+            description_ja: "集合に追加・削除できるか"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:ffc080ebf21f426307cb57c07ddada3ab7556e867364be1152f79f1ea7d89282"
+          obligation_digest: "sha256:450d200638347f470da7883be7f4284479d19e6e15ffaf5e2e9893946d232623"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-ALG08"
@@ -2166,7 +2304,8 @@ requirements:
           - { start: 329, end: 385, digest: "sha256:645b4323254d4d7c246d77a784da661a613adaec96f72fe5c4a64551224f4789", occurrences: 1 }
           - { start: 400, end: 449, digest: "sha256:94d25a2a6e8dac4c23f1cc1d69d506eb60ccde779275f52eeaf68d174bc5fcc1", occurrences: 1 }
         required_variants:
-          - "既定設定のまま MD5 署名 / RSA-1.5 鍵輸送を送り、拒否されるか"
+          - id: v-23c9442d8d
+            description_ja: "既定設定のまま MD5 署名 / RSA-1.5 鍵輸送を送り、拒否されるか"
         notes_ja: "既定で無効でなくても FAIL ではない（RECOMMENDED → WARNING）。"
         authored_by: samlier-g1-builder
         review:
@@ -2174,7 +2313,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:f8eaf0f2eb27b74e383f6c1359ff83b55f1b5aedf102cd84e102f7afd7850da5"
+          obligation_digest: "sha256:727ca17a514d7cc9664ea4b28d6f4dd293be1807809677a869532eb3c7d84b4d"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-ALG08"
@@ -2198,11 +2337,16 @@ requirements:
         source_clauses:
           - { start: 0, end: 201, digest: "sha256:f215d50e93dbd8525cba993bcde2898b66d4851e159b5158add15c8d32f7ef07", occurrences: 1 }
         required_variants:
-          - "URN 形式の Name"
-          - "長い OID"
-          - "非 ASCII を含む Name"
-          - "未知の NameFormat URI"
-          - "NameFormat 省略"
+          - id: v-d6466e71fe
+            description_ja: "URN 形式の Name"
+          - id: v-04a0e9cdb2
+            description_ja: "長い OID"
+          - id: v-9dbdb5fb73
+            description_ja: "非 ASCII を含む Name"
+          - id: v-44c159123b
+            description_ja: "未知の NameFormat URI"
+          - id: v-e9ef37aaf5
+            description_ja: "NameFormat 省略"
         controls:
           - "属性が届いたことの確認は ATTESTED。まず『エラーにならないこと』を自動判定する"
         authored_by: samlier-g1-builder
@@ -2211,7 +2355,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:88c12991c77ae67b0d2c38e9f6ce651afefa4590246142f175af54df4328744f"
+          obligation_digest: "sha256:5b7c1bf07cd2eb3a274e61136930670be016e6f439ce94b7178756254a4a8412"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SP01"
@@ -2235,16 +2379,19 @@ requirements:
         source_clauses:
           - { start: 0, end: 241, digest: "sha256:ab4988e767413ebb98c11a76a96e2a53c5fe5b011581f6212c808817a91335b7", occurrences: 1 }
         required_variants:
-          - "単純テキスト値"
-          - "空文字列の値"
-          - "空白のみの値"
+          - id: v-7acd5d1463
+            description_ja: "単純テキスト値"
+          - id: v-5d403d4d3f
+            description_ja: "空文字列の値"
+          - id: v-208bc98d2b
+            description_ja: "空白のみの値"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:753ed09a4dc8431ef6135021cd44f6c2f676478658c0271a79567d3071c5f6f8"
+          obligation_digest: "sha256:c4656dd5eb437ffaca3a8c0fcf5fc351a402b3e6d6257845eb9504253183c35f"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SP02"
@@ -2260,8 +2407,10 @@ requirements:
         source_clauses:
           - { start: 285, end: 363, digest: "sha256:6e6c5dcfbf2c085920ddc56ec5becea23a362e6df5ec3ea7a61e62a2607fee3a", occurrences: 1 }
         required_variants:
-          - "xsi:type なしの AttributeValue"
-          - "xsi:type=xs:string ありの AttributeValue（対照）"
+          - id: v-5c8b4aadc5
+            description_ja: "xsi:type なしの AttributeValue"
+          - id: v-69af28b725
+            description_ja: "xsi:type=xs:string ありの AttributeValue（対照）"
         controls:
           - "xsi:type あり版が動くことを対照に置き、なし版だけ落ちる実装を検出する"
         authored_by: samlier-g1-builder
@@ -2270,7 +2419,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:bf0f188d39acd7ea470bb44c6ff8bdb734a05277fd7317e3cf050ace5963f83a"
+          obligation_digest: "sha256:edcbdde8b080179f3792e0babf6c36b00000f026bce1a698f8218dace4aeb98c"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SP02"
@@ -2286,7 +2435,8 @@ requirements:
         source_clauses:
           - { start: 242, end: 284, digest: "sha256:52cf69ff062ab38d5321c0d183f625a3cb4fb0716925876acd775c19d011f8fd", occurrences: 1 }
         required_variants:
-          - "入れ子要素を含む AttributeValue を送り、対応状況を情報として記録"
+          - id: v-c0095509d9
+            description_ja: "入れ子要素を含む AttributeValue を送り、対応状況を情報として記録"
         controls:
           - "未対応は NOT_SUPPORTED であって違反ではない"
         authored_by: samlier-g1-builder
@@ -2295,7 +2445,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:bfcd5f2d7565dbbef3907690d00fc0bc60439c1b69d4852185494a9238eeec82"
+          obligation_digest: "sha256:73a9f26672dadd371bc1d520812bc3b2f3e9668923b09ccaa98a3951d4d4129a"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SP02"
@@ -2320,14 +2470,15 @@ requirements:
         source_clauses:
           - { start: 0, end: 116, digest: "sha256:765325dd41015fa17f906163ed4eaded0b1d702b11a854e6578d64c12593f0b3", occurrences: 1 }
         required_variants:
-          - "NameIDPolicy なしで発行させ、受信した AuthnRequest を静的検査"
+          - id: v-35158ec9f4
+            description_ja: "NameIDPolicy なしで発行させ、受信した AuthnRequest を静的検査"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:565ea601552a58684277e0d0ab0eff1a850375aae70acc21dd90677020470d87"
+          obligation_digest: "sha256:23221936486abdc1ad4514ff5d1b5878dd75001e70ed822dce8ba0176c13d0a0"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SP03"
@@ -2344,14 +2495,15 @@ requirements:
         source_clauses:
           - { start: 117, end: 180, digest: "sha256:338191d9155677eda11e1602cb53c8eb2ac058ee9469737d229bdcb9ff9d7ac7", occurrences: 1 }
         required_variants:
-          - "NameIDPolicy あり・Format なしで発行させる"
+          - id: v-48a61e4719
+            description_ja: "NameIDPolicy あり・Format なしで発行させる"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:c9b794f448ace3afe844c581fba2acf724ee0352735e06d1b726e77ce576221b"
+          obligation_digest: "sha256:315de9a80629d2a51f87d1c77e140226f2874e2dde9cb49f31ec6585fdc9cbe1"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SP03"
@@ -2380,7 +2532,8 @@ requirements:
         source_clauses:
           - { start: 0, end: 75, digest: "sha256:ce8bdccd17ea2f66dcbdaaf5b60241115ca8b6c3fb1bc9eb3f4cc468d61dad1b", occurrences: 1 }
         required_variants:
-          - "Suite が Discovery Service を演じ、リダイレクト規約に従うか"
+          - id: v-2d253b6a20
+            description_ja: "Suite が Discovery Service を演じ、リダイレクト規約に従うか"
         notes_ja: "非規範の注記により、実際の discovery インタフェースの実装までは要求されない（単純なリダイレクト規約への対応のみ）。『discovery mechanisms SHOULD use SAML metadata…』もイタリック＝非規範なので義務にしない。"
         authored_by: samlier-g1-builder
         review:
@@ -2388,7 +2541,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:70fd7818a8f6983a3b67c9b43fbbb9424add60813479be3d3bcb2852452675f1"
+          obligation_digest: "sha256:cd9f1d3723fa2247e951215cf68c3a5014f79b557382ca621ac5cb8dc65c1a68"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SP04"
@@ -2414,14 +2567,15 @@ requirements:
         source_clauses:
           - { start: 0, end: 118, digest: "sha256:f4a51102284643af03a4ce21bdf969bee706f4bf326ebeeda3b75654678b30b0", occurrences: 1 }
         required_variants:
-          - "secondary_peer で 2 つ目の Test IdP を登録"
+          - id: v-0b49c1fe36
+            description_ja: "secondary_peer で 2 つ目の Test IdP を登録"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:07442ca77077e260f2aeb37bf2ee460e14179b87c817ef854e3d3024a6af12f3"
+          obligation_digest: "sha256:579c6fca6ac521f4a5fd32ee475d341a6f2d65c2157616f3e35b34c6753a90ea"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SP05"
@@ -2438,8 +2592,10 @@ requirements:
         source_clauses:
           - { start: 128, end: 267, digest: "sha256:2060c0fafbab90c465b918fb136a3e0fa6528173cf30b4ce8ba1025fb49659ac", occurrences: 1 }
         required_variants:
-          - "同一の保護リソース R に IdP A でログイン"
-          - "セッション消去後、同じ R に IdP B でログイン"
+          - id: v-f495473cb6
+            description_ja: "同一の保護リソース R に IdP A でログイン"
+          - id: v-48c2d01f83
+            description_ja: "セッション消去後、同じ R に IdP B でログイン"
         controls:
           - "同一 R での対照が必須。IdP を 2 つ登録するだけでは、IdP ごとに別 URL を要求する実装も通ってしまう"
         authored_by: samlier-g1-builder
@@ -2448,7 +2604,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:9acd30a08629c4e6e8b47cc770f5e56606aa69cffe00d702aaf244015597c4e2"
+          obligation_digest: "sha256:8b375373cf0d2ad328345c4e7a03cdd70a86fe2c26c8b4fa1875d1618f8fbbdb"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SP05"
@@ -2473,14 +2629,15 @@ requirements:
         source_clauses:
           - { start: 0, end: 161, digest: "sha256:740dfcdcf7a5c89de9b1074ecd4b578ae59c6bf2a8c034a04eb5a7172c204675", occurrences: 1 }
         required_variants:
-          - "Comparison=exact で発行させ静的検査"
+          - id: v-a18670ad0d
+            description_ja: "Comparison=exact で発行させ静的検査"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:e54d6cbb7804a5a629190005abb430b0bd42fe698755624d53c1f02dc9715ff4"
+          obligation_digest: "sha256:18f604cbc126e660689afeeaa66192ad43a1756e2a0e6f4743a055664db3ae84"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SP06"
@@ -2504,8 +2661,10 @@ requirements:
         source_clauses:
           - { start: 162, end: 217, digest: "sha256:3e81e23f3e30f1a994884fe895fa1bf0897fce6ba93d6fd7d7fc9830609f85c0", occurrences: 1 }
         required_variants:
-          - "ClassRef 1 個"
-          - "ClassRef 3 個"
+          - id: v-798067c58c
+            description_ja: "ClassRef 1 個"
+          - id: v-f2deda4710
+            description_ja: "ClassRef 3 個"
         controls:
           - "0 個は SAML Core 上不正（ClassRef/DeclRef は 1 個以上）なので能力テストにしない"
         authored_by: samlier-g1-builder
@@ -2514,7 +2673,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:531097fde7553749bd08b5d2f657646066012bf4848ab225e4c523bef001293c"
+          obligation_digest: "sha256:a2171521ee4ab7aa17010acb837908757345b9ed5524e31fb9924f323e34c6db"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SP06"
@@ -2539,9 +2698,12 @@ requirements:
         source_clauses:
           - { start: 0, end: 129, digest: "sha256:10ef0528b7e84676d8728543effaac5917c530531bdaf5c4136866e93720c56a", occurrences: 1 }
         required_variants:
-          - "対象に特定 ClassRef のみ受理するポリシーを設定"
-          - "一致する ClassRef → 受理"
-          - "一致しない ClassRef → 拒否"
+          - id: v-52f3e6f4c1
+            description_ja: "対象に特定 ClassRef のみ受理するポリシーを設定"
+          - id: v-6ca01ef5e0
+            description_ja: "一致する ClassRef → 受理"
+          - id: v-c57c50cf02
+            description_ja: "一致しない ClassRef → 拒否"
         controls:
           - "受理と拒否を同一設定下で対にする。拒否だけでは全 Assertion を拒否する実装も通る"
         authored_by: samlier-g1-builder
@@ -2550,7 +2712,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:875570c67aae5e7ff1a453b87a08166867759811ef739202a1a542393ff6d23f"
+          obligation_digest: "sha256:165de25ebf4e875ff479dca1dfdee162cf65e2a0eb035e718d855000e396af3a"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SP07"
@@ -2574,14 +2736,15 @@ requirements:
         source_clauses:
           - { start: 0, end: 80, digest: "sha256:af9bf4b2235e59213f8c6809eae77cb8c5f6200d6edbc963493dd4631de8a754", occurrences: 1 }
         required_variants:
-          - "1 番目の暗号鍵で暗号化 → 復号される"
+          - id: v-082506bb6d
+            description_ja: "1 番目の暗号鍵で暗号化 → 復号される"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:7599265e24dce2e8e24785cb125c0709230905c5d76b97949eab805e80c30102"
+          obligation_digest: "sha256:502a5bb40b7b6a1283b2d44014e3b23576dd69c7bc039a404649f94baec82e91"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SP08"
@@ -2598,14 +2761,15 @@ requirements:
         source_clauses:
           - { start: 121, end: 193, digest: "sha256:519f9396b701aa19a072a5204a8f9ceddd7b13f93d40796700d6036c9a28d0ed", occurrences: 1 }
         required_variants:
-          - "復号鍵を 2 つ設定できるか"
+          - id: v-518b494b2d
+            description_ja: "復号鍵を 2 つ設定できるか"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:06f1f6029ebc8e8f8134e021f2dfa1b416cb99c8d0ad41b6d3d8223d80ead8db"
+          obligation_digest: "sha256:d3f3e9c307c291e43d7917c9e37acc41cf051a3acc6b6c8b97f047b53d5fa141"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SP08"
@@ -2621,15 +2785,17 @@ requirements:
         source_clauses:
           - { start: 223, end: 394, digest: "sha256:b37e7cb5f264ea24e0e6894d1ea53929c6df941f2636d5f7c6645c08b6c1a380", occurrences: 1 }
         required_variants:
-          - "2 番目の鍵で暗号化 → 復号される"
-          - "登録外の鍵で暗号化 → 失敗する（対照）"
+          - id: v-788fb439a1
+            description_ja: "2 番目の鍵で暗号化 → 復号される"
+          - id: v-66ae839dbe
+            description_ja: "登録外の鍵で暗号化 → 失敗する（対照）"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:853b28e30498c4dc972b8371b1e431c5a03a11d84480994e5c7ccef4d4bd849e"
+          obligation_digest: "sha256:a167350486cd694dd93cc07f95c4b2379c9527c821ef8d5caf6b7a38c1aed997"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SP08"
@@ -2655,7 +2821,8 @@ requirements:
         source_clauses:
           - { start: 0, end: 141, digest: "sha256:87fc6164d0a768ea97befdaa8da85d573030654d0d14dffd6d4cb8e4b98dc012", occurrences: 1 }
         required_variants:
-          - "保護リソース URL に未認証でアクセス → SSO 後に元 URL に到達"
+          - id: v-0d2d4a8a02
+            description_ja: "保護リソース URL に未認証でアクセス → SSO 後に元 URL に到達"
         controls:
           - "非規範の注記により、unsolicited response（IdP-initiated SSO）はこの要件の代替にならない"
         authored_by: samlier-g1-builder
@@ -2664,7 +2831,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:c54ac4f0223a443a05d80a55842dcc9c4a540756ed088eaec26eea48b4f9bfbd"
+          obligation_digest: "sha256:0491c2cecfae826b6a2596318fd9c161f1dea0f3dcbc507c34314f27e7adb5d5"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SP09"
@@ -2680,14 +2847,15 @@ requirements:
         source_clauses:
           - { start: 332, end: 531, digest: "sha256:ad457a9b3c34f08a034b2c5bd6164eaad6558c40b64f88a0705788dbcfdb4386", occurrences: 1 }
         required_variants:
-          - "保護リソースへ POST → SSO → ボディが保存されているか"
+          - id: v-d289956d82
+            description_ja: "保護リソースへ POST → SSO → ボディが保存されているか"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:b8ce788789f74c407eecff2f3874ea18cc1f08e781a55e6c5bd9a84fa042f4ed"
+          obligation_digest: "sha256:ecbbd702c406d8dbee791fc822c7f64fdd6d4cbcf3b2748ebb0d1b4e867023b8"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SP09"
@@ -2711,16 +2879,19 @@ requirements:
         source_clauses:
           - { start: 0, end: 114, digest: "sha256:40c0440d4c6dab98db6b80e3efd9b7f7a5ca5897fa7227d677b8570c28431e81", occurrences: 1 }
         required_variants:
-          - "未知属性 1 個"
-          - "未知属性 50 個"
-          - "未知属性 + 既知属性の混在"
+          - id: v-10e3469c40
+            description_ja: "未知属性 1 個"
+          - id: v-5c38531268
+            description_ja: "未知属性 50 個"
+          - id: v-e04eba6529
+            description_ja: "未知属性 + 既知属性の混在"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:f290ceda65fe69b66ad44f4bef1299dee7c611859c1f769a21c1345b44a366aa"
+          obligation_digest: "sha256:d1dcc2b613eca34282544c9b590d5174c6f3015d94b74215a171181262e426d0"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SP10"
@@ -2744,9 +2915,12 @@ requirements:
         source_clauses:
           - { start: 0, end: 111, digest: "sha256:468f4e59dbbac654f5e70553f71e3bad630be06741511bf0b45cbbbe56b5ce6b", occurrences: 1 }
         required_variants:
-          - "同じ Name で FriendlyName を変える"
-          - "FriendlyName を省く"
-          - "FriendlyName のみ一致し Name が異なる（受理してはならない）"
+          - id: v-416a8f684d
+            description_ja: "同じ Name で FriendlyName を変える"
+          - id: v-941efe2090
+            description_ja: "FriendlyName を省く"
+          - id: v-7497940c94
+            description_ja: "FriendlyName のみ一致し Name が異なる（受理してはならない）"
         controls:
           - "FriendlyName だけが一致するケースを対照に置く"
         authored_by: samlier-g1-builder
@@ -2755,7 +2929,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:0f337968ff71bbba556a79f675b3497a15271e5de93e87edecb931f3953e7d53"
+          obligation_digest: "sha256:adf621b4f7c391e0d158acd3834353ed04576538356178ca375e6aef9fbc8ea6"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SP11"
@@ -2818,15 +2992,17 @@ requirements:
         source_clauses:
           - { start: 0, end: 87, digest: "sha256:f07ff14e90c13ad34541c7a87a1338a60aa4b95d6804e342b791566c724aaaff", occurrences: 1 }
         required_variants:
-          - "拒否設定にしたうえで完全未署名 Response → 拒否されるか"
-          - "署名済み Response → 受理される（対照）"
+          - id: v-89b0f5fe25
+            description_ja: "拒否設定にしたうえで完全未署名 Response → 拒否されるか"
+          - id: v-a2d2bada77
+            description_ja: "署名済み Response → 受理される（対照）"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:c315c894d3e0cc6923de68ae832db1950f88dfc0633aa1ec28f759f720a12cfe"
+          obligation_digest: "sha256:f2a811d3df48d9c704be409f612f20f140edb53999e129c683014270f51d0a45"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SP13"
@@ -2842,7 +3018,8 @@ requirements:
         source_clauses:
           - { start: 88, end: 115, digest: "sha256:950fb1309efc55acc953412091469e4de7e2edd4a5666d834e12830e103a46f0", occurrences: 1 }
         required_variants:
-          - "既定設定のまま未署名 Response を送る"
+          - id: v-7cfc7018d3
+            description_ja: "既定設定のまま未署名 Response を送る"
         controls:
           - "既定で受理していても FAIL ではなく WARNING（SHOULD）。セキュリティ上重要なので UI では目立たせる"
         authored_by: samlier-g1-builder
@@ -2851,7 +3028,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:0f59919efe9c86150c644bb1e7591032d34ca06c3c55988ba3ab7152b0856e5d"
+          obligation_digest: "sha256:9246e00e020219029845aca652cea9b703aa101b8caceac3f5512024771e2036"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SP13"
@@ -2879,14 +3056,15 @@ requirements:
         source_clauses:
           - { start: 0, end: 109, digest: "sha256:284c8f09360551d5a9db48439f6d40890b67152fcf6a716c6885b468678edb80", occurrences: 1 }
         required_variants:
-          - "SLO 正常系"
+          - id: v-8466714abc
+            description_ja: "SLO 正常系"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:6612d365d7ddf03e7f8f7779c049407497a364e24e7d8db759abaf32fe5a1592"
+          obligation_digest: "sha256:b945a1a2248dd9035705691d48bc3a16ae91dc6870d816420b940b7f7240d926"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SP14"
@@ -2904,14 +3082,15 @@ requirements:
         source_clauses:
           - { start: 110, end: 207, digest: "sha256:9c42b647597d3974de8311630422ae935ba607d70d151e60b12bdc9d216ca47c", occurrences: 1 }
         required_variants:
-          - "SP のログアウト操作から LogoutRequest が Suite に届くか"
+          - id: v-1176298034
+            description_ja: "SP のログアウト操作から LogoutRequest が Suite に届くか"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:1fe131642d2f760af6d16104cb44e0a8a178c3fd5180cadc43dade3f974bbedc"
+          obligation_digest: "sha256:f38a6b38191d10c13f4ee0beb7cbc5f7272eb32a4855673742fcefc6b9b42648"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SP14"
@@ -2927,14 +3106,15 @@ requirements:
         source_clauses:
           - { start: 208, end: 279, digest: "sha256:9a27ae08bafe23cee5a5a889c6650da8efac7eb8091006d2414fe0ef74c4f582", occurrences: 1 }
         required_variants:
-          - "Suite から LogoutRequest を送る（未対応は NOT_SUPPORTED）"
+          - id: v-169ca001ac
+            description_ja: "Suite から LogoutRequest を送る（未対応は NOT_SUPPORTED）"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:0e938c5cb8d07f1d9ff5650adcefb8995c846cd4abdb1c84311e9073b7195405"
+          obligation_digest: "sha256:16e8938626df2ce46fa9c4d122200be900e2ab77fe81486c946f961954199d50"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SP14"
@@ -2960,8 +3140,10 @@ requirements:
         source_clauses:
           - { start: 0, end: 139, digest: "sha256:c44ab5ee19a92d712fb9073f23334d5e54a323b81091b04597fe077a8c06af67", occurrences: 1 }
         required_variants:
-          - "LogoutRequest を Redirect で送受信"
-          - "LogoutResponse を Redirect で送受信"
+          - id: v-e9405d0d3f
+            description_ja: "LogoutRequest を Redirect で送受信"
+          - id: v-cfe3e706a4
+            description_ja: "LogoutResponse を Redirect で送受信"
         controls:
           - "要求と応答を個別 variant にする"
         authored_by: samlier-g1-builder
@@ -2970,7 +3152,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:9639a2935735168446b24f2838c6f40dd93e67fec672af9e04bc9105e9c6082f"
+          obligation_digest: "sha256:9f1f57c424b69869c154676ab57450d3a0d7aba8558ac4cf01b890e2fd7d6b80"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SP15"
@@ -2996,14 +3178,15 @@ requirements:
         source_clauses:
           - { start: 0, end: 140, digest: "sha256:c80bcbdb664f8bc57f28c286e5d23eeab7f455524760c832c5ffe8bedfc56e67", occurrences: 1 }
         required_variants:
-          - "1 番目の鍵で暗号化した EncryptedID"
+          - id: v-75c52f0d6a
+            description_ja: "1 番目の鍵で暗号化した EncryptedID"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:fbf2cfbe3422d3c3a23d805f43c24718fc63e92f674c013e7babb3ace139c83a"
+          obligation_digest: "sha256:17618afe574804c5d3443d3abf6b408c09adcdc4e94305779c4a7a0e21775fd0"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SP16"
@@ -3022,14 +3205,15 @@ requirements:
         source_clauses:
           - { start: 141, end: 338, digest: "sha256:90fb97968915075576889dd4d4d858c7785e7dbaf7cf4e64c96dcf7f1f5e3137", occurrences: 1 }
         required_variants:
-          - "鍵を 2 つ設定できるか"
+          - id: v-4d5cef8e69
+            description_ja: "鍵を 2 つ設定できるか"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:aa2cdd2be5a9b29dba3e845b4550468546372c573cc341e312e99778d91d4481"
+          obligation_digest: "sha256:0795605e87e7e0cf93b264c8a4f97251887655920c47b239fd0c607d5d7c6feb"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SP16"
@@ -3047,15 +3231,17 @@ requirements:
         source_clauses:
           - { start: 362, end: 466, digest: "sha256:f51f26e9ee37ff8dbd5cec497837579d70f176527db03a5bb85ca8bef3e4e378", occurrences: 1 }
         required_variants:
-          - "2 番目の鍵で暗号化 → 復号される"
-          - "登録外の鍵 → 失敗（対照）"
+          - id: v-67f2374442
+            description_ja: "2 番目の鍵で暗号化 → 復号される"
+          - id: v-fa708ddb31
+            description_ja: "登録外の鍵 → 失敗（対照）"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:ff5857e26c754f30c8ca8f1e05ebc4502f9098b62a523ccdaaa8d3c0e6e4e87f"
+          obligation_digest: "sha256:2aae1fb27cf743a36f067c2a079425b9a6649bc502716308a26efe7699aadbdb"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SP16"
@@ -3089,8 +3275,10 @@ requirements:
         source_clauses:
           - { start: 0, end: 314, digest: "sha256:d18728f041da156b3e148c600a802c7324121c80d8f354e3fedeeaadc1fe8f46", occurrences: 1 }
         required_variants:
-          - "md:SingleLogoutService（バインディングと Location）"
-          - "識別子を暗号化する場合の md:KeyDescriptor use=encryption（アルゴリズム・設定・公開鍵）"
+          - id: v-829a7cddfb
+            description_ja: "md:SingleLogoutService（バインディングと Location）"
+          - id: v-dc5f56916e
+            description_ja: "識別子を暗号化する場合の md:KeyDescriptor use=encryption（アルゴリズム・設定・公開鍵）"
         controls:
           - "2 要素のみ。SLO エンドポイントへの追従だけで PASS にしない"
         notes_ja: "SAML2Prof 4.4.5（saml-profiles-2.0-os, sha256:5df9b874…）を直接読んで列挙した。4.4.5 は SingleLogoutService と、暗号化時の encryption KeyDescriptor の 2 件のみ。"
@@ -3100,7 +3288,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:76b60cb3921bc50a10f028fbcabfe9be51c95cb4e6ee836d205cc6aeba38b320"
+          obligation_digest: "sha256:d752ef697f3a851603ed0ef55fa723213900b2eb2bfc5ac39bacd752161b389f"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SP17"
@@ -3125,9 +3313,12 @@ requirements:
         source_clauses:
           - { start: 0, end: 201, digest: "sha256:dfe610974de94215ffa4ed083906daee6d13afa0aa369aae972360371ad2e685", occurrences: 1 }
         required_variants:
-          - "URN 形式の Name を定義"
-          - "非 URI 形式の任意文字列 Name"
-          - "未知の NameFormat URI"
+          - id: v-5c126b0c6f
+            description_ja: "URN 形式の Name を定義"
+          - id: v-5681638198
+            description_ja: "非 URI 形式の任意文字列 Name"
+          - id: v-a47d3e67c9
+            description_ja: "未知の NameFormat URI"
         controls:
           - "受信した属性の Name / NameFormat を Suite が静的検査できる"
         authored_by: samlier-g1-builder
@@ -3136,7 +3327,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:d490ef65407faf0adacbfa98f9e1dda4910e970497e11340dbae7cbda59cbabd"
+          obligation_digest: "sha256:1bf7dbcc40bdf6d29141eb7de4042cfcfa86a14cdaa076cf1e7c71475cc5f776"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-IDP01"
@@ -3161,7 +3352,8 @@ requirements:
         source_clauses:
           - { start: 0, end: 183, digest: "sha256:920a5795b54159051d6de3531493dd3e7759d16ffd440ce937af10cbe7a1d957", occurrences: 1 }
         required_variants:
-          - "secondary_peer の 2 つの entityID に異なる属性リリース設定 → 返る属性集合が異なるか"
+          - id: v-a803b7b9eb
+            description_ja: "secondary_peer の 2 つの entityID に異なる属性リリース設定 → 返る属性集合が異なるか"
         controls:
           - "2 つの entityID の差で自動判定できる。1 つでは判断根拠が entityID かどうか分からない"
         authored_by: samlier-g1-builder
@@ -3170,7 +3362,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:6b3cd8e552404bcb5a30db90669c265752336c874521b6823b0c518169b9a530"
+          obligation_digest: "sha256:bf5569c97ea13f66d634395a648e37695e14ab384f3fedc8d91a64bc3fddaf2c"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-IDP02"
@@ -3195,8 +3387,10 @@ requirements:
         source_clauses:
           - { start: 0, end: 259, digest: "sha256:f70fbcd3d70f6ff3354da16aea065e4493516fce6ecfa59c90fcfbc1b5433cec", occurrences: 1 }
         required_variants:
-          - "EntityAttributes あり variant"
-          - "なし variant → 返る属性集合が異なるか"
+          - id: v-26b638cde7
+            description_ja: "EntityAttributes あり variant"
+          - id: v-eba09e35be
+            description_ja: "なし variant → 返る属性集合が異なるか"
         controls:
           - "有無の対照が必須"
         authored_by: samlier-g1-builder
@@ -3205,7 +3399,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:e471fe7828bb53262f865e3fb0b50e76fd9bcbdc292206a0060b4ed0af282940"
+          obligation_digest: "sha256:eca5fac981251537791a6dfbbef1d57bfe21100dbdf635c078c230f9b5a29ed4"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-IDP03"
@@ -3231,8 +3425,10 @@ requirements:
         source_clauses:
           - { start: 0, end: 351, digest: "sha256:09a0490b28aa0466a80040f2385872f13c5bd17b824780466a36023cc263173f", occurrences: 1 }
         required_variants:
-          - "RequestedAttribute の有無"
-          - "isRequired=true / false の対照"
+          - id: v-b6e2acbe98
+            description_ja: "RequestedAttribute の有無"
+          - id: v-7f3389b80c
+            description_ja: "isRequired=true / false の対照"
         controls:
           - "原文は isRequired を『判断材料にできる能力』を要求するのみで、true なら必ずリリース等の結果は規定していない。対象側で isRequired により差が出るポリシーを設定させたうえで差を観測する"
         authored_by: samlier-g1-builder
@@ -3241,7 +3437,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:aa5c3e769e3323d0a7fd8a952be5aaf6234fef9bcd5582fa375f018a581d68d9"
+          obligation_digest: "sha256:3d88f851f54df0155bc5c5279985694c1cc88dccd67491a957160cf7a0c6acaf"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-IDP04"
@@ -3258,7 +3454,8 @@ requirements:
         source_clauses:
           - { start: 352, end: 553, digest: "sha256:1dfb85471b7a9aca11e9a1786ed66b34fe644f00689d1d035c0c42179b8556d4", occurrences: 1 }
         required_variants:
-          - "index=0 と index=1 の AttributeConsumingService を用意し、AuthnRequest の index を変えて返る属性集合が変わるか"
+          - id: v-5a322bc494
+            description_ja: "index=0 と index=1 の AttributeConsumingService を用意し、AuthnRequest の index を変えて返る属性集合が変わるか"
         controls:
           - "Suite 起点なので完全に自動判定できる"
         authored_by: samlier-g1-builder
@@ -3267,7 +3464,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:026fe6be22db80a23dd8e9de70881ed72c5ce98cada92b4f3e6bc47236327e62"
+          obligation_digest: "sha256:0477ac176d2b647cd7e188af5695ad9d7f40c9ce65c6cc783f41ef0b6beab51d"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-IDP04"
@@ -3298,9 +3495,12 @@ requirements:
         source_clauses:
           - { start: 0, end: 258, digest: "sha256:4b26a1ff778d0b0d10d1102c82d47774a30d9b61024ec533fd402afb1f09520f", occurrences: 1 }
         required_variants:
-          - "未知の NameIDPolicy/@Format → エラー Response"
-          - "満たせない RequestedAuthnContext → NoAuthnContext"
-          - "IsPassive でセッションなし → NoPassive"
+          - id: v-ec22175175
+            description_ja: "未知の NameIDPolicy/@Format → エラー Response"
+          - id: v-4ffc648dd6
+            description_ja: "満たせない RequestedAuthnContext → NoAuthnContext"
+          - id: v-b890c29154
+            description_ja: "IsPassive でセッションなし → NoPassive"
         controls:
           - "未登録 ACS URL を FAIL 条件に使ってはならない。その場合『acceptable location』が既知でなく、エラー Response を返さないことが原文で許される"
         notes_ja: "acceptability の基準は原文で形式化されておらず IdP のポリシー次第と明記されている。"
@@ -3310,7 +3510,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:c68bbbeaa5b10b5142ed29a294a856c65049c288ed548e0818411c1f9d9c3292"
+          obligation_digest: "sha256:3a1b7b1569605901235a73cf49e5c687147622aed24f7fc7f5b0d913bc3f9295"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-IDP05"
@@ -3339,7 +3539,8 @@ requirements:
         source_clauses:
           - { start: 0, end: 116, digest: "sha256:40cd2c53a3cb123504ac7e0a82122052a52c8fdf2e32649cb4d4a38d570e80d5", occurrences: 1 }
         required_variants:
-          - "セッション確立後に ForceAuthn=true → 新規認証が行われ AuthnInstant が更新される"
+          - id: v-e8ce359896
+            description_ja: "セッション確立後に ForceAuthn=true → 新規認証が行われ AuthnInstant が更新される"
         controls:
           - "SAML2Core が禁じるのは true のときに既存のセキュリティコンテキストに依拠すること。false / 省略時の自主的な再認証は禁止されていないので判定に使わず advisory に記録する"
         authored_by: samlier-g1-builder
@@ -3348,7 +3549,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:922e7827274bb197a0314c4e5f2e3ed7fd87bb002e384ed2e427d89d366bb6d5"
+          obligation_digest: "sha256:837bf277ff64d418d2569c51befa8d5990331b7b7e38ab48954796a0d7707181"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-IDP06"
@@ -3364,7 +3565,8 @@ requirements:
         source_clauses:
           - { start: 117, end: 271, digest: "sha256:928b3a562d85de85f08b31dbc6b0feed5a1de66f8572aea27eed4486e0f7ea69", occurrences: 1 }
         required_variants:
-          - "認証機構（フォーム / MFA / 証明書等）が ForceAuthn を参照できるかを申告"
+          - id: v-0f97f65957
+            description_ja: "認証機構（フォーム / MFA / 証明書等）が ForceAuthn を参照できるかを申告"
         notes_ja: "外部からは true 時の再認証としてしか観測できないため、機構側の到達性は ATTESTED。"
         authored_by: samlier-g1-builder
         review:
@@ -3372,7 +3574,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:e6e075f5e2ea70c7cd2ae33037621a9249f9775c4b7b14ac6e52c69c5528f088"
+          obligation_digest: "sha256:1e419bf7cc4a1ac922a120901adc261057351192087f4e9cbd74b6bedd09e02f"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-IDP06"
@@ -3399,8 +3601,10 @@ requirements:
         source_clauses:
           - { start: 0, end: 115, digest: "sha256:50adf1500e90078d332a3aa499622764cff2bfe7f62689e9699d3d6541ea16fe", occurrences: 1 }
         required_variants:
-          - "セッションあり + IsPassive=true → 無操作で Assertion"
-          - "セッションなし + IsPassive=true → NoPassive エラー"
+          - id: v-bd1d99871b
+            description_ja: "セッションあり + IsPassive=true → 無操作で Assertion"
+          - id: v-fd7a3c1375
+            description_ja: "セッションなし + IsPassive=true → NoPassive エラー"
         controls:
           - "2 状態の対照が必須。片方だけでは対応を証明できない"
         authored_by: samlier-g1-builder
@@ -3409,7 +3613,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:d9d89fc948d518fa03e6faaa39ac0cf9330876faa642a65c9cac8d60d06cecfd"
+          obligation_digest: "sha256:925bdd64b86316e2464fad7faab3a25c2488ded51ec9650f3d22a6f292200e3c"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-IDP07"
@@ -3440,8 +3644,10 @@ requirements:
         source_clauses:
           - { start: 0, end: 148, digest: "sha256:a569f8d22b05c66f5a9f66e7685f08f0ee1c544d6929904f85bbdc840ba94f3d", occurrences: 1 }
         required_variants:
-          - "満たせる ClassRef → 一致した AuthnContextClassRef が返る"
-          - "満たせない ClassRef → NoAuthnContext エラー"
+          - id: v-c57e1f72aa
+            description_ja: "満たせる ClassRef → 一致した AuthnContextClassRef が返る"
+          - id: v-3c117e99ca
+            description_ja: "満たせない ClassRef → NoAuthnContext エラー"
         controls:
           - "満たせる／満たせないの対照が必須"
         authored_by: samlier-g1-builder
@@ -3450,7 +3656,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:fd65fc183c0b4d40a7772d29fb933cfe2e83705211bb09e50e6b0be7f8e1aeaf"
+          obligation_digest: "sha256:fee963b703bb1a197344397207e1097f47b7245d534a449bc0ec846dd2bf7104"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-IDP08"
@@ -3475,14 +3681,15 @@ requirements:
         source_clauses:
           - { start: 0, end: 57, digest: "sha256:08222925593057ee6152040f64138f483f453d228a525da38775ce21e1b89e7a", occurrences: 1 }
         required_variants:
-          - "Suite メタデータに暗号鍵を載せた状態で EncryptedAssertion が返るか"
+          - id: v-7b182fa6f2
+            description_ja: "Suite メタデータに暗号鍵を載せた状態で EncryptedAssertion が返るか"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:823a06c63826c82ea6d4995c31b6b57be38921bb04fe4c1f796eefe2fe9a558c"
+          obligation_digest: "sha256:d7a795be73e6d6c817e1b33dc8618612ded34a5358045e76ba28643165afd5db"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-IDP09"
@@ -3498,14 +3705,15 @@ requirements:
         source_clauses:
           - { start: 58, end: 123, digest: "sha256:8c57da38ea1a4022d4a5993e6f42477c82056f7e964c1a3e69b4181b3f60c1b3", occurrences: 1 }
         required_variants:
-          - "EncryptedID / EncryptedAttribute が返るかを情報として記録"
+          - id: v-9b90c4f9c2
+            description_ja: "EncryptedID / EncryptedAttribute が返るかを情報として記録"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:ba084afc9e42e00365687a70f802f6c02769792b91420b36c6f3e697756cd006"
+          obligation_digest: "sha256:fa23eebe46576c8538b52e42cd7398f13720b023b4dce184a2d8dfc7bcddc7cc"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-IDP09"
@@ -3532,17 +3740,21 @@ requirements:
         source_clauses:
           - { start: 0, end: 124, digest: "sha256:02dce7a982bb5807e9c8dbb4bbc56b7a65316196cdec2ad510364039aefdcd7f", occurrences: 1 }
         required_variants:
-          - "Format 指定"
-          - "AllowCreate=true / false"
-          - "SPNameQualifier 指定"
-          - "要求と異なる Format を返さないこと（対照）"
+          - id: v-27e8202f84
+            description_ja: "Format 指定"
+          - id: v-0f374fddd6
+            description_ja: "AllowCreate=true / false"
+          - id: v-5cd136abd8
+            description_ja: "SPNameQualifier 指定"
+          - id: v-54bc462a9c
+            description_ja: "要求と異なる Format を返さないこと（対照）"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:595cf7dbac8ad9660a049fbbf0d9999a54b33cf0aee79c6c9f50263414eef935"
+          obligation_digest: "sha256:0e961d1a53bbc67e03798fe14be38fa4b47f75d5007dc5bb81efee862bade801"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-IDP10"
@@ -3567,14 +3779,15 @@ requirements:
         source_clauses:
           - { start: 0, end: 137, digest: "sha256:83f67b30db0def5fa3c81eb24627ff30af7e8af795dfa2d811f79f355f03a408", occurrences: 1 }
         required_variants:
-          - "NameID を出さない設定で SSO → Subject に NameID がないこと"
+          - id: v-5609d8641f
+            description_ja: "NameID を出さない設定で SSO → Subject に NameID がないこと"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:ab8bc43ea63c38f5584a5efe90f1497ea99d49d91e691afc18b04d920f229fdc"
+          obligation_digest: "sha256:0aca973daebb1cf316c86bf1d5404b6f612d6d0f7950119277d6ba7b34728be8"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-IDP11"
@@ -3601,9 +3814,12 @@ requirements:
         source_clauses:
           - { start: 0, end: 247, digest: "sha256:3662ba485eda41f20e86103fc476f358089d2a2bd9241ccee7b3730bb85967aa", occurrences: 1 }
         required_variants:
-          - "Index 指定 → 対応する ACS に返る"
-          - "URL + Binding 指定 → そこに返る"
-          - "メタデータにない ACS URL 指定 → 拒否される（対照。IIP-IDP05 の acceptable location と整合）"
+          - id: v-4876c65668
+            description_ja: "Index 指定 → 対応する ACS に返る"
+          - id: v-1d14cad825
+            description_ja: "URL + Binding 指定 → そこに返る"
+          - id: v-38d1449975
+            description_ja: "メタデータにない ACS URL 指定 → 拒否される（対照。IIP-IDP05 の acceptable location と整合）"
         controls:
           - "3 属性を個別 variant にする"
         authored_by: samlier-g1-builder
@@ -3612,7 +3828,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:9ba5b5054f0bdc3a1fc750342f03fe2c50cab28502c9a3a90d1c66fb391415f0"
+          obligation_digest: "sha256:f3349f1b27e345330708d5ad6bb1dd1edac2c0f41e224b2e3a6f783bc692e1be"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-IDP12"
@@ -3641,7 +3857,8 @@ requirements:
         source_clauses:
           - { start: 0, end: 102, digest: "sha256:01ca8c2a74c033d17d27fc4eddce3d36809cbce425d66d275261843d2e08b497", occurrences: 1 }
         required_variants:
-          - "PAOS ACS を含む Suite メタデータで ECP 往復が成立する"
+          - id: v-da292a062f
+            description_ja: "PAOS ACS を含む Suite メタデータで ECP 往復が成立する"
         notes_ja: "原文末尾に『This requirement does not apply to token translation Proxies.』の適用除外がある。また『excepting IIP-SSO02 and IIP-SSO03』により ECP 実行時は Redirect/POST バインディング要件が適用されない。"
         authored_by: samlier-g1-builder
         review:
@@ -3649,7 +3866,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:335a93d4f0766e2675979970daecbb954b8f5e36426377fde1c2ba8966edc29e"
+          obligation_digest: "sha256:23ec1ac6f607c8ec82d15f483ebc5d088a5a128b6fd5aaef1d497fc4c8dcc570"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-IDP13"
@@ -3670,7 +3887,8 @@ requirements:
         source_clauses:
           - { start: 103, end: 131, digest: "sha256:35392bd66ad54e54abbd420a78bdf8fc09e7552b1701ce7126fb3e9f1ac77beb", occurrences: 1 }
         required_variants:
-          - "完全準拠を主張するかを情報として記録（判定しない）"
+          - id: v-0e3292a3ad
+            description_ja: "完全準拠を主張するかを情報として記録（判定しない）"
         controls:
           - "完全準拠していないことを違反にしない。MUST なのは .c と .d のみ"
         authored_by: samlier-g1-builder
@@ -3679,7 +3897,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:3c0b295ea2ffb17595c8cc93a75455e719c4bdb85513663313089d89ad21c633"
+          obligation_digest: "sha256:a1ba8050ee67d6eb75ccd747a779ee89627b5cbf7b306ea48c480bdef56e4d12"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-IDP13"
@@ -3700,15 +3918,17 @@ requirements:
         source_clauses:
           - { start: 133, end: 195, digest: "sha256:01939572cebe26efefd8b65899f283dd537575b30ce0b3552aad5f907bad7fdc", occurrences: 1 }
         required_variants:
-          - "SubjectConfirmation/@Method=bearer であること"
-          - "@Recipient が Suite の PAOS ACS と一致すること"
+          - id: v-72ff8542a1
+            description_ja: "SubjectConfirmation/@Method=bearer であること"
+          - id: v-c320ccc42c
+            description_ja: "@Recipient が Suite の PAOS ACS と一致すること"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:c2302151199215d555c40f3cffa5d5f6feba3a8a53e5287d53d1f7f1128bb9ac"
+          obligation_digest: "sha256:2cb91d86c2eba70d5c115ef25a9395802018fff3e3bc88c074eeeb879178af3d"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-IDP13"
@@ -3733,11 +3953,16 @@ requirements:
         source_clauses:
           - { start: 196, end: 232, digest: "sha256:66ae2da5ebad389bc51046ef1ad31c639b442a0c4a7637d9e411124472bc1b5c", occurrences: 1 }
         required_variants:
-          - "一致 + 署名済み AuthnRequest → 成功し、cb:ChannelBindings が SOAP ヘッダと saml:Advice の両方に返る"
-          - "不一致 → エラー Response"
-          - "AuthnRequest 側のみ存在"
-          - "SOAP ヘッダ側のみ存在"
-          - "channel bindings 使用時に AuthnRequest が未署名 → エラー Response"
+          - id: v-110b483e7c
+            description_ja: "一致 + 署名済み AuthnRequest → 成功し、cb:ChannelBindings が SOAP ヘッダと saml:Advice の両方に返る"
+          - id: v-4bcf1acadf
+            description_ja: "不一致 → エラー Response"
+          - id: v-6eac3baf91
+            description_ja: "AuthnRequest 側のみ存在"
+          - id: v-00da03b57d
+            description_ja: "SOAP ヘッダ側のみ存在"
+          - id: v-6bf13c0e8b
+            description_ja: "channel bindings 使用時に AuthnRequest が未署名 → エラー Response"
         controls:
           - "成功ケースは『成功した』だけでなく両方への出力まで確認する。片方だけなら違反"
         authored_by: samlier-g1-builder
@@ -3746,7 +3971,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:73abf9820b16144f75051c7bc25509d5815dbe65d2748565231e09adbff6a950"
+          obligation_digest: "sha256:72b4f81ad8d9a6556d9df68b916b8b4f80c578e10ca2b9b068b3a51bb7cfc531"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-IDP13"
@@ -3770,7 +3995,8 @@ requirements:
         source_clauses:
           - { start: 0, end: 110, digest: "sha256:76629288ec58e05db38e39caacc2d6ad91d013daee25a2d5dc981d5d90372d9a", occurrences: 1 }
         required_variants:
-          - "ECP 往復で Basic 認証"
+          - id: v-dbc90151df
+            description_ja: "ECP 往復で Basic 認証"
         controls:
           - "資格情報は Run スコープのメモリのみ。outbox payload・CaseState・Transcript に書かない"
         notes_ja: "IIP-IDP13 末尾の token translation Proxy 適用除外は IIP-IDP13 の節にのみ属し、この要件には及ばない（無条件 MUST）。"
@@ -3780,7 +4006,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:9c4d2d1c660a323fa57daaf4fea49c2d6c4f33852c8b8e48137c6ba0cb2e00d4"
+          obligation_digest: "sha256:579be18da683d5d184ec1ec9d9e7d0f5da429ed1ca6eddea71be168977918954"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-IDP14"
@@ -3796,14 +4022,15 @@ requirements:
         source_clauses:
           - { start: 111, end: 158, digest: "sha256:5ea3eb5da6c89d05801c9a07e8462e69879b5eb3b7d399d0669ae21c19cded00", occurrences: 1 }
         required_variants:
-          - "対応方式を情報として記録"
+          - id: v-4f2bc215f5
+            description_ja: "対応方式を情報として記録"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:ad4e89daf93f40377d8f66fbd9e691c1d70260cd4e5bf4a404f693c97862265b"
+          obligation_digest: "sha256:c3faddeb6108c4c3f2734d75fa6ab4b34212a8a02b1261c141e1081fb7e56223"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-IDP14"
@@ -3834,7 +4061,8 @@ requirements:
         source_clauses:
           - { start: 0, end: 121, digest: "sha256:d68561769b7a0558208f4ba9a7d36889a57260bd637c5e56b6eefbed5b6ceab7", occurrences: 1 }
         required_variants:
-          - "SAML-EC 用の要求を送り、Assertion の saml:Advice 内の samlec:GeneratedKey を検査"
+          - id: v-58b2894ffc
+            description_ja: "SAML-EC 用の要求を送り、Assertion の saml:Advice 内の samlec:GeneratedKey を検査"
         controls:
           - "通常の ECP + HTTP Basic 往復では検証できない。SAML-EC 拡張クライアントの別ケースが要る"
         notes_ja: "参照先は ECP Profile ではなく IETF kitten の SAML Enhanced Client SASL and GSS-API Mechanisms（draft-ietf-kitten-sasl-saml-ec-16）。版を specs.yaml に固定する。"
@@ -3844,7 +4072,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:15f69b5d9c12b7eecabbddc84ae14a81bfd1a4ca89cd25f919864f2c23cb7143"
+          obligation_digest: "sha256:d67bf271430d80ee6280fe701782b1e5a7aee42f950b901554dace53ab4621ba"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-IDP15"
@@ -3876,11 +4104,16 @@ requirements:
         source_clauses:
           - { start: 0, end: 237, digest: "sha256:0e06ebedf8f565afaa3b23e14f2c579395fbb61e018b9f9028f8769ed6a34c64", occurrences: 1 }
         required_variants:
-          - "md:AssertionConsumerService Binding=PAOS"
-          - "md:SingleSignOnService Binding=SOAP"
-          - "cb:supportsChannelBindings"
-          - "HoK 対応時の hoksso:ProtocolBinding（条件付き）"
-          - "ACS の index / isDefault"
+          - id: v-13ac186e94
+            description_ja: "md:AssertionConsumerService Binding=PAOS"
+          - id: v-23ad8b1ba3
+            description_ja: "md:SingleSignOnService Binding=SOAP"
+          - id: v-1c01e57c78
+            description_ja: "cb:supportsChannelBindings"
+          - id: v-f4e78c5a6b
+            description_ja: "HoK 対応時の hoksso:ProtocolBinding（条件付き）"
+          - id: v-d04e147196
+            description_ja: "ACS の index / isDefault"
         controls:
           - "ecp:Response/@AssertionConsumerServiceURL がメタデータの PAOS ACS と一致するかを検証する"
         authored_by: samlier-g1-builder
@@ -3889,7 +4122,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:89380f5fbc76c30385c312aaad312f04501f8081957187f3fe4864ac04e37b9d"
+          obligation_digest: "sha256:11fea1bc5429898f6eeabbdee209e45a5990a71de0b14c322b7a01cc4b2ee1a8"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-IDP16"
@@ -3916,15 +4149,17 @@ requirements:
         source_clauses:
           - { start: 0, end: 107, digest: "sha256:0649b5f4937ddaf054925804c5e79e1c7260aeb6704060d2eb256754a88010f5", occurrences: 1 }
         required_variants:
-          - "SP-initiated SLO"
-          - "IdP-initiated SLO"
+          - id: v-cd04ba948e
+            description_ja: "SP-initiated SLO"
+          - id: v-040fae99fd
+            description_ja: "IdP-initiated SLO"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:2aa9e8dab9043e023234ecbd50625363b22ca983cfa06713ff657c874e3bc54e"
+          obligation_digest: "sha256:686889ea7ead2e8bffb29d427c7be3730c8342c06d2b3c5598fcebc7a246ec3c"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-IDP17"
@@ -3943,7 +4178,8 @@ requirements:
         source_clauses:
           - { start: 109, end: 184, digest: "sha256:b6bba3e952dad96c6632c22909623672579ec9b07b5b4dcf6e2b75beaf0cad2b", occurrences: 1 }
         required_variants:
-          - "asyncslo:Asynchronous 拡張付き LogoutRequest → LogoutResponse を返さずセッションが終了する"
+          - id: v-723b93db6c
+            description_ja: "asyncslo:Asynchronous 拡張付き LogoutRequest → LogoutResponse を返さずセッションが終了する"
         controls:
           - "拡張なしの LogoutRequest には LogoutResponse が返ることを対照に置く"
         authored_by: samlier-g1-builder
@@ -3952,7 +4188,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:9c51b78cb56bf3b37a54811c1e3079c30229b7368ff6bed09ae685b21a833066"
+          obligation_digest: "sha256:2fac53ff7decdaa224f929623254a7d4184c692716cc54350b8a46542553f602"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-IDP17"
@@ -3968,14 +4204,15 @@ requirements:
         source_clauses:
           - { start: 186, end: 273, digest: "sha256:7c03e19402eb4efe8a7fdc6cd0032febab56a0bfcde55e017f3a8363a30feda6", occurrences: 1 }
         required_variants:
-          - "secondary_peer を 2 つ目の SP として登録し、伝播が起きるかを情報として記録"
+          - id: v-952fb39f40
+            description_ja: "secondary_peer を 2 つ目の SP として登録し、伝播が起きるかを情報として記録"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:91ee0981d6b0c6706ac588616158cd4b2361a268df00e23a2a58250f1aeb8608"
+          obligation_digest: "sha256:7ca6bb5ab190955c325e2bdc9724f2a46cfe5bb63e94262421a4a1a4a37a9ce3"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-IDP17"
@@ -3999,15 +4236,17 @@ requirements:
         source_clauses:
           - { start: 0, end: 92, digest: "sha256:4874105bfdabad7437549b779f129ccbabd47b704335e4f142e5a3c115b996b8", occurrences: 1 }
         required_variants:
-          - "Suite が Redirect で LogoutRequest を送る → 受理される"
-          - "IdP が Redirect で LogoutRequest を送ってくる"
+          - id: v-b991f88df5
+            description_ja: "Suite が Redirect で LogoutRequest を送る → 受理される"
+          - id: v-0757f8ab29
+            description_ja: "IdP が Redirect で LogoutRequest を送ってくる"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:06ccbce46a939da762156d384b4da20211c69b4a6cf58aa91b09946f5cd05e7a"
+          obligation_digest: "sha256:47513fde6eb9ccf47e2586a39e37df9ecf9aae333fb0784b2504bd7041911177"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-IDP18"
@@ -4023,8 +4262,10 @@ requirements:
         source_clauses:
           - { start: 0, end: 92, digest: "sha256:4874105bfdabad7437549b779f129ccbabd47b704335e4f142e5a3c115b996b8", occurrences: 1 }
         required_variants:
-          - "IdP が Redirect で LogoutResponse を返す"
-          - "Suite が Redirect で LogoutResponse を返す → 受理される"
+          - id: v-625bb5d8dd
+            description_ja: "IdP が Redirect で LogoutResponse を返す"
+          - id: v-3cedb75b42
+            description_ja: "Suite が Redirect で LogoutResponse を返す → 受理される"
         controls:
           - "要求と応答を個別義務にする。片方のみ対応する実装を検出する"
         authored_by: samlier-g1-builder
@@ -4033,7 +4274,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:2863b0a43fba095e81613e1de3300c85669cce0b362b8311c95b30dcc1df12b2"
+          obligation_digest: "sha256:bea4a5b1597fd026f425491fd8b6a6606f07c8ac87f3bfc2926b9bd692b6d36f"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-IDP18"
@@ -4057,14 +4298,15 @@ requirements:
         source_clauses:
           - { start: 0, end: 93, digest: "sha256:0034ef3c710413f5758d51724a774c2def594b2a860905ebffa070dde17c2588", occurrences: 1 }
         required_variants:
-          - "1 番目の鍵で暗号化した EncryptedID"
+          - id: v-ba56b87891
+            description_ja: "1 番目の鍵で暗号化した EncryptedID"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:c9ef4002257808bc0e6baa50399123f1bda3e3b4229bed2179d0d08bd23e1aa9"
+          obligation_digest: "sha256:0bcb0eeeee2656b4fd0d1f0c1b8569878bf587aadb78029c7baadbabf2cc988d"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-IDP19"
@@ -4081,14 +4323,15 @@ requirements:
         source_clauses:
           - { start: 94, end: 208, digest: "sha256:0b31c5b6d8684d394155a17b0f3debca7fc94ecffb3cf12c466c155d5d032c3e", occurrences: 1 }
         required_variants:
-          - "鍵を 2 つ設定できるか"
+          - id: v-5a7f569a98
+            description_ja: "鍵を 2 つ設定できるか"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:ba5c196185dc59d8fa085702be23bb904359c71752f7486356da48c45e4a5b50"
+          obligation_digest: "sha256:0abc271354b9cb64b2ce21b93119e818a80f9a66be9bf8cbcc7dfcd07550ce99"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-IDP19"
@@ -4104,15 +4347,17 @@ requirements:
         source_clauses:
           - { start: 209, end: 421, digest: "sha256:1fb52db106115df89b9d56db28e7657d2fd71493fca8a8dbb75d2d9eacca0a2b", occurrences: 1 }
         required_variants:
-          - "2 番目の鍵で暗号化 → 復号される"
-          - "登録外の鍵 → 失敗（対照）"
+          - id: v-cf2eefed32
+            description_ja: "2 番目の鍵で暗号化 → 復号される"
+          - id: v-5abd614909
+            description_ja: "登録外の鍵 → 失敗（対照）"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:d44c30664bb084425c93d6c2a5531f1435e7ba7abe854e343e78d32545882c90"
+          obligation_digest: "sha256:9c0fbb72a6a2d19ce9184313368d2ecdfb06d327ae102dcbdab7c385f7d67ec6"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-IDP19"
@@ -4144,8 +4389,10 @@ requirements:
         source_clauses:
           - { start: 0, end: 267, digest: "sha256:2082fe0afdf264797f76531bc12f4809e916b1c1a14ab7859b198b45ba0d304e", occurrences: 1 }
         required_variants:
-          - "md:SingleLogoutService（バインディングと Location）"
-          - "識別子を暗号化する場合の md:KeyDescriptor use=encryption（アルゴリズム・設定・公開鍵）"
+          - id: v-29d41c305f
+            description_ja: "md:SingleLogoutService（バインディングと Location）"
+          - id: v-330e986213
+            description_ja: "識別子を暗号化する場合の md:KeyDescriptor use=encryption（アルゴリズム・設定・公開鍵）"
         controls:
           - "2 要素のみ。SLO エンドポイントへの追従だけで PASS にしない"
         notes_ja: "SAML2Prof 4.4.5（saml-profiles-2.0-os, sha256:5df9b874…）を直接読んで列挙した。4.4.5 は SingleLogoutService と、暗号化時の encryption KeyDescriptor の 2 件のみ。"
@@ -4155,7 +4402,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:d4057803247dc62247f55873810f6ae7f45b79647ecdb4fd287d9805e79b7f79"
+          obligation_digest: "sha256:a0847ef5398efae33d68ebe683e8628f6ed8823677f5c80cc0b23e1043e8c6b1"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-IDP20"
@@ -4180,7 +4427,8 @@ requirements:
         source_clauses:
           - { start: 0, end: 251, digest: "sha256:9ba5b6a7253119c9f8a198046eaa4e9efd8acad34c7320f246d2fd483ae9b951", occurrences: 1 }
         required_variants:
-          - "大文字小文字が衝突しない形式（base32 / hex / 小文字のみ 等）を選べるかを申告"
+          - id: v-58759c8aab
+            description_ja: "大文字小文字が衝突しない形式（base32 / hex / 小文字のみ 等）を選べるかを申告"
         controls:
           - "観測した 1 件の NameID の文字集合からは判定できない。UUID や Base64 でも要件は満たしうるため、文字集合を理由に WARNING を出さない（情報として記録するのみ）"
         notes_ja: "非規範の注記で base32 [RFC4648] が一般的な達成手段として挙げられている。"
@@ -4190,7 +4438,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:446331413a4d08c55c7ec78921dc7a3e91462c720f0c690dae1c9aa9932689a5"
+          obligation_digest: "sha256:194c1d68775eabe7c9cea25557d74f3094d2d86da0e5a50c9535c4f343497999"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-IDP21"

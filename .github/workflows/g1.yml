@@ -75,15 +75,19 @@ jobs:
   # ------------------------------------------------------------------- G1b
   # 署名済み承認の検証。
   #
-  # ★ fail-open を避けるため、G1B_ENABLED が true なら **常に実行し、
-  #   変数が未設定なら失敗する**。「変数がなければ skip」は required check として
-  #   fail-open になる。
+  # ★ **ジョブ条件を置かない**。条件で skip されたジョブは GitHub では
+  #   Success 扱いになり、required check にしてもマージを阻止しない。
+  #   変数を消すだけでゲートを無効化できてしまう。
+  #
+  #   このジョブは常に実行し、承認が済んでいなければ **失敗する**。
+  #   G1b 前はこのジョブが赤いのが正しい状態であり、
+  #   **required check にするかどうかは branch protection 側で切り替える**
+  #   （ライフサイクル切替をジョブ条件に置かない）。
   #
   # ★ 署名検証より前に、現在ブランチのコードを一切実行しない。
   #   依存も runner も validator も G1_TOOLS_COMMIT から取り出す。
   g1b-approval:
     runs-on: ubuntu-latest
-    if: vars.G1B_ENABLED == 'true'
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683   # v4.2.2
         with: { fetch-depth: 0 }
@@ -95,7 +99,11 @@ jobs:
           G1_TOOLS_COMMIT: ${{ vars.G1_TOOLS_COMMIT }}
         run: |
           set -euo pipefail
-          [[ -n "${G1_TOOLS_COMMIT:-}" ]] || { echo "G1B_ENABLED=true なのに G1_TOOLS_COMMIT が未設定"; exit 2; }
+          [[ -n "${G1_TOOLS_COMMIT:-}" ]] || {
+            echo "G1_TOOLS_COMMIT が未設定です。"
+            echo "G1b が未完了ならこのジョブは失敗するのが正しい状態です。"
+            echo "required check にするのは G1b 完了後（branch protection 側で切り替える）。"
+            exit 2; }
           [[ "$G1_TOOLS_COMMIT" =~ ^[0-9a-f]{40}$ ]] || { echo "40 桁完全 SHA のみ"; exit 2; }
           [[ "$(git rev-parse --verify --quiet "${G1_TOOLS_COMMIT}^{commit}")" == "$G1_TOOLS_COMMIT" ]] \
             || { echo "commit として完全一致で解決できない"; exit 2; }
@@ -114,9 +122,13 @@ jobs:
           /tmp/pin/venv/bin/pip install --require-hashes -r /tmp/pin/requirements.lock
 
       - name: 署名鍵の許可リスト
+        env:
+          # ★ ${{ }} を run スクリプトへ直接展開しない（script injection になる）。
+          #   env 経由で渡し、shell 側で引用して参照する。
+          G1_ALLOWED_SIGNERS: ${{ vars.G1_ALLOWED_SIGNERS }}
         run: |
           set -euo pipefail
-          printf '%s\n' "${{ vars.G1_ALLOWED_SIGNERS }}" > /tmp/allowed_signers
+          printf '%s\n' "$G1_ALLOWED_SIGNERS" > /tmp/allowed_signers
           test -s /tmp/allowed_signers || { echo "G1_ALLOWED_SIGNERS が空"; exit 2; }
           git config gpg.format ssh
           git config gpg.ssh.allowedSignersFile /tmp/allowed_signers
@@ -124,6 +136,7 @@ jobs:
       - name: 承認検証（固定 SHA から runner を取り出して隔離実行）
         env:
           G1_TOOLS_COMMIT: ${{ vars.G1_TOOLS_COMMIT }}
+          G1_SIGNER_MAP: ${{ vars.G1_SIGNER_MAP }}
         run: |
           set -euo pipefail
           # ★ tools/g1_ci_verify.sh は呼ばない。ラッパー自身も改変されうるため、
@@ -137,6 +150,7 @@ jobs:
               G1_REPO_ROOT="$PWD" \
               G1_RUNNER_COMMIT="$G1_TOOLS_COMMIT" \
               G1_VALIDATOR_COMMIT="$G1_TOOLS_COMMIT" \
+              G1_SIGNER_MAP="${G1_SIGNER_MAP:-}" \
               /tmp/pin/venv/bin/python -I "$TMP/tools/g1_trusted_verify.py"
 
       - name: g1.complete と provenance を確認

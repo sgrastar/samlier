@@ -1,7 +1,7 @@
 {
   "task": ":specReconcile",
-  "run_id": "3bd52f9c-97c2-40b6-987e-34225742d2a7",
-  "executed_at": "2026-08-26T05:40:08+00:00",
+  "run_id": "8a28ae3b-389c-4d1b-b464-9ca96a8a50a3",
+  "executed_at": "2026-08-26T07:20:20+00:00",
   "validator": "tools/g1_validate.py (生成処理から独立。値を書き戻さない)",
   "provenance": {
     "repo_root": "/Users/yuta/Documents/Samlier",
@@ -10,7 +10,7 @@
     "runner_source": null,
     "note": "validator_source_kind が external-pin でなければ、検査器の取得元は 承認記録が指す target_commit である。CI では G1_VALIDATOR_COMMIT を外部固定すること"
   },
-  "mode": "offline",
+  "mode": "structural-only",
   "source": {
     "spec": "kantara-fedinterop-impl",
     "version": "1.1",
@@ -21,8 +21,8 @@
   "totals": {
     "requirements": 69,
     "obligations": 133,
-    "checks": 51,
-    "passed": 49,
+    "checks": 35,
+    "passed": 33,
     "failed": 2,
     "blocking_failures": 1
   },
@@ -39,30 +39,6 @@
     "complete_formula": "no blocking failures AND no open questions AND all obligations approved via tests/approvals/g1.yaml (coverage.yaml は承認時に編集しない)"
   },
   "checks": [
-    {
-      "id": "SR-01",
-      "description": "取得した原文のダイジェストが specs.yaml の記録値と一致する",
-      "result": "PASS",
-      "detail": "fetched=sha256:6cbc97a652651d6a5cff26a41c51195b8b914ed59dc63ed1d6ce254e88edd13d recorded=sha256:6cbc97a652651d6a5cff26a41c51195b8b914ed59dc63ed1d6ce254e88edd13d"
-    },
-    {
-      "id": "SR-01b",
-      "description": "coverage.yaml の source_digest が specs.yaml と一致する",
-      "result": "PASS",
-      "detail": "sha256:6cbc97a652651d6a5cff26a41c51195b8b914ed59dc63ed1d6ce254e88edd13d"
-    },
-    {
-      "id": "SR-02",
-      "description": "要件ラベルが 69 個、重複なし",
-      "result": "PASS",
-      "detail": "69"
-    },
-    {
-      "id": "SR-02b",
-      "description": "coverage の要件 ID 集合が原文のラベル集合と完全一致する",
-      "result": "PASS",
-      "detail": "missing=[] extra=[]"
-    },
     {
       "id": "SR-03",
       "description": "coverage.yaml の要件数が 69",
@@ -90,66 +66,6 @@
     {
       "id": "SR-04",
       "description": "全 69 要件に 1 件以上の obligation がある",
-      "result": "PASS",
-      "detail": "[]"
-    },
-    {
-      "id": "SR-05",
-      "description": "記録された節ダイジェストが原文から再計算した値と一致する",
-      "result": "PASS",
-      "detail": "[]"
-    },
-    {
-      "id": "SR-06",
-      "description": "記録された節長が一致する",
-      "result": "PASS",
-      "detail": "[]"
-    },
-    {
-      "id": "SR-07",
-      "description": "記録された非規範スパンが一致する",
-      "result": "PASS",
-      "detail": "[]"
-    },
-    {
-      "id": "SR-08",
-      "description": "0 <= start < end <= 節長 / 空範囲なし",
-      "result": "PASS",
-      "detail": "[]"
-    },
-    {
-      "id": "SR-09",
-      "description": "source_clauses の digest が原文の部分文字列と一致する",
-      "result": "PASS",
-      "detail": "[]"
-    },
-    {
-      "id": "SR-10",
-      "description": "source_clauses が非規範スパンと重ならない",
-      "result": "PASS",
-      "detail": "[]"
-    },
-    {
-      "id": "SR-11",
-      "description": "句の出現回数が記録値と一致する（複数一致の見落としを検出）",
-      "result": "PASS",
-      "detail": "[]"
-    },
-    {
-      "id": "SR-12",
-      "description": "同一文字列が節内に複数現れる句がない（あれば曖昧）",
-      "result": "PASS",
-      "detail": "[]"
-    },
-    {
-      "id": "SR-13",
-      "description": "CLAIM_BASED の条件が『claim』を含む句に紐づく",
-      "result": "PASS",
-      "detail": "[]"
-    },
-    {
-      "id": "SR-14",
-      "description": "CLASSIFICATION_BASED の義務の要件節に適用除外文が実在する",
       "result": "PASS",
       "detail": "[]"
     },
@@ -200,6 +116,18 @@
       "description": "NOT_OBSERVABLE 以外の全 obligation に required_variants がある",
       "result": "PASS",
       "detail": "[]"
+    },
+    {
+      "id": "SR-22b",
+      "description": "required_variants が {id, description_ja} の形で、安定 ID を持つ",
+      "result": "PASS",
+      "detail": "[]"
+    },
+    {
+      "id": "SR-22c",
+      "description": "variant の id が全体で一意",
+      "result": "PASS",
+      "detail": "0 件重複"
     },
     {
       "id": "SR-23",
@@ -262,30 +190,6 @@
       "detail": "0"
     },
     {
-      "id": "SR-32",
-      "description": "カタログの全仕様（版なし文書を除く）に source_digest が記録されている",
-      "result": "PASS",
-      "detail": "[]"
-    },
-    {
-      "id": "SR-32b",
-      "description": "義務が参照する全仕様に source_digest がある",
-      "result": "PASS",
-      "detail": "[]"
-    },
-    {
-      "id": "SR-33",
-      "description": "カタログの全仕様を取得でき、記録された source_digest と一致する",
-      "result": "PASS",
-      "detail": "digest_mismatch=[] unavailable=[]"
-    },
-    {
-      "id": "SR-34",
-      "description": "reference_evidence の locator が解決でき、節ダイジェストが一致する",
-      "result": "PASS",
-      "detail": "n=12 bad=[]"
-    },
-    {
       "id": "SR-35",
       "description": "references_spec を持つ全義務が reference_derivation を明示している",
       "result": "PASS",
@@ -325,7 +229,7 @@
       "id": "SR-40",
       "description": "tools/ に未追跡・未コミットの Python モジュールがない（shadow import の防止）",
       "result": "FAIL",
-      "detail": "['tools/g1_validate.py']"
+      "detail": "['tools/g1_author.py', 'tools/g1_docgen.py', 'tools/g1_validate.py']"
     },
     {
       "id": "SR-38",

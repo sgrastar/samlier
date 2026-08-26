@@ -169,6 +169,13 @@ badlv=[o['key'] for _,o in obs if o['level'] not in LV]
 check("SR-21","level が RFC2119 の既定値",not badlv,badlv)
 novar=[o['key'] for _,o in obs if o['testability']!='NOT_OBSERVABLE' and not o.get('required_variants')]
 check("SR-22","NOT_OBSERVABLE 以外の全 obligation に required_variants がある",not novar,novar)
+badv=[o['key'] for _,o in obs
+      for v in (o.get('required_variants') or [])
+      if not isinstance(v,dict) or not v.get('id') or not v.get('description_ja')]
+check("SR-22b","required_variants が {id, description_ja} の形で、安定 ID を持つ",not badv,badv[:5])
+_vids=[v['id'] for _,o in obs for v in (o.get('required_variants') or [])]
+check("SR-22c","variant の id が全体で一意",len(_vids)==len(set(_vids)),
+      f"{len(_vids)-len(set(_vids))} 件重複")
 nore=[o['key'] for _,o in obs if o['testability']=='NOT_OBSERVABLE' and not o.get('not_observable_reason_en')]
 check("SR-23","NOT_OBSERVABLE の obligation に理由文がある",not nore,nore)
 norv=[o['key'] for _,o in obs if not o.get('review') or 'state' not in o['review']]
@@ -395,7 +402,7 @@ if os.path.exists(APPROVAL_PATH):
 # coverage.yaml 側の state は起票の記録であり、承認の正本ではない
 state_claims=[o['key'] for _,o in obs if (o.get('review') or {}).get('state')!='PENDING_REVIEW']
 
-approved_keys=set(); appr_problems=[]; appr_entries={}
+approved_keys=set(); appr_problems=[]; appr_entries={}; signers=set()
 if appr is None:
     if state_claims:
         appr_problems.append(f"承認記録 tests/approvals/g1.yaml が無いのに coverage.yaml が APPROVED を主張している（{len(state_claims)} 件）")
@@ -454,6 +461,34 @@ else:
         appr_problems.append("evidence.ref は使用しない（自己参照になるため）。フィールドごと削除すること")
     if ev.get('evidence_url') and not _re.match(r'https://[^\s]+\.[^\s]+',str(ev['evidence_url'])):
         appr_problems.append("evidence_url が https の URL 形式でない")
+    # ★ 署名者 principal と reviewer を結び付ける。
+    #   YAML 内の reviewer は自己申告に過ぎず、許可鍵の保持者が架空の名前を書けば
+    #   reviewer != authored_by を通せてしまう。
+    signers=set()
+    if _sig_info:
+        if _sig_info.get('kind')=='signed-tag':
+            _t=_sig_info.get('tagger') or ''
+            _m=_re.search(r'<([^>]+)>',_t)
+            if _m: signers.add(_m.group(1).strip())
+            if _t: signers.add(_t.split('<')[0].strip())
+        else:
+            if _sig_info.get('signer'): signers.add(str(_sig_info['signer']).strip())
+    signers={x for x in signers if x}
+    # 外部固定の principal → reviewer-id マッピング（CI が渡す。無ければ principal 自身）
+    _map={}
+    for _pair in (os.environ.get('G1_SIGNER_MAP') or '').split(','):
+        if '=' in _pair:
+            _k,_v=_pair.split('=',1); _map[_k.strip()]=_v.strip()
+    mapped={_map.get(x,x) for x in signers}
+    if not signers:
+        appr_problems.append("署名者 principal を取得できなかった（reviewer と結び付けられない）")
+    else:
+        unbound=sorted({e.get('reviewer') for e in (appr.get('approvals') or []) if e.get('reviewer')} - mapped)
+        if unbound:
+            appr_problems.append(
+                f"reviewer が署名者 principal と一致しない: {unbound[:3]}（署名者={sorted(mapped)}）。"
+                f"複数レビュアーを認める場合は reviewer ごとの署名済み記録が必要")
+
     # per-obligation reviewer は evidence.reviewers に含まれていなければならない
     allowed=set(ev.get('reviewers') or [])
     bad_rv=sorted({e.get('reviewer') for e in (appr.get('approvals') or [])} - allowed - {None})
@@ -502,6 +537,8 @@ report=dict(task=":specReconcile",run_id=str(uuid.uuid4()),executed_at=NOW,
                                  if os.path.exists(os.path.join(ROOT,r)) else None)
                               for r in PROTECTED_PATHS},
       reviewers=sorted({e.get('reviewer') for e in ((appr or {}).get('approvals') or []) if e.get('reviewer')}),
+      signer_principals=sorted(signers) if appr else None,
+      signer_map_applied=bool(os.environ.get('G1_SIGNER_MAP')),
       approved_obligations=len(approved_keys)) if appr else None),
   g1=dict(state=('APPROVED' if g1_ready else 'PENDING_REVIEW'),  # 導出値。coverage.yaml の記載ではない
           authored_state=cov.get('g1_state'),open_questions=opens,unapproved=len(pending),

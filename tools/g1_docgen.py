@@ -77,7 +77,8 @@ for r in reqs:
             A(f"- **検証不能の理由**: {o.get('not_observable_reason_ja')}")
         else:
             A("- **必要な variant**:")
-            for v in o.get('required_variants') or []: A(f"  - {v}")
+            for v in o.get('required_variants') or []:
+                A(f"  - `{v['id']}` {v['description_ja']}")
         if o.get('controls'):
             A("- **対照（negative control）**:")
             for v in o['controls']: A(f"  - {v}")
