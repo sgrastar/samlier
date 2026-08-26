@@ -73,14 +73,58 @@ SAML にはこれに相当する、広く認知された仕組みが存在しな
 > テストを実行し、各 Requirement の PASS/FAIL と根拠を確認でき、希望すればその結果を
 > 公開 URL として第三者に提示できること。
 
-これに、元メモに欠けていた検証可能な受け入れ条件を足す。
+これに、検証可能な受け入れ条件を足す。
 
-- [ ] Keycloak / Shibboleth IdP / SimpleSAMLphp の 3 実装に対して IdP Profile を通し、**結果に差が出る**こと（全て PASS では検出力を証明できない）
-- [ ] 同上で SP Profile を通せること
-- [ ] Test Plan 作成から結果表示まで、利用者が触るドキュメントが `README` 1 枚で足りること
-- [ ] 対象側で必要な設定作業が **メタデータ URL の登録 1 回 + オプション設定** に収まること（[02](02-architecture.md) 参照）
-- [ ] 同じ Suite バージョン・同じ Test Plan で 2 回実行して結果が一致すること（再現性）
-- [ ] 外部から検証不能な要件が「PASS」に混ざっていないこと（[03](03-test-model.md) の判定語彙）
+### ★ 検出力は mutant peer で証明する
+
+**「リファレンス実装 3 つで結果に差が出ること」を完了条件にしてはならない。**
+差が出ないことは Suite の欠陥を意味しない — 3 製品とも適合している可能性も、
+差が出ても設定の違いに過ぎない可能性もある。実製品は**オラクルにならない**。
+
+代わりに、**既知の違反を注入した mutant Test IdP / Test SP** を用意し、
+「狙った義務が必ず違反として検出されること」を golden test にする。
+
+```
+tests/mutants/<name>.yaml
+  id: no-signature-validation
+  role: sp                                   # mutant が演じる側
+  injected_violation_ja: Response の XML 署名を一切検証しない
+  must_be_detected_by: [IIP-SP13.a, IIP-MD07.b]   # ここが FAIL になること
+  must_not_affect: [IIP-SP01.a, IIP-SP10.a]       # ここは PASS のままであること
+```
+
+`must_not_affect` を必須にするのが要点で、これがないと
+「何でも FAIL にする Suite」が golden test を通ってしまう。
+
+初期の mutant セット（G2 で `tests/cases.yaml` の `detected_by_mutants` と対応づける）:
+
+| mutant | 注入する違反 | 検出されるべき義務 |
+|---|---|---|
+| `no-signature-validation` | 署名を検証しない | IIP-SP13.a / IIP-MD07.b |
+| `ignore-audience` | `Audience` を無視する | （Phase 4 の Security Profile と共通） |
+| `ignore-destination` | `Destination` を無視する | 同上 |
+| `first-key-only` | 複数鍵の最初しか試さない | IIP-MD07.b / IIP-SP08.c / IIP-IDP19.c |
+| `gcm128-only` | AES128-GCM しか受け付けない | IIP-ALG04.b |
+| `oaep-sha256-only` | DigestMethod sha1 を拒否する | IIP-ALG06.c |
+| `crash-on-extension` | 未知の拡張要素で落ちる | IIP-EXT01.b / IIP-EXT01.c |
+| `crash-on-unknown-attribute` | `xsd:anyAttribute` の未知属性で落ちる | IIP-EXT01.c |
+| `ignore-force-authn` | `ForceAuthn` を無視する | IIP-IDP06.a |
+| `truncate-256` | 256 文字の値を切り詰める | IIP-G02.a |
+| `reject-everything` | 全て拒否する | **どの義務も PASS にしてはならない**（対照用。`must_not_affect` が効くか検証する） |
+| `accept-everything` | 全て受理する | negative control が機能するかの検証用 |
+
+**受け入れ条件**
+
+- [ ] 全 mutant について、`must_be_detected_by` の義務が **FAIL** になる
+- [ ] 全 mutant について、`must_not_affect` の義務が **PASS のまま**である
+- [ ] mutant を使わない正常な Test Peer では全義務が PASS する（false positive がない）
+- [ ] Test Plan 作成から結果表示まで、利用者が触るドキュメントが `README` 1 枚で足りる
+- [ ] 対象側で必要な設定作業が **メタデータ URL の登録 1 回 + オプション設定** に収まる
+- [ ] 同じ Suite バージョン・同じ Test Plan で 2 回実行して結果が一致する（再現性）
+- [ ] 外部から検証不能な義務が `PASS` に混ざっていない（[03](03-test-model.md) の判定語彙）
+
+**リファレンス実装（Keycloak / Shibboleth / SimpleSAMLphp）の位置づけ**は
+「回帰検知と相互運用の確認」であり、**検出力の証明ではない**（[09 D-12](09-open-decisions.md)）。
 
 ## 6. Authrim との関係（明文化）
 

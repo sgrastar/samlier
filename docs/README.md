@@ -34,14 +34,40 @@ OIDF Conformance Suite の SAML 版に相当するものを目指す。
 | `tests/specs.yaml` | 仕様カタログ（22 仕様。外部ドラフトは版を固定） |
 | `tests/coverage.yaml` | **要件カタログ＝判定レベルの唯一の出典**。69 要件 → **133 義務**（うち 25 は複数範囲の `source_clauses`） |
 | `tests/predicates.yaml` | 条件述語の固定集合（8 述語） |
-| `build/spec-reconcile-report.json` | 独立 validator の結果（**49/50 PASS・ブロッキング 0**。残り 1 は「未承認」＝ G1 完了条件） |
+| `build/spec-reconcile-report.json` | 独立 validator の結果（**50/51 PASS・ブロッキング 0**。残り 1 は「未承認」＝ G1 完了条件） |
 | `docs/04-requirement-coverage.md` | `coverage.yaml` からの**生成物**（手編集禁止） |
-| `tools/ci-stages.md` | G1 用検査とリリース用 CI の分離 |
+| `tools/ci-stages.md` | ゲートごとの CI ステージと trust anchor の所在 |
+| `.github/workflows/g1.yml` | 実体の CI（`g1-check` / `spec-reconcile` / `g1b-approval`） |
+| `.github/CODEOWNERS` | trust anchor になるファイルの保護 |
 | `tools/g1_{author,docgen,validate,extract}.py` | 生成 / 文書化 / **独立検証** / 共有の正規化モジュール |
+| `tools/g1_{trusted_verify.py,ci_verify.sh}` | 承認検証の信頼された実行入口と CI ラッパー |
 | `tools/requirements.txt` | 固定依存（PyYAML 6.0.2 / pdfminer.six 20240706） |
 
 作成者は `reviewer` / `approved_at` を埋めていません。
-別のレビュアーが原文と `coverage.yaml` を直接照合して承認するまで、テスト実装に着手しません。
+**承認は `coverage.yaml` に書きません** — 正本は署名済みの `tests/approvals/g1.yaml`
+（承認対象 commit の外）です。
+
+## 実装までのゲート
+
+```
+G1a  カタログ作成        ✅ 完了（PENDING_REVIEW）
+  ↓
+G1b  義務の意味レビュー   ⏳ 作成者以外が原文と coverage.yaml を照合し、署名済み承認記録を作る
+  ↓                        検証: G1_TOOLS_COMMIT=<SHA> tools/g1_ci_verify.sh
+M0   骨格実装            G1b 後に着手してよい（Test Peer / Transcript / Preflight）
+  ↓
+G2   テスト設計          ⏳ 132 義務をケース ID に割り当て、対照ケースと反例を定義
+  ↓                        作成者以外が設計をレビューして承認
+M1〜 判定ケースの実装     ★ G2 完了後
+```
+
+**G1b と G2 は別のレビュー**です。G1b は「義務が原文と正しく対応しているか」、
+G2 は「ケースに検出力があるか」を見ます。
+過去のレビューで原文照合 49 件中 41 件に誤りが出た領域なので、
+どちらも作成者以外による承認を必須にしています。
+
+検出力の証明は **mutant peer**（既知の違反を注入した Test IdP/SP）で行い、
+リファレンス実装の結果差は使いません（[00 §5](00-concept.md)）。
 
 ## ドキュメント一覧
 

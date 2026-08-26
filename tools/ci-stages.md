@@ -26,19 +26,44 @@ tasks.named("dockerPush") { dependsOn(":specReconcile", ":releaseCheck") }
 
 ## `releaseCheck` に回す規則（G1 完了後に有効になる）
 
-- 6b の厳格版: **`reviewer` が非 null かつ作成者と異なる**、`approved_at` がある
+- ★ **承認の確認は `coverage.yaml` を見ない**。固定 SHA の `g1_ci_verify.sh` を実行し、
+  生成された `build/spec-reconcile-report.json` の
+  **`g1.complete == true`** と **`provenance.validator_source_kind == "external-pin"`**
+  を確認する（`coverage.yaml` の `review` は常に `PENDING_REVIEW` のまま）
 - 7: `NOT_OBSERVABLE` 以外の全 obligation が 1 件以上のテストケースを持つ
 - 8〜19: テスト定義と実装の整合（YAML ↔ `TestCaseImpl`）
 - 20b・20c: `CapabilityBranchTest` / outcome→Verdict 変換
 - 21〜28: 生成物の一致、golden fixture、outbox 規約、依存仕様の版固定
+
+## 実体（`.github/workflows/g1.yml`）
+
+| job | trigger | ネットワーク | 内容 |
+|---|---|---|---|
+| `g1-check` | PR / push | 不要 | `g1_docgen.py --check` + 構造規則のみ（原文未取得に由来する FAIL は除外） |
+| `spec-reconcile` | push / 定期 / 手動 | **必要** | 原文と全 22 仕様を強制再取得して照合 |
+| `g1b-approval` | `vars.G1_TOOLS_COMMIT` が設定されているとき | 必要 | 署名済み承認の検証。**固定 SHA から runner を取り出して隔離実行**し、`g1.complete` と `provenance.validator_source_kind == "external-pin"` を確認 |
+
+`g1b-approval` は **`tools/g1_ci_verify.sh` を呼ばず、同等の処理を workflow に展開している**。
+ラッパー自身も改変されうるため、**CI 設定側に置くことが最後の trust anchor** になる。
+
+必要な repository variables:
+
+| 変数 | 内容 |
+|---|---|
+| `G1_TOOLS_COMMIT` | runner / validator の取得元（40 桁完全 SHA）。**承認時に決めて設定する** |
+| `G1_ALLOWED_SIGNERS` | `gpg.ssh.allowedSignersFile` の内容（承認者の公開鍵） |
+
+**`.github/` と `tools/g1_*` は `.github/CODEOWNERS` で保護し、
+branch protection で「CODEOWNERS のレビュー必須」にすること。**
+これをしないと、workflow を書き換えるだけでゲート全体が無効になる。
 
 ## 実装状況
 
 | ステージ | 実体 | 状態 |
 |---|---|---|
 | `g1Check` | `tools/g1_validate.py --offline` の構造検査部（SR-15〜SR-29, SR-36）+ `tools/g1_docgen.py --check` | 通る |
-| `specReconcile` | `tools/g1_validate.py`（**強制再取得**で原文と全 22 仕様を照合） | **49/50 PASS / blocking 0**（承認後は 50/50） |
-| `releaseCheck` | 未実装。テストケースが 0 件のため | 未実施 |
+| `specReconcile` | `tools/g1_validate.py`（**強制再取得**で原文と全 22 仕様を照合） | **50/51 PASS / blocking 0**（承認後は 51/51） |
+| `releaseCheck` | 未実装。テストケースが 0 件のため（G2 完了後） | 未実施 |
 
 `build/spec-reconcile-report.json` の `checks[]` は、どの検査がブロッキングかを
 `totals.blocking_failures` で区別する。**SR-30（open question 残存）と SR-31（未承認）は
@@ -53,7 +78,7 @@ G1 の完了条件**であり、作成フェーズでは FAIL のまま提出さ
 ```
 commit C : tests/{coverage,specs,predicates}.yaml     ← 承認対象（全て PENDING_REVIEW）
 commit A : tests/approvals/g1.yaml                    ← 承認記録。★ C の外・署名必須
-           coverage.yaml の g1_state を APPROVED に
+           （coverage.yaml は編集しない）
 ```
 
 **承認記録を承認対象の中に置いてはならない。** 記録を追記した時点で対象 commit が

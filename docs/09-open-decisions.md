@@ -301,7 +301,8 @@ Kantara 文書の要件テキストは**転載しない**。テスト定義と�
 
 | 用途 | 方針 |
 |---|---|
-| Samlier 自身の回帰検知 | Keycloak / Shibboleth IdP / SimpleSAMLphp を CI（GitHub Actions）で定期実行し、**結果の変化を内部で検知**する。判定ロジックの意図しない変更を捕まえる |
+| Samlier 自身の回帰検知 | Keycloak / Shibboleth IdP / SimpleSAMLphp を CI（GitHub Actions）で定期実行し、**結果の変化を内部で検知**する |
+| ★ 検出力の証明 | **リファレンス実装ではなく mutant peer で行う**（[00 §5](00-concept.md)）。「3 製品で差が出ること」は完了条件から外した |
 | 外部への提示 | **バージョンを固定したサンプル結果**を公開する。「このレポートはこう見える」という見本であり、常時更新はしない |
 
 公開サンプルに必ず添えるもの:
@@ -313,10 +314,52 @@ Kantara 文書の要件テキストは**転載しない**。テスト定義と�
 
 > 毎晩の結果を常時公開すると、他社製品の FAIL を継続的に晒すことになり、
 > 「認定機関を名乗らない」という方針と緊張する。誤判定時の負債も大きい。
-> 一方、公開しないと Suite が実際に差を検出できることを示せない。
 > **CI は回すが公開は固定サンプルに留める**のがこの緊張の解になる。
 
 実装側へのフィードバックは、公開レポートではなく **各プロジェクトへの issue / PR** で行う。
+
+### ★ リファレンス実装は検出力のオラクルではない
+
+「3 製品で結果に差が出ること」を完了条件にしていたが**撤回した**。
+差が出ないことは Suite の欠陥を意味しない（全て適合している可能性も、
+差が出ても設定の違いに過ぎない可能性もある）。
+**検出力の証明は mutant peer で行う**（[00 §5](00-concept.md)）。
+リファレンス実装の位置づけは**回帰検知と相互運用の確認**である。
+
+### ★ CI で回せる範囲（ブラウザ自動化との矛盾の解消）
+
+[01](01-scope-and-roadmap.md) は Phase 1 でブラウザ自動化を除外しているが、
+132 義務のうち **`BROWSER` が 56 件**あるため **Full Profile は無人 CI で回せない**。
+矛盾を残さないよう範囲を分ける。
+
+| 用途 | 範囲 | ブラウザ |
+|---|---|---|
+| **CI（PR ごと / 定期）** | `AUTOMATED` の 9 義務 + **mutant peer の golden test** | 不要 |
+| **リファレンス実装の定期実行** | `AUTOMATED` subset のみ | 不要 |
+| **Full Profile** | 全 132 義務 | **必要**。手動実行し、固定サンプルとして公開する |
+
+**決定: Phase 1 では Playwright 等のブラウザ自動化を導入しない。**
+CI は `AUTOMATED` subset と mutant golden test に限定する。
+（Phase 2 でブラウザ自動化を入れれば CI の範囲を広げられる）
+
+### リファレンス実装の固定（M4 までに作る）
+
+```yaml
+# tests/reference-impls.yaml
+- id: keycloak
+  roles: [idp, sp]                              # ★ 役割別マトリクス
+  image: quay.io/keycloak/keycloak@sha256:…     # ★ digest 固定（タグは動く）
+  config_fixture: tests/fixtures/keycloak/
+- id: shibboleth-idp
+  roles: [idp]
+  image: "…@sha256:…"
+- id: simplesamlphp
+  roles: [idp, sp]
+  image: "…@sha256:…"
+```
+
+image を digest で固定し、設定 fixture もリポジトリに置く。
+環境差で結果が変わると回帰検知として機能しない。
 
 ## ✅ D-13. 多言語対応 — **決定: 英語のみ（`ja` の枠だけ用意）**
 

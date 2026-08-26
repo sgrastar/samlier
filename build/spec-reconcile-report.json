@@ -1,7 +1,7 @@
 {
   "task": ":specReconcile",
-  "run_id": "e7ec7767-b1d9-4934-a529-727344675af6",
-  "executed_at": "2026-08-26T02:08:14+00:00",
+  "run_id": "9f7f326e-0204-497f-8424-fe5aeba0c461",
+  "executed_at": "2026-08-26T03:32:07+00:00",
   "validator": "tools/g1_validate.py (生成処理から独立。値を書き戻さない)",
   "provenance": {
     "repo_root": "/Users/yuta/Documents/Samlier",

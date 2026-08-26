@@ -109,16 +109,91 @@ Core / Full の割り当ては `coverage.yaml` を正とし、
 | M | 内容 | 完了の目安 |
 |---|---|---|
 | **G1a** 作成 ✅ | 全 69 要件を原文の節末まで読み、133 義務に分解。`tests/{specs,coverage,predicates}.yaml` と `docs/04`（生成物）を作成 | **完了（PENDING_REVIEW）** |
-| **G1b** 承認 ⏳ | **作成者以外**が原文と `coverage.yaml` を直接照合して全義務を承認（`reviewer` / `approved_at` を記入） | 判定の正本が確定する。**ここを通るまでテスト実装に着手しない** |
+| **G1b** 承認 ⏳ | **作成者以外**が原文と `coverage.yaml` を直接照合し、**署名済みの `tests/approvals/g1.yaml`**（承認対象 commit の外）で全義務を承認する。`coverage.yaml` は編集しない | `g1_ci_verify.sh` が `g1.complete == true` を返す |
+| **G2** テスト設計 ⏳ | 132 義務を**ケース ID に割り当て**、`required_variants` の網羅と positive/negative control を定義。**作成者以外が設計をレビュー**（[G2 の詳細](#-設計ゲート-g2--テスト設計)） | 「義務は正しいがケースに検出力がない」を防ぐ |
 | **M0** 骨格 | Test Peer のメタデータ発行、Transcript Recorder、Preflight、Test Plan の CRUD、SSE。テスト 0 件でも「Keycloak と SSO が 1 往復する」ところまで | Suite が SAML の相手役として成立する |
-| **M1** SSO コア | Common の SSO / Algorithms + IdP/SP の SSO 要件。判定語彙・証拠ラダー・attestation UI を実装 | 「クイック実行」モードが完成。ここで一度リファレンス実装 3 つに当てて検出力を確認する |
+| **M1** SSO コア | Common の SSO / Algorithms + IdP/SP の SSO 要件。判定語彙・証拠ラダー・attestation UI を実装。**G2 完了が前提** | 「クイック実行」モードが完成。**mutant peer** で検出力を確認する（[00 §5](00-concept.md)） |
 | **M2** メタデータ | Suite からのメタデータ配布 / MDQ / variant（IIP-MD01〜12）。`WAITING_CONFIG` ステップ | 対象側の再設定を伴うテストが回る |
 | **M3** SLO + ECP + 残件 | IIP-SP14〜17 / IIP-IDP13〜21。ECP は **ECP クライアント + SP** を演じてバックチャネルのみで自動化（[02 §3.7](02-architecture.md)）。IIP-SP05 用の `secondary_peer`（2 つ目の Test IdP）もここ | `NOT_VERIFIED(not_implemented)` が 0 件になる |
 | **M4** 公開 | 結果 JSON v1 凍結、`report.html`、Hosted 版、共有 URL、公開前スクラブ | **v0.1 リリース** |
 
-> **M1 の時点で必ず一度リファレンス実装に当てる**こと。
+> **M1 の時点で必ず一度 mutant peer に当てる**こと（[00 §5](00-concept.md)）。
 > 全部作ってから検出力がないと分かるのが最悪のパターン。
-> M1 で Keycloak / Shibboleth / SimpleSAMLphp の結果に差が出ないなら、判定設計を見直す。
+> **実製品の結果に「差が出るか」は検出力のオラクルにならない**ので使わない
+> （3 製品が全て適合している可能性も、設定差で差が出る可能性もある）。
+
+## ★ 設計ゲート G2 — テスト設計
+
+G1b（義務が原文と正しく対応しているか）を通っても、
+**「義務は正しいがケースに検出力がない」**という失敗が残る。
+R5〜R9 のレビューで、対照のないケースが繰り返し見つかった
+（SSO07 の「エラーも無視も可」、ALG04 の片方のアルゴリズムだけ、SP07 の拒否のみ）。
+
+**G1b と M1（判定ケースの実装）の間に G2 を置く。**
+M0（骨格）は G1b 後に着手してよいが、**判定ケースの実装は G2 完了後**とする。
+
+### 対象
+
+`coverage.yaml` の 133 義務のうち、`NOT_OBSERVABLE`（IIP-SP12.a）を除く **132 義務**。
+
+| testability | 件数 | 備考 |
+|---|---|---|
+| `BROWSER` | 56 | 利用者のブラウザが必要 |
+| `CONFIG` | 56 | 対象側の設定変更を依頼 |
+| `ATTESTED` | 11 | 対象内部の挙動を申告 |
+| `AUTOMATED` | 9 | バックチャネルのみで完結 |
+| `NOT_OBSERVABLE` | 1 | ケースを作らない |
+
+### 成果物 — `tests/cases.yaml`（機械可読）
+
+```yaml
+schema_version: 1
+g2_state: PENDING_REVIEW          # G1 と同じく、承認は署名済み記録で行う
+cases:
+  - id: IIP-SP13-01
+    obligation: IIP-SP13.a
+    covers_variants: [0, 1]        # required_variants のインデックス
+    role: sp
+    mode: CONFIG
+    milestone: M1
+    controls:
+      - kind: positive             # 満たす実装が PASS すること
+        description_ja: 署名済み Response を送る → 受理される
+      - kind: negative             # 満たさない実装が FAIL すること
+        description_ja: 拒否設定にしたうえで未署名 Response → 拒否される
+    counterexample_ja: >           # ★ 必須。「義務を満たさないのに PASS する実装」
+      AuthnRequest の有無にかかわらず全 Response を拒否する実装。
+      positive control でこれを落とす。
+    depends_on: [IIP-SSO01-01]
+    destroys_session: false
+    detected_by_mutants: [no-signature-validation]
+```
+
+### 通過条件
+
+- [ ] **132 義務すべてが 1 件以上のケースに割り当てられている**（CI で検証）
+- [ ] 各義務の **`required_variants` が `covers_variants` で完全に網羅**されている
+- [ ] 各ケースに **positive control と negative control** の両方がある
+      （片方しかないケースは、その理由を `control_waiver_ja` に書く）
+- [ ] 各ケースに **`counterexample_ja`**（義務を満たさないのに PASS する実装）が書かれている。
+      書けないなら検出力がないので設計をやり直す
+- [ ] `depends_on` に循環がなく、`destroys_session` が実行順序に反映されている
+- [ ] 全ケースが **M0〜M3 のいずれか**に割り当てられている
+- [ ] **実現性スパイク**が済んでいる（下記）
+- [ ] **ケース作成者以外**が設計をレビューして署名承認する（G1b と同じ方式）
+
+### 実現性スパイク（G2 で先に潰す）
+
+実装してから「できない」と分かると設計をやり直すことになる領域。
+
+| # | 対象 | 確かめること |
+|---|---|---|
+| S1 | ECP + SAML-EC | PAOS/SOAP 往復、`samlec:GeneratedKey` の生成・検査、channel bindings の 5 ケース |
+| S2 | SLO | front-channel / SOAP、Async SLO 拡張、セッション破壊の順序制御 |
+| S3 | MDQ / メタデータ variant | 対象に再取得させる導線、`?variant=` の切替、301/302/307 |
+| S4 | `secondary_peer` | 2 つ目の entityID の発行と登録導線（IIP-SP05 / MD01.c / IDP02） |
+| S5 | 生の XML 生成 | DTD 入りメッセージ、未知属性、256 文字境界、XML 属性値正規化の扱い |
+| S6 | 生クエリ文字列 | HTTP-Redirect 署名検証がバイト列で成立するか（[02 §3.5](02-architecture.md)） |
 
 **「クイック実行」モード（v0.1 必須）**
 対象側の再設定を要するテスト（`mode: CONFIG`）を全て飛ばし、

@@ -1,0 +1,8 @@
+# 承認プロトコルの trust anchor になるファイル。
+# 変更には CODEOWNERS のレビューを必須にし、branch protection と併用すること。
+/.github/                 @sgrastar
+/tools/g1_validate.py     @sgrastar
+/tools/g1_trusted_verify.py @sgrastar
+/tools/g1_extract.py      @sgrastar
+/tools/g1_ci_verify.sh    @sgrastar
+/tests/                   @sgrastar

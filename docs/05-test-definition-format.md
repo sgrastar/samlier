@@ -531,8 +531,10 @@ interface CaseContext {
      （`normative_capability` | `test_precondition`）を持つ（[03 §4](03-test-model.md)）
  6. testability: NOT_OBSERVABLE の obligation は not_observable_reason_en を持ち、
     かつ **テストケースを 1 件も持たない**
- 6b. 全 obligation に review ブロックがある。**リリース時は `reviewer` が非 null かつ
-     `authored_by` と異なる**こと（G1 作成フェーズでは `state: PENDING_REVIEW` を許容する）
+ 6b. 全 obligation に review ブロックがあり、`state` は **常に `PENDING_REVIEW`**。
+     ★ **承認は `coverage.yaml` に書かない**。正本は署名済みの `tests/approvals/g1.yaml`
+     （承認対象 commit の外）であり、`reviewer` / `approved_at` はそちらに入る
+     （[03 §7.5](03-test-model.md), [tools/ci-stages.md](../tools/ci-stages.md)）
  6c. 全 obligation に `authored_by` と、`review.{state, reviewer, approved_at, source_spec,
      spec_version, source_selector, source_section_digest}` がある。
      句の位置は obligation 直下の **`source_clauses[]`（start / end / digest / occurrences）**

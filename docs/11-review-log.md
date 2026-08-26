@@ -1323,3 +1323,75 @@ runner の docstring と実行時メッセージに「A の tree から validato
 `{anchor の先頭 12 桁} から取り出した validator` に修正した。
 
 累計で塞いだ攻撃は **41 パターン**。
+
+---
+
+## G1a-R11 — 2026-08-26 実装前の計画整備
+
+**結論**: 指摘 4 件すべて妥当。承認プロトコルは固まったので、
+実装開始前に**計画側の不整合**と**実 CI の不在**を解消した。
+
+### 指摘 1: 旧承認方式が計画書に残っていた
+
+`coverage.yaml` を編集しない新プロトコルに対し、以下が旧方式のままだった。
+そのまま `releaseCheck` を実装すると**永久に通らない**規則になっていた。
+
+| 箇所 | 修正 |
+|---|---|
+| `docs/05` 規則 6b | 「リリース時は coverage の `reviewer` が非 null」→ **`state` は常に `PENDING_REVIEW`。承認は署名済み `tests/approvals/g1.yaml` が正本** |
+| `tools/ci-stages.md` `releaseCheck` | 同上 → **固定 SHA の `g1_ci_verify.sh` を実行し `g1.complete == true` と `provenance.validator_source_kind == "external-pin"` を確認**する規則に |
+| `tools/ci-stages.md` 承認手順 | 「`g1_state` を APPROVED に」→ **coverage.yaml は編集しない** |
+| `docs/01` G1b | 「`reviewer` / `approved_at` を記入」→ 署名済み承認記録で承認 |
+| `docs/README` | `49/50` → `50/51` |
+
+### 指摘 2: CI が計画書だけだった
+
+**`.github/workflows/g1.yml`** を実装した。
+
+| job | trigger | ネットワーク | 内容 |
+|---|---|---|---|
+| `g1-check` | PR / push | 不要 | `g1_docgen.py --check` + 構造規則 |
+| `spec-reconcile` | push / 定期 / 手動 | 必要 | 原文と全 22 仕様を強制再取得して照合 |
+| `g1b-approval` | `vars.G1_TOOLS_COMMIT` 設定時 | 必要 | 固定 SHA から runner を取り出して隔離実行し、`g1.complete` と provenance を確認 |
+
+`g1b-approval` は **`tools/g1_ci_verify.sh` を呼ばず、同等の処理を workflow に展開**している。
+ラッパー自身も改変されうるため、**CI 設定側に置くことが最後の trust anchor** になる。
+併せて **`.github/CODEOWNERS`** で `.github/` と `tools/g1_*` と `tests/` を保護対象にした
+（branch protection と併用しないと、workflow を書き換えるだけでゲートが無効になる）。
+
+### 指摘 3: G1b とケース実装の間にゲートがなかった
+
+**設計ゲート G2** を新設した（[01](01-scope-and-roadmap.md)）。
+
+- 132 義務（`NOT_OBSERVABLE` の 1 件を除く）をケース ID に割り当て
+- `required_variants` の網羅を `covers_variants` で機械検証
+- 各ケースに **positive / negative control** と
+  **`counterexample_ja`（義務を満たさないのに PASS する実装）**を必須化
+- `depends_on` / `destroys_session` / マイルストーン割当を機械可読に（`tests/cases.yaml`）
+- **実現性スパイク S1〜S6**（ECP+SAML-EC / SLO / MDQ variant / secondary_peer /
+  生 XML 生成 / 生クエリ文字列）を先に潰す
+- **ケース作成者以外**が設計を署名承認する
+
+**M0（骨格）は G1b 後に着手してよいが、M1（判定ケース）は G2 完了後**とした。
+
+### 指摘 4: 検出力のオラクルを mutant peer に変えた
+
+「3 実装で結果に差が出ること」は**撤回**した。差が出ないことは Suite の欠陥を意味しない。
+
+**既知の違反を注入した mutant Test IdP / SP** を用意し、
+`must_be_detected_by`（この義務が FAIL になること）と
+**`must_not_affect`（この義務は PASS のままであること）**を golden test にする。
+後者がないと「何でも FAIL にする Suite」が通ってしまうため必須。
+`reject-everything` / `accept-everything` を対照用 mutant として置いた。
+
+**ブラウザ自動化の矛盾も解消**した。`BROWSER` が 56 件あるため Full Profile は無人 CI で回せない。
+
+| 用途 | 範囲 | ブラウザ |
+|---|---|---|
+| CI（PR / 定期） | `AUTOMATED` 9 義務 + mutant golden test | 不要 |
+| リファレンス実装の定期実行 | `AUTOMATED` subset のみ | 不要 |
+| Full Profile | 全 132 義務 | 必要。手動実行 + 固定サンプル公開 |
+
+**決定: Phase 1 ではブラウザ自動化を導入しない。**
+リファレンス実装は **役割別マトリクス**（IdP/SP）+ **image digest 固定** + **設定 fixture** で
+再現性を確保する（`tests/reference-impls.yaml`、M4 までに作成）。
