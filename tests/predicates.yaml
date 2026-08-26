@@ -1,6 +1,6 @@
 # tests/predicates.yaml — 条件述語の固定集合（G1 成果物）
 # 生成: build_g1.py / 手編集しない
-generated_at: 2026-08-26T15:23:29+00:00
+generated_at: 2026-08-26T18:29:23+00:00
 schema_version: 1
 # kind: CLAIM_BASED      = 申告そのものが条件（observed 不要）
 #       CAPABILITY_BASED = 実際の能力が条件（observed 必須。declaration-only FALSE は UNKNOWN）
@@ -96,6 +96,36 @@ predicates:
       - "target_emitted: samlp:ManageNameIDResponse"
     on_conflict: inconsistent
     rationale_ja: "IIP-SSO05.a5 の条件。SAML2Core 8.3.7 の SPProvidedID は『SP が設定した代替識別子』を前提とし、その設定手段が §3.6 しかない。★ 観測は方向付き: 対象が ManageNameIDRequest を *受理し* ManageNameIDResponse を *返した* ことが能力の証拠。メタデータの ManageNameIDService だけでは宣言であって能力の観測ではないが、IIP-MD01 が『メタデータは実際の設定を反映する』ことを求めるため補助証拠として採る"
+  supports_authnrequest_proxying:
+    kind: CAPABILITY_BASED
+    description_ja: "対象が <AuthnRequest> のプロキシ（proxying identity provider）として振る舞うか"
+    declared:
+      - declared_features.authnrequest_proxying
+    observed:
+      - "target_emitted_authnrequest_to_upstream_idp: true"
+      - "target_emitted: saml:AuthenticatingAuthority"
+    on_conflict: inconsistent
+    rationale_ja: "SAML2Core 3.4.1.5.1 の規範句はすべて『プロキシする場合』が前提。『An identity provider MAY proxy an <AuthnRequest> ...』とあるとおりプロキシ自体は任意なので、プロキシしない対象では NOT_APPLICABLE。★ 観測は方向付き: 対象が上流 IdP へ自分名義の <AuthnRequest> を送出したこと、または自分の assertion に <saml:AuthenticatingAuthority> を入れたことだけが証拠になる"
+  emits_idplist_getcomplete:
+    kind: CAPABILITY_BASED
+    description_ja: "対象が <samlp:IDPList>/<samlp:GetComplete> を発行するか"
+    declared:
+      - declared_features.idplist_getcomplete
+    observed:
+      - "target_emitted: samlp:GetComplete"
+    on_conflict: inconsistent
+    rationale_ja: "SAML2Core 3.4.1.3 の『Retrieving the resource associated with the URI MUST result in ...』は GetComplete を発行した側が用意する資源への規範。発行しない対象では NOT_APPLICABLE"
+  unsolicited_acs_from_metadata:
+    kind: CAPABILITY_BASED
+    description_ja: "対象が unsolicited <Response> を発行し、かつその配送先 ACS をメタデータから決めるか"
+    declared:
+      - declared_features.idp_initiated_sso
+      - declared_features.metadata_driven_acs
+    observed:
+      - "target_emitted_unsolicited_response: true"
+      - "target_used_metadata_acs_for_unsolicited: true"
+    on_conflict: inconsistent
+    rationale_ja: "SAML2Prof 4.1.5 の『If metadata as specified in [SAMLMeta] is used, the <Response> or artifact SHOULD be delivered to the <md:AssertionConsumerService> endpoint ... designated as the default』は **2 つの条件の連言**（unsolicited を発行する ∧ ACS 決定にメタデータを使う）。★ 片方だけでは適用されない。unsolicited を出すがメタデータを使わず ACS を決める IdP にはこの SHOULD は課されないため、1 つの述語に連言として畳んでいる。観測は方向付き: 対象が unsolicited <Response> を送出し、その宛先がメタデータの ACS と一致したことが証拠"
   derives_url_from_relaystate:
     kind: CAPABILITY_BASED
     description_ja: "対象が RelayState の値から遷移先 URL を導出するか"

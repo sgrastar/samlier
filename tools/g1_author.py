@@ -263,6 +263,30 @@ PRED = [
   "★ 観測は方向付き: 対象が ManageNameIDRequest を *受理し* ManageNameIDResponse を *返した* ことが能力の証拠。"
   "メタデータの ManageNameIDService だけでは宣言であって能力の観測ではないが、"
   "IIP-MD01 が『メタデータは実際の設定を反映する』ことを求めるため補助証拠として採る"),
+ ("supports_authnrequest_proxying","CAPABILITY_BASED","対象が <AuthnRequest> のプロキシ（proxying identity provider）として振る舞うか",
+  ["declared_features.authnrequest_proxying"],
+  ["target_emitted_authnrequest_to_upstream_idp: true",
+   "target_emitted: saml:AuthenticatingAuthority"],
+  "SAML2Core 3.4.1.5.1 の規範句はすべて『プロキシする場合』が前提。"
+  "『An identity provider MAY proxy an <AuthnRequest> ...』とあるとおりプロキシ自体は任意なので、"
+  "プロキシしない対象では NOT_APPLICABLE。"
+  "★ 観測は方向付き: 対象が上流 IdP へ自分名義の <AuthnRequest> を送出したこと、"
+  "または自分の assertion に <saml:AuthenticatingAuthority> を入れたことだけが証拠になる"),
+ ("emits_idplist_getcomplete","CAPABILITY_BASED","対象が <samlp:IDPList>/<samlp:GetComplete> を発行するか",
+  ["declared_features.idplist_getcomplete"],
+  ["target_emitted: samlp:GetComplete"],
+  "SAML2Core 3.4.1.3 の『Retrieving the resource associated with the URI MUST result in ...』は "
+  "GetComplete を発行した側が用意する資源への規範。発行しない対象では NOT_APPLICABLE"),
+ ("unsolicited_acs_from_metadata","CAPABILITY_BASED","対象が unsolicited <Response> を発行し、かつその配送先 ACS をメタデータから決めるか",
+  ["declared_features.idp_initiated_sso","declared_features.metadata_driven_acs"],
+  ["target_emitted_unsolicited_response: true",
+   "target_used_metadata_acs_for_unsolicited: true"],
+  "SAML2Prof 4.1.5 の『If metadata as specified in [SAMLMeta] is used, the <Response> or artifact SHOULD be "
+  "delivered to the <md:AssertionConsumerService> endpoint ... designated as the default』は "
+  "**2 つの条件の連言**（unsolicited を発行する ∧ ACS 決定にメタデータを使う）。"
+  "★ 片方だけでは適用されない。unsolicited を出すがメタデータを使わず ACS を決める IdP には"
+  "この SHOULD は課されないため、1 つの述語に連言として畳んでいる。"
+  "観測は方向付き: 対象が unsolicited <Response> を送出し、その宛先がメタデータの ACS と一致したことが証拠"),
  ("derives_url_from_relaystate","CAPABILITY_BASED","対象が RelayState の値から遷移先 URL を導出するか",
   ["declared_features.relaystate_as_url"],
   ["target_redirected_user_agent_to_relaystate_value: true"],

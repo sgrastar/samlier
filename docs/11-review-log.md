@@ -2050,3 +2050,79 @@ open question 13（IIP-SSO01.a の対応表照合が未了）
 ```
 
 **第 1 段階は未完了。** `IIP-SSO01.a` の対応表照合が済むまで承認対象 commit にはしない。
+
+---
+
+## G1b-R7 — 2026-08-27 取り込み句の推移的分解（指摘 5 件）
+
+### 1 [P0] 取り込み句が未分解だった
+
+`IIP-SSO01.a` の前版の対応表は、SAML2Prof の 2 つの取り込み句を
+
+> IdP の Core 処理 → IDP06/07/08/10/11/12 で分解済み ／ SP の Core 処理 → .n〜.r1 で分解済み
+
+と書いていたが、**これは事実ではなかった**。SAML2Core を洗い直したところ未収録の MUST が多数あった。
+取り込み範囲を明示し、`IIP-SSO01` に **31 義務**を追加した（`.af`〜`.bk`。義務 198 → 230）。
+
+**【取り込み句 A】IdP MUST process the `<AuthnRequest>` as described in [SAMLCore]**
+
+| SAML2Core | 規範句 | 義務 |
+|---|---|---|
+| §3.2.1 | `@ID` の一意性 | `.af` |
+| §3.2.1 / §3.2.2 | 要求 `@ID` と応答 `@InResponseTo` の一致 | `.ap` |
+| §3.2.1 | `@Destination` の照合と**破棄** | `.ag` |
+| §3.2.1 / §3.2.2 | 拡張要素の名前空間修飾 | `.ah` |
+| §3.2.1 | 署名の検証 / 不正時に依拠しない / エラー応答（SHOULD）/ 署名者の評価（SHOULD） | `.ai` `.aj` `.ak` `.al` |
+| §3.2.1 | Consent 付き要求の署名（SHOULD） | `.am` |
+| §3.2.1 | 不正な要求へ応答する場合の `<StatusCode>` | `.an` |
+| §3.4.1.3 | `<GetComplete>` の解決結果（ルートが `<IDPList>` / `<GetComplete>` を含まない） | `.av` |
+| §3.4.1.5.1 | プロキシ規則 14 件 | `.aw`〜`.bj` |
+
+**【取り込み句 B】SP MUST process the `<Response>` and enclosed `<Assertion>` as described in [SAMLCore]**
+
+| SAML2Core | 規範句 | 義務 |
+|---|---|---|
+| §3.2.2 | `@ID` の一意性 | `.ao` |
+| §3.2.2 | `@Destination` の照合と**破棄** | `.aq` |
+| §3.2.2 | 署名不正時に依拠しない / エラーとして扱う（SHOULD）/ 署名者の評価（SHOULD） | `.ar` `.as` `.at` |
+| §3.2.2 | Consent 付き応答の署名（SHOULD） | `.au` |
+
+対応表の全文は `IIP-SSO01.a` の `notes_ja` にあり、`docs/04` から読める。
+
+**副次的に見つかった穴**: `IIP` には「**IdP が AuthnRequest の署名を検証する**」義務がどこにもなかった（`.ai`）。
+`@Destination` の照合（悪意ある転送への対策）も両方向とも落ちていた（`.ag` / `.aq`）。
+
+**`IIP-SSO07.b` も訂正した。** 前版は `<Scoping>` / `ProxyCount` / `<IDPList>` をまとめて
+「二択なので情報記録のみ」としていたが、§3.4.1.5.1 には明確な MUST NOT / MUST がある。
+`.aw`〜`.bd` に分解し、SSO07.b からは「対象外（取り込まれた Core の規則が扱う）」に変えた。
+ただし**プロキシしない IdP が Scoping を無視することは適合**（ProxyCount=0 は自動的に守られる）ので、
+プロキシ義務はすべて `supports_authnrequest_proxying` を条件にしている。
+
+### 2〜5
+
+| # | 指摘 | 対応 |
+|---|---|---|
+| 2 | `.y1` の適用条件が**半分欠けて**いた（原文は「If metadata ... is used」との**連言**） | 述語 **`unsolicited_acs_from_metadata`** に連言として畳んだ。ACS をメタデータ以外で決める IdP には適用されない |
+| 3 | `.y2` に MAY の動作が必須 variant として残っていた | 「RelayState 付き → その URL に遷移」を verdict 対象から外し、**`.bk`（MAY / idp）**に分離 |
+| 4 | `.ac` がまだ「露出禁止」へ強められていた | 判定を**三分岐**に: 復元に不要な情報の露出 → `violated` ／ 最小限か判断できない → **`not_verified`** ／ 単に文字列が含まれる → violated にしない |
+| 5 | `.ae` の申告フォールバックが outcome 規則と矛盾 | **申告だけで `satisfied` にしない**。申告は evidence / advisory のみ、outcome は `not_verified` のまま（安全側） |
+
+### 4 の判定基準
+
+`(1)` の判定には「何が復元に必要か」の基準が要る。preflight で対象の状態保持方式
+（RelayState に何を入れているか）を申告させ、申告と観測が矛盾したら `INCONSISTENT`、
+申告がなければ `(2)` の `not_verified` に落とす。
+
+### 現在の状態
+
+```
+要件 69 / 義務 230（198 → 230）/ variant 550 / 述語 19 / 検査 62
+IIP-SSO01 だけで 74 義務（SAML2Prof 4.1 + 取り込まれた SAML2Core）
+network 実行: 59/62 PASS・blocking 1（SR-40 = tools 未コミットのみ）
+SR-33  全 24 仕様を再取得し source_digest 一致
+SR-34  reference_evidence 148 件すべて locator 解決・節ダイジェスト一致
+open question 13（IIP-SSO01.a の対応表照合が未了）
+```
+
+**第 1 段階は未完了。** `IIP-SSO01.a` の `open_question` は、
+直接の §4.1 対応表に加えて**取り込み句 A / B の展開表**の照合も条件に含む。
