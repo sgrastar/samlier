@@ -320,12 +320,25 @@ if os.path.exists(APPROVAL_PATH):
                     appr_src_problems.append(f"tag {_tag} が承認記録を含む commit {_sig_commit[:12]} を指していない")
         else:
             _v=_git('verify-commit',_sig_commit)
-        _si=_git('log','-1','--format=%GS|%GK|%GT',_sig_commit)
-        if _si and _si.returncode==0 and _si.stdout.strip():
-            _p=_si.stdout.strip().split('|')
-            _sig_info=dict(signer=_p[0] if len(_p)>0 else None,
-                           key=_p[1] if len(_p)>1 else None,
-                           trust=_p[2] if len(_p)>2 else None)
+        if _kind=='signed-tag':
+            _tg=((appr_peek or {}).get('evidence') or {}).get('tag')
+            _oid=_git('rev-parse',f'{_tg}^{{}}') if _tg else None
+            _tobj=_git('rev-parse',str(_tg)) if _tg else None
+            _who=_git('for-each-ref','--format=%(taggername) %(taggeremail)',f'refs/tags/{_tg}') if _tg else None
+            _raw=_git('verify-tag','--raw',str(_tg)) if _tg else None
+            _sig_info=dict(kind='signed-tag',tag=_tg,
+                           tag_object=(_tobj.stdout.strip() if _tobj and _tobj.returncode==0 else None),
+                           tagged_commit=(_oid.stdout.strip() if _oid and _oid.returncode==0 else None),
+                           tagger=(_who.stdout.strip() if _who and _who.returncode==0 else None),
+                           verify_raw=((_raw.stderr or _raw.stdout).strip().splitlines()[:3] if _raw else None))
+        else:
+            _si=_git('log','-1','--format=%GS|%GK|%GT',_sig_commit)
+            if _si and _si.returncode==0 and _si.stdout.strip():
+                _p=_si.stdout.strip().split('|')
+                _sig_info=dict(kind='signed-commit',commit=_sig_commit,
+                               signer=_p[0] if len(_p)>0 else None,
+                               key=_p[1] if len(_p)>1 else None,
+                               trust=_p[2] if len(_p)>2 else None)
         if not _v or _v.returncode!=0:
             appr_src_problems.append(f"承認記録の署名検証に失敗（{_kind or 'signed-commit'} / commit {_sig_commit[:12]}）")
         else:
@@ -446,14 +459,15 @@ check("SR-38","承認が対象 commit の外にある署名付き記録に拘束
 pending=[o['key'] for _,o in obs if o['key'] not in approved_keys]
 check("SR-31","全 obligation が承認済み（G1 承認の条件）",not pending,f"{len(pending)}/{len(obs)} が未承認")
 
-check("SR-39","coverage.yaml の g1_state が承認の実態と整合している",
-      (cov.get('g1_state')=='APPROVED')==(not pending and not appr_problems),
-      f"g1_state={cov.get('g1_state')} approved={len(approved_keys)}/{len(obs)}")
+check("SR-39","coverage.yaml の g1_state が起票値（PENDING_REVIEW）のまま変更されていない",
+      cov.get('g1_state')=='PENDING_REVIEW',
+      f"g1_state={cov.get('g1_state')}（承認では coverage.yaml を編集しない。"
+      f"完了状態は tests/approvals/g1.yaml から導出する）")
 
 npass=sum(1 for c in R if c['result']=='PASS'); nfail=len(R)-npass
 # 未承認・未解決は「G1 未完了」を示すものであり、作成フェーズの提出可否とは分ける
 blocking=[c for c in R if c['result']=='FAIL' and c['id'] not in ('SR-30','SR-31')]
-g1_ready = (not blocking) and (not opens) and (not pending) and cov.get('g1_state')=='APPROVED'
+g1_ready = (not blocking) and (not opens) and (not pending)
 report=dict(task=":specReconcile",run_id=str(uuid.uuid4()),executed_at=NOW,
   validator="tools/g1_validate.py (生成処理から独立。値を書き戻さない)",
   mode="offline" if OFFLINE else "network",
@@ -471,10 +485,11 @@ report=dict(task=":specReconcile",run_id=str(uuid.uuid4()),executed_at=NOW,
                               for r in PROTECTED_PATHS},
       reviewers=sorted({e.get('reviewer') for e in ((appr or {}).get('approvals') or []) if e.get('reviewer')}),
       approved_obligations=len(approved_keys)) if appr else None),
-  g1=dict(state=cov.get('g1_state'),open_questions=opens,unapproved=len(pending),
+  g1=dict(state=('APPROVED' if g1_ready else 'PENDING_REVIEW'),  # 導出値。coverage.yaml の記載ではない
+          authored_state=cov.get('g1_state'),open_questions=opens,unapproved=len(pending),
           blocking_failures=[c['id'] for c in blocking],
           complete=bool(g1_ready),
-          complete_formula="no blocking failures AND no open questions AND all obligations approved via tests/approvals/g1.yaml AND coverage.g1_state == APPROVED"),
+          complete_formula="no blocking failures AND no open questions AND all obligations approved via tests/approvals/g1.yaml (coverage.yaml は承認時に編集しない)"),
   checks=R,
   note="SR-30 / SR-31 は G1 の完了条件であり、作成フェーズでは FAIL のまま提出される。"
        "それ以外の FAIL は成果物の欠陥を意味する。")

@@ -1177,3 +1177,61 @@ validator は `tools/` を `sys.path` に載せず `g1_extract` を明示パス�
 | レビュアーが原文を読んだと記録したこと | レビュアーが実際に読んだこと |
 
 累計で塞いだ攻撃は **29 パターン**。
+
+---
+
+## G1a-R8 — 2026-08-26 検査器の取得元と runner の隔離
+
+**結論**: 指摘 4 件すべて妥当。指摘 1 は「**承認者が検査器を定義できる**」という
+承認モデルの根本的な穴だった。
+
+### 指摘 1: 承認 commit A が validator を差し替えられた
+
+trusted runner は validator を **A の tree** から取り出していた。
+A の署名者が承認記録と一緒に validator を弱体化すれば、
+その弱体化版が「信頼された validator」として実行される。
+実際、A に「即座に `51/51 PASS` を出して終了する validator」を含めて署名すると
+`exit 0` になった。
+
+**修正**:
+
+- validator の取得元を **`G1_VALIDATOR_COMMIT`（CI が外部から固定）> C（対象 commit）** に変更。
+  **A からは取らない**
+- **A が C の子孫**であることを要求（`git merge-base --is-ancestor`）
+- **`C..A` の変更を `tests/approvals/g1.yaml` だけ**に制限
+- その結果 **承認時に `coverage.yaml` を編集しない**設計になった。
+  完了状態は承認記録から導出する（`g1.state` は導出値、`g1.authored_state` が記載値）
+
+### 指摘 2: runner 自身が PYTHONPATH で shadow import された
+
+`sys.path[0]` の削除だけでは `PYTHONPATH` 由来のパスが残る。
+**runner が隔離モードでなければ自分自身を `python -I` で起動し直す**ようにした
+（サードパーティを一切 import する前に実行する）。
+
+### 指摘 3・補足
+
+- コミット済みレポートが `blocking_failures: 1`（コミット前の未追跡ファイル）を
+  記録していた。コード commit 後にレポートを生成し直して同じ commit に amend する運用にした
+- **signed-tag の署名者情報**を記録するようにした。
+  tag object ID / tagged commit / tagger / `git verify-tag --raw` の出力。
+  従来は commit の `%GS/%GK/%GT` しか取らず、unsigned commit + signed tag では空だった
+
+### 実地試験（クリーンな clone、SSH 署名）
+
+| # | 状況 | 結果 |
+|---|---|---|
+| 0 | 正常系（coverage を編集しない） | **51/51 PASS** / exit 0 |
+| 1 | A に**即時 PASS する validator** を含めて署名 | **exit 2**（`C..A` の変更が承認記録だけでない） |
+| 2 | `PYTHONPATH=.` + 未追跡 `yaml.py` | **shim 実行 0 回** / 51/51 PASS |
+| 3 | A に承認記録 + coverage 改変を両方入れて署名 | **exit 2** |
+| 4 | 別枝の `C'` を `target_commit` に指定 | **exit 2**（A が C の子孫でない） |
+
+### 限界（更新）
+
+| 保証できる | 保証できない |
+|---|---|
+| 署名鍵の保持者が承認記録に署名した | その鍵が実在のレビュアーのものか |
+| `C..A` が承認記録の追加だけであること | **C 自体**を署名者が作った場合（CI で `G1_VALIDATOR_COMMIT` を外部固定して緩和） |
+| 承認後に保護対象ファイルが変わっていない | **runner 自身**が改変された場合（CI は固定した commit / hash から runner を取得すること） |
+
+累計で塞いだ攻撃は **34 パターン**。

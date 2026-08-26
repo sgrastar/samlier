@@ -1,7 +1,7 @@
 {
   "task": ":specReconcile",
-  "run_id": "f52f20f8-f103-48f4-a11f-94947ca29179",
-  "executed_at": "2026-08-26T00:08:30+00:00",
+  "run_id": "0eae693d-f89a-4e1e-a459-0e95d6df983a",
+  "executed_at": "2026-08-26T00:36:50+00:00",
   "validator": "tools/g1_validate.py (生成処理から独立。値を書き戻さない)",
   "mode": "offline",
   "source": {
@@ -15,20 +15,19 @@
     "requirements": 69,
     "obligations": 133,
     "checks": 51,
-    "passed": 49,
-    "failed": 2,
-    "blocking_failures": 1
+    "passed": 50,
+    "failed": 1,
+    "blocking_failures": 0
   },
   "g1_approval": null,
   "g1": {
     "state": "PENDING_REVIEW",
+    "authored_state": "PENDING_REVIEW",
     "open_questions": [],
     "unapproved": 133,
-    "blocking_failures": [
-      "SR-40"
-    ],
+    "blocking_failures": [],
     "complete": false,
-    "complete_formula": "no blocking failures AND no open questions AND all obligations approved via tests/approvals/g1.yaml AND coverage.g1_state == APPROVED"
+    "complete_formula": "no blocking failures AND no open questions AND all obligations approved via tests/approvals/g1.yaml (coverage.yaml は承認時に編集しない)"
   },
   "checks": [
     {
@@ -316,8 +315,8 @@
     {
       "id": "SR-40",
       "description": "tools/ に未追跡・未コミットの Python モジュールがない（shadow import の防止）",
-      "result": "FAIL",
-      "detail": "['tools/g1_trusted_verify.py', 'tools/g1_validate.py']"
+      "result": "PASS",
+      "detail": "[]"
     },
     {
       "id": "SR-38",
@@ -333,9 +332,9 @@
     },
     {
       "id": "SR-39",
-      "description": "coverage.yaml の g1_state が承認の実態と整合している",
+      "description": "coverage.yaml の g1_state が起票値（PENDING_REVIEW）のまま変更されていない",
       "result": "PASS",
-      "detail": "g1_state=PENDING_REVIEW approved=0/133"
+      "detail": "g1_state=PENDING_REVIEW（承認では coverage.yaml を編集しない。完了状態は tests/approvals/g1.yaml から導出する）"
     }
   ],
   "note": "SR-30 / SR-31 は G1 の完了条件であり、作成フェーズでは FAIL のまま提出される。それ以外の FAIL は成果物の欠陥を意味する。"

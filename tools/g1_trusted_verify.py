@@ -21,9 +21,15 @@ CI 側では承認済み commit から取り出したものを使うこと。
   終了コード: 0 = ブロッキング違反なし / 1 = あり / 2 = 検証の前提が崩れている
 """
 import os,sys
-# ★ 最初に「スクリプト自身のディレクトリ」を sys.path から外す。
-#   python は sys.path[0] にスクリプトの位置を入れるため、この処理の前に
-#   サードパーティを import すると tools/yaml.py 等に shadow される。
+# ★ 隔離モードでなければ自分自身を `python -I` で起動し直す。
+#   -I は PYTHONPATH と user site-packages を無効化する。
+#   sys.path[0]（スクリプトの位置 = tools/）の削除だけでは
+#   `PYTHONPATH=. python tools/g1_trusted_verify.py` で
+#   リポジトリ直下の未署名 yaml.py が署名検証前に実行されてしまう。
+#   この再起動はサードパーティを一切 import する前に行う。
+if not sys.flags.isolated:
+    os.execv(sys.executable,[sys.executable,'-I',os.path.abspath(__file__)]+sys.argv[1:])
+# -I でも sys.path[0] にはスクリプトの位置が入るので、これも外す
 if sys.path and os.path.basename(sys.path[0] or '')=='tools':
     del sys.path[0]
 import subprocess,tempfile,shutil,json
@@ -70,13 +76,42 @@ def main():
 
     print(f"[trusted-verify] 署名済み承認 commit: {sig[:12]} ({kind})")
 
+    # ------------------------------------------------------------------
+    # ★ validator を承認 commit A から取ってはならない。
+    #   A の署名者が承認記録と一緒に validator を弱体化できてしまう。
+    #   取得元の優先順位:
+    #     1) G1_VALIDATOR_COMMIT（CI 設定で外部から固定する trust anchor）
+    #     2) 承認対象 commit C（レビュアーが実際に読んだ成果物）
+    #   さらに C..A の変更を承認記録だけに制限し、A が C の子孫であることを要求する。
+    # ------------------------------------------------------------------
+    C=str(peek.get('target_commit') or '')
+    if len(C)!=40 or any(c not in '0123456789abcdef' for c in C):
+        die("target_commit は 40 桁の完全な SHA-1 でなければならない")
+    if git('rev-parse','--verify','--quiet',C+'^{commit}').stdout.strip()!=C:
+        die(f"target_commit {C[:12]} が git に存在しない")
+    if git('merge-base','--is-ancestor',C,sig).returncode!=0:
+        die(f"承認 commit {sig[:12]} が対象 commit {C[:12]} の子孫でない")
+
+    changed=sorted(x for x in git('diff','--name-only',f'{C}..{sig}').stdout.split() if x)
+    if changed!=[APPROVAL_REL]:
+        die(f"C..A の変更が承認記録だけに限定されていない: {changed[:6]}\n"
+            f"          承認 commit は {APPROVAL_REL} の追加のみを含むこと")
+
+    anchor=os.environ.get('G1_VALIDATOR_COMMIT') or C
+    if anchor!=C:
+        if git('rev-parse','--verify','--quiet',anchor+'^{commit}').returncode!=0:
+            die(f"G1_VALIDATOR_COMMIT {anchor} が git に存在しない")
+        print(f"[trusted-verify] validator の取得元: {anchor[:12]} (G1_VALIDATOR_COMMIT / 外部 anchor)")
+    else:
+        print(f"[trusted-verify] validator の取得元: {C[:12]} (target_commit。CI では G1_VALIDATOR_COMMIT で固定すること)")
+
     # A の tree から validator を取り出して隔離実行する
     tmp=tempfile.mkdtemp(prefix='g1-trusted-')
     try:
         os.makedirs(os.path.join(tmp,'tools'),exist_ok=True)
         for rel in EXTRACT:
-            b=git('show',f'{sig}:{rel}',binary=True)
-            if b.returncode!=0: die(f"{rel} が承認 commit に存在しない")
+            b=git('show',f'{anchor}:{rel}',binary=True)
+            if b.returncode!=0: die(f"{rel} が {anchor[:12]} に存在しない")
             with open(os.path.join(tmp,rel),'wb') as f: f.write(b.stdout)
         env=dict(os.environ)
         env['G1_REPO_ROOT']=ROOT

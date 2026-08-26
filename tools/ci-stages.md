@@ -119,11 +119,31 @@ python3 tools/g1_trusted_verify.py [--offline]
 
 このランナーは**現在の checkout の validator を実行しない**。
 
-1. 承認記録を最後に変更した commit A を git から特定する
-2. A の署名を検証する（`signed-commit` は `git verify-commit`、
+1. **自分自身を `python -I` で起動し直す**（`PYTHONPATH` と user site を無効化）。
+   これをしないと `PYTHONPATH=. python tools/g1_trusted_verify.py` で
+   リポジトリ直下の未署名 `yaml.py` が署名検証**前に**実行される
+2. 承認記録を最後に変更した commit A を git から特定する
+3. A の署名を検証する（`signed-commit` は `git verify-commit`、
    `signed-tag` は `git verify-tag` + tag が A を指すことの確認）
-3. **A の tree から** `g1_validate.py` / `g1_extract.py` を隔離ディレクトリに取り出す
-4. `python -I`（隔離モード）で実行し、検査対象リポジトリは `G1_REPO_ROOT` で渡す
+4. **A が対象 commit C の子孫**であることを確認する
+5. **`C..A` の変更が `tests/approvals/g1.yaml` だけ**であることを確認する
+6. ★ **validator は A から取らない**。`G1_VALIDATOR_COMMIT`（CI が外部から固定する
+   trust anchor）があればそこから、なければ **C**（レビュアーが実際に読んだ成果物）から
+   `g1_validate.py` / `g1_extract.py` を隔離ディレクトリに取り出す
+7. `python -I` で実行し、検査対象リポジトリは `G1_REPO_ROOT` で渡す
+
+> **なぜ A から取ってはいけないか**: A の署名者が承認記録と一緒に validator を
+> 弱体化できてしまう。実際、A に「即座に `51/51 PASS` を出して終了する validator」を
+> 含めて署名すると、署名検証を通ったうえで `exit 0` になった。
+>
+> C から取る場合も、C 自体を署名者が作れる余地は残る。
+> **CI では `G1_VALIDATOR_COMMIT` を外部設定で固定すること。**
+
+### 承認時に `coverage.yaml` を編集しない
+
+`C..A` を承認記録だけに制限した結果、**承認では `g1_state` も編集しない**。
+完了状態は承認記録から導出する（レポートの `g1.state` は導出値、
+`g1.authored_state` が `coverage.yaml` の記載）。
 
 **shadow import の遮断**: python は `sys.path[0]` にスクリプトの位置を入れるため、
 未追跡の `tools/yaml.py` を置くだけで署名検証より前に任意コードが走る。
@@ -147,7 +167,7 @@ python3 tools/g1_trusted_verify.py [--offline]
 complete = (blocking failure が 0)
        AND (open question が 0)
        AND (全 obligation が tests/approvals/g1.yaml で承認済み)
-       AND (coverage.yaml の g1_state == "APPROVED")
+# coverage.yaml は承認時に編集しない（C..A の制限のため編集できない）
 ```
 
 `state: APPROVED` に書き換えるだけでは通らない。**SR-36** が
