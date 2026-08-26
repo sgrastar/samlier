@@ -1473,3 +1473,78 @@ Codex の実装逸脱を抑えるため、リポジトリ直下に置いた。9 
 対照のないケースを作らない / 生リクエストを壊さない / 資格情報を永続化しない）と、
 変更ごとに実行する検証コマンド、ゲートの順序を短くまとめた。
 「過去に何を間違えたか」として `docs/11-review-log.md` を読ませる導線も入れた。
+
+---
+
+## G1a-R13 — 2026-08-26 G1b 開始前の最終整備
+
+**結論**: 指摘 7 件すべて妥当。特に 2 件は**私の計画が自分の規約と矛盾**していた。
+
+### 指摘 1: G1b がまだ fail-open だった
+
+`if: vars.G1B_ENABLED == 'true'` を置いていたが、
+**条件で skip されたジョブは GitHub では Success 扱い**になり、
+required check にしてもマージを阻止しない。**変数を消すだけでゲートが無効化**できた。
+
+**修正**: ジョブ条件を撤去し**常に実行**する。承認が済んでいなければ**失敗する**。
+G1b 前はこのジョブが赤いのが正しい状態であり、
+**required check にするかは branch protection 側で切り替える**（ライフサイクル切替をジョブ条件に置かない）。
+
+### 指摘 2: G2 で承認済みの G1 成果物を変更する計画になっていた
+
+`required_variants` の ID 化を **G2 で行う**と書いていた。
+これは G1b 承認後に `coverage.yaml` と全 `obligation_digest` を変更し、**承認を失効させる**。
+`AGENTS.md` の「承認済み G1 成果物を編集しない」とも矛盾していた。
+
+**修正**: **G1b の前に**移行を完了した。
+
+- 248 variant すべてを `{id, description_ja}` に変換
+- ID は **義務キー + 説明文の内容ハッシュ**（`v-` + 10 hex）。
+  並び替えでは変わらず、説明文を編集すれば変わる
+- 同一説明文の variant が 8 組あったため、義務キーを混ぜて一意化した
+- `g1_docgen.py` と **SR-22b / SR-22c**（形式・一意性）を追従させた
+
+### 指摘 3: mutant baseline が単一 scenario では足りない
+
+`role: sp` の baseline では `IIP-IDP*` が全て `NOT_APPLICABLE` になり、
+**IdP の mutant を検出できない**。
+
+**修正**:
+
+- **baseline matrix** に変更（`sp-full-slo-enc` / `sp-core-minimal` / `idp-full` / `idp-core-no-ecp`）。
+  各 baseline は role・profile・`declared_features`・**設定 fixture** を固定する
+- 各 mutant が **`base`** を明示する
+- **「mutant Test Peer」→「mutant target（SUT）」**に用語を訂正。
+  Suite 側の `peer/` は常に正しく動く。混同すると「Suite を壊して検出力を測る」誤りになる
+- mutant の期待値を **`outcome`** で書く（`violated` 等）。`FAIL` と書くと
+  SHOULD 義務を一律 FAIL にする誤りが再発する
+- **control の失敗は対象の違反ではない**。`control_failed` として扱い、
+  当該ケースは `NOT_VERIFIED(control_failed)` にする
+
+### 指摘 4: 署名者と reviewer が結び付いていなかった
+
+署名者 principal を取得していたが**レポートに出すだけ**で、承認判定は
+YAML 内の自己申告 `reviewer` を見ていた。
+**許可鍵の保持者が架空の reviewer 名を書けば `reviewer != authored_by` を通せた。**
+
+**修正**: 署名者 principal（commit は `%GS`、tag は tagger）を抽出し、
+**全 `reviewer` が署名者 principal（または外部固定の `G1_SIGNER_MAP` で写像した値）と
+一致すること**を要求する。複数レビュアーを認める場合は
+reviewer ごとの署名済み記録が必要である旨をエラーに明記した。
+
+実地試験（clone した実リポジトリ、SSH 署名）:
+
+| 状況 | 結果 |
+|---|---|
+| 許可鍵の保持者が `reviewer: fabricated-reviewer` と記録 | **BLOCK**（署名者 `reviewer@example.com` と不一致） |
+| `reviewer` を署名者 principal と一致させる | **53/53 PASS** / exit 0 |
+
+### P2 3 件
+
+- **script injection**: `${{ vars.G1_ALLOWED_SIGNERS }}` を run に直接展開していた。
+  `env:` 経由に変え、shell 側で `"$G1_ALLOWED_SIGNERS"` を引用参照する
+- **コミット済みレポートが古い**: commit 前の未追跡ファイル状態（`blocking 1 / SR-40`）が
+  残っていた。clean 状態のレポートに更新する
+- **ci-stages.md の旧記述**: offline 除外方式と旧 G1b トリガーを現行に合わせた
+
+累計で塞いだ攻撃は **45 パターン**。

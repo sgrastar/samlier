@@ -84,76 +84,123 @@ SAML にはこれに相当する、広く認知された仕組みが存在しな
 代わりに、**既知の違反を注入した mutant Test IdP / Test SP** を用意し、
 「狙った義務が必ず違反として検出されること」を golden test にする。
 
+#### ★ 用語: mutant は「対象（SUT）」であって Suite の Test Peer ではない
+
+Samlier の `peer/`（Test IdP / Test SP）は**検査する側**であり、常に正しく動く。
+mutant は**検査される側（SUT: System Under Test）**に注入する。
+`tests/mutants/` は「意図的に違反する対象実装」の定義であり、`peer/` とは別物。
+混同すると「Suite 側を壊して検出力を測る」という誤った実装になる。
+
 #### ★ オラクルは「絶対値」ではなく baseline からの差分
 
-「正常な peer では全義務が PASS」は**成立しない**。
+「正常な SUT では全義務が PASS」は**成立しない**。
 役割違い（SP プロファイルでの `IIP-IDP*`）、条件付き義務、`CONFIG`、`ATTESTED` があるため、
 単一の Run で全義務が PASS になることはない。
-同様に「`reject-everything` ではどの義務も PASS してはならない」も誤りで、
-**拒否を要求する `MUST_NOT` 系は一律拒否でも満たせる**。
+同様に「`reject-everything` ではどの義務も PASS してはならない」も**誤り**で、
+拒否を要求する `MUST_NOT` 系は一律拒否でも満たせる。
 
-そこで、**役割・Test Profile・条件を固定した baseline outcome vector** を先に取り、
-mutant はそこからの**差分**で判定する。
+そこで **baseline outcome vector** を先に取り、mutant はそこからの**差分**で判定する。
+
+#### ★ baseline は 1 本では足りない — matrix にする
+
+`role: sp` の baseline では **`IIP-IDP*` が全て `NOT_APPLICABLE`** になり、
+IdP の mutant を検出できない。Core/Full、条件付き機能、`CONFIG` の設定差も覆えない。
 
 ```yaml
-# tests/mutants/baseline.yaml — 違反を注入していない peer の期待結果
-id: baseline
-scenario:                       # ★ ここを固定しないと比較できない
-  role: sp                      # 対象が SP（Suite は Test IdP を演じる）
-  profile: sp-full
-  declared_features: { single_logout: true, assertion_encryption: true, ecp: false }
-  interaction: { allow_browser_steps: true, allow_attestation: true }
-outcomes:                       # 義務 → 期待 verdict（全 133 件を列挙）
-  IIP-SP13.a: PASS
-  IIP-SP13.b: PASS
-  IIP-IDP01.a: NOT_APPLICABLE   # 役割違い
-  IIP-SP14.c: NOT_SUPPORTED     # OPTIONAL の未実装申告
-  ...
+# tests/mutants/baselines.yaml
+baselines:
+  - id: sp-full-slo-enc
+    role: sp                     # SUT の役割（Suite は Test IdP を演じる）
+    profile: sp-full
+    declared_features: { single_logout: true, assertion_encryption: true, ecp: false }
+    config_fixture: tests/fixtures/sut/sp-full-slo-enc/    # ★ 設定差で結果が変わる
+    interaction: { allow_browser_steps: true, allow_attestation: true }
+  - id: sp-core-minimal
+    role: sp
+    profile: sp-core
+    declared_features: { single_logout: false, assertion_encryption: false }
+    config_fixture: tests/fixtures/sut/sp-core-minimal/
+  - id: idp-full
+    role: idp
+    profile: idp-full
+    declared_features: { ecp: true, assertion_encryption: true }
+    config_fixture: tests/fixtures/sut/idp-full/
+  - id: idp-core-no-ecp
+    role: idp
+    profile: idp-core
+    declared_features: { ecp: false }
+    config_fixture: tests/fixtures/sut/idp-core-no-ecp/
+outcomes:                        # baseline ごとの期待 outcome（全 133 義務）
+  sp-full-slo-enc:
+    IIP-SP13.a: satisfied
+    IIP-SP13.b: satisfied
+    IIP-IDP01.a: not_applicable  # 役割違い
+    IIP-SP14.c: not_supported    # OPTIONAL の未実装申告
+    ...
 ```
+
+**期待値は `outcome` で書き、Verdict は書かない。**
+`satisfied` / `violated` から `PASS` / `WARNING` / `NOT_SUPPORTED` への変換は
+`Evaluator` が `level` を見て行う（[docs/05 §2.3](05-test-definition-format.md)）。
+mutant 定義に `FAIL` と書くと、SHOULD 義務を一律 FAIL にする誤りが再発する。
 
 ```yaml
 # tests/mutants/no-signature-validation.yaml
 id: no-signature-validation
-base: baseline                  # 同じ scenario を使う
+base: sp-full-slo-enc            # ★ どの baseline に対する mutant かを明示
 injected_violation_ja: Response の XML 署名を一切検証しない
-expected_changes:               # ★ baseline から変わるべき義務
-  IIP-SP13.a: FAIL
-  IIP-MD07.b: FAIL
-unchanged_required: all_others  # ★ それ以外は baseline と一致すること
+expected_changes:                # baseline から変わるべき義務（outcome で書く）
+  IIP-SP13.a: violated
+  IIP-MD07.b: violated
+unchanged_required: all_others   # それ以外は baseline と一致すること
 ```
 
 `unchanged_required: all_others` が要点で、これがないと
-**「何でも FAIL にする Suite」が golden test を通ってしまう**。
+**「何でも violated にする Suite」が golden test を通ってしまう**。
 
-初期の mutant セット（G2 で `tests/cases.yaml` の `detected_by_mutants` と対応づける）:
+#### control の失敗は対象の違反ではない
 
-| mutant | 注入する違反 | baseline から FAIL に変わるべき義務 |
-|---|---|---|
-| `no-signature-validation` | 署名を検証しない | IIP-SP13.a / IIP-MD07.b |
-| `ignore-audience` | `Audience` を無視 | （Phase 4 と共通） |
-| `ignore-destination` | `Destination` を無視 | 同上 |
-| `first-key-only` | 複数鍵の最初しか試さない | IIP-MD07.b / IIP-SP08.c / IIP-IDP19.c |
-| `gcm128-only` | AES128-GCM しか受け付けない | IIP-ALG04.b |
-| `oaep-sha1-reject` | DigestMethod sha1 を拒否する | IIP-ALG06.c |
-| `crash-on-extension` | 未知の拡張要素で落ちる | IIP-EXT01.b |
-| `crash-on-unknown-attribute` | `xsd:anyAttribute` の未知属性で落ちる | IIP-EXT01.c |
-| `ignore-force-authn` | `ForceAuthn` を無視 | IIP-IDP06.a |
-| `truncate-256` | 256 文字の値を切り詰める | IIP-G02.a |
-| `reject-everything` | 全て拒否する | **positive control を持つ全ケースが FAIL に変わる**こと。`MUST_NOT` 系は baseline のままでよい |
-| `accept-everything` | 全て受理する | **negative control を持つ全ケースが FAIL に変わる**こと |
+positive control（満たす実装が通ること）が失敗した場合、
+それは**対象の規範違反ではなく Suite 側の問題**である。
+`violated`（→ FAIL）にせず **`control_failed`** として扱い、
+当該ケースは `NOT_VERIFIED(control_failed)` にする。
+これを混同すると、Suite の不具合を対象の不適合として表示することになる。
+
+### 初期の mutant セット
+
+G2 で `tests/cases.yaml` の `detected_by_mutants` と対応づける。
+
+| mutant | base | 注入する違反 | `expected_changes` |
+|---|---|---|---|
+| `no-signature-validation` | sp-full | 署名を検証しない | IIP-SP13.a / IIP-MD07.b |
+| `first-key-only` | sp-full | 複数鍵の最初しか試さない | IIP-MD07.b / IIP-SP08.c |
+| `first-key-only-idp` | idp-full | 同上（SLO の EncryptedID） | IIP-IDP19.c |
+| `gcm128-only` | sp-full | AES128-GCM しか受け付けない | IIP-ALG04.b |
+| `oaep-sha1-reject` | sp-full | DigestMethod sha1 を拒否する | IIP-ALG06.c |
+| `crash-on-extension` | sp-full / idp-full | 未知の拡張要素で落ちる | IIP-EXT01.b |
+| `crash-on-unknown-attribute` | sp-full / idp-full | 未知属性で落ちる | IIP-EXT01.c |
+| `truncate-256` | sp-full / idp-full | 256 文字の値を切り詰める | IIP-G02.a |
+| `ignore-force-authn` | idp-full | `ForceAuthn` を無視 | IIP-IDP06.a |
+| `no-error-response` | idp-full | エラー時に Response を返さない | IIP-IDP05.a / IIP-SSO03.b |
+| `single-acs-only` | idp-full | ACS が 1 つしか使えない | IIP-IDP12.a |
+| `reject-everything` | 各 baseline | 全て拒否する | **positive control を持つ全ケースが変化する**こと。`MUST_NOT` 系は baseline のまま |
+| `accept-everything` | 各 baseline | 全て受理する | **negative control を持つ全ケースが変化する**こと |
 
 `reject-everything` / `accept-everything` は
 **control の機能そのものを検証する対照 mutant** である。
 
 **受け入れ条件**
 
-- [ ] `baseline` の outcome vector が固定され、2 回実行して一致する（再現性）
+- [ ] baseline matrix が **IdP / SP × Core / Full × 主要な条件付き機能**を覆う
+- [ ] 各 baseline の outcome vector が固定され、2 回実行して一致する（再現性）
+- [ ] 各 mutant が `base` を明示している
 - [ ] 各 mutant で `expected_changes` の義務が**その通りに変化**する
-- [ ] 各 mutant で **それ以外の義務が baseline と一致**する（`unchanged_required`）
-- [ ] `reject-everything` で **positive control を持つ全ケース**が FAIL に変わる
-- [ ] `accept-everything` で **negative control を持つ全ケース**が FAIL に変わる
+- [ ] 各 mutant で **それ以外の義務が baseline と一致**する
+- [ ] `reject-everything` で **positive control を持つ全ケース**が変化する
+- [ ] `accept-everything` で **negative control を持つ全ケース**が変化する
 - [ ] **全義務が 1 件以上の mutant で検出される、または `mutant_waiver` を持つ**
       （[G2 の通過条件](01-scope-and-roadmap.md)）
+- [ ] control の失敗が `control_failed` として扱われ、対象の FAIL にならない
 - [ ] Test Plan 作成から結果表示まで、利用者が触るドキュメントが `README` 1 枚で足りる
 - [ ] 対象側で必要な設定作業が **メタデータ URL の登録 1 回 + オプション設定** に収まる
 - [ ] 同じ Suite バージョン・同じ Test Plan で 2 回実行して結果が一致する

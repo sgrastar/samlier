@@ -39,9 +39,9 @@ tasks.named("dockerPush") { dependsOn(":specReconcile", ":releaseCheck") }
 
 | job | trigger | ネットワーク | 内容 |
 |---|---|---|---|
-| `g1-check` | PR / push | 不要 | `g1_docgen.py --check` + 構造規則のみ（原文未取得に由来する FAIL は除外） |
+| `g1-check` | PR / push | 不要 | `g1_docgen.py --check` + **`--structural-only`**（CI 側に除外リストを書かない） |
 | `spec-reconcile` | push / 定期 / 手動 | **必要** | 原文と全 22 仕様を強制再取得して照合 |
-| `g1b-approval` | `vars.G1_TOOLS_COMMIT` が設定されているとき | 必要 | 署名済み承認の検証。**固定 SHA から runner を取り出して隔離実行**し、`g1.complete` と `provenance.validator_source_kind == "external-pin"` を確認 |
+| `g1b-approval` | **常に実行**（ジョブ条件を置かない） | 必要 | 署名済み承認の検証。**固定 SHA から runner と依存を取り出して隔離実行**し、`g1.complete` / provenance / pin の一致を確認 |
 
 `g1b-approval` は **`tools/g1_ci_verify.sh` を呼ばず、同等の処理を workflow に展開している**。
 ラッパー自身も改変されうるため、**CI 設定側に置くことが最後の trust anchor** になる。
@@ -50,8 +50,20 @@ tasks.named("dockerPush") { dependsOn(":specReconcile", ":releaseCheck") }
 
 | 変数 | 内容 |
 |---|---|
-| `G1_TOOLS_COMMIT` | runner / validator の取得元（40 桁完全 SHA）。**承認時に決めて設定する** |
-| `G1_ALLOWED_SIGNERS` | `gpg.ssh.allowedSignersFile` の内容（承認者の公開鍵） |
+| `G1_TOOLS_COMMIT` | runner / validator / 依存の取得元（40 桁完全 SHA）。**承認時に決めて設定する** |
+| `G1_ALLOWED_SIGNERS` | `gpg.ssh.allowedSignersFile` の内容（承認者の公開鍵）。★ `env:` 経由で渡す（`${{ }}` を run に直接展開すると script injection になる） |
+| `G1_SIGNER_MAP` | 任意。`principal=reviewer-id,...` の外部固定マッピング。未設定なら **reviewer は署名者 principal と一致していなければならない** |
+
+### ★ ジョブ条件で有効・無効を切り替えない
+
+条件で skip されたジョブは GitHub では **Success 扱い**になり、
+required check にしてもマージを阻止しない。
+`if: vars.G1B_ENABLED == 'true'` のような条件を置くと、
+**変数を消すだけでゲートを無効化できる**。
+
+`g1b-approval` は**常に実行**し、承認が済んでいなければ**失敗する**。
+G1b 前はこのジョブが赤いのが正しい状態であり、
+**required check にするかどうかは branch protection 側で切り替える**。
 
 **`.github/` と `tools/g1_*` は `.github/CODEOWNERS` で保護し、
 branch protection で「CODEOWNERS のレビュー必須」にすること。**

@@ -152,9 +152,8 @@ g2_state: PENDING_REVIEW          # G1 と同じく、承認は署名済み記�
 cases:
   - id: IIP-SP13-01
     obligation: IIP-SP13.a
-    covers_variants: [reject-when-configured, accept-signed]
-                                   # ★ 配列インデックスではなく variant の安定 ID。
-                                   #   coverage.yaml の required_variants に id を振る
+    covers_variants: [v-3f2a1b7c9d, v-8e41c05b62]
+                                   # ★ coverage.yaml の required_variants[].id を参照
     role: sp
     mode: CONFIG
     milestone: M1
@@ -168,18 +167,24 @@ cases:
       positive control でこれを落とす。
     depends_on: [IIP-SSO01-01]
     destroys_session: false
-    detected_by_mutants: [no-signature-validation]   # ★ 非空が必須（下記）
+    detected_by_mutants: [no-signature-validation]   # ★ 非空 or mutant_waiver が必須（下記）
+    baseline: sp-full-slo-enc      # ★ どの baseline での期待かを固定
 ```
 
-`coverage.yaml` 側の `required_variants` も、並び替えに強い**安定 ID** を持つ形に変える。
+`coverage.yaml` の `required_variants` は **G1b の前に**安定 ID 付きに移行済み
+（248 variant すべて）。G2 で G1 成果物を変更しない。
 
 ```yaml
         required_variants:
-          - id: reject-when-configured
+          - id: v-3f2a1b7c9d
             description_ja: 拒否設定にしたうえで完全未署名 Response → 拒否される
-          - id: accept-signed
+          - id: v-8e41c05b62
             description_ja: 署名済み Response → 受理される（対照）
 ```
+
+ID は **義務キー + 説明文** から導出した内容ハッシュ（`v-` + 10 hex）。
+並び替えでは変わらず、説明文を編集すれば変わる（= variant が変わったということ）。
+`g1_validate.py` の **SR-22b / SR-22c** が形式と一意性を検査する。
 
 ### 通過条件
 
