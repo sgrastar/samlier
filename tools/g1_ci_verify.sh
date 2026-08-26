@@ -16,7 +16,22 @@
 #     G1_TOOLS_COMMIT      runner / validator の取得元（40 桁完全 SHA。必須）
 #     G1_REPO_ROOT         検査対象リポジトリ（省略時はこのスクリプトのリポジトリ）
 #     PY                   python 実行ファイル（省略時は python3）
+#
+#   ★ validator の取得元は **常に G1_TOOLS_COMMIT** に固定する。
+#     環境に残った G1_VALIDATOR_COMMIT は無視する（ambient 継承による
+#     「runner は正しいが validator だけ別 commit」を防ぐ）。
+#     別々の anchor を使う場合は --validator-commit=<40桁SHA> を明示すること。
 set -euo pipefail
+
+# --validator-commit=<sha> を先に取り出す（明示指定のみ許可。環境変数からは受け取らない）
+VALIDATOR_COMMIT=""
+ARGS=()
+for a in "$@"; do
+  case "$a" in
+    --validator-commit=*) VALIDATOR_COMMIT="${a#*=}" ;;
+    *) ARGS+=("$a") ;;
+  esac
+done
 
 PY="${PY:-python3}"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -46,9 +61,20 @@ done
 echo "[ci-verify] runner の取得元: ${G1_TOOLS_COMMIT:0:12} (外部固定)"
 echo "[ci-verify] 検査対象リポジトリ: $REPO"
 
-# runner も validator も同じ固定 SHA から。検査対象は G1_REPO_ROOT で渡す。
-env -u PYTHONPATH \
+# validator の取得元は既定で G1_TOOLS_COMMIT と同一。
+# ambient な G1_VALIDATOR_COMMIT は **無視する**（-u で環境から落とす）。
+if [[ -n "$VALIDATOR_COMMIT" ]]; then
+  if ! [[ "$VALIDATOR_COMMIT" =~ ^[0-9a-f]{40}$ ]]; then
+    echo "[ci-verify] --validator-commit は 40 桁の完全な SHA-1 のみ" >&2; exit 2
+  fi
+  echo "[ci-verify] ⚠ validator を runner とは別の commit に固定しています: ${VALIDATOR_COMMIT:0:12}" >&2
+else
+  VALIDATOR_COMMIT="$G1_TOOLS_COMMIT"
+fi
+echo "[ci-verify] validator の取得元: ${VALIDATOR_COMMIT:0:12}"
+
+env -u PYTHONPATH -u G1_VALIDATOR_COMMIT -u G1_RUNNER_COMMIT \
     G1_REPO_ROOT="$REPO" \
     G1_RUNNER_COMMIT="$G1_TOOLS_COMMIT" \
-    G1_VALIDATOR_COMMIT="${G1_VALIDATOR_COMMIT:-$G1_TOOLS_COMMIT}" \
-    "$PY" -I "$TMP/tools/g1_trusted_verify.py" "$@"
+    G1_VALIDATOR_COMMIT="$VALIDATOR_COMMIT" \
+    "$PY" -I "$TMP/tools/g1_trusted_verify.py" ${ARGS[@]+"${ARGS[@]}"}

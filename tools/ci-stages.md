@@ -155,6 +155,11 @@ G1_TOOLS_COMMIT=<40桁SHA> tools/g1_ci_verify.sh [--offline]
 
 - `G1_TOOLS_COMMIT` 未設定 → **exit 2**（fail closed）
 - `HEAD` / `main` などの可変 ref → **exit 2**
+- ★ **validator の取得元は常に `G1_TOOLS_COMMIT`**。環境に残った
+  `G1_VALIDATOR_COMMIT` は `env -u` で落とす（ambient 継承で
+  「runner は正しいが validator だけ別 commit」になるのを防ぐ）。
+  別 anchor を使う場合は `--validator-commit=<40桁SHA>` を**明示**する
+  （警告を出力し、`provenance.validator_source` に記録される）
 - 実測: 現在の checkout の runner を「即時 PASS」に書き換えても、
   ラッパー経由なら `BLOCK`（SR-38 / SR-40）
 

@@ -145,7 +145,7 @@ def main():
         env['G1_RUNNER_SOURCE']=os.environ.get('G1_RUNNER_COMMIT','') or 'working-tree'
         env.pop('PYTHONPATH',None)
         cmd=[sys.executable,'-I',os.path.join(tmp,'tools','g1_validate.py')]+sys.argv[1:]
-        print(f"[trusted-verify] 承認 commit から取り出した validator を隔離実行: {tmp}")
+        print(f"[trusted-verify] {anchor[:12]} から取り出した validator を隔離実行: {tmp}")
         p=subprocess.run(cmd,env=env,cwd=tmp)
         return p.returncode
     finally:

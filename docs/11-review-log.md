@@ -1295,3 +1295,31 @@ runner の docstring と実行時メッセージに「A の tree から validato
 旧仕様の記述が残っていた（実装は R8 で C 側に変更済み）。文言を実装に合わせた。
 
 累計で塞いだ攻撃は **39 パターン**。
+
+---
+
+## G1a-R10 — 2026-08-26 CI ラッパーの ambient 環境変数
+
+**結論**: 指摘 1 件は妥当。ラッパーの説明（「runner も validator も同じ固定 SHA から」）と
+実装（`${G1_VALIDATOR_COMMIT:-$G1_TOOLS_COMMIT}`）が食い違っており、
+環境に残った `G1_VALIDATOR_COMMIT` が固定を上書きしていた。
+
+**修正**:
+
+- `env -u G1_VALIDATOR_COMMIT -u G1_RUNNER_COMMIT` で**ambient 値を落とす**
+- validator の取得元は**常に `G1_TOOLS_COMMIT`**
+- 別 anchor が必要な場合は **`--validator-commit=<40桁SHA>` を明示**（環境変数からは受け取らない）。
+  指定時は警告を出力し、`provenance.validator_source` に記録される
+
+**実地試験**（クリーンな clone、SSH 署名）:
+
+| 状況 | 結果 |
+|---|---|
+| `G1_TOOLS_COMMIT=C` + ambient `G1_VALIDATOR_COMMIT=B`（弱体化） | **ambient は無視され C が使われる**。`provenance` も両方 C |
+| `--validator-commit=B` を明示 | 警告つきで B を使用（意図的な別 anchor は許可） |
+
+**訂正**: runner の実行時メッセージが「承認 commit から取り出した validator」のままだった。
+実際には anchor（`G1_VALIDATOR_COMMIT` または C）から取得しているため、
+`{anchor の先頭 12 桁} から取り出した validator` に修正した。
+
+累計で塞いだ攻撃は **41 パターン**。
