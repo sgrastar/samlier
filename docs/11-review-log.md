@@ -2626,3 +2626,73 @@ open question 13
 ```
 
 **第 1 段階は未完了。実装には着手していない。**
+
+---
+
+## G1b-R15 — 2026-08-27 negative ケース・role 分割・二択 variant（指摘 4 件）
+
+義務 316 → **317**。
+
+### 1 [P1] `.fc` / `.ff` に「暗号化したが外側を署名しない」違反ケースがなかった
+
+全 variant が assertion 署名または `<Response>` 署名を有効にする前提で、
+**`<EncryptedID>` を発行しながらどちらも署名しない実装を violated にできなかった**。
+negative variant を追加した。
+
+> `<saml:EncryptedID>` を送出しながら、包含する `<Assertion>` にも `<Response>` にも有効な署名がない → `violated`
+
+あわせて「観測機会なし → `satisfied_with_note`」の適用範囲を明示した。
+
+> `satisfied_with_note` になるのは **`<EncryptedID>` / `<EncryptedAttribute>` 自体が観測されなかった場合だけ**。
+> 暗号化要素を観測したのに包含要素に有効な署名がない場合は観測機会なしではなく **`violated`**。
+
+### 2 [P1] `.ey` の variant が SP 向けに偏っていた
+
+`roles: [idp, sp]` なのに主要 variant が `<AttributeStatement>` を除外する**応答**で、
+IdP の AuthnRequest 検証を証明できなかった。role 別に分割した。
+
+| 義務 | role | 検証対象 |
+|---|---|---|
+| `.ey` | sp | `<Response>` / `<Assertion>` の内容を除外する transform |
+| **`.fk`** | idp | `<AuthnRequest>` の内容を除外する transform（`@AssertionConsumerServiceURL` / `<NameIDPolicy>` / `<Scoping>`） |
+
+ACS URL を署名対象から外す攻撃は、署名済み要求を信頼して応答先を決める実装に直接効く。
+
+### 3 [P1] 恒等 transform は required variant にできない
+
+許可外 transform は**内容を除外しなくても拒否してよい**（MAY）。
+したがって恒等 XPath は「拒否 → 適合／受理 → 適合」の**二択**で、検出力がない。
+「A でも B でもよいケースには verdict を付けない」という既定方針にも反していた。
+**required variant から外し、Suite 側 fixture の自己検証**（拒否が transform の存在によるのか
+除外の検出によるのかの確認）に移した。対象の verdict には影響させない。
+
+### 4 [P2] `.fc` の説明にまだ技術的な誤りがあった
+
+R14 で書いた「平文時点で署名を計算していれば暗号文を差し替えても検証は成功する」は不正確。
+平文に署名してから暗号化すると**署名対象 XML そのものが変わる**ため、
+改竄前の元文書でも署名検証は失敗するのが通常である。正しい control は**組**で固定する。
+
+- **(a)** 元の送出文書の署名検証が**成功する**
+- **(b)** 暗号文を差し替えた文書の署名検証が**失敗する**
+
+(a) だけでは署名が別の何かを覆っているだけかもしれず、(b) だけでは (a) が偶然失敗している場合と区別できない。
+
+### ★ 作業中に自分で見つけた事故
+
+`.ey` を role 別に分割する際、**テキスト範囲の切り出しで `.fi`（RSA-SHA1 SHOULD）を巻き込んで削除していた**。
+義務数が 316 のまま増えていないことに気づいて発覚し、復元した。
+以後、分割・splice の後は**義務数と主要キーの存在を必ず突き合わせる**。
+
+### 現在の状態
+
+```
+要件 69 / 義務 317 / variant 787 / 条件付き 53 / 仕様 25 / 述語 22 / 検査 62
+IIP-SSO01 だけで 161 義務
+testability  BROWSER 131 / CONFIG 89 / AUTOMATED 53 / ATTESTED 43 / NOT_OBSERVABLE 1
+network 実行: 60/62 PASS・**blocking 0**
+SR-33  全 25 仕様を再取得し source_digest 一致
+SR-34  reference_evidence 255 件すべて locator 解決・節ダイジェスト一致
+残る FAIL は SR-30（open question 13）と SR-31（未承認 317）＝ G1 の完了条件のみ
+```
+
+**第 1 段階は未完了。実装には着手していない。**
