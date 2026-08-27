@@ -1,6 +1,6 @@
 # tests/coverage.yaml — 要件カタログ（G1 成果物 / 判定レベルの唯一の出典）
 # 生成: build_g1.py（原文からオフセットと digest を解決）/ 手編集しない
-generated_at: 2026-08-27T12:53:36+00:00
+generated_at: 2026-08-27T13:53:13+00:00
 schema_version: 1
 g1_state: PENDING_REVIEW
 # 作成者は reviewer / approved_at を埋めない。別のレビュアーが原文と直接照合して承認する。
@@ -7737,8 +7737,8 @@ requirements:
         level: MUST_NOT
         testability: AUTOMATED
         condition: null
-        summary_en: "A service provider must not use AllowCreate in conjunction with a request for, or an assertion issued with, a transient name identifier"
-        summary_ja: "SP は transient NameID を要求する場合、またはその要求に transient NameID assertion が発行される場合に AllowCreate を使用してはならない"
+        summary_en: "A service provider must not use AllowCreate in a request for a transient name identifier"
+        summary_ja: "SP は transient NameID を要求するとき AllowCreate を使用してはならない"
         references_spec: "SAML2Prof#4.1"
         reference_derivation: true
         reference_evidence:
@@ -7752,19 +7752,18 @@ requirements:
         required_variants:
           - id: v-0bdca828da
             description_ja: "NameIDPolicy/@Format=transient の AuthnRequest → @AllowCreate を含めない"
-          - id: v-a3af6f71f0
-            description_ja: "@Format 省略等の要求に対し transient NameID assertion が発行された → 対応する AuthnRequest は @AllowCreate を含まない"
         controls:
           - "★ AllowCreate を一切送らない実装も適合する。persistent で AllowCreate を使うことを positive control として要求すると、原文の MUST NOT にない生成能力を足してしまう"
-          - "★ transient AuthnRequest / assertion と対応付く要求を送出する観測機会がなければ satisfied_with_note とし、違反にも NOT_APPLICABLE にもしない"
+          - "★ transient AuthnRequest を送出する観測機会がなければ satisfied_with_note とし、違反にも NOT_APPLICABLE にもしない"
           - "★ AllowCreate は <NameIDPolicy>（AuthnRequest）の属性で assertion 自体には存在しない。MUST NOT は属性を使用する requester の送出物で判定し、assertion consumer に架空の属性処理義務を作らない"
+          - "★ @Format 省略時に IdP が transient を返したことを見て requester を遡及的に違反にしない。返却 Format は IdP の裁量であり、assertions issued with transient の文脈は IIP-SSO01.fp で処理する"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:f4102c9b7c3b5767538b165d18a44cbf8fa5eb1c529a4cb5075337b22ad91c19"
+          obligation_digest: "sha256:f2560e3546be742bb7247da2e1a0db50cdfd3a49d1744a2dbf6b7a07ddb4e2e5"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SSO01"
@@ -7777,8 +7776,8 @@ requirements:
           predicate: supports_authnrequest_proxying
           predicate_kind: CAPABILITY_BASED
         configuration_failure_semantics: test_precondition
-        summary_en: "A proxying identity provider must not use AllowCreate in conjunction with an upstream request for, or an assertion issued with, a transient name identifier"
-        summary_ja: "proxy IdP は上流で transient NameID を要求する場合、または上流から transient NameID assertion が発行される場合に AllowCreate を使用してはならない"
+        summary_en: "A proxying identity provider must not use AllowCreate in an upstream request for a transient name identifier"
+        summary_ja: "proxy IdP は上流へ transient NameID を要求するとき AllowCreate を使用してはならない"
         references_spec: "SAML2Prof#4.1"
         reference_derivation: true
         reference_evidence:
@@ -7792,18 +7791,17 @@ requirements:
         required_variants:
           - id: v-ba78efb751
             description_ja: "対象が上流へ送る AuthnRequest の NameIDPolicy/@Format=transient → @AllowCreate を含めない"
-          - id: v-fc90fc64de
-            description_ja: "@Format 省略等の上流要求に transient NameID assertion が返った → 対応する上流 AuthnRequest は @AllowCreate を含まない"
         controls:
           - "★ SP の送出要求は IIP-SSO01.fn で分ける"
           - "★ persistent で AllowCreate を使う能力は本 MUST NOT の要件ではないため対照として要求しない"
+          - "★ @Format 省略時の上流 IdP の返却 Format を見て proxy requester を遡及的に違反にしない。assertions issued with transient の文脈は IIP-SSO01.fp で処理する"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:4393d293b3ce6cef06832e2ed708721ed13c7fd6858fb0785d6490d8ce582865"
+          obligation_digest: "sha256:c7c9b0f57c093ec6bc3d949003520ae98acecdbc59a57304f5cfd0e1d254b908"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SSO01"

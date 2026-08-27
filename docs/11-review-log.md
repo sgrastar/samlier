@@ -2889,9 +2889,9 @@ SHOULD be ignored の 4 象限」と解釈し、assertion 発行側 IdP の MUST
 - MUST NOT be used: 属性を送る requester（SP / proxy IdP）の .fn / .fo
 - SHOULD be ignored: 属性を処理する IdP の .fp
 
-と actor を固定し、3 義務すべての適用文脈を requests for or assertions issued with transient
-まで広げた。以前の .fq / .gk は assertion consumer に存在しない AllowCreate 属性の処理を
+と actor を固定した。以前の .fq / .gk は assertion consumer に存在しない AllowCreate 属性の処理を
 課していたため削除した。単に「2 動詞 × 2 文脈」を機械的に 4 義務へ展開しない。
+requester 側と assertions issued with 側の適用条件の切り分けは CP1-R2 で訂正した。
 
 ### 一般則
 
@@ -2906,3 +2906,27 @@ SHOULD be ignored の 4 象限」と解釈し、assertion 発行側 IdP の MUST
     要件 69 / 義務 335
     IIP-SSO01.a の open question は閉鎖を維持
     残る G1 完了条件: SR-30（他要件 12 件）/ SR-31（未承認 335 件）
+
+---
+
+## G1b-CP1-R2 — 2026-08-27 E14 requester 条件の遡及判定を除去
+
+CP1-R1 では .fn / .fo に「Format を省略した要求へ IdP が transient assertion を返した場合、
+対応する AuthnRequest に AllowCreate があれば requester の MUST NOT 違反」という variant を追加した。
+これは誤りだった。
+
+Core §3.4.1.1 は Format が省略または unspecified の場合、IdP が任意の identifier Format を
+返せるとしている。requester は送出時点で結果 Format を決定できない。したがって、
+後から transient が返ったことを理由に SP / proxy IdP を遡及的に FAIL にすると、同じ E14 の
+「特定用途に使わない requester は AllowCreate=true を通常設定する」という .fl / .fm の SHOULD とも衝突する。
+
+修正:
+
+- .fn / .fo の MUST NOT は、requester 自身が NameIDPolicy/@Format=transient を指定した場合に限定
+- Format 省略時に結果 assertion が transient となった文脈は、AllowCreate を読む IdP の .fp で扱う
+- SP / proxy requester が IdP の裁量を予測できなかったことを違反にしない
+
+### 一般則
+
+規範の条件は、義務主体が行為時点で知り得る事実でなければならない。
+相手方が後から選んだ結果で、過去の送出行為を遡及的に違反へ変えない。
