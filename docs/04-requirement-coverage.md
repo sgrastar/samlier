@@ -4531,7 +4531,7 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
   - `v-5f5f709085` query delimiter（例: &）を値に含む Test SP entityID を使い、生の query で delimiter が percent-encoding され、1 回の decode で元の entityID になる
 - **対照（negative control）**:
   - パース後に再構成した query では判定しない。ブラウザが受け取った Location の生 query component を記録して検査する
-  - delimiter を含む entityID を設定できない場合は、percent-encoding の有無を識別できる別の文字（例: %, 非 ASCII）へフォールバックする。それも設定できなければ NOT_VERIFIED(entityid_encoding_probe_unavailable) とし、対象の違反にしない
+  - & を含む entityID を設定できない場合は、有効な絶対 URI のまま query への埋込み時に encoding が必要な値へフォールバックする（例: https://sp.example.test/id#probe の #、https://sp.example.test/id%25probe の %）。それも設定できなければ NOT_VERIFIED(entityid_encoding_probe_unavailable) とし、対象の違反にしない
 - **参照先仕様**: `IdPDisco`
 - **source_clauses**: `[0, 75)` `sha256:ce8bdccd17ea…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
@@ -4544,7 +4544,8 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
   - `v-33c2670d12` 対象が送出した各 request について実効 returnIDParam を求め、return URL の既存 query に同名 parameter がないことを検査
 - **対照（negative control）**:
   - custom returnIDParam の利用能力は MAY なので要求しない。観測された request ごとに、明示値または既定の entityID を使って判定する
-  - return parameter 自体が観測されない場合は satisfied_with_note。NOT_APPLICABLE にして Run 全体から除外しない
+  - return を含む各 request で衝突なし → satisfied / 1 件でも衝突あり → violated。Discovery request は観測されたが return を含む request が 0 件なら、禁止対象の状態が生じていないため satisfied とする
+  - Discovery request 自体を 1 件も観測できなければ NOT_VERIFIED(no_discovery_request_observed)。satisfied_with_note で WARNING を発生させない
 - **参照先仕様**: `IdPDisco`
 - **source_clauses**: `[0, 75)` `sha256:ce8bdccd17ea…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`

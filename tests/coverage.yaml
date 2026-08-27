@@ -1,6 +1,6 @@
 # tests/coverage.yaml — 要件カタログ（G1 成果物 / 判定レベルの唯一の出典）
 # 生成: build_g1.py（原文からオフセットと digest を解決）/ 手編集しない
-generated_at: 2026-08-27T15:13:18+00:00
+generated_at: 2026-08-27T15:34:29+00:00
 schema_version: 1
 g1_state: PENDING_REVIEW
 # 作成者は reviewer / approved_at を埋めない。別のレビュアーが原文と直接照合して承認する。
@@ -10360,14 +10360,14 @@ requirements:
             description_ja: "query delimiter（例: &）を値に含む Test SP entityID を使い、生の query で delimiter が percent-encoding され、1 回の decode で元の entityID になる"
         controls:
           - "パース後に再構成した query では判定しない。ブラウザが受け取った Location の生 query component を記録して検査する"
-          - "delimiter を含む entityID を設定できない場合は、percent-encoding の有無を識別できる別の文字（例: %, 非 ASCII）へフォールバックする。それも設定できなければ NOT_VERIFIED(entityid_encoding_probe_unavailable) とし、対象の違反にしない"
+          - "& を含む entityID を設定できない場合は、有効な絶対 URI のまま query への埋込み時に encoding が必要な値へフォールバックする（例: https://sp.example.test/id#probe の #、https://sp.example.test/id%25probe の %）。それも設定できなければ NOT_VERIFIED(entityid_encoding_probe_unavailable) とし、対象の違反にしない"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:72c4f2ee420967a5634c51c1bd8f7d6ba2dcc1cd42d5418e9c39ae919ec6bcc5"
+          obligation_digest: "sha256:f2c051c6b89ac4df5ca35f5db9cb00fdcf55584bf2a38bd8f3525d4e0a1d9f78"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SP04"
@@ -10394,14 +10394,15 @@ requirements:
             description_ja: "対象が送出した各 request について実効 returnIDParam を求め、return URL の既存 query に同名 parameter がないことを検査"
         controls:
           - "custom returnIDParam の利用能力は MAY なので要求しない。観測された request ごとに、明示値または既定の entityID を使って判定する"
-          - "return parameter 自体が観測されない場合は satisfied_with_note。NOT_APPLICABLE にして Run 全体から除外しない"
+          - "return を含む各 request で衝突なし → satisfied / 1 件でも衝突あり → violated。Discovery request は観測されたが return を含む request が 0 件なら、禁止対象の状態が生じていないため satisfied とする"
+          - "Discovery request 自体を 1 件も観測できなければ NOT_VERIFIED(no_discovery_request_observed)。satisfied_with_note で WARNING を発生させない"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:c9237811a31c1e2a47de437cf398131094ebbccef75441c5a4b2c6894f47f5d6"
+          obligation_digest: "sha256:9b3ba79f591da4dfae808ab7786763835ef0191ba0093f6d2a05018dba83168b"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SP04"
@@ -10419,7 +10420,11 @@ requirements:
           - spec: IdPDisco
             locator: "2\\.4\\.1 HTTP Request to Discovery Service||2\\.4\\.2 Discovery Service determines appropriate Identity Provider"
             section_digest: "sha256:54700837d522260fe56a900f1eef305ad49b413529670fe7a1b62f428096117b"
-            basis_ja: "metadata を使わない場合、return parameter は mandatory となり存在しなければならない。"
+            basis_ja: "metadata を使う場合は return を省略でき、その返却先は default DiscoveryResponse に基づかなければならない。metadata を使わない場合は return が mandatory である。"
+          - spec: SAML2Meta
+            locator: "2\\.2\\.3 Complex Type IndexedEndpointType||2\\.2\\.4 Complex Type localizedNameType"
+            section_digest: "sha256:7308768e6b3457483aa922a6ea0c4a82438289b7dc7cd597c8eb826aeeedcaa4"
+            basis_ja: "同種の IndexedEndpointType 列で default endpoint を選ぶ規則: isDefault=true の最初、なければ isDefault=false でない最初、それもなければ列の最初。"
         level_assignment: { sp: full }
         source_clauses:
           - { start: 0, end: 75, digest: "sha256:ce8bdccd17ea2f66dcbdaaf5b60241115ca8b6c3fb1bc9eb3f4cc468d61dad1b", occurrences: 1 }
@@ -10436,7 +10441,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:d41db012ccbb8ba37b132405b323e9ca70c762597883f144b51fbe13d77279f5"
+          obligation_digest: "sha256:eda2d91dca79dabdfe2b08b377b85905b7a4fb727af9125a9a64a4e12139eadd"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SP04"

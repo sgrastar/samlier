@@ -3014,3 +3014,28 @@ CP2a の作成者候補は IIP-SP04.a〜.i。open question は IIP-SP04 から�
 
 Discovery request 自体が観測できなければ `NOT_VERIFIED(no_discovery_request_observed)` とする。
 `satisfied_with_note` は MUST 義務を WARNING にするため、単なる条件分岐不発の代用にしない。
+
+---
+
+## G1b-CP2a-R2 — 2026-08-28 default endpoint と禁止規則の不発時を確定
+
+CP2a-R1 の再確認では指定 6 件はすべて解消していたが、関連する 3 点を追加修正した。
+
+- `.g`: `default DiscoveryResponse` の選択規則を定める SAML2Meta §2.2.3 を evidence に追加。
+  `isDefault=true` の最初、なければ `isDefault=false` でない最初、それもなければ列の最初とする
+- `.f`: `return` がない request しか観測されない場合を `satisfied_with_note` にしない。
+  禁止対象の状態が生じていないことを観測済みなので `satisfied` とする
+- `.e`: encoding probe のフォールバックを、絶対 URI として有効な `#` / `%25` を含む例に変更
+
+### `.f` を NOT_VERIFIED にしなかった理由
+
+`return URL の query に衝突 parameter を含めない` は、観測した request に対する禁止規則である。
+Discovery request が観測され、そのすべてで `return` が省略されているなら、禁止状態が存在しないことは
+観測できている。したがって outcome は空虚充足の `satisfied` である。
+
+- Discovery request あり・`return` あり・衝突なし → `satisfied`
+- Discovery request あり・いずれかに衝突あり → `violated`
+- Discovery request あり・`return` は全件なし → `satisfied`
+- Discovery request 自体がなし → `not_verified(no_discovery_request_observed)`
+
+「optional 経路を使わなかった」と「対象 message を一件も観測していない」を区別する。
