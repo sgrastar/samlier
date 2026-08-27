@@ -1,6 +1,6 @@
 # tests/specs.yaml — 仕様カタログ（G1 成果物）
 # 生成: build_g1.py / 手編集しない
-generated_at: 2026-08-26T20:08:23+00:00
+generated_at: 2026-08-27T07:11:46+00:00
 schema_version: 1
 specs:
   kantara-fedinterop-impl:

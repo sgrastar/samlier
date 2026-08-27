@@ -282,21 +282,16 @@ PRED = [
   "SAML2Core 6 の規則は『その種類の暗号化を行う場合』が前提。"
   "IIP-IDP09.b が識別子・属性の暗号化を OPTIONAL としているため、非対応なら NOT_APPLICABLE。"
   "★ 観測は方向付き: 対象が *送信した* <saml:EncryptedAttribute> のみが証拠になる"),
- ("target_signs_saml_messages","CAPABILITY_BASED","対象が SAML メッセージ・assertion に XML 署名を付けるか",
-  ["declared_features.signs_messages"],
-  ["target_emitted: ds:Signature"],
-  "SAML2Core 5.4 の XML Signature profile は『<ds:Signature> を付ける場合』の制約である。"
-  "IdP は POST バインディングで各 assertion の署名が必須（IIP-SSO01.v）なので常に真になるが、"
-  "SP の AuthnRequest 署名は SAML2Prof 4.1.4.1 で MAY。署名しない対象では NOT_APPLICABLE。"
-  "★ 観測は方向付き: 対象が *送出した* メッセージ・assertion に <ds:Signature> があることだけが証拠"),
- ("accepts_nonstandard_signature_transforms","CAPABILITY_BASED","対象が許可外 transform を含む署名を拒否せず受理するか",
-  ["declared_features.accepts_nonstandard_transforms"],
-  ["target_accepted_signature_with_nonstandard_transform: true"],
-  "SAML2Core 5.4.4 は『Verifiers of signatures MAY reject signatures that contain other transform "
-  "algorithms as invalid. If they do not, verifiers MUST ensure that no content of the SAML message is "
-  "excluded from the signature』という二択。一律拒否する対象には後段の MUST が適用されない。"
-  "★ この述語は検査そのものの観測から決まる（許可外 transform 付き署名を送って受理されたか）。"
-  "偽なら NOT_APPLICABLE で、それが安全側の挙動である"),
+ ("signs_and_encrypts_assertion","CAPABILITY_BASED","対象が同一の assertion に対して署名と暗号化を同時に行えるか",
+  ["declared_features.sign_and_encrypt_assertion"],
+  ["target_emitted_encrypted_assertion_containing_signature: true"],
+  "SAML2Core 6.2 は『When an assertion is to be signed and encrypted』が前提。"
+  "IIP-SSO04（署名）と IIP-IDP09.a（暗号化）はそれぞれ独立した対応必須要件であって、"
+  "**両方を同一 assertion に同時適用できることまでは要求していない**。"
+  "同時構成を提供しない実装で永久に NOT_VERIFIED にしないため、条件として分離する。"
+  "★ 観測は方向付き: 対象が送出した <EncryptedAssertion> を復号して <ds:Signature> が現れたことだけが証拠。"
+  "観測は Test Plan の構成段階（preflight / WAITING_CONFIG）で得るもので、"
+  "本義務のケース自体が観測源になるわけではない"),
  ("uses_small_integer_sessionindex","CAPABILITY_BASED","対象が SessionIndex に『小さい正整数・繰り返し定数』方式を使うか",
   ["declared_features.sessionindex_scheme"],
   ["target_emitted_sessionindex_is_small_integer: true"],

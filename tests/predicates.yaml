@@ -1,6 +1,6 @@
 # tests/predicates.yaml — 条件述語の固定集合（G1 成果物）
 # 生成: build_g1.py / 手編集しない
-generated_at: 2026-08-26T20:08:23+00:00
+generated_at: 2026-08-27T07:11:46+00:00
 schema_version: 1
 # kind: CLAIM_BASED      = 申告そのものが条件（observed 不要）
 #       CAPABILITY_BASED = 実際の能力が条件（observed 必須。declaration-only FALSE は UNKNOWN）
@@ -117,24 +117,15 @@ predicates:
       - "target_emitted: saml:EncryptedAttribute"
     on_conflict: inconsistent
     rationale_ja: "SAML2Core 6 の規則は『その種類の暗号化を行う場合』が前提。IIP-IDP09.b が識別子・属性の暗号化を OPTIONAL としているため、非対応なら NOT_APPLICABLE。★ 観測は方向付き: 対象が *送信した* <saml:EncryptedAttribute> のみが証拠になる"
-  target_signs_saml_messages:
+  signs_and_encrypts_assertion:
     kind: CAPABILITY_BASED
-    description_ja: "対象が SAML メッセージ・assertion に XML 署名を付けるか"
+    description_ja: "対象が同一の assertion に対して署名と暗号化を同時に行えるか"
     declared:
-      - declared_features.signs_messages
+      - declared_features.sign_and_encrypt_assertion
     observed:
-      - "target_emitted: ds:Signature"
+      - "target_emitted_encrypted_assertion_containing_signature: true"
     on_conflict: inconsistent
-    rationale_ja: "SAML2Core 5.4 の XML Signature profile は『<ds:Signature> を付ける場合』の制約である。IdP は POST バインディングで各 assertion の署名が必須（IIP-SSO01.v）なので常に真になるが、SP の AuthnRequest 署名は SAML2Prof 4.1.4.1 で MAY。署名しない対象では NOT_APPLICABLE。★ 観測は方向付き: 対象が *送出した* メッセージ・assertion に <ds:Signature> があることだけが証拠"
-  accepts_nonstandard_signature_transforms:
-    kind: CAPABILITY_BASED
-    description_ja: "対象が許可外 transform を含む署名を拒否せず受理するか"
-    declared:
-      - declared_features.accepts_nonstandard_transforms
-    observed:
-      - "target_accepted_signature_with_nonstandard_transform: true"
-    on_conflict: inconsistent
-    rationale_ja: "SAML2Core 5.4.4 は『Verifiers of signatures MAY reject signatures that contain other transform algorithms as invalid. If they do not, verifiers MUST ensure that no content of the SAML message is excluded from the signature』という二択。一律拒否する対象には後段の MUST が適用されない。★ この述語は検査そのものの観測から決まる（許可外 transform 付き署名を送って受理されたか）。偽なら NOT_APPLICABLE で、それが安全側の挙動である"
+    rationale_ja: "SAML2Core 6.2 は『When an assertion is to be signed and encrypted』が前提。IIP-SSO04（署名）と IIP-IDP09.a（暗号化）はそれぞれ独立した対応必須要件であって、**両方を同一 assertion に同時適用できることまでは要求していない**。同時構成を提供しない実装で永久に NOT_VERIFIED にしないため、条件として分離する。★ 観測は方向付き: 対象が送出した <EncryptedAssertion> を復号して <ds:Signature> が現れたことだけが証拠。観測は Test Plan の構成段階（preflight / WAITING_CONFIG）で得るもので、本義務のケース自体が観測源になるわけではない"
   uses_small_integer_sessionindex:
     kind: CAPABILITY_BASED
     description_ja: "対象が SessionIndex に『小さい正整数・繰り返し定数』方式を使うか"

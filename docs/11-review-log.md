@@ -2462,3 +2462,99 @@ open question 13
 ```
 
 **第 1 段階は未完了。** `IIP-SSO01.a` の対応表の照合が残っており、実装には着手できない。
+
+---
+
+## G1b-R13 — 2026-08-27 適用性モデルの誤用（指摘 6 件）
+
+義務数は 316 のまま。今回はすべて**適用性（condition）の使い方**の誤り。
+
+### 1 [P0] `.ey` の適用性判定が循環していた
+
+`accepts_nonstandard_signature_transforms` を「本検査で受理を観測して決める」としていたが、
+**適用性はケース実行より先に評価される**（[docs/03 §条件の評価](03-test-model.md)）。
+観測するためのケースが観測前にスキップされる。
+
+さらに、1 種類の transform を拒否した観測だけで条件を偽にすると、
+**別の危険な transform を受理する実装を NOT_APPLICABLE として除外できてしまう**。
+
+**条件を外し、各 variant を transform ごとに二択で評価する**形にした。
+
+| 観測 | outcome |
+|---|---|
+| その transform を含む署名を拒否した | `satisfied` |
+| 受理したが、除外された内容が処理に使われていない | `satisfied` |
+| 受理して除外された内容が処理に使われた | `violated` |
+| 受理したが除外の有無を確認できない | `not_verified` |
+
+述語 `accepts_nonstandard_signature_transforms` は削除した。
+
+### 4 [P1] `target_signs_saml_messages` は能力述語ではなく実行時条件だった
+
+Core §5.4 の制約は「署名能力がある製品」ではなく**実際に生成された各 XML 署名**に適用される。
+能力はあるがこの要求では署名しない SP を `declared=true / observed=false` の矛盾として扱うのは誤り。
+
+`.er` / `.eu` / `.ev` / `.ew` / `.ex` から**条件を外し**、
+**対象が送出した各署名を受動的に検査する**形にした。
+当該 Run で署名が 1 つも観測されなければ `satisfied_with_note`（観測機会なし）とし、
+`NOT_APPLICABLE` にはしない（義務は適用されている）。述語も削除した。
+
+### 2 [P1] `.fb` は別々の必須能力から同時利用能力を導出していた
+
+`IIP-SSO04`（assertion 署名）と `IIP-IDP09.a`（assertion 暗号化）は**それぞれ独立した対応必須要件**であり、
+両方を同一 assertion に同時適用できることまでは導けない。Core §6.2 も順序を定めるだけで組合せ能力は要求していない。
+別々には対応するが同時構成を提供しない実装が**永久に `NOT_VERIFIED`** になっていた。
+
+述語 **`signs_and_encrypts_assertion`** を新設して条件にした。
+観測は Test Plan の構成段階（preflight / `WAITING_CONFIG`）で得るもので、本義務のケースが観測源ではない
+（`.ey` のような循環にならないことを rationale に明記した）。
+
+### 3 [P1] `.fc` / `.ff` が「assertion 署名」だけを要求していた
+
+原文の署名対象は **「the assertion **or message** containing the encrypted element」**。
+暗号化後の `<EncryptedID>` / `<EncryptedAttribute>` を含む `<Response>` 全体を署名する方式も適合する。
+**assertion 署名の経路と `<Response>` 署名の経路の両方**を variant にし、
+両方を提供する対象では両方を検査するようにした。
+
+### 5 [P1] `.fi` の G2 waiver 方針が G2 通過条件と矛盾していた
+
+2 点誤っていた。
+
+- **`control_waiver_ja` は positive / negative control の片方を免除するもので、mutant 検出力を免除しない。**
+  mutant を使わない場合は `mutant_waiver` と代替の実行可能な control fixture が要る
+- 原文の `support` は**実装能力**であって、現在の設定で有効かどうかではない
+
+三分岐に直した。
+
+| 状態 | outcome |
+|---|---|
+| 能力あり・ポリシーで無効化（`IIP-ALG08.a` が認めた設定選択） | `satisfied` |
+| 能力なし | `violated` → WARNING |
+| 能力不明 | `not_verified` |
+
+### 6 [P2] 文言
+
+- `.eo` の `summary_en` を `RequestVersionTooHigh` 限定に（日本語側は R12 で直っていたが英語が残っていた）
+- `.fh` の日本語の主語を修正（「**要求元は**『応答元が要求元の対応する最高版に対応している』と仮定する」）
+
+### この回で得た一般則
+
+**条件述語の観測源が、その義務自身のケースであってはならない。**
+適用性はケース実行より先に評価されるので循環する。
+観測源は preflight / 構成段階 / 他の義務のケースのいずれかに限る。
+原文が二択（MAY 拒否／受理するなら MUST 保証）を書いている場合は、
+条件にせず **variant ごとの二択評価**にするのが正しい。
+
+### 現在の状態
+
+```
+要件 69 / 義務 316 / variant 779 / 条件付き 59 / 仕様 25 / 述語 24 / 検査 62
+IIP-SSO01 だけで 160 義務
+testability  BROWSER 130 / CONFIG 89 / AUTOMATED 53 / ATTESTED 43 / NOT_OBSERVABLE 1
+network 実行: 59/62 PASS・blocking 1（SR-40 = tools 未コミットのみ）
+SR-33  全 25 仕様を再取得し source_digest 一致
+SR-34  reference_evidence 254 件すべて locator 解決・節ダイジェスト一致
+open question 13
+```
+
+**第 1 段階は未完了。実装には着手していない。**
