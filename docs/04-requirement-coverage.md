@@ -4466,7 +4466,7 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 | `IIP-SP04.d` | MUST | sp | `BROWSER` | — | full | すべての Discovery request に SP の entityID パラメータを含める |
 | `IIP-SP04.e` | MUST | sp | `BROWSER` | — | full | Discovery request の entityID パラメータを URL encode する |
 | `IIP-SP04.f` | MUST_NOT | sp | `BROWSER` | — | full | return URL の query に返却 IdP 用の実効パラメータ名をあらかじめ含めない |
-| `IIP-SP04.g` | MUST | sp | `BROWSER` | — | full | Discovery metadata を使わない場合は return パラメータを含める |
+| `IIP-SP04.g` | MUST | sp | `BROWSER` | — | full | 各 Discovery request で return を含めるか、metadata の既定 DiscoveryResponse endpoint を使う |
 | `IIP-SP04.h` | MUST | sp | `AUTOMATED` | — | full | DiscoveryResponse metadata extension を公開する場合は @Binding を IdP Discovery Protocol URI に設定する |
 | `IIP-SP04.i` | MUST | sp | `AUTOMATED` | — | full | 公開する各 DiscoveryResponse metadata extension を IdPDisco 定義の md:IndexedEndpointType 構造にする |
 
@@ -4474,13 +4474,14 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 
 - **必要な variant**:
   - `v-30f2c7f165` Suite が Discovery Service を演じる。対象 SP が UA を DS へリダイレクトし、DS が返した選択済み IdP の entityID を受けて SSO を継続できる
-  - `v-050709c9bb` DS が選択結果を返さない場合を、選択済み IdP の空文字列と取り違えず失敗結果として処理する
+  - `v-a45da3e7a4` 返却 URL に実効 returnIDParam 名の parameter が存在しない場合、それを選択済み IdP の識別子が返ったものとして扱わない
 - **対照（negative control）**:
   - 成功結果と空の結果を対にする。成功だけでは返却パラメータを読まず既定 IdP を使う実装を検出できない
+  - 選択結果がない後の振る舞い（製品自身の IdP 選択 UI、既定 IdP への遷移、エラー表示等）は IdPDisco が規定していないため verdict 対象にしない
   - IdPDisco section 2 の DS 主体の MUST/SHOULD（isPassive 時の UI、返送方法、metadata 照合等）は Test Peer である Suite 側の fixture 規則であり、対象 SP の義務にはしない
-  - return / policy / returnIDParam / isPassive の MAY は利用許可であって全機能の提供能力を SP に要求しない。実際に選んだ経路へ適用される MUST/MUST NOT だけを .b〜.h で判定する
+  - return / policy / returnIDParam / isPassive の MAY は利用許可であって全機能の提供能力を SP に要求しない。実際に選んだ経路へ適用される MUST/MUST NOT だけを .b〜.i で判定する
 - **参照先仕様**: `IdPDisco`
-- **注記**: 非規範の IIP 注記により、製品固有の discovery UI の実装までは要求されず、IdPDisco の単純なリダイレクト規約への対応が対象である。IdPDisco の SP 向け規範内容は .b〜.h に分解した。Discovery Service 主体の規範文と、SP が使ってよい任意パラメータは対象 SP の独立義務にしていない。
+- **注記**: 非規範の IIP 注記により、製品固有の discovery UI の実装までは要求されず、IdPDisco の単純なリダイレクト規約への対応が対象である。IdPDisco の SP 向け規範内容は .b〜.i に分解した。Discovery Service 主体の規範文と、SP が使ってよい任意パラメータは対象 SP の独立義務にしていない。IIP 注記の『discovery mechanisms SHOULD use SAML metadata…』もイタリック＝非規範なので、独立義務にしない。
 - **source_clauses**: `[0, 75)` `sha256:ce8bdccd17ea…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
 
@@ -4530,6 +4531,7 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
   - `v-5f5f709085` query delimiter（例: &）を値に含む Test SP entityID を使い、生の query で delimiter が percent-encoding され、1 回の decode で元の entityID になる
 - **対照（negative control）**:
   - パース後に再構成した query では判定しない。ブラウザが受け取った Location の生 query component を記録して検査する
+  - delimiter を含む entityID を設定できない場合は、percent-encoding の有無を識別できる別の文字（例: %, 非 ASCII）へフォールバックする。それも設定できなければ NOT_VERIFIED(entityid_encoding_probe_unavailable) とし、対象の違反にしない
 - **参照先仕様**: `IdPDisco`
 - **source_clauses**: `[0, 75)` `sha256:ce8bdccd17ea…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
@@ -4552,10 +4554,11 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 <details><summary><code>IIP-SP04.g</code> の詳細</summary>
 
 - **必要な variant**:
-  - `v-ab2fd3d379` SP metadata に DiscoveryResponse endpoint を与えない構成で送出された Discovery request に return が存在する
+  - `v-9a011b6e38` 対象が送出した各 Discovery request について、return が存在する、または return 省略時に SP metadata の実効 default DiscoveryResponse endpoint が返却先として使えることを確認
 - **対照（negative control）**:
-  - metadata を使う経路しか観測されない場合は satisfied_with_note。metadata なしの経路を製品能力として強制しない
-  - metadata 使用時に return を省略できることは MAY であり、別の必須能力にしない
+  - message 単位の選言として評価する: return あり → satisfied / return なし・実効 default metadata endpoint あり → satisfied / どちらもなし → violated / metadata の対応を確認不能 → not_verified(metadata_return_basis_undetermined)
+  - 『metadata を使わない場合』は request ごとの実行時 scope であり、製品全体の condition predicate にしない。metadata なしの構成を提供する能力も要求しない
+  - Discovery request 自体を 1 件も観測できなければ NOT_VERIFIED(no_discovery_request_observed)。satisfied_with_note で WARNING を発生させない
 - **参照先仕様**: `IdPDisco`
 - **source_clauses**: `[0, 75)` `sha256:ce8bdccd17ea…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
@@ -4582,6 +4585,7 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 - **対照（negative control）**:
   - DiscoveryResponse extension 自体の公開は任意。1 件も観測されない場合は satisfied_with_note とし、NOT_APPLICABLE にはしない
   - Binding の固定 URI は .h で別に判定する。本義務は型・必須属性・XML 構造を扱う
+  - SPSSODescriptor/Extensions への配置は、IdPDisco §2.5 では DS の SHOULD に含まれる説明であり、本義務の独立 verdict 条件へ引き上げない
 - **参照先仕様**: `IdPDisco`
 - **source_clauses**: `[0, 75)` `sha256:ce8bdccd17ea…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`

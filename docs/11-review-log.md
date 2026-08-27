@@ -2984,3 +2984,33 @@ IIP-SP04 が取り込む **Service Provider 主体**の規範内容を分解し�
 
 CP2a の作成者候補は IIP-SP04.a〜.i。open question は IIP-SP04 から除去した。
 次に別チャットのレビュアーが、IdPDisco の SP/DS actor 境界と不足・過剰を編集禁止で確認する。
+
+---
+
+## G1b-CP2a-R1 — 2026-08-28 IdP Discovery の条件を message 単位へ訂正
+
+固定 commit `cfe226b` の外部レビューで 6 件の記述・根拠不足を確認し、すべて原文へ戻って採用した。
+
+- `.g`: 「metadata なし構成を作る」ことをテスト前提にせず、各 request について
+  `return がある OR 省略時に実効 default DiscoveryResponse が使える` を評価する受動規則へ変更
+- `.b`: 非大文字の HTTP GET 記述を MUST として取り込む根拠である Conformance 節を evidence に追加
+- `.a`: 分解範囲を `.b〜.i` に訂正。選択結果なしの後の UI・既定 IdP・エラー等は verdict にしない
+- `.i`: `md:IndexedEndpointType` の required 属性を示す SAML2MD-xsd を直接 evidence に追加
+- `.e`: encoding を識別できる entityID を設定できない場合は probe を切り替え、全て不能なら NOT_VERIFIED
+- IIP の metadata 利用 SHOULD がイタリック＝非規範である監査記録を notes に復元
+
+### `.g` を applicability predicate にしなかった理由
+
+`if metadata is not used` は製品分類ではなく **request ごとに変わる実行時 scope** である。
+適用性はケース実行より先に評価されるため、これを global predicate にすると循環または誤除外になる。
+次の四分岐をケースの outcome 規則にした。
+
+| 観測 | outcome |
+|---|---|
+| `return` あり | `satisfied` |
+| `return` なし・実効 default metadata endpoint あり | `satisfied` |
+| どちらもなし | `violated` |
+| metadata との対応を確認不能 | `not_verified(metadata_return_basis_undetermined)` |
+
+Discovery request 自体が観測できなければ `NOT_VERIFIED(no_discovery_request_observed)` とする。
+`satisfied_with_note` は MUST 義務を WARNING にするため、単なる条件分岐不発の代用にしない。
