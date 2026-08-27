@@ -924,8 +924,8 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 | `IIP-SSO01.dr` | MUST | idp | `CONFIG` | `supports_authnrequest_proxying`<br>(CAPABILITY_BASED) | core | プロキシ IdP が上流へ生成する AuthnRequest の @ID も SAML 識別子の一意性要件に従う |
 | `IIP-SSO01.bk` | MAY | idp | `BROWSER` | — | full | unsolicited 応答に、SP との相互合意に基づく RelayState を含めてもよい |
 | `IIP-SSO01.y2` | SHOULD | sp | `BROWSER` | — | full | SP は unsolicited 応答を扱えるよう、処理成功後の既定の遷移先を用意しておくことが望ましい |
-| `IIP-SSO01.fl` | SHOULD | sp | `AUTOMATED` | `allowcreate_general_interoperability_case`<br>(CLASSIFICATION_BASED) | full | AllowCreate を特定用途に使わない SP は、相互運用性のため通常 true に設定することが望ましい |
-| `IIP-SSO01.fm` | SHOULD | idp | `CONFIG` | `proxy_allowcreate_general_interoperability_case`<br>(CLASSIFICATION_BASED) | full | 上流へ要求する proxy IdP が AllowCreate を特定用途に使わない場合、通常 true に設定することが望ましい |
+| `IIP-SSO01.fl` | SHOULD | sp | `AUTOMATED` | `allowcreate_general_interoperability_case`<br>(CLASSIFICATION_BASED) | full | AllowCreate を特定用途に使わない SP は、transient NameID を要求する場合を除き、相互運用性のため通常 true に設定することが望ましい |
+| `IIP-SSO01.fm` | SHOULD | idp | `CONFIG` | `proxy_allowcreate_general_interoperability_case`<br>(CLASSIFICATION_BASED) | full | 上流へ要求する proxy IdP が AllowCreate を特定用途に使わない場合、transient NameID を要求するときを除き、通常 true に設定することが望ましい |
 | `IIP-SSO01.fn` | MUST_NOT | sp | `AUTOMATED` | — | core | SP は transient NameID を要求するとき AllowCreate を使用してはならない |
 | `IIP-SSO01.fo` | MUST_NOT | idp | `CONFIG` | `supports_authnrequest_proxying`<br>(CAPABILITY_BASED) | core | proxy IdP は上流へ transient NameID を要求するとき AllowCreate を使用してはならない |
 | `IIP-SSO01.fp` | SHOULD | idp | `BROWSER` | — | full | IdP は transient NameID の要求、または transient NameID assertion の発行と併用された AllowCreate を無視することが望ましい |
@@ -3344,11 +3344,13 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 <details><summary><code>IIP-SSO01.fl</code> の詳細</summary>
 
 - **必要な variant**:
-  - `v-285c50fd1e` SP が送出する AuthnRequest で NameIDPolicy を使い、AllowCreate に固有の状態管理を行わない構成 → AllowCreate=true
+  - `v-320d838764` SP が送出する AuthnRequest で NameIDPolicy/@Format が transient ではなく、AllowCreate に固有の状態管理を行わない構成 → AllowCreate=true
   - `v-8fbb01ee1f` AllowCreate を同意・動的識別子作成等の特定用途に使う構成は本 SHOULD の対象外
 - **対照（negative control）**:
   - ★ E14 は SAML2Prof 4.1.4.1 の旧 MUST を削除しただけでなく、Core 3.4.1.1 に新しい SHOULD を追加した
   - ★ 『特定用途に使わない』場合だけの SHOULD。常に true を強制してはならない
+  - ★ NameIDPolicy/@Format=transient の送出物は本 SHOULD の実行時対象外で、IIP-SSO01.fn の MUST_NOT を適用する
+  - ★ 当該 Run で transient 以外の NameIDPolicy 付き AuthnRequest が観測されなければ satisfied_with_note。グローバルな NOT_APPLICABLE にはせず、message ごとの実行時 scope とする
   - ★ proxy IdP が requester になる場合は IIP-SSO01.fm で分ける
 - **参照先仕様**: `SAML2Prof#4.1`
 - **source_clauses**: `[0, 125)` `sha256:ff1057626aaa…`
@@ -3359,9 +3361,11 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 <details><summary><code>IIP-SSO01.fm</code> の詳細</summary>
 
 - **必要な variant**:
-  - `v-9b9a8482ce` 対象が上流 IdP へ送る AuthnRequest で NameIDPolicy を使い、AllowCreate に固有の状態管理を行わない構成 → AllowCreate=true
+  - `v-0e619f74de` 対象が上流 IdP へ送る AuthnRequest で NameIDPolicy/@Format が transient ではなく、AllowCreate に固有の状態管理を行わない構成 → AllowCreate=true
 - **対照（negative control）**:
   - ★ SP と proxy IdP では観測経路と適用条件が異なるため role を分離した
+  - ★ 上流要求の NameIDPolicy/@Format=transient は本 SHOULD の実行時対象外で、IIP-SSO01.fo の MUST_NOT を適用する
+  - ★ 当該 Run で transient 以外の上流 NameIDPolicy 付き AuthnRequest が観測されなければ satisfied_with_note
 - **設定不能時の意味**: `test_precondition`
 - **参照先仕様**: `SAML2Prof#4.1`
 - **source_clauses**: `[0, 125)` `sha256:ff1057626aaa…`

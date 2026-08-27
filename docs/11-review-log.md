@@ -2930,3 +2930,28 @@ Core §3.4.1.1 は Format が省略または unspecified の場合、IdP が任�
 
 規範の条件は、義務主体が行為時点で知り得る事実でなければならない。
 相手方が後から選んだ結果で、過去の送出行為を遡及的に違反へ変えない。
+
+---
+
+## G1b-CP1-R3 — 2026-08-27 AllowCreate の一般 SHOULD から transient を除外
+
+CP1-R2 で .fn / .fo の遡及判定を除去した後も、.fl / .fm の一般相互運用性 SHOULD が
+NameIDPolicy/@Format=transient の送出物に AllowCreate=true を要求し、同じ E14 の
+MUST NOT と衝突していた。
+
+E14 の連続する規範句は次の優先関係になる。
+
+1. AllowCreate を特定用途に使わない requester は、一般に true を設定することが望ましい
+2. ただし transient NameID の要求では AllowCreate を使用してはならない
+
+後者は前者より狭く、かつ強い規則である。修正:
+
+- .fl / .fm の summary と required variant を Format != transient に限定
+- Format=transient の送出物は .fn / .fo の MUST NOT だけで判定
+- その Run で non-transient の NameIDPolicy 付き要求が観測されない場合は satisfied_with_note
+- Format は message ごとに変わる実行時 scope なので、製品全体の applicability predicate には混ぜない
+
+### 一般則
+
+同じ段落群の一般 SHOULD と狭い MUST NOT が重なる場合、強い例外を一般規則の
+required variant から明示的に除く。製品分類とメッセージ単位の実行時 scope を混同しない。

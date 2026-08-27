@@ -1,6 +1,6 @@
 # tests/coverage.yaml — 要件カタログ（G1 成果物 / 判定レベルの唯一の出典）
 # 生成: build_g1.py（原文からオフセットと digest を解決）/ 手編集しない
-generated_at: 2026-08-27T13:53:13+00:00
+generated_at: 2026-08-27T14:10:55+00:00
 schema_version: 1
 g1_state: PENDING_REVIEW
 # 作成者は reviewer / approved_at を埋めない。別のレビュアーが原文と直接照合して承認する。
@@ -7663,26 +7663,28 @@ requirements:
           predicate: allowcreate_general_interoperability_case
           predicate_kind: CLASSIFICATION_BASED
         exclusion_clause_en: "Requesters that do not make specific use of this attribute SHOULD generally set it to"
-        summary_en: "A service provider requester that does not make specific use of AllowCreate should generally set it to true"
-        summary_ja: "AllowCreate を特定用途に使わない SP は、相互運用性のため通常 true に設定することが望ましい"
+        summary_en: "A service provider requester that does not make specific use of AllowCreate should generally set it to true, except when requesting a transient name identifier"
+        summary_ja: "AllowCreate を特定用途に使わない SP は、transient NameID を要求する場合を除き、相互運用性のため通常 true に設定することが望ましい"
         references_spec: "SAML2Prof#4.1"
         reference_derivation: true
         reference_evidence:
           - spec: SAML2Errata
             locator: "E14: AllowCreate||E15: "
             section_digest: "sha256:a5a203b6a6a2d85215574d62f1fd95804d85a1613d82d91c38cb2d243b48ecf7"
-            basis_ja: "SAML2Prof 4.1.3.3 の『The identity provider MUST process the <AuthnRequest> message as described in [SAMLCore]』および 4.1.4.1 の『All processing rules are as defined in [SAMLCore]』により取り込まれる。『Requesters that do not make specific use of this attribute SHOULD generally set it to true to maximize interoperability』"
+            basis_ja: "SAML2Prof 4.1.3.3 の『The identity provider MUST process the <AuthnRequest> message as described in [SAMLCore]』および 4.1.4.1 の『All processing rules are as defined in [SAMLCore]』により取り込まれる。『Requesters that do not make specific use of this attribute SHOULD generally set it to true to maximize interoperability』。直後の『The use of the AllowCreate attribute MUST NOT be used ... in conjunction with requests for ...:transient』が狭く強い例外になる"
         level_assignment: { sp: full }
         source_clauses:
           - { start: 0, end: 125, digest: "sha256:ff1057626aaa898cc4a76e1e0e4e9f6ad908c018ad60ce09d95e71634b08fac5", occurrences: 1 }
         required_variants:
-          - id: v-285c50fd1e
-            description_ja: "SP が送出する AuthnRequest で NameIDPolicy を使い、AllowCreate に固有の状態管理を行わない構成 → AllowCreate=true"
+          - id: v-320d838764
+            description_ja: "SP が送出する AuthnRequest で NameIDPolicy/@Format が transient ではなく、AllowCreate に固有の状態管理を行わない構成 → AllowCreate=true"
           - id: v-8fbb01ee1f
             description_ja: "AllowCreate を同意・動的識別子作成等の特定用途に使う構成は本 SHOULD の対象外"
         controls:
           - "★ E14 は SAML2Prof 4.1.4.1 の旧 MUST を削除しただけでなく、Core 3.4.1.1 に新しい SHOULD を追加した"
           - "★ 『特定用途に使わない』場合だけの SHOULD。常に true を強制してはならない"
+          - "★ NameIDPolicy/@Format=transient の送出物は本 SHOULD の実行時対象外で、IIP-SSO01.fn の MUST_NOT を適用する"
+          - "★ 当該 Run で transient 以外の NameIDPolicy 付き AuthnRequest が観測されなければ satisfied_with_note。グローバルな NOT_APPLICABLE にはせず、message ごとの実行時 scope とする"
           - "★ proxy IdP が requester になる場合は IIP-SSO01.fm で分ける"
         authored_by: samlier-g1-builder
         review:
@@ -7690,7 +7692,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:b1818ec6f906b9c3fc1dac4d335d40e5b448ac95847740014da7ce3f7e998095"
+          obligation_digest: "sha256:021a813e09afacf6e2a440dc416d0668d8425df4a4c5e38784c6a9d51d221b81"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SSO01"
@@ -7704,30 +7706,32 @@ requirements:
           predicate_kind: CLASSIFICATION_BASED
         exclusion_clause_en: "Requesters that do not make specific use of this attribute SHOULD generally set it to"
         configuration_failure_semantics: test_precondition
-        summary_en: "A proxying identity provider requester that does not make specific use of AllowCreate should generally set it to true"
-        summary_ja: "上流へ要求する proxy IdP が AllowCreate を特定用途に使わない場合、通常 true に設定することが望ましい"
+        summary_en: "A proxying identity provider requester that does not make specific use of AllowCreate should generally set it to true, except when requesting a transient name identifier"
+        summary_ja: "上流へ要求する proxy IdP が AllowCreate を特定用途に使わない場合、transient NameID を要求するときを除き、通常 true に設定することが望ましい"
         references_spec: "SAML2Prof#4.1"
         reference_derivation: true
         reference_evidence:
           - spec: SAML2Errata
             locator: "E14: AllowCreate||E15: "
             section_digest: "sha256:a5a203b6a6a2d85215574d62f1fd95804d85a1613d82d91c38cb2d243b48ecf7"
-            basis_ja: "SAML2Core 3.4.1.5.1 は <AuthnRequest> の処理規則の一部であり、SAML2Prof 4.1.3.3 の取り込み句を通じて Web Browser SSO Profile に入る。同じ『Requesters ... SHOULD generally set it to true』。proxy IdP も上流に対する requester である"
+            basis_ja: "SAML2Core 3.4.1.5.1 は <AuthnRequest> の処理規則の一部であり、SAML2Prof 4.1.3.3 の取り込み句を通じて Web Browser SSO Profile に入る。同じ『Requesters ... SHOULD generally set it to true』と、直後の transient に対する MUST NOT。proxy IdP も上流に対する requester である"
         level_assignment: { idp: full }
         source_clauses:
           - { start: 0, end: 125, digest: "sha256:ff1057626aaa898cc4a76e1e0e4e9f6ad908c018ad60ce09d95e71634b08fac5", occurrences: 1 }
         required_variants:
-          - id: v-9b9a8482ce
-            description_ja: "対象が上流 IdP へ送る AuthnRequest で NameIDPolicy を使い、AllowCreate に固有の状態管理を行わない構成 → AllowCreate=true"
+          - id: v-0e619f74de
+            description_ja: "対象が上流 IdP へ送る AuthnRequest で NameIDPolicy/@Format が transient ではなく、AllowCreate に固有の状態管理を行わない構成 → AllowCreate=true"
         controls:
           - "★ SP と proxy IdP では観測経路と適用条件が異なるため role を分離した"
+          - "★ 上流要求の NameIDPolicy/@Format=transient は本 SHOULD の実行時対象外で、IIP-SSO01.fo の MUST_NOT を適用する"
+          - "★ 当該 Run で transient 以外の上流 NameIDPolicy 付き AuthnRequest が観測されなければ satisfied_with_note"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:f54f86ebceabf6bc221a1502493ff8cce958d2ca048fbaa070c66788c06f4ed1"
+          obligation_digest: "sha256:785ffb7a0896e6f369111fa88e7fa3c93d79215dfe03800eac761dbb2bbfbae2"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SSO01"
