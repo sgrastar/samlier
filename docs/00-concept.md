@@ -130,7 +130,7 @@ baselines:
     profile: idp-core
     declared_features: { ecp: false }
     config_fixture: tests/fixtures/sut/idp-core-no-ecp/
-outcomes:                        # baseline ごとの期待 outcome（全 <!--g1:case_target-->342<!--/g1--> 義務）
+outcomes:                        # baseline ごとの期待 outcome（全 <!--g1:case_target-->375<!--/g1--> 義務）
   sp-full-slo-enc:
     IIP-SP13.a: satisfied
     IIP-SP13.b: satisfied

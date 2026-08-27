@@ -241,6 +241,17 @@ PRED = [
   ["declared_features.single_logout"],
   ["target_metadata_has: md:SPSSODescriptor/md:SingleLogoutService","target_emitted: samlp:LogoutRequest","target_consumed: samlp:LogoutRequest"],
   "原文は 'Service Providers that support the ... profile'（claim ではない）ため CAPABILITY_BASED"),
+ ("supports_slo_initiation_sp","CAPABILITY_BASED","SP が session participant として SLO を開始し LogoutRequest を発行できるか",
+  ["declared_features.single_logout"],
+  ["target_emitted: samlp:LogoutRequest"],
+  "SAML2Prof 4.4.3.1 の session participant initiator 規則の適用条件。"
+  "受信だけを任意実装した SP に initiator 規則を誤適用しないため、supports_slo_sp から分離する。"
+  "観測は対象が実際に発行した LogoutRequest のみで、target_consumed は含めない"),
+ ("consumes_slo_requests_sp","CAPABILITY_BASED","SP が IdP / session authority からの LogoutRequest を消費するか",
+  ["declared_features.slo_request_consumption"],
+  ["target_consumed: samlp:LogoutRequest"],
+  "IIP-SP14.c は request consumption capability 自体を OPTIONAL とする。"
+  "実装しない場合は派生 responder 規則を NOT_APPLICABLE にし、実際に消費する場合だけ SAML2Prof 4.4.3.4 / 4.4.4.2 の MUST / RECOMMENDED を適用する"),
  ("supports_cbc","CAPABILITY_BASED","対象が AES-CBC ブロック暗号に対応しているか",
   ["declared_features.cbc"],
   ["target_emitted_encryption_method: aes128-cbc","target_emitted_encryption_method: aes256-cbc",
@@ -345,6 +356,13 @@ PRED = [
   "★ 既定は真。偽にするには理由付きの明示的な除外申告が要り、その Run は結果の最上位に除外として現れる",
   "The deployment declared that the use of the profile does not require privacy measures for RelayState, "
   "as permitted by [SAML2Prof] section 4.1.3.1. This was not verified by the Suite."),
+ ("slo_relaystate_privacy_required","CLASSIFICATION_BASED","この配備の Single Logout で RelayState のプライバシー保護が必要か",
+  ["target.slo_relaystate_privacy"],[],
+  "SAML2Prof 4.4.3.1 の『unless the use of the profile does not require such privacy measures』。"
+  "Web Browser SSO の RelayState と配備上の privacy requirement が異なりうるため別述語にする。"
+  "偽にするには理由付きの明示的な除外申告を要求し、その Run の最上位に除外を表示する",
+  "The deployment declared that use of the Single Logout profile does not require privacy measures for RelayState, "
+  "as permitted by [SAML2Prof] section 4.4.3.1. This was not verified by the Suite."),
  ("supports_unsolicited_responses","CAPABILITY_BASED","IdP が unsolicited <Response>（IdP-initiated SSO）を発行するか",
   ["declared_features.idp_initiated_sso"],
   ["target_emitted_unsolicited_response: true"],

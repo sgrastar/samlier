@@ -3039,3 +3039,84 @@ Discovery request が観測され、そのすべてで `return` が省略され�
 - Discovery request 自体がなし → `not_verified(no_discovery_request_observed)`
 
 「optional 経路を使わなかった」と「対象 message を一件も観測していない」を区別する。
+
+### CP2a 外部確認の完了
+
+固定 commit `72e1f3c` を作成者以外が原文と直接照合し、`verification: PASS / findings: none` を確認した。
+CP2a（IIP-SP04 / IdP Discovery）はこの commit で閉じる。
+
+空虚充足の適用境界も明記する。観測済み Discovery request に禁止対象の `return` が 1 件もない場合は、
+MUST NOT の前件が偽であることを観測できているため `satisfied` でよい。一方、対象 message 自体を 1 件も
+観測しておらず、正の wire requirement を確認できない場合は同じ扱いにせず、当該義務の規則に従って
+`NOT_VERIFIED` または `satisfied_with_note` とする。禁止規則の空虚充足を、能力未観測の一般的な免除へ広げない。
+
+---
+
+## G1b-CP2b-Profile — 2026-08-28 SAML2Prof §4.4 / 基本 Single Logout 直接句
+
+SAML2Prof §4.4 の全ページと SAML2Errata E38 を原文・ページ画像の両方で確認し、
+IIP-SP14 / IIP-IDP17.a が取り込む基本 SLO profile を actor ごとに分解した。
+SAML2Prof の `process ... as defined in [SAMLCore]` が取り込む Core §3.7 は CP2b-Core、
+Asynchronous SLO extension（IIP-IDP17.b）は CP2c、ECP は後続 checkpoint とする。
+
+### SP 側の三層
+
+1. SLO profile への対応能力そのものは IIP-SP14.a の **SHOULD**
+2. 対応を表明した SP の LogoutRequest 発行能力は IIP-SP14.b の条件付き **MUST**
+3. LogoutRequest / LogoutResponse の消費は IIP-SP14.c / .c1 の **OPTIONAL**
+
+SLO に実際に対応する SP についてだけ、§4.4 の participant requester 規則を .d〜.o に分解した。
+複数 IdP ごとの反復、対応 IdP endpoint、SessionIndex、front-channel 推奨、TLS 推奨、POST / Redirect の署名、
+RelayState privacy、requester 認証・完全性、Issuer、principal identifier の strong match を個別義務にする。
+適用性は `supports_slo_initiation_sp`（対象が LogoutRequest を発行した／発行できる）で判定し、
+受信だけを任意実装した SP を initiator 規則の対象にしない。既存 `supports_slo_sp` の
+`target_consumed: LogoutRequest` を開始 capability の証拠へ流用しない。
+
+§4.4.3.4 の responder MUST は、IIP が受信対応を OPTIONAL と明示しているため無条件の MUST に戻さない。
+要求と応答の消費を 1 つの連言にしないため .c / .c1 に分け、未対応は NOT_SUPPORTED とする。
+ただし「実装しなくてよい」と「実装した wire behavior が Profile の MUST を破ってよい」は別である。
+実際に request を消費する SP には `consumes_slo_requests_sp` を適用し、responder の Core 処理、
+error response、同期 binding の認証、TLS 推奨、POST / Redirect response の署名、Issuer / Format /
+認証・完全性を .p〜.x で元の Profile level のまま判定する。
+
+### IdP 側の actor 境界
+
+IIP-IDP17.a の MUST は、SP-initiated request を受けて対象 session を決定し、元 requester へ
+LogoutResponse を返す基本フローとして分解した。identifier / SessionIndex による session 集合の決定、
+response status、response / request の Issuer・Format・認証・完全性、principal identifier の strong match を
+個別義務にする。
+
+次は意図的に必須化していない。
+
+- §4.4.2 は IdP が profile を step 2 から開始 **can initiate** とする permission であり、
+  IdP-initiated SLO capability を要求しない
+- IIP-IDP17.c は他 participant への propagation を明示的に OPTIONAL とするため、
+  §4.4.3.1 の propagation SHOULD と §4.4.3.2 の steps 3 / 4 を無条件義務にしない
+- §4.4.3.4 の POST / Redirect LogoutResponse 署名 MUST と TLS RECOMMENDED は、
+  IdP の request に応答する session participant の step 4 規則である。IdP が元 SP へ返す step 5 response へ横展開しない
+
+### Errata E38
+
+E38 反映後も、session participant は LogoutRequest に少なくとも 1 件の SessionIndex を含める。
+この規則を IIP-SP14.f に置き、AuthnStatement で受けた値と Transcript 上で照合する。
+session authority である IdP は全 applicable session を示すため SessionIndex を省略してよいので、
+IdP 発行 request に SessionIndex を無条件要求しない。
+
+### 一般則
+
+- Profile の一般規則を取り込む際、IIP が同じ actor / feature をより具体的に OPTIONAL とした箇所を再び MUST にしない
+- 同じ節の規範句でも actor と step を確認し、participant responder の規則を IdP responder へ横展開しない
+- `can` / `MAY` の開始経路を support capability の必須 variant にしない
+- optional な request / response 消費を 1 義務の required variants にまとめて連言化しない
+- optional capability を選ばなかった場合は派生規則を適用しないが、選んだ実装の wire violation まで OPTIONAL に弱めない
+
+### 未完了の取り込み句
+
+SAML2Prof §4.4.3.4 は SP responder に `MUST process ... as defined in [SAMLCore]`、
+§4.4.3.2 は IdP に `processes the request as defined in [SAMLCore]` とする。
+Core §3.7 には session participant の遅着 assertion 処理、session authority の status、
+`All other processing rules ... MUST be observed` から入る共通 request / response 規則が残る。
+
+IIP-SP14.p と IIP-IDP17.a に open question と Core §3.7 evidence を置いた。
+CP2b-Profile の外部確認が PASS しても、この 2 件を閉じず、次の CP2b-Core で actor 別に分解する。
+また Core の propagation SHOULD / PartialLogout は IIP-IDP17.c の OPTIONAL 上書きとの優先関係を句ごとに確認する。
