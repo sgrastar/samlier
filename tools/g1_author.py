@@ -276,22 +276,6 @@ PRED = [
   "既定は真（適用する）とし、偽にするには理由付きの明示的な除外申告が要る",
   "The target was declared to proxy only to SAML identity providers, so the rules that [SAML2Core] section "
   "3.4.1.5.1 scopes to a non-SAML authenticating identity provider do not apply. This was not verified by the Suite."),
- ("supports_encrypted_attribute","CAPABILITY_BASED","対象が <saml:EncryptedAttribute> を発行できるか",
-  ["declared_features.encrypted_attribute"],
-  ["target_emitted: saml:EncryptedAttribute"],
-  "SAML2Core 6 の規則は『その種類の暗号化を行う場合』が前提。"
-  "IIP-IDP09.b が識別子・属性の暗号化を OPTIONAL としているため、非対応なら NOT_APPLICABLE。"
-  "★ 観測は方向付き: 対象が *送信した* <saml:EncryptedAttribute> のみが証拠になる"),
- ("signs_and_encrypts_assertion","CAPABILITY_BASED","対象が同一の assertion に対して署名と暗号化を同時に行えるか",
-  ["declared_features.sign_and_encrypt_assertion"],
-  ["target_emitted_encrypted_assertion_containing_signature: true"],
-  "SAML2Core 6.2 は『When an assertion is to be signed and encrypted』が前提。"
-  "IIP-SSO04（署名）と IIP-IDP09.a（暗号化）はそれぞれ独立した対応必須要件であって、"
-  "**両方を同一 assertion に同時適用できることまでは要求していない**。"
-  "同時構成を提供しない実装で永久に NOT_VERIFIED にしないため、条件として分離する。"
-  "★ 観測は方向付き: 対象が送出した <EncryptedAssertion> を復号して <ds:Signature> が現れたことだけが証拠。"
-  "観測は Test Plan の構成段階（preflight / WAITING_CONFIG）で得るもので、"
-  "本義務のケース自体が観測源になるわけではない"),
  ("uses_small_integer_sessionindex","CAPABILITY_BASED","対象が SessionIndex に『小さい正整数・繰り返し定数』方式を使うか",
   ["declared_features.sessionindex_scheme"],
   ["target_emitted_sessionindex_is_small_integer: true"],

@@ -1,6 +1,6 @@
 # tests/predicates.yaml — 条件述語の固定集合（G1 成果物）
 # 生成: build_g1.py / 手編集しない
-generated_at: 2026-08-27T07:11:46+00:00
+generated_at: 2026-08-27T07:31:26+00:00
 schema_version: 1
 # kind: CLAIM_BASED      = 申告そのものが条件（observed 不要）
 #       CAPABILITY_BASED = 実際の能力が条件（observed 必須。declaration-only FALSE は UNKNOWN）
@@ -108,24 +108,6 @@ predicates:
       requires_reason: true
       statement_en: "The target was declared to proxy only to SAML identity providers, so the rules that [SAML2Core] section 3.4.1.5.1 scopes to a non-SAML authenticating identity provider do not apply. This was not verified by the Suite."
     rationale_ja: "SAML2Core 3.4.1.5.1 の一部の規範句は『If the authenticating identity provider is not a SAML identity provider』が明示的な条件。SAML IdP にしかプロキシしない対象には適用されない。★ 訂正: 前版は CAPABILITY_BASED とし『<saml:AuthenticatingAuthority> が SAML メタデータで解決できないこと』を観測材料にしていたが、それは**メタデータ未登録・未取得の SAML IdP でも成立する**ため証拠にならなかった。上流の種別はプロトコル面に現れないので、設定の確認（申告）でしか判定できない。既定は真（適用する）とし、偽にするには理由付きの明示的な除外申告が要る"
-  supports_encrypted_attribute:
-    kind: CAPABILITY_BASED
-    description_ja: "対象が <saml:EncryptedAttribute> を発行できるか"
-    declared:
-      - declared_features.encrypted_attribute
-    observed:
-      - "target_emitted: saml:EncryptedAttribute"
-    on_conflict: inconsistent
-    rationale_ja: "SAML2Core 6 の規則は『その種類の暗号化を行う場合』が前提。IIP-IDP09.b が識別子・属性の暗号化を OPTIONAL としているため、非対応なら NOT_APPLICABLE。★ 観測は方向付き: 対象が *送信した* <saml:EncryptedAttribute> のみが証拠になる"
-  signs_and_encrypts_assertion:
-    kind: CAPABILITY_BASED
-    description_ja: "対象が同一の assertion に対して署名と暗号化を同時に行えるか"
-    declared:
-      - declared_features.sign_and_encrypt_assertion
-    observed:
-      - "target_emitted_encrypted_assertion_containing_signature: true"
-    on_conflict: inconsistent
-    rationale_ja: "SAML2Core 6.2 は『When an assertion is to be signed and encrypted』が前提。IIP-SSO04（署名）と IIP-IDP09.a（暗号化）はそれぞれ独立した対応必須要件であって、**両方を同一 assertion に同時適用できることまでは要求していない**。同時構成を提供しない実装で永久に NOT_VERIFIED にしないため、条件として分離する。★ 観測は方向付き: 対象が送出した <EncryptedAssertion> を復号して <ds:Signature> が現れたことだけが証拠。観測は Test Plan の構成段階（preflight / WAITING_CONFIG）で得るもので、本義務のケース自体が観測源になるわけではない"
   uses_small_integer_sessionindex:
     kind: CAPABILITY_BASED
     description_ja: "対象が SessionIndex に『小さい正整数・繰り返し定数』方式を使うか"
