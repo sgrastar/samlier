@@ -323,6 +323,21 @@ PRED = [
   "RelayState を不透明トークンとして扱う実装、絶対 URL を一切受け付けない実装も適合するため、"
   "導出しない対象では NOT_APPLICABLE。"
   "★ 観測は方向付き: 対象が RelayState の値そのものへ user agent を遷移させたことだけが証拠になる"),
+ ("allowcreate_general_interoperability_case","CLASSIFICATION_BASED",
+  "SP が AllowCreate を特定の状態管理用途に使わず、一般的な相互運用性の既定として扱う構成か",
+  ["declared_features.allowcreate_specific_use"],[],
+  "SAML2Errata E14 の SHOULD は『Requesters that do not make specific use of this attribute』という条件付き。"
+  "対象が同意・動的識別子作成・Name Identifier Management 等の特定用途に使う構成では適用されない。"
+  "プロトコル面だけでは用途を否定できないため、偽にするには理由付きの明示的な除外申告を要求する",
+  "The target was declared to make specific use of AllowCreate for state-management semantics, so the general interoperability recommendation does not apply. This was not verified by the Suite."),
+ ("proxy_allowcreate_general_interoperability_case","CLASSIFICATION_BASED",
+  "対象が AuthnRequest をプロキシし、かつ AllowCreate を特定の状態管理用途に使わない構成か",
+  ["declared_features.authnrequest_proxying","declared_features.allowcreate_specific_use"],
+  [],
+  "proxy IdP に対する E14 の SHOULD は、プロキシ実行と『特定用途に使わない』という 2 条件の連言。"
+  "上流要求の観測はプロキシ実行しか証明せず『特定用途に使わない』ことを証明しないため、観測材料には使わない。"
+  "どちらかが偽なら適用されず、用途の否定はプロトコル面で証明できないため理由付き申告を要求する",
+  "The target was declared either not to proxy AuthnRequest messages or to make specific use of AllowCreate for state-management semantics, so the general interoperability recommendation does not apply. This was not verified by the Suite."),
  ("relaystate_privacy_required","CLASSIFICATION_BASED","この配備が RelayState のプライバシー保護を必要とするか",
   ["target.relaystate_privacy"],[],
   "SAML2Prof 4.1.3.1 の『unless the use of the profile does not require such privacy measures』。"

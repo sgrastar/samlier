@@ -2811,3 +2811,50 @@ SR-34  reference_evidence 255 件すべて locator 解決・節ダイジェス�
 ```
 
 **第 1 段階は未完了。`IIP-SSO01.a` の open question は開いたまま。実装には着手していない。**
+
+---
+
+## G1b-CP1 — 2026-08-27 IIP-SSO01 の三対応表を双方向照合
+
+`IIP-SSO01.a` が取り込む次の 3 範囲を、原文から義務への順方向と、義務から実効原文への逆方向で再照合した。
+
+1. SAML2Prof §4.1（SAML2Errata 反映後）
+2. IdP の AuthnRequest 処理に対する SAML2Core 取り込み句
+3. SP の Response / Assertion 処理に対する SAML2Core 取り込み句
+
+### Errata の置換を「追記」として扱わない
+
+- E43 / E93 が置換した旧 Core §6.2 由来の `.fa / .fb / .fc / .ff` を生成対象から除外
+- E79 が置換した旧 `SessionNotOnOrAfter` MUST（`.dt`）を除外
+- E81 が置換した旧 RSA-SHA1 SHOULD（`.fi`）を除外
+- E65 に従い ProxyCount=0 は top-level `Responder` が MUST、`ProxyCountExceeded` は MAY に訂正
+- E90 / E91 / E93 の Profile / Core 追記を role ごとの義務へ分解
+
+### 今回見つかった不足・過剰
+
+- E45 の AuthnRequest 候補順序 MUST を `.gj` として追加
+- `Comparison=maximum` を「上限以下」だけでなく「上限以下で可能な限り強い」に訂正
+- `AuthnContextDeclRef` を exact / minimum / better / maximum の検査対象に追加
+- strong match の委譲先 `IIP-SSO07.b` に、identifier の内容・属性、暗号化の有無、SubjectConfirmation の互換性を追加
+- E14 の一般的な AllowCreate SHOULD に「特定用途に使わない」適用条件を明示
+- transient 以外で AllowCreate を使う能力を MUST NOT の positive control にしていた過剰を削除
+- proxy IdP が上流の transient assertion を受ける経路を `.gk` として分離
+- `RequestedAuthnContext` / `IsPassive` の二次 StatusCode を MUST にしない（E65 では MAY）
+
+### スコープ境界
+
+Profile §4.1.4.4 は Artifact Resolution Profile を参照するが、同節が SSO 固有に追加する MUST は
+相互認証・完全性・機密性（`.u`）と intended SP への限定（`.u1`）として分解する。
+Artifact Resolution Profile §5 全体を `IIP-SSO01` に再帰的に二重計上しない。この境界は CP1 の外部レビューで明示的に再確認する。
+
+### 現在の状態
+
+```
+要件 69 / 義務 337 / variant 820 / 述語 24
+IIP-SSO01: 181 義務
+open question: 12（IIP-SSO01.a は閉鎖）
+offline: 59/62 PASS
+残る FAIL: SR-30（他要件の open question）、SR-31（未承認）、SR-40（コミット前の tools 差分）
+```
+
+**これは作成者による CP1 候補であり、G1b 承認ではない。次に別チャットのレビュアーが編集禁止で三対応表だけを確認する。**

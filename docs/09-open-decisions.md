@@ -329,14 +329,14 @@ Kantara 文書の要件テキストは**転載しない**。テスト定義と�
 ### ★ CI で回せる範囲（ブラウザ自動化との矛盾の解消）
 
 [01](01-scope-and-roadmap.md) は Phase 1 でブラウザ自動化を除外しているが、
-<!--g1:case_target-->316<!--/g1--> 義務のうち **`BROWSER` が <!--g1:tb_browser-->131<!--/g1--> 件**あるため **Full Profile は無人 CI で回せない**。
+<!--g1:case_target-->336<!--/g1--> 義務のうち **`BROWSER` が <!--g1:tb_browser-->136<!--/g1--> 件**あるため **Full Profile は無人 CI で回せない**。
 矛盾を残さないよう範囲を分ける。
 
 | 用途 | 範囲 | ブラウザ |
 |---|---|---|
-| **CI（PR ごと / 定期）** | `AUTOMATED` の <!--g1:tb_automated-->53<!--/g1--> 義務 + **mutant peer の golden test** | 不要 |
+| **CI（PR ごと / 定期）** | `AUTOMATED` の <!--g1:tb_automated-->57<!--/g1--> 義務 + **mutant peer の golden test** | 不要 |
 | **リファレンス実装の定期実行** | `AUTOMATED` subset のみ | 不要 |
-| **Full Profile** | 全 <!--g1:case_target-->316<!--/g1--> 義務 | **必要**。手動実行し、固定サンプルとして公開する |
+| **Full Profile** | 全 <!--g1:case_target-->336<!--/g1--> 義務 | **必要**。手動実行し、固定サンプルとして公開する |
 
 **決定: Phase 1 では Playwright 等のブラウザ自動化を導入しない。**
 CI は `AUTOMATED` subset と mutant golden test に限定する。

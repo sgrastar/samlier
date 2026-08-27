@@ -1,6 +1,6 @@
 # tests/predicates.yaml — 条件述語の固定集合（G1 成果物）
 # 生成: build_g1.py / 手編集しない
-generated_at: 2026-08-27T08:28:43+00:00
+generated_at: 2026-08-27T09:17:07+00:00
 schema_version: 1
 # kind: CLAIM_BASED      = 申告そのものが条件（observed 不要）
 #       CAPABILITY_BASED = 実際の能力が条件（observed 必須。declaration-only FALSE は UNKNOWN）
@@ -165,6 +165,31 @@ predicates:
       - "target_redirected_user_agent_to_relaystate_value: true"
     on_conflict: inconsistent
     rationale_ja: "SAML2Errata E90 が追加する [SAMLProf] 新 §4.1.6 は『The URL scheme eventually derived SHOULD be limited to \"https\" or \"http\"』と述べており、**URL を導出する場合**の制限である。RelayState を不透明トークンとして扱う実装、絶対 URL を一切受け付けない実装も適合するため、導出しない対象では NOT_APPLICABLE。★ 観測は方向付き: 対象が RelayState の値そのものへ user agent を遷移させたことだけが証拠になる"
+  allowcreate_general_interoperability_case:
+    kind: CLASSIFICATION_BASED
+    description_ja: "SP が AllowCreate を特定の状態管理用途に使わず、一般的な相互運用性の既定として扱う構成か"
+    declared:
+      - declared_features.allowcreate_specific_use
+    observed: []
+    on_conflict: inconsistent
+    declaration_only_exclusion:
+      allowed: true
+      requires_reason: true
+      statement_en: "The target was declared to make specific use of AllowCreate for state-management semantics, so the general interoperability recommendation does not apply. This was not verified by the Suite."
+    rationale_ja: "SAML2Errata E14 の SHOULD は『Requesters that do not make specific use of this attribute』という条件付き。対象が同意・動的識別子作成・Name Identifier Management 等の特定用途に使う構成では適用されない。プロトコル面だけでは用途を否定できないため、偽にするには理由付きの明示的な除外申告を要求する"
+  proxy_allowcreate_general_interoperability_case:
+    kind: CLASSIFICATION_BASED
+    description_ja: "対象が AuthnRequest をプロキシし、かつ AllowCreate を特定の状態管理用途に使わない構成か"
+    declared:
+      - declared_features.authnrequest_proxying
+      - declared_features.allowcreate_specific_use
+    observed: []
+    on_conflict: inconsistent
+    declaration_only_exclusion:
+      allowed: true
+      requires_reason: true
+      statement_en: "The target was declared either not to proxy AuthnRequest messages or to make specific use of AllowCreate for state-management semantics, so the general interoperability recommendation does not apply. This was not verified by the Suite."
+    rationale_ja: "proxy IdP に対する E14 の SHOULD は、プロキシ実行と『特定用途に使わない』という 2 条件の連言。上流要求の観測はプロキシ実行しか証明せず『特定用途に使わない』ことを証明しないため、観測材料には使わない。どちらかが偽なら適用されず、用途の否定はプロトコル面で証明できないため理由付き申告を要求する"
   relaystate_privacy_required:
     kind: CLASSIFICATION_BASED
     description_ja: "この配備が RelayState のプライバシー保護を必要とするか"
