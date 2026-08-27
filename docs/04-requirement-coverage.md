@@ -15,13 +15,13 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 | 指標 | 値 |
 |---|---|
 | 要件 | 69 |
-| 義務（obligation） | 376 |
-| うち MUST_CLASS | 291 |
+| 義務（obligation） | 381 |
+| うち MUST_CLASS | 296 |
 | うち SHOULD_CLASS | 69 |
 | うち MAY_CLASS | 16 |
-| 条件付き義務 | 93 |
-| IdP プロファイル | 271 義務（Core 190 / Full 81） |
-| SP プロファイル | 199 義務（Core 119 / Full 80） |
+| 条件付き義務 | 79 |
+| IdP プロファイル | 273 義務（Core 190 / Full 83） |
+| SP プロファイル | 202 義務（Core 119 / Full 83） |
 | 非規範（イタリック）スパン | 26 |
 
 **Testability**
@@ -29,7 +29,7 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 | 記号 | 意味 | 件数 |
 |---|---|---|
 | `AUTOMATED` | Suite と対象の直接通信で完結（ブラウザ不要） | 59 |
-| `BROWSER` | 利用者のブラウザが必要 | 174 |
+| `BROWSER` | 利用者のブラウザが必要 | 179 |
 | `ATTESTED` | 対象内部の挙動を利用者が申告 | 42 |
 | `CONFIG` | 対象側の設定変更を依頼したうえで実行 | 100 |
 | `NOT_OBSERVABLE` | 外部から原理的に検証不能。ケースを作らない | 1 |
@@ -4896,15 +4896,15 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 | `IIP-SP14.m` | MUST | sp | `BROWSER` | `supports_slo_initiation_sp`<br>(CAPABILITY_BASED) | full | LogoutRequest の Issuer に SP の一意な entity identifier を入れる |
 | `IIP-SP14.n` | MUST | sp | `BROWSER` | `supports_slo_initiation_sp`<br>(CAPABILITY_BASED) | full | LogoutRequest Issuer の Format を省略するか SAML entity NameID format にする |
 | `IIP-SP14.o` | MUST | sp | `BROWSER` | `supports_slo_initiation_sp`<br>(CAPABILITY_BASED) | full | LogoutRequest の principal identifier を、対象 session の authentication assertion の identifier と strong match させる |
-| `IIP-SP14.p` | MUST | sp | `BROWSER` | `consumes_slo_requests_sp`<br>(CAPABILITY_BASED) | full | 消費する LogoutRequest を SAML Core に従って処理する |
-| `IIP-SP14.q` | MUST | sp | `BROWSER` | `consumes_slo_requests_sp`<br>(CAPABILITY_BASED) | full | LogoutRequest の処理後または protocol error 時に、適切な status の LogoutResponse を返す |
-| `IIP-SP14.r` | MUST | sp | `BROWSER` | `consumes_slo_requests_sp`<br>(CAPABILITY_BASED) | full | 同期 binding で LogoutResponse を返す場合、responder として SP 自身を認証する |
-| `IIP-SP14.s` | RECOMMENDED | sp | `BROWSER` | `consumes_slo_requests_sp`<br>(CAPABILITY_BASED) | full | IdP へ LogoutResponse を返す実際の HTTP 交換には TLS を使うことが推奨される |
-| `IIP-SP14.t` | MUST | sp | `BROWSER` | `consumes_slo_requests_sp`<br>(CAPABILITY_BASED) | full | 受信 SLO への LogoutResponse を HTTP POST / Redirect で返す場合、署名する |
-| `IIP-SP14.u` | MUST | sp | `BROWSER` | `consumes_slo_requests_sp`<br>(CAPABILITY_BASED) | full | SP が発行する LogoutResponse に Issuer を含める |
-| `IIP-SP14.v` | MUST | sp | `BROWSER` | `consumes_slo_requests_sp`<br>(CAPABILITY_BASED) | full | LogoutResponse の Issuer に SP の一意な entity identifier を入れる |
-| `IIP-SP14.w` | MUST | sp | `BROWSER` | `consumes_slo_requests_sp`<br>(CAPABILITY_BASED) | full | LogoutResponse Issuer の Format を省略するか SAML entity NameID format にする |
-| `IIP-SP14.x` | MUST | sp | `BROWSER` | `consumes_slo_requests_sp`<br>(CAPABILITY_BASED) | full | LogoutResponse responder として SP 自身を認証し、message integrity を保護する |
+| `IIP-SP14.p` | MUST | sp | `BROWSER` | — | full | 消費する LogoutRequest を SAML Core に従って処理する |
+| `IIP-SP14.q` | MUST | sp | `BROWSER` | — | full | LogoutRequest の処理後または protocol error 時に、適切な status の LogoutResponse を返す |
+| `IIP-SP14.r` | MUST | sp | `BROWSER` | — | full | 同期 binding で LogoutResponse を返す場合、responder として SP 自身を認証する |
+| `IIP-SP14.s` | RECOMMENDED | sp | `BROWSER` | — | full | IdP へ LogoutResponse を返す実際の HTTP 交換には TLS を使うことが推奨される |
+| `IIP-SP14.t` | MUST | sp | `BROWSER` | — | full | 受信 SLO への LogoutResponse を HTTP POST / Redirect で返す場合、署名する |
+| `IIP-SP14.u` | MUST | sp | `BROWSER` | — | full | SP が発行する LogoutResponse に Issuer を含める |
+| `IIP-SP14.v` | MUST | sp | `BROWSER` | — | full | LogoutResponse の Issuer に SP の一意な entity identifier を入れる |
+| `IIP-SP14.w` | MUST | sp | `BROWSER` | — | full | LogoutResponse Issuer の Format を省略するか SAML entity NameID format にする |
+| `IIP-SP14.x` | MUST | sp | `BROWSER` | — | full | LogoutResponse responder として SP 自身を認証し、message integrity を保護する |
 
 <details><summary><code>IIP-SP14.a</code> の詳細</summary>
 
@@ -4936,7 +4936,7 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
   - `v-aff6c0a147` Suite から妥当な LogoutRequest を送る。未対応なら NOT_SUPPORTED、消費した場合の wire behavior は .p〜.x で判定する
 - **対照（negative control）**:
   - ★ 本機能を実装しない SP は NOT_SUPPORTED。OPTIONAL を MUST に引き上げない
-  - ★ 実際に消費する SP には consumes_slo_requests_sp=true とし、Profile の responder MUST / RECOMMENDED を .p〜.x で元のレベルどおり評価する。OPTIONAL を『実装した機能は不正でもよい』という免除にしない
+  - ★ Profile の responder MUST / RECOMMENDED は .p〜.x で、実際に消費された LogoutRequest / 生成された LogoutResponse へ受動適用する。OPTIONAL を『実装した機能は不正でもよい』という免除にせず、肯定的観測しかない capability predicate で未実装 SP を永久に NOT_VERIFIED にもしない
 - **source_clauses**: `[208, 279)` `sha256:9a27ae08bafe…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
 
@@ -5103,6 +5103,7 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
   - `v-a7cd2d4ded` 妥当な LogoutRequest → 指定された local session を終了し、別 session は維持する
 - **対照（negative control）**:
   - 全 local session を無条件に終了する実装を検出するため、同一 principal の複数 session と別 principal の session を対照にする
+  - LogoutRequest consumption 自体は IIP-SP14.c が OPTIONAL。対象が request を消費しない場合は satisfied_with_note とし、消費を表明・観測したのに処理しない場合だけ violated
 - **参照先仕様**: `SAML2Prof#4.4.3.4 + SAML2Core#3.7`
 - ⚠ **未解決**: SAML2Prof 4.4.3.4 の『MUST process ... as defined in [SAMLCore]』が取り込む SAML2Core 3.7.1〜3.7.3.1 と underlying request / response rules を CP2b-Core で分解する。現 variant は participant rules の session invalidation だけで不完全
 - **source_clauses**: `[0, 109)` `sha256:284c8f093605…`
@@ -5114,10 +5115,12 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 
 - **必要な variant**:
   - `v-9607724716` 妥当な request の処理成功 → Success status の LogoutResponse
-  - `v-43b3250c9c` 認証済み・schema-valid だが未知の SessionIndex 等の protocol error → 適切な非 Success status の LogoutResponse
 - **対照（negative control）**:
-  - 署名不正・構文不正 request への応答要否は SAML Core の安全規則を確認せず独自に要求しない
-- **参照先仕様**: `SAML2Prof#4.4.3.4`
+  - 処理失敗・部分成功時の特定 status code は、SAML2Core がその状況に一意の結果を規定すると確認できるまで required variant にしない。単に『appropriate』を Suite 独自の対応表へ置き換えない
+  - 署名不正・構文不正 request への応答要否も SAML Core の安全規則を確認せず独自に要求しない
+  - LogoutRequest を消費しない SP では satisfied_with_note。request を消費した場合だけ response status を判定する
+- **参照先仕様**: `SAML2Prof#4.4.3.4 + SAML2Core#3.7`
+- ⚠ **未解決**: SAML2Prof 4.4.3.4 の error 時 LogoutResponse について、SAML2Core 3.7 が一意に定める error fixture と status を CP2b-Core で確定する。『unknown SessionIndex = non-Success』という Suite 独自対応表は使わない
 - **source_clauses**: `[0, 109)` `sha256:284c8f093605…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
 
@@ -5128,7 +5131,7 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 - **必要な variant**:
   - `v-362a146701` 対象が対応する同期 SLO binding を使う場合、LogoutResponse の署名または binding 固有 responder authentication を検証できる
 - **対照（negative control）**:
-  - 同期 binding に対応しない場合は実行時の前件が偽で satisfied。同期 binding capability 自体を追加要求しない
+  - 同期 binding または LogoutRequest consumption を実装しない場合は実行時の前件が偽で satisfied_with_note。optional capability 自体を追加要求しない
 - **参照先仕様**: `SAML2Prof#4.4.3.4`
 - **source_clauses**: `[0, 109)` `sha256:284c8f093605…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
@@ -5140,7 +5143,7 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 - **必要な variant**:
   - `v-83c4f5a2ac` Transcript に現れた SP→IdP LogoutResponse の HTTP exchange が TLS 上である
 - **対照（negative control）**:
-  - 使用しなかった endpoint の scheme を判定しない。現在安全な TLS を受理し、SSL 3.0 / TLS 1.0 を要求しない
+  - LogoutResponse が観測されない場合は satisfied_with_note。使用しなかった endpoint の scheme を判定せず、現在安全な TLS を受理し、SSL 3.0 / TLS 1.0 を要求しない
 - **参照先仕様**: `SAML2Prof#4.4.3.4`
 - **source_clauses**: `[0, 109)` `sha256:284c8f093605…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
@@ -5152,7 +5155,7 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 - **必要な variant**:
   - `v-a42db53367` 観測した全ての HTTP POST / Redirect LogoutResponse に有効な署名がある
 - **対照（negative control）**:
-  - POST / Redirect response が観測されない Run は実行時の前件が偽で satisfied。optional binding capability を追加要求しない
+  - POST / Redirect response が観測されない Run は実行時の前件が偽で satisfied_with_note。optional consumption / binding capability を追加要求しない
 - **参照先仕様**: `SAML2Prof#4.4.3.4`
 - **source_clauses**: `[0, 109)` `sha256:284c8f093605…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
@@ -5163,6 +5166,8 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 
 - **必要な variant**:
   - `v-0fdb957874` SP 発行 LogoutResponse に Issuer が 1 件存在
+- **対照（negative control）**:
+  - SP 発行 LogoutResponse が観測されない場合は satisfied_with_note。response generation capability を追加要求しない
 - **参照先仕様**: `SAML2Prof#4.4.4.2`
 - **source_clauses**: `[0, 109)` `sha256:284c8f093605…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
@@ -5173,6 +5178,8 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 
 - **必要な variant**:
   - `v-0810f489f3` Issuer 値が対象 SP の metadata entityID と一致
+- **対照（negative control）**:
+  - SP 発行 LogoutResponse が観測されない場合は satisfied_with_note。response generation capability を追加要求しない
 - **参照先仕様**: `SAML2Prof#4.4.4.2`
 - **source_clauses**: `[0, 109)` `sha256:284c8f093605…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
@@ -5183,6 +5190,8 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 
 - **必要な variant**:
   - `v-3595da06ee` target-emitted LogoutResponse ごとに、Issuer/@Format が省略または urn:oasis:names:tc:SAML:2.0:nameid-format:entity
+- **対照（negative control）**:
+  - SP 発行 LogoutResponse が観測されない場合は satisfied_with_note。response generation capability を追加要求しない
 - **参照先仕様**: `SAML2Prof#4.4.4.2`
 - **source_clauses**: `[0, 109)` `sha256:284c8f093605…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
@@ -5195,6 +5204,7 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
   - `v-355b33742e` SP 発行 LogoutResponse に署名または binding 固有の認証・完全性機構があり検証成功
 - **対照（negative control）**:
   - 認証・完全性証拠を壊す操作は Suite fixture の自己検証に置き、target に誤 message の発行を要求しない
+  - SP 発行 LogoutResponse が観測されない場合は satisfied_with_note。response generation capability を追加要求しない
 - **参照先仕様**: `SAML2Prof#4.4.4.2`
 - **source_clauses**: `[0, 109)` `sha256:284c8f093605…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
@@ -5207,15 +5217,50 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 
 | 義務 | Level | Role | Testability | 条件 | Core/Full | 要約 |
 |---|---|---|---|---|---|---|
-| `IIP-SP15.a` | MUST | sp | `BROWSER` | `supports_slo_sp`<br>(CAPABILITY_BASED) | full | SLO に対応する SP は、ログアウト要求と応答の両方で HTTP-Redirect バインディングに対応 |
+| `IIP-SP15.a` | MUST | sp | `BROWSER` | `supports_slo_initiation_sp`<br>(CAPABILITY_BASED) | full | SP が開始する LogoutRequest を HTTP-Redirect で送信できる |
+| `IIP-SP15.b` | MUST | sp | `BROWSER` | — | full | LogoutRequest を消費する SP は HTTP-Redirect で受信できる |
+| `IIP-SP15.c` | MUST | sp | `BROWSER` | — | full | LogoutRequest を消費する SP は LogoutResponse を HTTP-Redirect で返送できる |
+| `IIP-SP15.d` | MUST | sp | `BROWSER` | — | full | LogoutResponse を消費する SP は HTTP-Redirect で受信できる |
 
 <details><summary><code>IIP-SP15.a</code> の詳細</summary>
 
 - **必要な variant**:
-  - `v-e9405d0d3f` LogoutRequest を Redirect で送受信
-  - `v-cfe3e706a4` LogoutResponse を Redirect で送受信
+  - `v-0bc0885119` Suite IdP の SLO request endpoint を HTTP-Redirect のみで設定 → SP が HTTP-Redirect で LogoutRequest を送る
 - **対照（negative control）**:
-  - 要求と応答を個別 variant にする
+  - IIP-SP14.b が要求する request 発行方向。任意の受信方向を同じ variant に連言化しない
+- **source_clauses**: `[0, 139)` `sha256:c44ab5ee19a9…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-SP15.b</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-605b5eac31` Suite IdP が HTTP-Redirect で LogoutRequest を送る → SP が消費する
+- **対照（negative control）**:
+  - IIP-SP14.c が OPTIONAL とする request consumption を実装した場合だけ wire behavior を判定する。非対応なら satisfied_with_note、対応を表明・観測したのに Redirect request を消費できなければ violated
+- **source_clauses**: `[0, 139)` `sha256:c44ab5ee19a9…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-SP15.c</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-58b1bad15d` Suite IdP の Redirect SingleLogoutService / ResponseLocation へ HTTP-Redirect LogoutRequest を送り、SP が HTTP-Redirect で LogoutResponse を返す
+- **対照（negative control）**:
+  - responder 方向は request consumption に付随する。受信未対応 SP は satisfied_with_note とし、response 発行を要求しない
+- **source_clauses**: `[0, 139)` `sha256:c44ab5ee19a9…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-SP15.d</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-81809ba0f4` SP の LogoutRequest に Suite IdP が HTTP-Redirect で LogoutResponse を返す → SP が消費する
+- **対照（negative control）**:
+  - IIP-SP14.c1 が OPTIONAL とする response consumption を実装した場合だけ wire behavior を判定する。非対応なら satisfied_with_note とし、request consumption から推測しない
 - **source_clauses**: `[0, 139)` `sha256:c44ab5ee19a9…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
 
@@ -5922,11 +5967,11 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 | `IIP-IDP17.g` | MUST | idp | `BROWSER` | `supports_slo_idp`<br>(CAPABILITY_BASED) | full | LogoutResponse の Issuer に IdP の一意な entity identifier を入れる |
 | `IIP-IDP17.h` | MUST | idp | `BROWSER` | `supports_slo_idp`<br>(CAPABILITY_BASED) | full | LogoutResponse Issuer の Format を省略するか SAML entity NameID format にする |
 | `IIP-IDP17.i` | MUST | idp | `BROWSER` | `supports_slo_idp`<br>(CAPABILITY_BASED) | full | LogoutResponse responder として IdP 自身を認証し、message integrity を保護する |
-| `IIP-IDP17.j` | MUST | idp | `BROWSER` | `supports_slo_idp`<br>(CAPABILITY_BASED) | full | IdP が LogoutRequest を発行する場合、Issuer を含める |
-| `IIP-IDP17.k` | MUST | idp | `BROWSER` | `supports_slo_idp`<br>(CAPABILITY_BASED) | full | IdP 発行 LogoutRequest の Issuer に IdP の一意な entity identifier を入れる |
-| `IIP-IDP17.l` | MUST | idp | `BROWSER` | `supports_slo_idp`<br>(CAPABILITY_BASED) | full | IdP 発行 LogoutRequest Issuer の Format を省略するか SAML entity NameID format にする |
-| `IIP-IDP17.m` | MUST | idp | `BROWSER` | `supports_slo_idp`<br>(CAPABILITY_BASED) | full | LogoutRequest requester として IdP 自身を認証し、message integrity を保護する |
-| `IIP-IDP17.n` | MUST | idp | `BROWSER` | `supports_slo_idp`<br>(CAPABILITY_BASED) | full | IdP 発行 LogoutRequest の principal identifier を、対象 session の authentication assertion の identifier と strong match させる |
+| `IIP-IDP17.j` | MUST | idp | `BROWSER` | — | full | IdP が LogoutRequest を発行する場合、Issuer を含める |
+| `IIP-IDP17.k` | MUST | idp | `BROWSER` | — | full | IdP 発行 LogoutRequest の Issuer に IdP の一意な entity identifier を入れる |
+| `IIP-IDP17.l` | MUST | idp | `BROWSER` | — | full | IdP 発行 LogoutRequest Issuer の Format を省略するか SAML entity NameID format にする |
+| `IIP-IDP17.m` | MUST | idp | `BROWSER` | — | full | LogoutRequest requester として IdP 自身を認証し、message integrity を保護する |
+| `IIP-IDP17.n` | MUST | idp | `BROWSER` | — | full | IdP 発行 LogoutRequest の principal identifier を、対象 session の authentication assertion の identifier と strong match させる |
 
 <details><summary><code>IIP-IDP17.a</code> の詳細</summary>
 
@@ -6051,7 +6096,7 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 - **必要な variant**:
   - `v-39a99d4059` IdP が発行した LogoutRequest に Issuer が 1 件存在
 - **対照（negative control）**:
-  - IdP-initiated / propagation capability 自体は OPTIONAL。IIP-IDP18 の request generation exercise 等で実際に target-emitted request を観測したときだけ wire rule を判定する
+  - IdP-initiated / propagation capability 自体は OPTIONAL。対象 IdP 発行 LogoutRequest が観測されない場合は satisfied_with_note とし、IIP-IDP18 を発行能力の根拠にしない
 - **参照先仕様**: `SAML2Prof#4.4.4.1`
 - **source_clauses**: `[0, 107)` `sha256:0649b5f4937d…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
@@ -6062,6 +6107,8 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 
 - **必要な variant**:
   - `v-17e8b49cdc` target-emitted LogoutRequest の Issuer が対象 IdP の metadata entityID と一致
+- **対照（negative control）**:
+  - 対象 IdP 発行 LogoutRequest が観測されない場合は satisfied_with_note
 - **参照先仕様**: `SAML2Prof#4.4.4.1`
 - **source_clauses**: `[0, 107)` `sha256:0649b5f4937d…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
@@ -6072,6 +6119,8 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 
 - **必要な variant**:
   - `v-f88354adbe` target-emitted LogoutRequest ごとに、Issuer/@Format が省略または urn:oasis:names:tc:SAML:2.0:nameid-format:entity
+- **対照（negative control）**:
+  - 対象 IdP 発行 LogoutRequest が観測されない場合は satisfied_with_note
 - **参照先仕様**: `SAML2Prof#4.4.4.1`
 - **source_clauses**: `[0, 107)` `sha256:0649b5f4937d…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
@@ -6084,6 +6133,7 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
   - `v-a8afcbfea3` IdP 発行 LogoutRequest に署名または binding 固有の認証・完全性機構があり検証成功
 - **対照（negative control）**:
   - 同一 request の認証・完全性証拠を壊す操作は Suite fixture の自己検証であり、target の required variant にしない
+  - 対象 IdP 発行 LogoutRequest が観測されない場合は satisfied_with_note
 - **参照先仕様**: `SAML2Prof#4.4.4.1`
 - **source_clauses**: `[0, 107)` `sha256:0649b5f4937d…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
@@ -6097,6 +6147,7 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 - **対照（negative control）**:
   - 文字列一致だけでなく NameQualifier / SPNameQualifier / Format 等、Core 3.3.4 の strong match 規則で比較する
   - 別 principal の identifier を送る mutant target を negative control にし、適合対象へ誤 message の発行を要求しない
+  - 対象 IdP 発行 LogoutRequest が観測されない場合は satisfied_with_note
 - **参照先仕様**: `SAML2Prof#4.4.4.1`
 - **source_clauses**: `[0, 107)` `sha256:0649b5f4937d…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
@@ -6109,14 +6160,17 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 
 | 義務 | Level | Role | Testability | 条件 | Core/Full | 要約 |
 |---|---|---|---|---|---|---|
-| `IIP-IDP18.a` | MUST | idp | `BROWSER` | — | full | ログアウト要求で HTTP-Redirect バインディングに対応 |
-| `IIP-IDP18.b` | MUST | idp | `BROWSER` | — | full | ログアウト応答で HTTP-Redirect バインディングに対応 |
+| `IIP-IDP18.a` | MUST | idp | `BROWSER` | — | full | SP が開始した LogoutRequest を HTTP-Redirect で受信できる |
+| `IIP-IDP18.b` | MUST | idp | `BROWSER` | — | full | SP-initiated SLO への LogoutResponse を HTTP-Redirect で送信できる |
+| `IIP-IDP18.c` | MUST | idp | `BROWSER` | — | full | LogoutRequest を発行する IdP は HTTP-Redirect で送信できる |
+| `IIP-IDP18.d` | MUST | idp | `BROWSER` | — | full | 応答を伴う LogoutRequest を発行する IdP は LogoutResponse を HTTP-Redirect で受信できる |
 
 <details><summary><code>IIP-IDP18.a</code> の詳細</summary>
 
 - **必要な variant**:
-  - `v-b991f88df5` Suite が Redirect で LogoutRequest を送る → 受理される
-  - `v-0757f8ab29` IdP が Redirect で LogoutRequest を送ってくる
+  - `v-bd2c0c0a36` Suite SP が HTTP-Redirect で LogoutRequest を送る → IdP が受理する
+- **対照（negative control）**:
+  - IIP-IDP17.a の必須基本フローに対応する受信方向。IdP の任意の request 発行を同じ variant に含めない
 - **source_clauses**: `[0, 92)` `sha256:4874105bfdab…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
 
@@ -6125,10 +6179,32 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 <details><summary><code>IIP-IDP18.b</code> の詳細</summary>
 
 - **必要な variant**:
-  - `v-625bb5d8dd` IdP が Redirect で LogoutResponse を返す
-  - `v-3cedb75b42` Suite が Redirect で LogoutResponse を返す → 受理される
+  - `v-2484f39598` Suite SP の Redirect SingleLogoutService / ResponseLocation から HTTP-Redirect LogoutRequest を送り、IdP が HTTP-Redirect で LogoutResponse を返す
 - **対照（negative control）**:
-  - 要求と応答を個別義務にする。片方のみ対応する実装を検出する
+  - IIP-IDP17.a の必須基本フローに対応する送信方向。IdP の任意の request 発行を前提にしない
+- **source_clauses**: `[0, 92)` `sha256:4874105bfdab…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-IDP18.c</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-61f26c3d6d` Suite participant の SLO request endpoint を HTTP-Redirect のみで設定し、対象 IdP が任意の開始・伝播経路で HTTP-Redirect LogoutRequest を送る
+- **対照（negative control）**:
+  - IdP-initiated SLO と propagation は任意。対象 IdP 発行 LogoutRequest が観測されない場合は satisfied_with_note とし、発行した場合だけ binding を判定する
+- **source_clauses**: `[0, 92)` `sha256:4874105bfdab…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-IDP18.d</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-87b0196dce` 対象 IdP が通常の LogoutRequest を発行 → Suite participant が HTTP-Redirect LogoutResponse を返す → IdP が消費する
+- **対照（negative control）**:
+  - IdP-initiated SLO と propagation は任意。対象が LogoutRequest を発行する場合だけ binding を判定する
+  - Asynchronous SLO extension により response を要求しない request しか観測されない Run は実行時 scope 外で satisfied_with_note。async capability を response consumption capability に変えない
 - **source_clauses**: `[0, 92)` `sha256:4874105bfdab…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
 
@@ -6220,9 +6296,9 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 
 ```
 g1_state       : PENDING_REVIEW
-obligations    : 376
-未承認         : 376
-未解決 open Q  : 11 ['IIP-MD05.a', 'IIP-MD05.b', 'IIP-MD05.c', 'IIP-MD05.d', 'IIP-MD05.e', 'IIP-MD05.f', 'IIP-MD06.a', 'IIP-SP14.p', 'IIP-IDP13.a', 'IIP-IDP17.a', 'IIP-IDP17.b']
+obligations    : 381
+未承認         : 381
+未解決 open Q  : 12 ['IIP-MD05.a', 'IIP-MD05.b', 'IIP-MD05.c', 'IIP-MD05.d', 'IIP-MD05.e', 'IIP-MD05.f', 'IIP-MD06.a', 'IIP-SP14.p', 'IIP-SP14.q', 'IIP-IDP13.a', 'IIP-IDP17.a', 'IIP-IDP17.b']
 ```
 
 作成者は `reviewer` / `approved_at` を埋めていません。

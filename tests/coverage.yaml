@@ -1,13 +1,13 @@
 # tests/coverage.yaml — 要件カタログ（G1 成果物 / 判定レベルの唯一の出典）
 # 生成: build_g1.py（原文からオフセットと digest を解決）/ 手編集しない
-generated_at: 2026-08-27T16:24:16+00:00
+generated_at: 2026-08-27T16:46:25+00:00
 schema_version: 1
 g1_state: PENDING_REVIEW
 # 作成者は reviewer / approved_at を埋めない。別のレビュアーが原文と直接照合して承認する。
 spec: kantara-fedinterop-impl
 spec_version: "1.1"
 source_digest: "sha256:6cbc97a652651d6a5cff26a41c51195b8b914ed59dc63ed1d6ce254e88edd13d"
-catalog_digest: "sha256:b1bd496bd881568ae2c5475f7f7f121cffd8c5aee332940018ac0b1e420d5897"   # specs.yaml + predicates.yaml 全体（後処理で埋める）
+catalog_digest: "sha256:5ea2d23bde62805ffca1f6b778dd905f426da01a4d6510777c7fd6c6999b9298"   # specs.yaml + predicates.yaml 全体（後処理で埋める）
 # 承認記録はこのファイルに置かない。tests/approvals/g1.yaml（対象 commit の外）に置く。
 clause_offset_convention:
   base: normalized requirement section
@@ -11166,14 +11166,14 @@ requirements:
             description_ja: "Suite から妥当な LogoutRequest を送る。未対応なら NOT_SUPPORTED、消費した場合の wire behavior は .p〜.x で判定する"
         controls:
           - "★ 本機能を実装しない SP は NOT_SUPPORTED。OPTIONAL を MUST に引き上げない"
-          - "★ 実際に消費する SP には consumes_slo_requests_sp=true とし、Profile の responder MUST / RECOMMENDED を .p〜.x で元のレベルどおり評価する。OPTIONAL を『実装した機能は不正でもよい』という免除にしない"
+          - "★ Profile の responder MUST / RECOMMENDED は .p〜.x で、実際に消費された LogoutRequest / 生成された LogoutResponse へ受動適用する。OPTIONAL を『実装した機能は不正でもよい』という免除にせず、肯定的観測しかない capability predicate で未実装 SP を永久に NOT_VERIFIED にもしない"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:9ff46f7f8d903634f2fe5c639f7889629675701c3a15a6091493c812ac31c85e"
+          obligation_digest: "sha256:2bfab8216927ec08e6e7e2fd307bc5bfb006c8c63063ef609d0e66196cdd3130"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SP14"
@@ -11633,9 +11633,7 @@ requirements:
         roles: [sp]
         level: MUST
         testability: BROWSER
-        condition:
-          predicate: consumes_slo_requests_sp
-          predicate_kind: CAPABILITY_BASED
+        condition: null
         summary_en: "Process a consumed LogoutRequest as defined in SAML Core"
         summary_ja: "消費する LogoutRequest を SAML Core に従って処理する"
         references_spec: "SAML2Prof#4.4.3.4 + SAML2Core#3.7"
@@ -11657,6 +11655,7 @@ requirements:
             description_ja: "妥当な LogoutRequest → 指定された local session を終了し、別 session は維持する"
         controls:
           - "全 local session を無条件に終了する実装を検出するため、同一 principal の複数 session と別 principal の session を対照にする"
+          - "LogoutRequest consumption 自体は IIP-SP14.c が OPTIONAL。対象が request を消費しない場合は satisfied_with_note とし、消費を表明・観測したのに処理しない場合だけ violated"
         open_question_ja: "SAML2Prof 4.4.3.4 の『MUST process ... as defined in [SAMLCore]』が取り込む SAML2Core 3.7.1〜3.7.3.1 と underlying request / response rules を CP2b-Core で分解する。現 variant は participant rules の session invalidation だけで不完全"
         authored_by: samlier-g1-builder
         review:
@@ -11664,7 +11663,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:0c90f9c6b9b136a328e29182a3051a5b446c9f47539e167142178cd4c6fe3834"
+          obligation_digest: "sha256:3b76d2cef70522e23d7e95f4ef8597b71df7516d3707afb31b5aef9578637be5"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SP14"
@@ -11673,35 +11672,38 @@ requirements:
         roles: [sp]
         level: MUST
         testability: BROWSER
-        condition:
-          predicate: consumes_slo_requests_sp
-          predicate_kind: CAPABILITY_BASED
+        condition: null
         summary_en: "Issue a LogoutResponse with an appropriate status after processing a LogoutRequest or encountering a protocol error"
         summary_ja: "LogoutRequest の処理後または protocol error 時に、適切な status の LogoutResponse を返す"
-        references_spec: "SAML2Prof#4.4.3.4"
+        references_spec: "SAML2Prof#4.4.3.4 + SAML2Core#3.7"
         reference_derivation: true
         reference_evidence:
           - spec: SAML2Prof
             locator: "4\\.4\\.3\\.4 Session Participant/Authority Issues <LogoutResponse> to Identity||4\\.4\\.3\\.5 Identity Provider Issues"
             section_digest: "sha256:50cdbfeee362e76003782611f4faba67123bd61f890213605b46f4813502e65e"
             basis_ja: "message の処理後または error 時、entity は適切な status code の LogoutResponse を requesting IdP へ MUST issue する"
+          - spec: SAML2Core
+            locator: "3\\.7 Single Logout Protocol||3\\.8 Name Identifier Mapping Protocol"
+            section_digest: "sha256:a7b444a729dd7b9e3cf3570c1218043f519367d021b113fe7690e3ff98a59ade"
+            basis_ja: "error 状況と status の対応は Core §3.7 の participant rules と underlying response rules で CP2b-Core に分解する"
         level_assignment: { sp: full }
         source_clauses:
           - { start: 0, end: 109, digest: "sha256:284c8f09360551d5a9db48439f6d40890b67152fcf6a716c6885b468678edb80", occurrences: 1 }
         required_variants:
           - id: v-9607724716
             description_ja: "妥当な request の処理成功 → Success status の LogoutResponse"
-          - id: v-43b3250c9c
-            description_ja: "認証済み・schema-valid だが未知の SessionIndex 等の protocol error → 適切な非 Success status の LogoutResponse"
         controls:
-          - "署名不正・構文不正 request への応答要否は SAML Core の安全規則を確認せず独自に要求しない"
+          - "処理失敗・部分成功時の特定 status code は、SAML2Core がその状況に一意の結果を規定すると確認できるまで required variant にしない。単に『appropriate』を Suite 独自の対応表へ置き換えない"
+          - "署名不正・構文不正 request への応答要否も SAML Core の安全規則を確認せず独自に要求しない"
+          - "LogoutRequest を消費しない SP では satisfied_with_note。request を消費した場合だけ response status を判定する"
+        open_question_ja: "SAML2Prof 4.4.3.4 の error 時 LogoutResponse について、SAML2Core 3.7 が一意に定める error fixture と status を CP2b-Core で確定する。『unknown SessionIndex = non-Success』という Suite 独自対応表は使わない"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:e5ddcdb5e77e5ae41c1f25ebb0cf5076d644250d30e7d1fd4a8c994d40874e5d"
+          obligation_digest: "sha256:12d3439a9503951dc93e606764e2d1db1e7906811677966a79bfa39475ec3c0d"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SP14"
@@ -11710,9 +11712,7 @@ requirements:
         roles: [sp]
         level: MUST
         testability: BROWSER
-        condition:
-          predicate: consumes_slo_requests_sp
-          predicate_kind: CAPABILITY_BASED
+        condition: null
         summary_en: "Authenticate the SP as responder when returning LogoutResponse over a synchronous binding"
         summary_ja: "同期 binding で LogoutResponse を返す場合、responder として SP 自身を認証する"
         references_spec: "SAML2Prof#4.4.3.4"
@@ -11729,14 +11729,14 @@ requirements:
           - id: v-362a146701
             description_ja: "対象が対応する同期 SLO binding を使う場合、LogoutResponse の署名または binding 固有 responder authentication を検証できる"
         controls:
-          - "同期 binding に対応しない場合は実行時の前件が偽で satisfied。同期 binding capability 自体を追加要求しない"
+          - "同期 binding または LogoutRequest consumption を実装しない場合は実行時の前件が偽で satisfied_with_note。optional capability 自体を追加要求しない"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:f12972d810f3940e35dc7bfc74967775fb8048ff13fe8cffde0880c4289a067d"
+          obligation_digest: "sha256:2c9ce572d1581b9d59696bcead06df81aac879f474493dddfd3ae27119ee4678"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SP14"
@@ -11745,9 +11745,7 @@ requirements:
         roles: [sp]
         level: RECOMMENDED
         testability: BROWSER
-        condition:
-          predicate: consumes_slo_requests_sp
-          predicate_kind: CAPABILITY_BASED
+        condition: null
         summary_en: "Use TLS for the HTTP exchange that returns LogoutResponse to the identity provider"
         summary_ja: "IdP へ LogoutResponse を返す実際の HTTP 交換には TLS を使うことが推奨される"
         references_spec: "SAML2Prof#4.4.3.4"
@@ -11764,14 +11762,14 @@ requirements:
           - id: v-83c4f5a2ac
             description_ja: "Transcript に現れた SP→IdP LogoutResponse の HTTP exchange が TLS 上である"
         controls:
-          - "使用しなかった endpoint の scheme を判定しない。現在安全な TLS を受理し、SSL 3.0 / TLS 1.0 を要求しない"
+          - "LogoutResponse が観測されない場合は satisfied_with_note。使用しなかった endpoint の scheme を判定せず、現在安全な TLS を受理し、SSL 3.0 / TLS 1.0 を要求しない"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:d439cd10ec49d3b828c524f28eebe7c2f079375b7f6f602dd485b3ca7fdbb2b8"
+          obligation_digest: "sha256:642fc5c4aa54d270198e28c4b0ba47f1d30d9ad2d065a43e643f4154b65d168c"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SP14"
@@ -11780,9 +11778,7 @@ requirements:
         roles: [sp]
         level: MUST
         testability: BROWSER
-        condition:
-          predicate: consumes_slo_requests_sp
-          predicate_kind: CAPABILITY_BASED
+        condition: null
         summary_en: "Sign every consumed-flow LogoutResponse sent with HTTP POST or Redirect"
         summary_ja: "受信 SLO への LogoutResponse を HTTP POST / Redirect で返す場合、署名する"
         references_spec: "SAML2Prof#4.4.3.4"
@@ -11799,14 +11795,14 @@ requirements:
           - id: v-a42db53367
             description_ja: "観測した全ての HTTP POST / Redirect LogoutResponse に有効な署名がある"
         controls:
-          - "POST / Redirect response が観測されない Run は実行時の前件が偽で satisfied。optional binding capability を追加要求しない"
+          - "POST / Redirect response が観測されない Run は実行時の前件が偽で satisfied_with_note。optional consumption / binding capability を追加要求しない"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:f6b767e16854f141bd1770f6be608a94ed8e95545973fb942a6baf09c98f4528"
+          obligation_digest: "sha256:8df52f83a278f28c8c4d909e8a77c29018d464233865870ee548b72d1f394df2"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SP14"
@@ -11815,9 +11811,7 @@ requirements:
         roles: [sp]
         level: MUST
         testability: BROWSER
-        condition:
-          predicate: consumes_slo_requests_sp
-          predicate_kind: CAPABILITY_BASED
+        condition: null
         summary_en: "Include Issuer in an SP-issued LogoutResponse"
         summary_ja: "SP が発行する LogoutResponse に Issuer を含める"
         references_spec: "SAML2Prof#4.4.4.2"
@@ -11833,13 +11827,15 @@ requirements:
         required_variants:
           - id: v-0fdb957874
             description_ja: "SP 発行 LogoutResponse に Issuer が 1 件存在"
+        controls:
+          - "SP 発行 LogoutResponse が観測されない場合は satisfied_with_note。response generation capability を追加要求しない"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:45aa86f232cbea3feb3082c49c3de445a05dc87d43ac2d3a75f69456be81d4d1"
+          obligation_digest: "sha256:bd422ee61fd1d8a62edaca33b130044bc9230518d51f7bb3e01f09cd67fec895"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SP14"
@@ -11848,9 +11844,7 @@ requirements:
         roles: [sp]
         level: MUST
         testability: BROWSER
-        condition:
-          predicate: consumes_slo_requests_sp
-          predicate_kind: CAPABILITY_BASED
+        condition: null
         summary_en: "Use the SP's unique entity identifier as LogoutResponse Issuer"
         summary_ja: "LogoutResponse の Issuer に SP の一意な entity identifier を入れる"
         references_spec: "SAML2Prof#4.4.4.2"
@@ -11866,13 +11860,15 @@ requirements:
         required_variants:
           - id: v-0810f489f3
             description_ja: "Issuer 値が対象 SP の metadata entityID と一致"
+        controls:
+          - "SP 発行 LogoutResponse が観測されない場合は satisfied_with_note。response generation capability を追加要求しない"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:0d50684134d98693a51ca57c5c8b96718347f2cb4f5b4c879f923d452e120c22"
+          obligation_digest: "sha256:c931a14a64016520e687d9d1cdcdb11dd2d48cf73be8a3d54356e0eac74dfc34"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SP14"
@@ -11881,9 +11877,7 @@ requirements:
         roles: [sp]
         level: MUST
         testability: BROWSER
-        condition:
-          predicate: consumes_slo_requests_sp
-          predicate_kind: CAPABILITY_BASED
+        condition: null
         summary_en: "Omit LogoutResponse Issuer Format or set it to the SAML entity NameID format"
         summary_ja: "LogoutResponse Issuer の Format を省略するか SAML entity NameID format にする"
         references_spec: "SAML2Prof#4.4.4.2"
@@ -11899,13 +11893,15 @@ requirements:
         required_variants:
           - id: v-3595da06ee
             description_ja: "target-emitted LogoutResponse ごとに、Issuer/@Format が省略または urn:oasis:names:tc:SAML:2.0:nameid-format:entity"
+        controls:
+          - "SP 発行 LogoutResponse が観測されない場合は satisfied_with_note。response generation capability を追加要求しない"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:2ca70e25b164fc3f1978ffb23dd5e4e149cc1550e8146bc0d883ca22535fb219"
+          obligation_digest: "sha256:0fc00f3f60d8c71a7a23c3b476c31a98fa431539c1c958283b8edd7ee68368ce"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SP14"
@@ -11914,9 +11910,7 @@ requirements:
         roles: [sp]
         level: MUST
         testability: BROWSER
-        condition:
-          predicate: consumes_slo_requests_sp
-          predicate_kind: CAPABILITY_BASED
+        condition: null
         summary_en: "Authenticate the SP as LogoutResponse responder and protect message integrity"
         summary_ja: "LogoutResponse responder として SP 自身を認証し、message integrity を保護する"
         references_spec: "SAML2Prof#4.4.4.2"
@@ -11934,13 +11928,14 @@ requirements:
             description_ja: "SP 発行 LogoutResponse に署名または binding 固有の認証・完全性機構があり検証成功"
         controls:
           - "認証・完全性証拠を壊す操作は Suite fixture の自己検証に置き、target に誤 message の発行を要求しない"
+          - "SP 発行 LogoutResponse が観測されない場合は satisfied_with_note。response generation capability を追加要求しない"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:aad6eb293ac6d592d260f188d753802e38c8cee8072d8adae05a8c4e2ef9571d"
+          obligation_digest: "sha256:07d5990a5908f0cb6094a19d9248c8b682cd367e050e891a4db00d8c5b5a38db"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SP14"
@@ -11958,27 +11953,103 @@ requirements:
         level: MUST
         testability: BROWSER
         condition:
-          predicate: supports_slo_sp
+          predicate: supports_slo_initiation_sp
           predicate_kind: CAPABILITY_BASED
-        summary_en: "SPs supporting SLO must support the HTTP-Redirect binding for logout requests and responses"
-        summary_ja: "SLO に対応する SP は、ログアウト要求と応答の両方で HTTP-Redirect バインディングに対応"
+        summary_en: "Support sending SP-initiated LogoutRequest messages with HTTP-Redirect"
+        summary_ja: "SP が開始する LogoutRequest を HTTP-Redirect で送信できる"
         level_assignment: { sp: full }
         source_clauses:
           - { start: 0, end: 139, digest: "sha256:c44ab5ee19a92d712fb9073f23334d5e54a323b81091b04597fe077a8c06af67", occurrences: 1 }
         required_variants:
-          - id: v-e9405d0d3f
-            description_ja: "LogoutRequest を Redirect で送受信"
-          - id: v-cfe3e706a4
-            description_ja: "LogoutResponse を Redirect で送受信"
+          - id: v-0bc0885119
+            description_ja: "Suite IdP の SLO request endpoint を HTTP-Redirect のみで設定 → SP が HTTP-Redirect で LogoutRequest を送る"
         controls:
-          - "要求と応答を個別 variant にする"
+          - "IIP-SP14.b が要求する request 発行方向。任意の受信方向を同じ variant に連言化しない"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:9f1f57c424b69869c154676ab57450d3a0d7aba8558ac4cf01b890e2fd7d6b80"
+          obligation_digest: "sha256:994d3a3d132999223655f0a403750735275911ca0ef05e29f91b8efc313152c2"
+          source_spec: kantara-fedinterop-impl
+          spec_version: "1.1"
+          source_selector: "#IIP-SP15"
+          source_section_digest: "sha256:c44ab5ee19a92d712fb9073f23334d5e54a323b81091b04597fe077a8c06af67"
+      - key: IIP-SP15.b
+        roles: [sp]
+        level: MUST
+        testability: BROWSER
+        condition: null
+        summary_en: "When consuming LogoutRequest messages, support receiving them with HTTP-Redirect"
+        summary_ja: "LogoutRequest を消費する SP は HTTP-Redirect で受信できる"
+        level_assignment: { sp: full }
+        source_clauses:
+          - { start: 0, end: 139, digest: "sha256:c44ab5ee19a92d712fb9073f23334d5e54a323b81091b04597fe077a8c06af67", occurrences: 1 }
+        required_variants:
+          - id: v-605b5eac31
+            description_ja: "Suite IdP が HTTP-Redirect で LogoutRequest を送る → SP が消費する"
+        controls:
+          - "IIP-SP14.c が OPTIONAL とする request consumption を実装した場合だけ wire behavior を判定する。非対応なら satisfied_with_note、対応を表明・観測したのに Redirect request を消費できなければ violated"
+        authored_by: samlier-g1-builder
+        review:
+          # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
+          state: PENDING_REVIEW
+          reviewer: null
+          approved_at: null
+          obligation_digest: "sha256:81c1373c6ad075514c090921d20e03b08fdc41d0b0bfebbfad8c6c511affd137"
+          source_spec: kantara-fedinterop-impl
+          spec_version: "1.1"
+          source_selector: "#IIP-SP15"
+          source_section_digest: "sha256:c44ab5ee19a92d712fb9073f23334d5e54a323b81091b04597fe077a8c06af67"
+      - key: IIP-SP15.c
+        roles: [sp]
+        level: MUST
+        testability: BROWSER
+        condition: null
+        summary_en: "When consuming LogoutRequest messages, support returning LogoutResponse messages with HTTP-Redirect"
+        summary_ja: "LogoutRequest を消費する SP は LogoutResponse を HTTP-Redirect で返送できる"
+        level_assignment: { sp: full }
+        source_clauses:
+          - { start: 0, end: 139, digest: "sha256:c44ab5ee19a92d712fb9073f23334d5e54a323b81091b04597fe077a8c06af67", occurrences: 1 }
+        required_variants:
+          - id: v-58b1bad15d
+            description_ja: "Suite IdP の Redirect SingleLogoutService / ResponseLocation へ HTTP-Redirect LogoutRequest を送り、SP が HTTP-Redirect で LogoutResponse を返す"
+        controls:
+          - "responder 方向は request consumption に付随する。受信未対応 SP は satisfied_with_note とし、response 発行を要求しない"
+        authored_by: samlier-g1-builder
+        review:
+          # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
+          state: PENDING_REVIEW
+          reviewer: null
+          approved_at: null
+          obligation_digest: "sha256:9ca7d42ef92d397e16ad351aac8b06a3792cff48b9b01110a7e1314c5d18cd21"
+          source_spec: kantara-fedinterop-impl
+          spec_version: "1.1"
+          source_selector: "#IIP-SP15"
+          source_section_digest: "sha256:c44ab5ee19a92d712fb9073f23334d5e54a323b81091b04597fe077a8c06af67"
+      - key: IIP-SP15.d
+        roles: [sp]
+        level: MUST
+        testability: BROWSER
+        condition: null
+        summary_en: "When consuming LogoutResponse messages, support receiving them with HTTP-Redirect"
+        summary_ja: "LogoutResponse を消費する SP は HTTP-Redirect で受信できる"
+        level_assignment: { sp: full }
+        source_clauses:
+          - { start: 0, end: 139, digest: "sha256:c44ab5ee19a92d712fb9073f23334d5e54a323b81091b04597fe077a8c06af67", occurrences: 1 }
+        required_variants:
+          - id: v-81809ba0f4
+            description_ja: "SP の LogoutRequest に Suite IdP が HTTP-Redirect で LogoutResponse を返す → SP が消費する"
+        controls:
+          - "IIP-SP14.c1 が OPTIONAL とする response consumption を実装した場合だけ wire behavior を判定する。非対応なら satisfied_with_note とし、request consumption から推測しない"
+        authored_by: samlier-g1-builder
+        review:
+          # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
+          state: PENDING_REVIEW
+          reviewer: null
+          approved_at: null
+          obligation_digest: "sha256:418ed978e427caf7626f31e6d29771ab606e43435e528240eb06fefe77fa2a66"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SP15"
@@ -13761,9 +13832,7 @@ requirements:
         roles: [idp]
         level: MUST
         testability: BROWSER
-        condition:
-          predicate: supports_slo_idp
-          predicate_kind: CAPABILITY_BASED
+        condition: null
         summary_en: "Include Issuer in any IdP-issued LogoutRequest"
         summary_ja: "IdP が LogoutRequest を発行する場合、Issuer を含める"
         references_spec: "SAML2Prof#4.4.4.1"
@@ -13780,14 +13849,14 @@ requirements:
           - id: v-39a99d4059
             description_ja: "IdP が発行した LogoutRequest に Issuer が 1 件存在"
         controls:
-          - "IdP-initiated / propagation capability 自体は OPTIONAL。IIP-IDP18 の request generation exercise 等で実際に target-emitted request を観測したときだけ wire rule を判定する"
+          - "IdP-initiated / propagation capability 自体は OPTIONAL。対象 IdP 発行 LogoutRequest が観測されない場合は satisfied_with_note とし、IIP-IDP18 を発行能力の根拠にしない"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:cf810b4968c32b7b590c06ae534543d15b36831915f9143781f1866a2493157f"
+          obligation_digest: "sha256:e66eec711d54956a499024fa7b728df4242dcfba3fdc2cee4c54ad2de5f4b47a"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-IDP17"
@@ -13796,9 +13865,7 @@ requirements:
         roles: [idp]
         level: MUST
         testability: BROWSER
-        condition:
-          predicate: supports_slo_idp
-          predicate_kind: CAPABILITY_BASED
+        condition: null
         summary_en: "Use the IdP's unique entity identifier as LogoutRequest Issuer"
         summary_ja: "IdP 発行 LogoutRequest の Issuer に IdP の一意な entity identifier を入れる"
         references_spec: "SAML2Prof#4.4.4.1"
@@ -13814,13 +13881,15 @@ requirements:
         required_variants:
           - id: v-17e8b49cdc
             description_ja: "target-emitted LogoutRequest の Issuer が対象 IdP の metadata entityID と一致"
+        controls:
+          - "対象 IdP 発行 LogoutRequest が観測されない場合は satisfied_with_note"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:f5fa5d24f44141935526d61ac8e8395458a729b8c9c79a2478e2343f1061f713"
+          obligation_digest: "sha256:0776d17958f3f1e432d9e6b998b36e732d2ce32283b3a835e66b3ec48cada23c"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-IDP17"
@@ -13829,9 +13898,7 @@ requirements:
         roles: [idp]
         level: MUST
         testability: BROWSER
-        condition:
-          predicate: supports_slo_idp
-          predicate_kind: CAPABILITY_BASED
+        condition: null
         summary_en: "Omit LogoutRequest Issuer Format or set it to the SAML entity NameID format"
         summary_ja: "IdP 発行 LogoutRequest Issuer の Format を省略するか SAML entity NameID format にする"
         references_spec: "SAML2Prof#4.4.4.1"
@@ -13847,13 +13914,15 @@ requirements:
         required_variants:
           - id: v-f88354adbe
             description_ja: "target-emitted LogoutRequest ごとに、Issuer/@Format が省略または urn:oasis:names:tc:SAML:2.0:nameid-format:entity"
+        controls:
+          - "対象 IdP 発行 LogoutRequest が観測されない場合は satisfied_with_note"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:1536ba6b34ee4d0c05c4d8f4e14ac23ee351fcdc693bf733a226eacec9df3fe6"
+          obligation_digest: "sha256:800972de13857e211ef94882f3a225b0ad449aeb430e376f4c5230cfc18585ae"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-IDP17"
@@ -13862,9 +13931,7 @@ requirements:
         roles: [idp]
         level: MUST
         testability: BROWSER
-        condition:
-          predicate: supports_slo_idp
-          predicate_kind: CAPABILITY_BASED
+        condition: null
         summary_en: "Authenticate the IdP as LogoutRequest requester and protect message integrity"
         summary_ja: "LogoutRequest requester として IdP 自身を認証し、message integrity を保護する"
         references_spec: "SAML2Prof#4.4.4.1"
@@ -13882,13 +13949,14 @@ requirements:
             description_ja: "IdP 発行 LogoutRequest に署名または binding 固有の認証・完全性機構があり検証成功"
         controls:
           - "同一 request の認証・完全性証拠を壊す操作は Suite fixture の自己検証であり、target の required variant にしない"
+          - "対象 IdP 発行 LogoutRequest が観測されない場合は satisfied_with_note"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:97c42d70360f82c36859c0c60a1fae66b2037b549532916f8605f6c91d8b6496"
+          obligation_digest: "sha256:4a41489c55036ad4525776568d0c4e5b9829206618fb3b72a91dd76bbb2996be"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-IDP17"
@@ -13897,9 +13965,7 @@ requirements:
         roles: [idp]
         level: MUST
         testability: BROWSER
-        condition:
-          predicate: supports_slo_idp
-          predicate_kind: CAPABILITY_BASED
+        condition: null
         summary_en: "Identify the principal in an IdP-issued LogoutRequest with an identifier that strongly matches the authentication assertion"
         summary_ja: "IdP 発行 LogoutRequest の principal identifier を、対象 session の authentication assertion の identifier と strong match させる"
         references_spec: "SAML2Prof#4.4.4.1"
@@ -13918,13 +13984,14 @@ requirements:
         controls:
           - "文字列一致だけでなく NameQualifier / SPNameQualifier / Format 等、Core 3.3.4 の strong match 規則で比較する"
           - "別 principal の identifier を送る mutant target を negative control にし、適合対象へ誤 message の発行を要求しない"
+          - "対象 IdP 発行 LogoutRequest が観測されない場合は satisfied_with_note"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:02384ae3f766235f9feff0c5af1489f53437b6e2f0b4e29cf7dbd0bbad8f795d"
+          obligation_digest: "sha256:3ae4523eeb5b8f51f1a2620e38bec328222b6f9930bf2e0233db00960ea6c815"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-IDP17"
@@ -13942,23 +14009,23 @@ requirements:
         level: MUST
         testability: BROWSER
         condition: null
-        summary_en: "Support the HTTP-Redirect binding for logout requests"
-        summary_ja: "ログアウト要求で HTTP-Redirect バインディングに対応"
+        summary_en: "Support receiving SP-initiated LogoutRequest messages with HTTP-Redirect"
+        summary_ja: "SP が開始した LogoutRequest を HTTP-Redirect で受信できる"
         level_assignment: { idp: full }
         source_clauses:
           - { start: 0, end: 92, digest: "sha256:4874105bfdabad7437549b779f129ccbabd47b704335e4f142e5a3c115b996b8", occurrences: 1 }
         required_variants:
-          - id: v-b991f88df5
-            description_ja: "Suite が Redirect で LogoutRequest を送る → 受理される"
-          - id: v-0757f8ab29
-            description_ja: "IdP が Redirect で LogoutRequest を送ってくる"
+          - id: v-bd2c0c0a36
+            description_ja: "Suite SP が HTTP-Redirect で LogoutRequest を送る → IdP が受理する"
+        controls:
+          - "IIP-IDP17.a の必須基本フローに対応する受信方向。IdP の任意の request 発行を同じ variant に含めない"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:47513fde6eb9ccf47e2586a39e37df9ecf9aae333fb0784b2504bd7041911177"
+          obligation_digest: "sha256:cbfee76f6f1af0cb9f4519166733870352310a37307c03d45b47f3ecf2a390b7"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-IDP18"
@@ -13968,25 +14035,76 @@ requirements:
         level: MUST
         testability: BROWSER
         condition: null
-        summary_en: "Support the HTTP-Redirect binding for logout responses"
-        summary_ja: "ログアウト応答で HTTP-Redirect バインディングに対応"
+        summary_en: "Support sending LogoutResponse messages with HTTP-Redirect for SP-initiated logout"
+        summary_ja: "SP-initiated SLO への LogoutResponse を HTTP-Redirect で送信できる"
         level_assignment: { idp: full }
         source_clauses:
           - { start: 0, end: 92, digest: "sha256:4874105bfdabad7437549b779f129ccbabd47b704335e4f142e5a3c115b996b8", occurrences: 1 }
         required_variants:
-          - id: v-625bb5d8dd
-            description_ja: "IdP が Redirect で LogoutResponse を返す"
-          - id: v-3cedb75b42
-            description_ja: "Suite が Redirect で LogoutResponse を返す → 受理される"
+          - id: v-2484f39598
+            description_ja: "Suite SP の Redirect SingleLogoutService / ResponseLocation から HTTP-Redirect LogoutRequest を送り、IdP が HTTP-Redirect で LogoutResponse を返す"
         controls:
-          - "要求と応答を個別義務にする。片方のみ対応する実装を検出する"
+          - "IIP-IDP17.a の必須基本フローに対応する送信方向。IdP の任意の request 発行を前提にしない"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:bea4a5b1597fd026f425491fd8b6a6606f07c8ac87f3bfc2926b9bd692b6d36f"
+          obligation_digest: "sha256:5d562251853d63fb6807659c7f551ffd86fc31321ccf23e8c16706af62004d67"
+          source_spec: kantara-fedinterop-impl
+          spec_version: "1.1"
+          source_selector: "#IIP-IDP18"
+          source_section_digest: "sha256:4874105bfdabad7437549b779f129ccbabd47b704335e4f142e5a3c115b996b8"
+      - key: IIP-IDP18.c
+        roles: [idp]
+        level: MUST
+        testability: BROWSER
+        condition: null
+        summary_en: "When the IdP emits LogoutRequest messages, support sending them with HTTP-Redirect"
+        summary_ja: "LogoutRequest を発行する IdP は HTTP-Redirect で送信できる"
+        level_assignment: { idp: full }
+        source_clauses:
+          - { start: 0, end: 92, digest: "sha256:4874105bfdabad7437549b779f129ccbabd47b704335e4f142e5a3c115b996b8", occurrences: 1 }
+        required_variants:
+          - id: v-61f26c3d6d
+            description_ja: "Suite participant の SLO request endpoint を HTTP-Redirect のみで設定し、対象 IdP が任意の開始・伝播経路で HTTP-Redirect LogoutRequest を送る"
+        controls:
+          - "IdP-initiated SLO と propagation は任意。対象 IdP 発行 LogoutRequest が観測されない場合は satisfied_with_note とし、発行した場合だけ binding を判定する"
+        authored_by: samlier-g1-builder
+        review:
+          # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
+          state: PENDING_REVIEW
+          reviewer: null
+          approved_at: null
+          obligation_digest: "sha256:eb7082d0b259a280754d0f52ddae8ccce97b0766922bfd1686c5f06efa74c61d"
+          source_spec: kantara-fedinterop-impl
+          spec_version: "1.1"
+          source_selector: "#IIP-IDP18"
+          source_section_digest: "sha256:4874105bfdabad7437549b779f129ccbabd47b704335e4f142e5a3c115b996b8"
+      - key: IIP-IDP18.d
+        roles: [idp]
+        level: MUST
+        testability: BROWSER
+        condition: null
+        summary_en: "For a response-bearing IdP-issued LogoutRequest, support receiving LogoutResponse with HTTP-Redirect"
+        summary_ja: "応答を伴う LogoutRequest を発行する IdP は LogoutResponse を HTTP-Redirect で受信できる"
+        level_assignment: { idp: full }
+        source_clauses:
+          - { start: 0, end: 92, digest: "sha256:4874105bfdabad7437549b779f129ccbabd47b704335e4f142e5a3c115b996b8", occurrences: 1 }
+        required_variants:
+          - id: v-87b0196dce
+            description_ja: "対象 IdP が通常の LogoutRequest を発行 → Suite participant が HTTP-Redirect LogoutResponse を返す → IdP が消費する"
+        controls:
+          - "IdP-initiated SLO と propagation は任意。対象が LogoutRequest を発行する場合だけ binding を判定する"
+          - "Asynchronous SLO extension により response を要求しない request しか観測されない Run は実行時 scope 外で satisfied_with_note。async capability を response consumption capability に変えない"
+        authored_by: samlier-g1-builder
+        review:
+          # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
+          state: PENDING_REVIEW
+          reviewer: null
+          approved_at: null
+          obligation_digest: "sha256:c85810a0761d7efe28830c54bf25792957c5971ef94cfcbcd4831183e3fba928"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-IDP18"

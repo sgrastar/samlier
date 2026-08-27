@@ -1,6 +1,6 @@
 # tests/predicates.yaml — 条件述語の固定集合（G1 成果物）
 # 生成: build_g1.py / 手編集しない
-generated_at: 2026-08-27T16:24:16+00:00
+generated_at: 2026-08-27T16:46:25+00:00
 schema_version: 1
 # kind: CLAIM_BASED      = 申告そのものが条件（observed 不要）
 #       CAPABILITY_BASED = 実際の能力が条件（observed 必須。declaration-only FALSE は UNKNOWN）
@@ -53,15 +53,6 @@ predicates:
       - "target_emitted: samlp:LogoutRequest"
     on_conflict: inconsistent
     rationale_ja: "SAML2Prof 4.4.3.1 の session participant initiator 規則の適用条件。受信だけを任意実装した SP に initiator 規則を誤適用しないため、supports_slo_sp から分離する。観測は対象が実際に発行した LogoutRequest のみで、target_consumed は含めない"
-  consumes_slo_requests_sp:
-    kind: CAPABILITY_BASED
-    description_ja: "SP が IdP / session authority からの LogoutRequest を消費するか"
-    declared:
-      - declared_features.slo_request_consumption
-    observed:
-      - "target_consumed: samlp:LogoutRequest"
-    on_conflict: inconsistent
-    rationale_ja: "IIP-SP14.c は request consumption capability 自体を OPTIONAL とする。実装しない場合は派生 responder 規則を NOT_APPLICABLE にし、実際に消費する場合だけ SAML2Prof 4.4.3.4 / 4.4.4.2 の MUST / RECOMMENDED を適用する"
   supports_cbc:
     kind: CAPABILITY_BASED
     description_ja: "対象が AES-CBC ブロック暗号に対応しているか"

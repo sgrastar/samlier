@@ -3120,3 +3120,29 @@ Core §3.7 には session participant の遅着 assertion 処理、session autho
 IIP-SP14.p と IIP-IDP17.a に open question と Core §3.7 evidence を置いた。
 CP2b-Profile の外部確認が PASS しても、この 2 件を閉じず、次の CP2b-Core で actor 別に分解する。
 また Core の propagation SHOULD / PartialLogout は IIP-IDP17.c の OPTIONAL 上書きとの優先関係を句ごとに確認する。
+
+---
+
+## G1b-CP2b-Profile-R1 — 2026-08-28 optional SLO 経路と binding 方向を分離
+
+固定 commit `a0746fc` の外部レビューで、直接 Profile 句の actor 境界は概ね正しかった一方、
+既存の binding 義務と新しい wire 規則の間に optional capability を再び必須化する経路が 4 件見つかった。
+
+- IdP 発行 LogoutRequest の wire 規則 `.j〜.n` を、SLO endpoint や request 受信能力を含む
+  `supports_slo_idp` から分離し、実際に観測した `target-emitted LogoutRequest` へ受動適用した。
+  発行 request が 0 件なら `satisfied_with_note` とし、任意機能を実装しないことを `NOT_VERIFIED` にしない
+- `.q` から「未知の SessionIndex = non-Success」という独自対応表を削除し、error fixture と status の確定を
+  SAML2Core 3.7 の CP2b-Core へ open question として送った
+- IIP-SP15 を SP の request 送信 / request 受信 / response 送信 / response 受信へ分割し、
+  IIP-SP14 が OPTIONAL とする受信方向は実際の消費を message 単位で評価した
+- IIP-IDP18 を SP-initiated 基本フローの request 受信 / response 送信と、任意の IdP request 発行に付随する
+  request 送信 / response 受信へ分割した
+
+### 一般則
+
+`requests and responses` という binding 要件は、それだけで actor が全送受信方向を実装する能力を要求しない。
+上位 Profile / IIP が optional とした方向は、実装した場合にその binding 規則へ適合する必要があるが、
+binding 義務を使って optional capability 自体を必須へ戻してはならない。
+また optional capability の不在は肯定的観測だけでは証明できないため、これを `CAPABILITY_BASED` 条件へ
+置き換えて永久に `NOT_VERIFIED` にしてもならない。実装した message 方向へ受動適用し、未使用なら
+`satisfied_with_note` とする。

@@ -247,11 +247,6 @@ PRED = [
   "SAML2Prof 4.4.3.1 の session participant initiator 規則の適用条件。"
   "受信だけを任意実装した SP に initiator 規則を誤適用しないため、supports_slo_sp から分離する。"
   "観測は対象が実際に発行した LogoutRequest のみで、target_consumed は含めない"),
- ("consumes_slo_requests_sp","CAPABILITY_BASED","SP が IdP / session authority からの LogoutRequest を消費するか",
-  ["declared_features.slo_request_consumption"],
-  ["target_consumed: samlp:LogoutRequest"],
-  "IIP-SP14.c は request consumption capability 自体を OPTIONAL とする。"
-  "実装しない場合は派生 responder 規則を NOT_APPLICABLE にし、実際に消費する場合だけ SAML2Prof 4.4.3.4 / 4.4.4.2 の MUST / RECOMMENDED を適用する"),
  ("supports_cbc","CAPABILITY_BASED","対象が AES-CBC ブロック暗号に対応しているか",
   ["declared_features.cbc"],
   ["target_emitted_encryption_method: aes128-cbc","target_emitted_encryption_method: aes256-cbc",
