@@ -2858,3 +2858,51 @@ offline: 59/62 PASS
 ```
 
 **これは作成者による CP1 候補であり、G1b 承認ではない。次に別チャットのレビュアーが編集禁止で三対応表だけを確認する。**
+
+---
+
+## G1b-CP1-R1 — 2026-08-27 外部レビュー指摘の再照合
+
+CP1 固定 commit 84c1438ae74572cb3693dfa8c92ca93c9c967743 に対する編集禁止レビューの
+指摘を、SAML2Prof / SAML2Core / Errata 05 の実効原文へ戻って再判定した。
+
+### 採用した指摘
+
+- .u1: Profile §4.1.4.4 にない artifact one-time-use を required variant から削除した。
+  one-time-use は Core §3.5.3 の独立規則であり、CP1 の「§3.5 全体は再帰的に取り込まない」
+  という境界と矛盾していた
+- .an: 不正要求に応答する場合の StatusCode/@Value を
+  urn:oasis:names:tc:SAML:2.0:status:Requester に固定した
+- .cp: 同一 AudienceRestriction 内の複数 Audience が OR であることを
+  positive control として追加した。AND 側だけでは「同一条件内も全一致」とする誤実装を検出できなかった
+- .gb: E45 は ordered-set 規則を削除せず条件化しており、AuthnRequest では ordering が
+  significant であることを control に復元した。preference 順と強度順は区別する
+- IIP-SSO01.a notes_ja: 取り込み範囲の短い旧説明を削除し、実際の対応表を正本にした。
+  Core §3.5 Artifact Resolution は Profile §4.1.4.4 が明示する 2 規範句以外を取り込まないと明記した
+
+### E14 は指摘の欠落を採用し、actor 分解を訂正した
+
+レビューは「requests for / assertions issued with × MUST NOT be used /
+SHOULD be ignored の 4 象限」と解釈し、assertion 発行側 IdP の MUST NOT が欠落しているとした。
+しかし AllowCreate は NameIDPolicy、すなわち AuthnRequest にだけ存在する属性である。
+
+- MUST NOT be used: 属性を送る requester（SP / proxy IdP）の .fn / .fo
+- SHOULD be ignored: 属性を処理する IdP の .fp
+
+と actor を固定し、3 義務すべての適用文脈を requests for or assertions issued with transient
+まで広げた。以前の .fq / .gk は assertion consumer に存在しない AllowCreate 属性の処理を
+課していたため削除した。単に「2 動詞 × 2 文脈」を機械的に 4 義務へ展開しない。
+
+### 一般則
+
+- 根拠句の一部しか basis_ja に持たせたまま、残りを required variant に足してはならない
+- 論理式が AND / OR の両方向を持つ要件は、片方向だけで検出力があると見なさない
+- 規範句の actor は XML 上でその情報を生成・保持・処理できる主体と照合する。
+  存在しない属性を別 role に「無視させる」義務を作らない
+- 取り込み範囲は短い説明文と詳細対応表の二重正本にしない。詳細対応表を唯一の正本にする
+
+### 現在の状態
+
+    要件 69 / 義務 335
+    IIP-SSO01.a の open question は閉鎖を維持
+    残る G1 完了条件: SR-30（他要件 12 件）/ SR-31（未承認 335 件）
