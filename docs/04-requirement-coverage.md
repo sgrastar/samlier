@@ -15,21 +15,21 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 | 指標 | 値 |
 |---|---|
 | 要件 | 69 |
-| 義務（obligation） | 335 |
-| うち MUST_CLASS | 255 |
+| 義務（obligation） | 343 |
+| うち MUST_CLASS | 263 |
 | うち SHOULD_CLASS | 65 |
 | うち MAY_CLASS | 15 |
 | 条件付き義務 | 61 |
 | IdP プロファイル | 260 義務（Core 190 / Full 70） |
-| SP プロファイル | 169 義務（Core 119 / Full 50） |
+| SP プロファイル | 177 義務（Core 119 / Full 58） |
 | 非規範（イタリック）スパン | 26 |
 
 **Testability**
 
 | 記号 | 意味 | 件数 |
 |---|---|---|
-| `AUTOMATED` | Suite と対象の直接通信で完結（ブラウザ不要） | 57 |
-| `BROWSER` | 利用者のブラウザが必要 | 136 |
+| `AUTOMATED` | Suite と対象の直接通信で完結（ブラウザ不要） | 59 |
+| `BROWSER` | 利用者のブラウザが必要 | 142 |
 | `ATTESTED` | 対象内部の挙動を利用者が申告 | 42 |
 | `CONFIG` | 対象側の設定変更を依頼したうえで実行 | 99 |
 | `NOT_OBSERVABLE` | 外部から原理的に検証不能。ケースを作らない | 1 |
@@ -4460,15 +4460,129 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 
 | 義務 | Level | Role | Testability | 条件 | Core/Full | 要約 |
 |---|---|---|---|---|---|---|
-| `IIP-SP04.a` | MUST | sp | `BROWSER` | — | full | [IdPDisco] に従った IdP Discovery に対応 |
+| `IIP-SP04.a` | MUST | sp | `BROWSER` | — | full | Service Provider として IdP Discovery のリダイレクトプロトコルを一連で処理できる |
+| `IIP-SP04.b` | MUST | sp | `BROWSER` | — | full | UA を HTTP GET で Discovery Service へリダイレクトして Discovery Protocol を開始する |
+| `IIP-SP04.c` | MUST | sp | `BROWSER` | — | full | 少なくとも single-selection の Discovery Service policy 値に対応する |
+| `IIP-SP04.d` | MUST | sp | `BROWSER` | — | full | すべての Discovery request に SP の entityID パラメータを含める |
+| `IIP-SP04.e` | MUST | sp | `BROWSER` | — | full | Discovery request の entityID パラメータを URL encode する |
+| `IIP-SP04.f` | MUST_NOT | sp | `BROWSER` | — | full | return URL の query に返却 IdP 用の実効パラメータ名をあらかじめ含めない |
+| `IIP-SP04.g` | MUST | sp | `BROWSER` | — | full | Discovery metadata を使わない場合は return パラメータを含める |
+| `IIP-SP04.h` | MUST | sp | `AUTOMATED` | — | full | DiscoveryResponse metadata extension を公開する場合は @Binding を IdP Discovery Protocol URI に設定する |
+| `IIP-SP04.i` | MUST | sp | `AUTOMATED` | — | full | 公開する各 DiscoveryResponse metadata extension を IdPDisco 定義の md:IndexedEndpointType 構造にする |
 
 <details><summary><code>IIP-SP04.a</code> の詳細</summary>
 
 - **必要な variant**:
-  - `v-2d253b6a20` Suite が Discovery Service を演じ、リダイレクト規約に従うか
+  - `v-30f2c7f165` Suite が Discovery Service を演じる。対象 SP が UA を DS へリダイレクトし、DS が返した選択済み IdP の entityID を受けて SSO を継続できる
+  - `v-050709c9bb` DS が選択結果を返さない場合を、選択済み IdP の空文字列と取り違えず失敗結果として処理する
+- **対照（negative control）**:
+  - 成功結果と空の結果を対にする。成功だけでは返却パラメータを読まず既定 IdP を使う実装を検出できない
+  - IdPDisco section 2 の DS 主体の MUST/SHOULD（isPassive 時の UI、返送方法、metadata 照合等）は Test Peer である Suite 側の fixture 規則であり、対象 SP の義務にはしない
+  - return / policy / returnIDParam / isPassive の MAY は利用許可であって全機能の提供能力を SP に要求しない。実際に選んだ経路へ適用される MUST/MUST NOT だけを .b〜.h で判定する
 - **参照先仕様**: `IdPDisco`
-- **注記**: 非規範の注記により、実際の discovery インタフェースの実装までは要求されない（単純なリダイレクト規約への対応のみ）。『discovery mechanisms SHOULD use SAML metadata…』もイタリック＝非規範なので義務にしない。
-- ⚠ **未解決**: 参照仕様 IdPDisco の該当節を読んで規範内容を分解する。「simple redirection conventions」の規範内容を分解する
+- **注記**: 非規範の IIP 注記により、製品固有の discovery UI の実装までは要求されず、IdPDisco の単純なリダイレクト規約への対応が対象である。IdPDisco の SP 向け規範内容は .b〜.h に分解した。Discovery Service 主体の規範文と、SP が使ってよい任意パラメータは対象 SP の独立義務にしていない。
+- **source_clauses**: `[0, 75)` `sha256:ce8bdccd17ea…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-SP04.b</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-4e779bac55` Discovery を開始させ、UA が DS endpoint へ HTTP GET request を送ることを Transcript で確認
+- **対照（negative control）**:
+  - SP から DS への message exchange の transport だけを判定する。DS から SP への HTTP GET は DS 主体なので Suite fixture の自己検証に置く
+  - IdPDisco はこの箇所で redirect status code を固定していないため、特定の 3xx code を独自の verdict 条件にしない
+- **参照先仕様**: `IdPDisco`
+- **source_clauses**: `[0, 75)` `sha256:ce8bdccd17ea…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-SP04.c</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-c7521e55ac` policy を省略して既定の single を使う、または policy=urn:oasis:names:tc:SAML:profiles:SSO:idp-discovery-protocol:single を指定し、単一 IdP の選択結果を処理できる
+- **対照（negative control）**:
+  - 省略時の既定値と明示指定の両方を能力として要求しない。少なくとも一方の経路で single policy を処理できればよい
+- **参照先仕様**: `IdPDisco`
+- **source_clauses**: `[0, 75)` `sha256:ce8bdccd17ea…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-SP04.d</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-1e263870b9` DS が受信した query に entityID parameter が存在し、その値が対象 SP の entityID と一致する
+- **対照（negative control）**:
+  - パラメータ名だけでなく値も照合する。固定ダミー値を送る実装を通さない
+  - 原文はこの箇所で cardinality を明記していないため、同名 parameter が厳密に 1 件であることを独自の verdict 条件にしない
+- **参照先仕様**: `IdPDisco`
+- **source_clauses**: `[0, 75)` `sha256:ce8bdccd17ea…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-SP04.e</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-5f5f709085` query delimiter（例: &）を値に含む Test SP entityID を使い、生の query で delimiter が percent-encoding され、1 回の decode で元の entityID になる
+- **対照（negative control）**:
+  - パース後に再構成した query では判定しない。ブラウザが受け取った Location の生 query component を記録して検査する
+- **参照先仕様**: `IdPDisco`
+- **source_clauses**: `[0, 75)` `sha256:ce8bdccd17ea…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-SP04.f</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-33c2670d12` 対象が送出した各 request について実効 returnIDParam を求め、return URL の既存 query に同名 parameter がないことを検査
+- **対照（negative control）**:
+  - custom returnIDParam の利用能力は MAY なので要求しない。観測された request ごとに、明示値または既定の entityID を使って判定する
+  - return parameter 自体が観測されない場合は satisfied_with_note。NOT_APPLICABLE にして Run 全体から除外しない
+- **参照先仕様**: `IdPDisco`
+- **source_clauses**: `[0, 75)` `sha256:ce8bdccd17ea…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-SP04.g</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-ab2fd3d379` SP metadata に DiscoveryResponse endpoint を与えない構成で送出された Discovery request に return が存在する
+- **対照（negative control）**:
+  - metadata を使う経路しか観測されない場合は satisfied_with_note。metadata なしの経路を製品能力として強制しない
+  - metadata 使用時に return を省略できることは MAY であり、別の必須能力にしない
+- **参照先仕様**: `IdPDisco`
+- **source_clauses**: `[0, 75)` `sha256:ce8bdccd17ea…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-SP04.h</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-2e03863d4d` 公開 metadata 内の各 idpdisc:DiscoveryResponse/@Binding が urn:oasis:names:tc:SAML:profiles:SSO:idp-discovery-protocol と一致する
+- **対照（negative control）**:
+  - DiscoveryResponse extension 自体の公開は任意。1 件も観測されない場合は satisfied_with_note とし、NOT_APPLICABLE にはしない
+  - Location / index / isDefault は md:IndexedEndpointType の一般規則だが、本義務の参照句が追加で固定するのは Binding 値だけである
+- **参照先仕様**: `IdPDisco`
+- **source_clauses**: `[0, 75)` `sha256:ce8bdccd17ea…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-SP04.i</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-f158b81008` 公開 metadata の各 idpdisc:DiscoveryResponse が同梱 schema に適合し、md:IndexedEndpointType の必須構造（Location / index / Binding）を持つ
+- **対照（negative control）**:
+  - DiscoveryResponse extension 自体の公開は任意。1 件も観測されない場合は satisfied_with_note とし、NOT_APPLICABLE にはしない
+  - Binding の固定 URI は .h で別に判定する。本義務は型・必須属性・XML 構造を扱う
+- **参照先仕様**: `IdPDisco`
 - **source_clauses**: `[0, 75)` `sha256:ce8bdccd17ea…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
 
@@ -5661,9 +5775,9 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 
 ```
 g1_state       : PENDING_REVIEW
-obligations    : 335
-未承認         : 335
-未解決 open Q  : 12 ['IIP-MD05.a', 'IIP-MD05.b', 'IIP-MD05.c', 'IIP-MD05.d', 'IIP-MD05.e', 'IIP-MD05.f', 'IIP-MD06.a', 'IIP-SP04.a', 'IIP-SP14.a', 'IIP-IDP13.a', 'IIP-IDP17.a', 'IIP-IDP17.b']
+obligations    : 343
+未承認         : 343
+未解決 open Q  : 11 ['IIP-MD05.a', 'IIP-MD05.b', 'IIP-MD05.c', 'IIP-MD05.d', 'IIP-MD05.e', 'IIP-MD05.f', 'IIP-MD06.a', 'IIP-SP14.a', 'IIP-IDP13.a', 'IIP-IDP17.a', 'IIP-IDP17.b']
 ```
 
 作成者は `reviewer` / `approved_at` を埋めていません。

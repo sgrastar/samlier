@@ -2955,3 +2955,32 @@ E14 の連続する規範句は次の優先関係になる。
 
 同じ段落群の一般 SHOULD と狭い MUST NOT が重なる場合、強い例外を一般規則の
 required variant から明示的に除く。製品分類とメッセージ単位の実行時 scope を混同しない。
+
+---
+
+## G1b-CP2a — 2026-08-27 IIP-SP04 / IdP Discovery の SP 向け規範句
+
+IdPDisco PDF の Conformance と section 2 を全文・ページ画像の両方で確認し、
+IIP-SP04 が取り込む **Service Provider 主体**の規範内容を分解した。
+
+- end-to-end の redirect protocol（選択成功 / 選択なし）
+- SP から Discovery Service への HTTP GET
+- 最低限の `single` policy
+- request の `entityID` の存在と URL encoding
+- `return` URL の query と実効 `returnIDParam` の衝突禁止
+- metadata を使わない request の `return` 必須
+- 公開する `idpdisc:DiscoveryResponse` の `Binding` 固定値と schema 構造
+
+### スコープ境界
+
+- Discovery Service 主体の MUST/SHOULD（`isPassive` の UI 制約、SP への返送、metadata 照合、
+  return URL の既存 query の保存等）は対象 SP の義務にしない。Suite fixture の自己検証へ置く
+- `return` / `policy` / `returnIDParam` / `isPassive` の MAY は SP が選べる wire option であり、
+  すべての option を提供する能力へ引き上げない
+- option を実際に使った request には、その経路に付随する MUST/MUST NOT を message 単位で適用する
+- IdPDisco にない query parameter cardinality や redirect status code を独自条件として足さない
+
+### 現在の状態
+
+CP2a の作成者候補は IIP-SP04.a〜.i。open question は IIP-SP04 から除去した。
+次に別チャットのレビュアーが、IdPDisco の SP/DS actor 境界と不足・過剰を編集禁止で確認する。
