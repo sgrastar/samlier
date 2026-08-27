@@ -2754,3 +2754,60 @@ SR-34  reference_evidence 255 件すべて locator 解決・節ダイジェス�
 ```
 
 **第 1 段階は未完了。実装には着手していない。**
+
+---
+
+## G1b-R17 — 2026-08-27 §6.2 の前置きの復元（レビュアー自身の訂正）
+
+前回 R15 / R16 で入れた `.fc` / `.ff` の「暗号化要素があるのに署名がない → `violated`」は、
+**レビュアーの前回指摘に従って入れたものだったが、原文を読み直すと誤りだった**（レビュアーからの訂正）。
+原文 PDF を自分でも再確認した。
+
+```
+6.2 Combining Signatures and Encryption
+Use of XML Encryption and XML Signature MAY be combined. When an assertion is to be signed and
+encrypted, the following rules apply. ...
+• When a <BaseID>, <NameID>, or <Attribute> element is encrypted, the encryption MUST be
+performed first and then the signature calculated over the assertion or message containing the
+encrypted element.
+```
+
+**箇条書きには「署名と暗号化を組み合わせる場合」という前置きがある。**
+暗号化要素が存在するだけで包含署名を新たに必須化する規則ではない。
+
+| 状況 | 正しい扱い |
+|---|---|
+| 暗号化要素だけを使い、署名を併用していない | `.fc` / `.ff` の**対象外** |
+| 署名と暗号化を併用し、順序・範囲が正しい | `satisfied` |
+| 署名と暗号化を併用したが、署名が暗号化**前**の平文を覆っている | **`violated`** |
+| 署名が別要件で必須なのに存在しない | `IIP-SSO01.v` / `.es` / `.et` 側で判定 |
+
+撤回したもの:
+
+- 「包含する `<Assertion>` または `<Response>` の少なくとも一方に有効な署名がある」という required variant
+- 「どちらにも署名がない → `violated`」という negative variant
+- 「暗号化要素を観測したのに署名がない場合は観測機会なしではなく `violated`」という control
+
+追加したもの:
+
+- `summary` と `basis_ja` に **§6.2 の前置き**を明記
+- 検査対象を「**署名と暗号化が実際に併用された送出物**」に限定
+- 「署名そのものの要否はここで二重に課さない」という control
+
+### この回で得た一般則
+
+**箇条書きの規範句を取り込むときは、箇条書きの前置き（scope 文）も必ず一緒に読む。**
+前置きを落とすと、条件付きの規則を無条件の義務に変えてしまう。
+`basis_ja` には前置きも含めて引用し、`SR-34` の verbatim 照合が効くようにする。
+
+### 現在の状態
+
+```
+要件 69 / 義務 317 / variant 787 / 条件付き 53 / 仕様 25 / 述語 22 / 検査 62
+network 実行: 60/62 PASS・blocking 0
+SR-33  全 25 仕様を再取得し source_digest 一致
+SR-34  reference_evidence 255 件すべて locator 解決・節ダイジェスト一致
+残る FAIL は SR-30（open question 13）と SR-31（未承認 317）＝ G1 の完了条件のみ
+```
+
+**第 1 段階は未完了。`IIP-SSO01.a` の open question は開いたまま。実装には着手していない。**
