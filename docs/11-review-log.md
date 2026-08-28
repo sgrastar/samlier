@@ -3163,3 +3163,13 @@ HTTP-Redirect だけを広告する排他構成に変更した。
 
 複数の候補から選択できる capability を positive に検査するときは、対象へ特定候補を強制する前に、
 Suite 側 fixture で他の適合候補を除く。候補を複数提示したまま、対象が選べる `MAY` を失敗条件へ変えない。
+
+### CP2b-Profile 外部確認の完了
+
+固定 commit `1d5fa31` を作成者以外が SAML2Prof 4.4.3.4 / 4.4.3.5 と直接照合し、
+`verification: PASS / findings: none` を確認した。CP2b-Profile（SAML2Prof §4.4 の直接句と Errata E38）は
+この commit で閉じる。
+
+ただし、IIP-SP14.p / .q と IIP-IDP17.a の `open_question_ja` は意図的に残っている。
+Profile の直接句が PASS したことは、`process ... as defined in [SAMLCore]` が取り込む Core §3.7 の
+分解完了を意味しない。次の CP2b-Core で actor 別に解消する。
