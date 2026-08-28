@@ -3440,3 +3440,23 @@ IIP-IDP17.b1 への恒久参照へ更新した。
 - IIP-IDP13.c: Bearer の生成側根拠を SP 消費側 SAML2Prof §4.1.4.3 から IdP 生成側 §4.1.4.2 へ訂正した
 
 level / roles / condition と義務数 446 は維持する。修正版を同じレビュアーチャットで1回だけ再確認する。
+
+### CP2c 外部再レビューの完了
+
+固定 commit `757b89d` を同じレビュアーが前回 F1〜F5 と追加修正に限定して再確認し、
+`verification: PASS / findings: none / scope_violations: none` を確認した。
+
+- 署名不正 request では ASLO extension を信頼せず Core signature-processing を優先する
+- async request と response-bearing PartialLogout / base flow の両立不能がない
+- 中間 HTTP exchange なしと観測不能を区別する
+- failure feedback の誘発不能を target violation にしない
+- `ecp:RequestAuthenticated` が principal 認証の success / error 両 Response を覆う
+- `ecp:RelayState` header 属性と Bearer 生成側 evidence の訂正に回帰がない
+
+全 446 義務の level / roles / condition / testability / level_assignment に意図しない変更はなく、
+前回の counterexample は全て閉じた。これにより CP2c（Async SLO + ECP）を閉じる。
+残る open question は Metadata の IIP-MD05.a〜.f / IIP-MD06.a の7件だけである。
+
+レビュアーの非 finding 補足（ASLO sibling variant 間の trust 文言、response-emitted 規則の
+「返す場合」表現、IIP-IDP17.z の解釈 control）は誤判定経路を持たない。G2 の case definition で
+runtime scope を具体化するときの読み違い防止項目として保持する。
