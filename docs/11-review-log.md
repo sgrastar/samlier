@@ -3399,3 +3399,44 @@ SHOULD / MAY を引き上げたり、同じ target obligation を二重計上し
 60/62 PASS・blocking 0。残る FAIL は SR-30（MD05.a〜.f / MD06.a の open question 7 件）と
 SR-31（446 義務が未承認）のみである。次に固定 commit を別チャットのレビュアーが、
 Async SLO の initiator / authority 分離と ECP の basic / Full conformance 境界に限定して編集禁止で確認する。
+
+---
+
+## G1b-CP2c-Extensions-R1 — 2026-08-28 外部レビュー findings
+
+固定 commit `ca498f7` を作成者以外が SAML2ASLO §2〜§3 と SAML2ECP §2.2 / §2.3 / §3.1.1 に
+限定して確認し、5 findings を受けた。原文と既存 Core obligation を再確認して全件採用した。
+
+### invalid signature と ASLO extension の優先関係
+
+署名不正 message の `aslo:Asynchronous` に依拠して response を抑止することは、Core §3.2.1 の
+「invalid signature の request 内容に MUST NOT rely」と矛盾する。IIP-IDP17.b / .b1 / .b2 を、
+署名が有効で sender を認証でき、extension を信頼できる request の実行時 scope に限定した。
+
+署名不正時は IIP-IDP17.y / .z / .aa を適用し、error LogoutResponse または無応答の Core 選択を
+ASLO の MUST_NOT で上書きしない。IIP-IDP17.z / .aa と SP 側の同型 fixture control も恒久文言へ更新した。
+
+### response-bearing SLO obligation の async 除外
+
+IIP-IDP17.s の PartialLogout は LogoutResponse の second-level code を要求するため、response を禁止する
+async request と両立しなかった。`.s` を `aslo:Asynchronous` のない request に限定し、IIP-IDP17.a の
+基本 response flow も同じ scope を明記した。IIP-IDP17.e / .o も pending checkpoint 名ではなく
+IIP-IDP17.b1 への恒久参照へ更新した。
+
+### test opportunity と不適合の分離
+
+- IIP-IDP13.l: 中間 HTTP exchange が 0 回なら secure association 義務は空虚に成立し
+  `satisfied_with_note`。中間 exchange が存在するのに相関を観測できない場合だけ
+  `not_verified(ecp_request_association_not_observable)` とした
+- IIP-IDP17.b2: failure feedback 経路を安全に誘発できない場合は
+  `not_verified(session_termination_failure_not_inducible)` とし、対象の違反にしない。
+  IIP-IDP17.o と同じ test precondition を再利用する
+
+### ECP header の適用範囲
+
+- IIP-IDP13.h: `ecp:RequestAuthenticated` の SHOULD は principal 認証の success / error ではなく、
+  AuthnRequest の digital-signature authentication 成功だけが条件。error samlp:Response も scope に含めた
+- IIP-IDP13.i: IdP-origin `ecp:RelayState` が観測された場合の actor / mustUnderstand 検査を明示した
+- IIP-IDP13.c: Bearer の生成側根拠を SP 消費側 SAML2Prof §4.1.4.3 から IdP 生成側 §4.1.4.2 へ訂正した
+
+level / roles / condition と義務数 446 は維持する。修正版を同じレビュアーチャットで1回だけ再確認する。

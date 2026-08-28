@@ -5344,7 +5344,7 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
   - `v-e72e1d89ad` 署名不正 LogoutResponse → exchange を error として処理・記録する
 - **対照（negative control）**:
   - ★ SHOULD_CLASS。内部エラー処理を観測できなければ not_verified。未実装の consumption 方向は satisfied_with_note
-  - CP2c で Asynchronous SLO の response 禁止を分解するまで、本義務の request fixture に aslo:Asynchronous を含めない
+  - 署名不正 message の aslo:Asynchronous は信頼できず、SP に ASLO consumption capability も要求していないため、本義務の fixture に extension を含めない
 - **参照先仕様**: `SAML2Core#3.2.1-3.2.2`
 - **source_clauses**: `[0, 109)` `sha256:284c8f093605…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
@@ -5459,7 +5459,7 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 - **対照（negative control）**:
   - IIP-SP14.c1 は LogoutResponse consumption を明示的に OPTIONAL とする。非対応 SP に response consumption capability を間接的に要求せず satisfied_with_note とする
   - response を消費する実装・Run では本 Core 規則を受動適用し、対応不能 version の request を発行した場合だけ violated
-  - Asynchronous SLO extension により response を要求しない request は実行時 scope 外。CP2c で extension の規則を判定する
+  - Asynchronous SLO extension により response を要求しない request は実行時 scope 外。IdP の ASLO 規則は IIP-IDP17.b〜.b4 が判定する
 - **参照先仕様**: `SAML2Core#4.1.3.1`
 - **source_clauses**: `[0, 109)` `sha256:284c8f093605…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
@@ -6197,9 +6197,9 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 <details><summary><code>IIP-IDP13.h</code> の詳細</summary>
 
 - **必要な variant**:
-  - `v-c4e335bf2e` Suite SP の署名付き AuthnRequest を IdP が認証して成功 Response を返す → ecp:RequestAuthenticated header を含む
+  - `v-6dd4272325` Suite SP の署名付き AuthnRequest を IdP が認証して samlp:Response を返す → principal 認証の success / error を問わず ecp:RequestAuthenticated header を含む
 - **対照（negative control）**:
-  - 署名を検証できなかった error 経路、未署名要求、SOAP fault は実行時 scope 外。★ SHOULD_CLASS
+  - AuthnRequest 署名を検証できなかった経路、未署名要求、SOAP fault は実行時 scope 外。principal 認証失敗による error samlp:Response は scope 内。★ SHOULD_CLASS
 - **参照先仕様**: `SAML2ECP#2.3.6`
 - **source_clauses**: `[0, 102)` `sha256:01ca8c2a74c0…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
@@ -6212,6 +6212,7 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
   - `v-20e62bf818` IdP が送出した ecp:Response → S:actor=.../next かつ S:mustUnderstand=1
   - `v-6a4da9d436` IdP が送出した cb:ChannelBindings response header → S:actor=.../next かつ S:mustUnderstand=1
   - `v-8dca052714` IIP-IDP13.h の署名付き request scenario で ecp:RequestAuthenticated が観測された場合 → S:actor=.../next。§2.3.6.1 が mustUnderstand を Optional とするため有無を判定しない
+  - `v-9fc544931a` IIP-IDP13.o の MAY 経路で IdP-origin ecp:RelayState が観測された場合 → S:actor=.../next かつ S:mustUnderstand=1
 - **対照（negative control）**:
   - 存在自体が MAY / SHOULD の header を本義務で要求しない。観測された IdP-origin header の属性だけを受動検査する
   - HoK header は Full conformance / optional HoK feature の範囲なので basic ECP support の required variant に入れない
@@ -6252,7 +6253,9 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
   - `v-7badbfd279` 同一 browser/client session 内の中間 authentication exchange → 元 AuthnRequest に対応する Response
   - `v-902e0f42e1` 別 client/session の相関情報を混ぜる → 元 AuthnRequest と交差せず拒否 / 分離される
 - **対照（negative control）**:
-  - 単一 exchange だけでは相関を証明できない。2 個の並行 ECP exchange を交差させる negative control が要る。内部相関を観測できなければ not_verified(ecp_request_association_not_observable)
+  - 単一 exchange だけでは相関を証明できない。2 個の並行 ECP exchange を交差させる negative control が要る
+  - AuthnRequest delivery 後から Response return 前までに中間 HTTP exchange を行わない実装は原文の条件が空虚に成立するため satisfied_with_note。IIP-IDP13.r の MAY を必須化しない
+  - 中間 HTTP exchange が存在するが内部相関を観測できない場合だけ not_verified(ecp_request_association_not_observable)
 - **設定不能時の意味**: `test_precondition`
 - **参照先仕様**: `SAML2ECP#2.3.9`
 - **source_clauses**: `[0, 102)` `sha256:01ca8c2a74c0…`
@@ -6468,8 +6471,8 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 |---|---|---|---|---|---|---|
 | `IIP-IDP17.a` | MUST | idp | `BROWSER` | — | full | SAML V2.0 SingleLogout profile に対応 |
 | `IIP-IDP17.b` | MUST | idp | `BROWSER` | — | full | SAML V2.0 Asynchronous Single Logout Protocol Extension に対応 |
-| `IIP-IDP17.b1` | MUST_NOT | idp | `BROWSER` | — | full | asynchronous LogoutRequest の initiator へ LogoutResponse を返さない |
-| `IIP-IDP17.b2` | MUST | idp | `BROWSER` | — | full | async request に LogoutResponse を返さない代わりに、関連する feedback を全て提供する |
+| `IIP-IDP17.b1` | MUST_NOT | idp | `BROWSER` | — | full | 認証済みで extension を信頼できる asynchronous LogoutRequest の initiator へ LogoutResponse を返さない |
+| `IIP-IDP17.b2` | MUST | idp | `BROWSER` | — | full | 認証済みで extension を信頼できる async request に LogoutResponse を返さない代わりに、関連する feedback を全て提供する |
 | `IIP-IDP17.b3` | MUST | idp | `AUTOMATED` | — | full | 送出する aslo:Asynchronous を samlp:LogoutRequest/samlp:Extensions 内に配置する |
 | `IIP-IDP17.b4` | MAY | idp | `AUTOMATED` | — | full | metadata endpoint で asynchronous logout request 対応を表明してもよい |
 | `IIP-IDP17.c` | OPTIONAL | idp | `BROWSER` | — | full | 他のセッション参加者へのログアウト伝播は任意 |
@@ -6514,7 +6517,7 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 <details><summary><code>IIP-IDP17.a</code> の詳細</summary>
 
 - **必要な variant**:
-  - `v-a37cc134fe` SP が妥当な LogoutRequest を送る → identifier / SessionIndex を調べ、元 SP へ LogoutResponse を返す。session 終了の SHOULD と status 分岐は IIP-IDP17.e / .o / .q で判定する
+  - `v-5cb9a47fbe` SP が aslo:Asynchronous を含まない妥当な LogoutRequest を送る → identifier / SessionIndex を調べ、元 SP へ LogoutResponse を返す。session 終了の SHOULD と status 分岐は IIP-IDP17.e / .o / .q で判定する
 - **対照（negative control）**:
   - ★ §4.4.2 は IdP が profile を step 2 から開始できる（can initiate）とするだけで、IdP-initiated SLO capability を MUST にしない
   - ★ 他 session participant への伝播は IIP-IDP17.c が OPTIONAL と明示する。§4.4.3.1 / .2 の propagation SHOULD / 手順 3・4 を無条件の義務へ戻さない
@@ -6530,10 +6533,11 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 
 - **必要な variant**:
   - `v-b0c90d49f2` 有効な aslo:Asynchronous 付き LogoutRequest → 同じ identifier / SessionIndex の同期 LogoutRequest と同じ session determination / request validation が行われる
-  - `v-2104230447` 不正な署名・Destination・SessionIndex を持つ async request → response を返さないまま、対応する Core request processing と同じく session へ依拠しない
+  - `v-d19a728b55` 署名が有効で sender を認証できるが、Destination 不一致または未知 SessionIndex の async request → response を返さず、対応する Core request processing に従って session へ誤適用しない
 - **対照（negative control）**:
   - ★ §2.2 は Core §3.7.3.2 に従う処理を要求するが、Core の session 終了自体は SHOULD（IIP-IDP17.q）。『session が必ず終了する』を本 MUST の期待値にしない
   - ★ request initiator conformance（async element を含める能力）と session authority conformance（受信処理）を区別する。IIP-IDP17.c が LogoutRequest propagation を OPTIONAL とするため、IdP に async request 発行 capability を追加要求しない
+  - XML 署名検証に失敗した message では extension を信頼して response を抑止しない。IIP-IDP17.y / .z / .aa の Core signature-processing 経路を適用し、無応答・error 応答のどちらも本義務の violated にしない
   - response 禁止は IIP-IDP17.b1、feedback は .b2、対象が実際に発行した async request の placement は .b3 で分離する
 - **参照先仕様**: `SAML2ASLO`
 - **source_clauses**: `[109, 184)` `sha256:b6bba3e952da…`
@@ -6544,9 +6548,10 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 <details><summary><code>IIP-IDP17.b1</code> の詳細</summary>
 
 - **必要な variant**:
-  - `v-a7d8776e5e` aslo:Asynchronous 付き LogoutRequest → front-channel / back-channel のいずれにも samlp:LogoutResponse を返さない
+  - `v-98b7940f3a` 署名が有効で sender を認証でき、aslo:Asynchronous を信頼できる LogoutRequest → front-channel / back-channel のいずれにも samlp:LogoutResponse を返さない
 - **対照（negative control）**:
   - 拡張なしの同期 LogoutRequest → IIP-IDP17.a / .e / .o の条件に従い LogoutResponse が返る対照を置く
+  - 署名不正 message では aslo:Asynchronous の内容に依拠しない。IIP-IDP17.z / .aa の Core 経路を優先し、error LogoutResponse を返しても本 MUST_NOT の違反にしない
   - HTTP の user-facing feedback は LogoutResponse ではなく許可され、むしろ IIP-IDP17.b2 が MUST とする。HTTP response 自体を禁止しない
 - **参照先仕様**: `SAML2ASLO#2.2`
 - **source_clauses**: `[109, 184)` `sha256:b6bba3e952da…`
@@ -6557,11 +6562,14 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 <details><summary><code>IIP-IDP17.b2</code> の詳細</summary>
 
 - **必要な variant**:
-  - `v-50c3f049d1` front-channel async LogoutRequest の成功 → user-facing HTTP response が logout success を示す
-  - `v-c4ac95fec9` front-channel async LogoutRequest の失敗 → user-facing HTTP response が failure を示す
+  - `v-89df9b836a` 署名が有効で sender を認証できる front-channel async LogoutRequest の成功 → user-facing HTTP response が logout success を示す
+  - `v-cea38398e0` 署名が有効で sender を認証できる front-channel async LogoutRequest の失敗 → user-facing HTTP response が failure を示す
 - **対照（negative control）**:
   - 固定の『success』page だけを返す実装を検出するため success / failure を対にする
+  - failure 経路を安全に誘発できない場合は not_verified(session_termination_failure_not_inducible) とし、対象の違反にしない。IIP-IDP17.o と同一の誘発機構を再利用する
+  - 署名不正 message では extension に依拠せず IIP-IDP17.z / .aa を適用するため、本 feedback 義務の実行時 scope 外
   - back-channel で user agent がない場合に web page を要求しない。利用 binding / application で relevant な feedback channel を判定する
+- **設定不能時の意味**: `test_precondition`
 - **参照先仕様**: `SAML2ASLO#2.2`
 - **source_clauses**: `[109, 184)` `sha256:b6bba3e952da…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
@@ -6635,7 +6643,7 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
   - 署名不正・構文不正 request に必ず SAML response を返すとは要求しない。認証できない attacker への応答能力を独自に足さない
   - 本 MUST は『正常終了した場合』の条件付き。IdP が session を終了しようとすること自体は Core の SHOULD（IIP-IDP17.q）であり、ここで MUST に引き上げない
   - IdP 自身の session を終了できなかった場合の error top-level は IIP-IDP17.o。伝播先の成否は top-level ではなく IIP-IDP17.s の PartialLogout で扱う
-  - Asynchronous SLO extension を含む request は response を要求しないため本義務の実行時 scope 外。IIP-IDP17.b の CP2c で判定する
+  - Asynchronous SLO extension を含む request は IIP-IDP17.b1 により response を要求しないため本義務の実行時 scope 外
   - propagation 非対応だけを理由に PartialLogout 等を要求しない。IIP-IDP17.c は propagation を OPTIONAL とする
 - **参照先仕様**: `SAML2Prof#4.4.3.5 + SAML2Core#3.7.3.2`
 - **source_clauses**: `[0, 107)` `sha256:0649b5f4937d…`
@@ -6757,7 +6765,7 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 - **対照（negative control）**:
   - 原文は特定の error code を指定しない。Requester / Responder 等を Suite 独自に固定しない
   - session 終了失敗を安全に作れない場合は not_verified(session_termination_failure_not_inducible)。対象の違反にしない
-  - Asynchronous SLO extension を含む request は response を要求しないため本義務の実行時 scope 外。IIP-IDP17.b の CP2c で判定する
+  - Asynchronous SLO extension を含む request は IIP-IDP17.b1 により response を要求しないため本義務の実行時 scope 外
   - 他 participant への伝播失敗は本義務ではなく IIP-IDP17.s の PartialLogout で扱う
 - **設定不能時の意味**: `test_precondition`
 - **参照先仕様**: `SAML2Prof#4.4.3.5 + SAML2Core#3.7.3.2`
@@ -6813,9 +6821,10 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 <details><summary><code>IIP-IDP17.s</code> の詳細</summary>
 
 - **必要な variant**:
-  - `v-69c621cfb5` propagation を実装する IdP で、少なくとも 1 participant を timeout / non-success にする → 元 requester への LogoutResponse の second-level StatusCode が PartialLogout
+  - `v-7c7873f3bd` aslo:Asynchronous を含まない request について、propagation を実装する IdP で少なくとも 1 participant を timeout / non-success にする → 元 requester への LogoutResponse の second-level StatusCode が PartialLogout
 - **対照（negative control）**:
   - IIP-IDP17.c により propagation capability 自体は OPTIONAL。伝播を試みていない IdP に PartialLogout を要求しない
+  - Asynchronous SLO extension を含む request は IIP-IDP17.b1 により LogoutResponse を返さないため本義務の実行時 scope 外
   - 全 participant が成功した対照では PartialLogout を必須にしない
   - top-level status は IdP 自身の local operation を表す。propagation 失敗だけを理由に top-level error を要求しない
 - **参照先仕様**: `SAML2Core#3.7.3.2`
@@ -6913,6 +6922,7 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
   - `v-81c6230146` optional response-consumption 経路で署名不正 LogoutResponse の Success 等に依拠しない
 - **対照（negative control）**:
   - IIP-IDP17.y（検証を行う）とは別。LogoutResponse 受信方向が観測されなければ satisfied_with_note
+  - 署名不正 LogoutRequest 内の aslo:Asynchronous に依拠して応答を抑止しない。extension を信頼できない場合は本 MUST_NOT と IIP-IDP17.aa の Core 経路を優先する
 - **参照先仕様**: `SAML2Core#3.2.1-3.2.2`
 - **source_clauses**: `[0, 107)` `sha256:0649b5f4937d…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
@@ -6926,7 +6936,7 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
   - `v-0722042b0e` optional response-consumption 経路で署名不正 LogoutResponse → exchange を error として処理・記録する
 - **対照（negative control）**:
   - ★ SHOULD_CLASS。内部エラー処理を観測できなければ not_verified。LogoutResponse 受信方向が観測されなければ satisfied_with_note
-  - CP2c で Asynchronous SLO の response 禁止を分解するまで、本義務の request fixture に aslo:Asynchronous を含めない
+  - 署名不正 request では aslo:Asynchronous を信頼できない。error LogoutResponse または無応答の Core 選択を判定し、IIP-IDP17.b1 の response 禁止を重ねない
 - **参照先仕様**: `SAML2Core#3.2.1-3.2.2`
 - **source_clauses**: `[0, 107)` `sha256:0649b5f4937d…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
