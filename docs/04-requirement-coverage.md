@@ -5138,11 +5138,12 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 <details><summary><code>IIP-SP14.q</code> の詳細</summary>
 
 - **必要な variant**:
-  - `v-9607724716` 妥当な request の処理成功 → Success status の LogoutResponse
+  - `v-aeb561321a` aslo:Asynchronous を含まない妥当な request の処理成功 → Success status の LogoutResponse
 - **対照（negative control）**:
   - Core §3.7.3.1 は session participant の失敗状況に固有の status code を規定しない。unknown SessionIndex 等へ Suite 独自の対応表を作らない
-  - SAML 構文・処理規則上不正な request に応答する場合の top-level Requester は IIP-SP14.ae で別に判定する
-  - 署名不正 request へ応答すること自体は SHOULD（IIP-SP14.ad）であり、無応答を本 MUST の違反にしない
+  - SAML 構文・処理規則上不正な request に応答する場合の top-level Requester は IIP-SP14.ai で別に判定する
+  - 署名不正 request へ応答すること自体は SHOULD（IIP-SP14.af）であり、無応答を本 MUST の違反にしない
+  - Asynchronous SLO extension を含む request は response を要求しないため本義務の実行時 scope 外。SP の ASLO capability 自体は IIP-SP14 が要求しない
   - LogoutRequest を消費しない SP では satisfied_with_note。request を消費した場合だけ response status を判定する
 - **参照先仕様**: `SAML2Prof#4.4.3.4 + SAML2Core#3.7`
 - **source_clauses**: `[0, 109)` `sha256:284c8f093605…`
@@ -5257,6 +5258,7 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
   - `v-f75b3ebea1` 将来到着する assertion と strong match する identifier / SessionIndex を持つ未失効 LogoutRequest を先に受信 → 後着 assertion から session を確立・維持しない
   - `v-63ed18aece` SessionIndex を含まない未失効 LogoutRequest → strong match する後着 assertion の全 SessionIndex に適用する
   - `v-af404ffc3c` 対照: identifier が strong match しない後着 assertion → 本 request だけを理由に拒否しない
+  - `v-57262b384b` 対照: SessionIndex S1 だけを指定した未失効 LogoutRequest の後に、同じ principal だが SessionIndex S2 の assertion が到着 → 本 request だけを理由に拒否しない
   - `v-bba7d34c3c` 対照: LogoutRequest/@NotOnOrAfter 後に到着した assertion → 本 request だけを理由に拒否しない
 - **対照（negative control）**:
   - 4 条件を全て満たす positive と、各条件を 1 つずつ崩す negative control を対にする。常に後着 assertion を拒否する実装を PASS にしない
@@ -6333,11 +6335,13 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 <details><summary><code>IIP-IDP17.c</code> の詳細</summary>
 
 - **必要な variant**:
-  - `v-952fb39f40` secondary_peer を 2 つ目の SP として登録し、伝播が起きるかを情報として記録
+  - `v-fd339c5acb` secondary_peer を 2 つ目の SP として登録し、下流 session participant への伝播が起きるかを情報として記録
+  - `v-960dd4c1e7` 対象 IdP が authentication proxy として上流 session authority を使う構成で、上流 authority への伝播が起きるかを情報として記録
   - `v-73e09adb05` 伝播を実装する場合、対象 IdP が発行した LogoutRequest は IIP-IDP17.j〜.n の message 規則を満たす
 - **対照（negative control）**:
   - ★ 伝播しない IdP は NOT_SUPPORTED であり、IIP-IDP17.a の FAIL にしない
   - ★ SAML2Prof §4.4.3.1 の『IdP SHOULD then propagate』および §4.4.3.2 の steps 3 / 4 は、より具体的な IIP-IDP17.c の OPTIONAL により本カタログでは任意機能として扱う
+  - ★ Core の厳密な actor 名では上流は session authority であるが、Profile §4.4.3.3 が authority / participant の両送信を同じ『propagate the logout』手順に置く。IIP の『propagation ... to other session participants』を下流 participant だけに狭め、上流送信を SHOULD として復活させると、IIP が意図した propagation capability の任意化を迂回するため、両経路を本 OPTIONAL に含める
   - ★ IdP-initiated SLO も Profile の permission であり、本 OPTIONAL 機能を実装しないことを違反にしない
 - **参照先仕様**: `SAML2Prof#4.4.3.2-4.4.3.3`
 - **source_clauses**: `[186, 273)` `sha256:7c03e19402eb…`

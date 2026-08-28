@@ -3235,3 +3235,34 @@ IIP-IDP17.b（Asynchronous SLO）のみである。
 
 この checkpoint は作成者候補であり未承認。次に固定 commit を別チャットのレビュアーが、
 Core §3.7 の前置き・actor・OPTIONAL override と §3.2 / §4 / §5 の不足・過剰に限定して編集禁止で確認する。
+
+---
+
+## G1b-CP2b-Core-A-R1 — 2026-08-28 §3.7 外部レビュー
+
+固定 commit `90d8a31` の外部レビューで 4 findings を受け、3 件を採用、1 件を原文照合の上で不採用とした。
+
+### 採用
+
+- IIP-SP14.q: base Core の response 義務を `aslo:Asynchronous` のない request に限定した。
+  SP の ASLO 対応能力は IIP-SP14 が要求しないが、実装して extension を消費した適合 SP を
+  「LogoutResponse を返さない」という理由で FAIL にしない
+- IIP-SP14.q: 相互参照の誤記 `.ae` → `.ai`、`.ad` → `.af` を訂正した。
+  前者は invalid request に応答する場合の Requester MUST、後者は invalid signature を error として扱う SHOULD
+- IIP-SP14.z: identifier と expiry だけでなく SessionIndex 条件にも negative control を追加した。
+  S1 指定の request 後に同一 principal / S2 の assertion が到着した場合、本 request だけを理由に拒否しない
+
+### 不採用: 上流 session authority への propagation SHOULD の新設
+
+Core §3.7.3.2 は proxy 上流 session authority と下流 session participant を別 bullet にする。一方、
+SAML2Prof §4.4.3.3 は `To propagate the logout` として、IdP が `a session authority or participant` へ
+LogoutRequest を送る step 3 全体を 1 つの propagation と定義している。
+
+IIP-IDP17.c は propagation capability を OPTIONAL とする。ここで IIP の `other session participants` を
+Core の狭い actor 名だけで読み、上流 authority への送信 SHOULD を復活させると、Profile が一括して
+propagation と呼ぶ capability の一部を別経路から必須度 SHOULD に戻す。誤った WARNING を避けるため、
+本カタログでは上流 authority / 下流 participant の両経路を IIP-IDP17.c の OPTIONAL に含める。
+
+この解釈が無言にならないよう、IIP-IDP17.c に SAML2Prof §4.4.3.3 と Core §3.7.3.2 の evidence、
+上流 / 下流それぞれの情報記録 variant、OPTIONAL override の rationale を追加した。
+上流伝播を実装して観測した場合の作法は IIP-IDP17.r / .s と target-emitted request 規則で受動評価する。

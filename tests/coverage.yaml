@@ -1,6 +1,6 @@
 # tests/coverage.yaml — 要件カタログ（G1 成果物 / 判定レベルの唯一の出典）
 # 生成: build_g1.py（原文からオフセットと digest を解決）/ 手編集しない
-generated_at: 2026-08-28T02:16:09+00:00
+generated_at: 2026-08-28T02:42:59+00:00
 schema_version: 1
 g1_state: PENDING_REVIEW
 # 作成者は reviewer / approved_at を埋めない。別のレビュアーが原文と直接照合して承認する。
@@ -11696,12 +11696,13 @@ requirements:
         source_clauses:
           - { start: 0, end: 109, digest: "sha256:284c8f09360551d5a9db48439f6d40890b67152fcf6a716c6885b468678edb80", occurrences: 1 }
         required_variants:
-          - id: v-9607724716
-            description_ja: "妥当な request の処理成功 → Success status の LogoutResponse"
+          - id: v-aeb561321a
+            description_ja: "aslo:Asynchronous を含まない妥当な request の処理成功 → Success status の LogoutResponse"
         controls:
           - "Core §3.7.3.1 は session participant の失敗状況に固有の status code を規定しない。unknown SessionIndex 等へ Suite 独自の対応表を作らない"
-          - "SAML 構文・処理規則上不正な request に応答する場合の top-level Requester は IIP-SP14.ae で別に判定する"
-          - "署名不正 request へ応答すること自体は SHOULD（IIP-SP14.ad）であり、無応答を本 MUST の違反にしない"
+          - "SAML 構文・処理規則上不正な request に応答する場合の top-level Requester は IIP-SP14.ai で別に判定する"
+          - "署名不正 request へ応答すること自体は SHOULD（IIP-SP14.af）であり、無応答を本 MUST の違反にしない"
+          - "Asynchronous SLO extension を含む request は response を要求しないため本義務の実行時 scope 外。SP の ASLO capability 自体は IIP-SP14 が要求しない"
           - "LogoutRequest を消費しない SP では satisfied_with_note。request を消費した場合だけ response status を判定する"
         authored_by: samlier-g1-builder
         review:
@@ -11709,7 +11710,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:9a4ee26653e27c1adc3b8eb5a21021d50aed8f32a32ab2f565c06157d8c90f54"
+          obligation_digest: "sha256:981e68ffbc200ef22f2f8fbcd4ac4982a8fcfda6f3e1d2cb3ad52a6cf2d0d671"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SP14"
@@ -12017,6 +12018,8 @@ requirements:
             description_ja: "SessionIndex を含まない未失効 LogoutRequest → strong match する後着 assertion の全 SessionIndex に適用する"
           - id: v-af404ffc3c
             description_ja: "対照: identifier が strong match しない後着 assertion → 本 request だけを理由に拒否しない"
+          - id: v-57262b384b
+            description_ja: "対照: SessionIndex S1 だけを指定した未失効 LogoutRequest の後に、同じ principal だが SessionIndex S2 の assertion が到着 → 本 request だけを理由に拒否しない"
           - id: v-bba7d34c3c
             description_ja: "対照: LogoutRequest/@NotOnOrAfter 後に到着した assertion → 本 request だけを理由に拒否しない"
         controls:
@@ -12029,7 +12032,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:448d2140df36f740e9886022eca4d7127703a678059fca35a1d89c054778a8c6"
+          obligation_digest: "sha256:46a678fdde52712f02e9c0e39b111799459c3e4cf2926b02ccf1974b442f5b89"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SP14"
@@ -14392,18 +14395,25 @@ requirements:
           - spec: SAML2Prof
             locator: "4\\.4\\.3\\.2 Identity Provider Determines Session Participants||4\\.4\\.3\\.4 Session Participant/Authority Issues"
             section_digest: "sha256:63278989b849a7745848cf51017156ef9ebd1ad7f18cdbb2555b0038a4ea6d59"
-            basis_ja: "元 requester 以外の participant に steps 3 / 4 を繰り返す profile 手順。IIP-IDP17.c がこの伝播対応を明示的に OPTIONAL へ上書きする"
+            basis_ja: "§4.4.3.3 は『To propagate the logout』として IdP が session authority **or** participant へ LogoutRequest を送る手順を 1 つの propagation と定義する。IIP-IDP17.c はこの propagation 対応を OPTIONAL へ上書きする"
+          - spec: SAML2Core
+            locator: "3\\.7\\.3\\.2 Session Authority Rules||3\\.8 Name Identifier Mapping Protocol"
+            section_digest: "sha256:d6baacdc29f4e54d86b0ac05b4baf97e170db7960b9e21ea0c3846b35d0cef23"
+            basis_ja: "session authority rules の第 1 bullet は proxy 上流 authority、第 2 bullet は他 session participant への LogoutRequest。Profile §4.4.3.3 では両方を propagation と呼ぶ"
         level_assignment: { idp: full }
         source_clauses:
           - { start: 186, end: 273, digest: "sha256:7c03e19402eb4efe8a7fdc6cd0032febab56a0bfcde55e017f3a8363a30feda6", occurrences: 1 }
         required_variants:
-          - id: v-952fb39f40
-            description_ja: "secondary_peer を 2 つ目の SP として登録し、伝播が起きるかを情報として記録"
+          - id: v-fd339c5acb
+            description_ja: "secondary_peer を 2 つ目の SP として登録し、下流 session participant への伝播が起きるかを情報として記録"
+          - id: v-960dd4c1e7
+            description_ja: "対象 IdP が authentication proxy として上流 session authority を使う構成で、上流 authority への伝播が起きるかを情報として記録"
           - id: v-73e09adb05
             description_ja: "伝播を実装する場合、対象 IdP が発行した LogoutRequest は IIP-IDP17.j〜.n の message 規則を満たす"
         controls:
           - "★ 伝播しない IdP は NOT_SUPPORTED であり、IIP-IDP17.a の FAIL にしない"
           - "★ SAML2Prof §4.4.3.1 の『IdP SHOULD then propagate』および §4.4.3.2 の steps 3 / 4 は、より具体的な IIP-IDP17.c の OPTIONAL により本カタログでは任意機能として扱う"
+          - "★ Core の厳密な actor 名では上流は session authority であるが、Profile §4.4.3.3 が authority / participant の両送信を同じ『propagate the logout』手順に置く。IIP の『propagation ... to other session participants』を下流 participant だけに狭め、上流送信を SHOULD として復活させると、IIP が意図した propagation capability の任意化を迂回するため、両経路を本 OPTIONAL に含める"
           - "★ IdP-initiated SLO も Profile の permission であり、本 OPTIONAL 機能を実装しないことを違反にしない"
         authored_by: samlier-g1-builder
         review:
@@ -14411,7 +14421,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:e73de99b058b23aeae58f088d326f8b456e09c5bf2b589498bf264265714649c"
+          obligation_digest: "sha256:61f7060ca6cef1fc13a6c5bf7107bb63886ae95f3bdfa455daffbf3cf05bc106"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-IDP17"

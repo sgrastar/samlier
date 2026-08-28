@@ -177,7 +177,7 @@ cases:
 ```
 
 `coverage.yaml` の `required_variants` は **G1b の前に**安定 ID 付きに移行済み
-（<!--g1:variants-->949<!--/g1--> variant すべて）。G2 で G1 成果物を変更しない。
+（<!--g1:variants-->951<!--/g1--> variant すべて）。G2 で G1 成果物を変更しない。
 
 ```yaml
         required_variants:
