@@ -16,7 +16,8 @@ t=html.unescape(t); t=unicodedata.normalize('NFC',t)
 lines=[re.sub(r'[ \t]+',' ',l).strip() for l in t.split('\n')]
 t='\n'.join(l for l in lines if l)
 
-# 要件ラベルは行頭に単独で現れる。本文中の参照（例: SP05 のイタリック注記内の [IIP-SP09]）と区別する。
+# Requirement labels appear alone at the beginning of a line. This excludes
+# references embedded in prose, such as [IIP-SP09] in the italic SP05 note.
 LABELS=[(m.group(1),m.start()) for m in re.finditer(r'(?m)^\[(IIP-[A-Z]+\d{2})\]$',t) if m.group(1)!='IIP-EXAMPLE01']
 RIDS=[r for r,_ in LABELS]
 assert len(RIDS)==len(set(RIDS))==69, (len(RIDS),len(set(RIDS)))
@@ -33,7 +34,7 @@ for k,(rid,p) in enumerate(pos):
     sections[rid]='\n'.join(keep).strip()
 
 def spans_and_clean(s):
-    """非規範(\x01..\x02)の位置を記録しつつマーカーを除去。offset はコードポイント単位。"""
+    """Remove markers while recording non-normative spans in code points."""
     out=[];sp=[];i=0;depth=0;start=None
     for ch in s:
         if ch=='\x01':
@@ -54,7 +55,7 @@ for rid,s in sections.items():
                   length=len(clean))
 
 def find_clause(rid,clause,occurrence=None):
-    """節内の全一致を列挙する。複数一致は occurrence（1-based）の明示を必須にする。"""
+    """Find every clause occurrence; ambiguous matches require a 1-based index."""
     txt=SEC[rid]['text']
     c=re.sub(r'\s+',' ',unicodedata.normalize('NFC',clause)).strip()
     hits=[(m.start(),m.end()) for m in re.finditer(re.escape(c),txt)]
@@ -63,10 +64,10 @@ def find_clause(rid,clause,occurrence=None):
         hits=[(m.start(),m.end()) for m in re.finditer(pat,txt)]
     if not hits: return None,0
     if len(hits)>1 and occurrence is None:
-        raise SystemExit(f"AMBIGUOUS CLAUSE in {rid}: {len(hits)} matches for {c[:70]!r} — occurrence= を指定してください")
+        raise SystemExit(f"AMBIGUOUS CLAUSE in {rid}: {len(hits)} matches for {c[:70]!r}; specify occurrence=")
     idx=(occurrence or 1)-1
     if idx>=len(hits):
-        raise SystemExit(f"occurrence={occurrence} は範囲外 ({len(hits)} 件) in {rid}")
+        raise SystemExit(f"occurrence={occurrence} is out of range ({len(hits)} matches) in {rid}")
     return hits[idx],len(hits)
 
 errors=[];reqs={}
@@ -95,14 +96,14 @@ for e in errors[:20]: print("  !",e)
 
 
 
-# ============================ 成果物の出力 ============================
+# ============================ Artifact output ============================
 ROOT=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TESTS=os.path.join(ROOT,'tests'); os.makedirs(TESTS,exist_ok=True)
 BUILD=os.path.join(ROOT,'build'); os.makedirs(BUILD,exist_ok=True)
 NOW=datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0).isoformat()
 
 def y(s):
-    """YAML スカラーとして安全に出す。flow mapping 内でも壊れないよう保守的に引用する。"""
+    """Render a conservatively quoted YAML scalar, including in flow mappings."""
     s=str(s)
     safe=re.fullmatch(r'[A-Za-z0-9_./+-]*',s) and s.strip()==s and s!='' \
          and not re.fullmatch(r'(true|false|null|yes|no|on|off|~)',s,re.I)
@@ -110,7 +111,7 @@ def y(s):
     return '"'+s.replace('\\','\\\\').replace('"','\\"').replace('\n',' ')+'"'
 
 def yq(s):
-    """常に引用（digest / 版番号など、コロンを含みうる値に使う）"""
+    """Always quote values such as digests and versions that may contain colons."""
     return '"'+str(s).replace('\\','\\\\').replace('"','\\"')+'"' 
 
 # ---------- specs.yaml ----------
@@ -171,7 +172,7 @@ SPECS = [
  ("BetterCrypto","Applied Crypto Hardening","BetterCrypto.org","undated (living document)",None,
   "https://bettercrypto.org", None, "referenced-unversioned"),
 ]
-# ---- 参照仕様の節ダイジェストを実測して reference_evidence に埋める ----
+# Resolve reference-section digests from the pinned source documents.
 _ROOT=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _SPECURL={}
 def _spec_text(key):
@@ -179,7 +180,7 @@ def _spec_text(key):
         url=[u for k,_,_,_,_,u,_,_ in SPECS if k==key]
         if not url: raise SystemExit(f'unknown spec {key}')
         raw,_p=X.fetch(_ROOT,key,url[0],mode='cache-first')
-        if raw is None: raise SystemExit(f'{key} が build/spec-cache/ にありません。先に取得してください')
+        if raw is None: raise SystemExit(f'{key} is absent from build/spec-cache; fetch it first')
         _SPECURL[key]=X.normalize(raw,url[0])
     return _SPECURL[key]
 for o in OBLIGATIONS:
@@ -189,7 +190,7 @@ for o in OBLIGATIONS:
         ev['section_length']=len(sec)
 
 
-# ---- 起票時の安定性検証: pin する digest が再取得で再現するか（動的ページを弾く） ----
+# Optional authoring-time reproducibility check for every pinned source.
 if os.environ.get('G1_VERIFY_STABILITY')=='1':
     import tempfile
     for _k,_t,_p,_v,_d,_u,_dg,_r in SPECS:
@@ -197,17 +198,17 @@ if os.environ.get('G1_VERIFY_STABILITY')=='1':
         _a,_pa=X.fetch(_ROOT,_k,_u,mode='network')
         _b,_pb=X.fetch(_ROOT,_k+'__stab',_u,mode='network')
         if X.sha(_a)!=X.sha(_b):
-            raise SystemExit(f"UNSTABLE SOURCE {_k}: 2 回の取得でバイト列が一致しない。不変 URL を使うこと")
+            raise SystemExit(f"UNSTABLE SOURCE {_k}: two fetches produced different bytes; use an immutable URL")
         if X.sha(_a)!=_dg:
             raise SystemExit(f"DIGEST DRIFT {_k}: {X.sha(_a)} != {_dg}")
         try: os.remove(_pb)
         except OSError: pass
     print("stability: all pinned sources reproducible")
 
-L=["# tests/specs.yaml — 仕様カタログ（G1 成果物）",
-   "# 生成: build_g1.py / 手編集しない",
+L=["# tests/specs.yaml — canonical G1 specification catalog",
+   "# Generated by tools/g1_author.py. Do not edit manually.",
    f"generated_at: {NOW}",
-   "schema_version: 1","specs:"]
+   "schema_version: 2","specs:"]
 for k,title,pub,ver,date,url,dg,role in SPECS:
     L+= [f"  {k}:",
          f"    title: {y(title)}",
@@ -219,195 +220,146 @@ for k,title,pub,ver,date,url,dg,role in SPECS:
     if url: pass
     if dg: L.append(f"    source_digest: {yq(dg)}")
     if role=='referenced-unversioned':
-        L.append("    note: 版のない生きた文書。判定の根拠には使わず、参考情報としてのみ引用する")
+        L.append("    note: Unversioned living document; cited only as background and never as verdict evidence.")
     if role=='referenced-draft':
-        L.append("    note: インターネットドラフト。版が変わると章番号・要素定義が変わりうるため版を固定する。")
-        L.append("    url_note: tools.ietf.org の HTML は動的レンダリングでバイト列が安定しないため、不変のアーカイブ .txt を使う")
+        L.append("    note: Internet-Draft pinned to a specific revision because section numbers and element definitions may change.")
+        L.append("    url_note: Use the immutable archive text because the tools.ietf.org HTML representation is dynamically rendered and byte-unstable.")
 L.append("")
 open(os.path.join(TESTS,'specs.yaml'),'w',encoding='utf-8').write('\n'.join(L))
 
 # ---------- predicates.yaml ----------
+# Human-readable predicate text is canonical English. The declared/observed
+# paths and predicate kinds are normative migration invariants.
 PRED = [
- ("claims_mdq_support","CLAIM_BASED","対象が MDQ 対応を表明しているか",
-  ["declared_features.mdq"],[],"原文が 'Implementations that claim support for this protocol' と述べており、申告そのものが条件"),
- ("supports_outbound_encryption","CAPABILITY_BASED","対象が outbound 暗号化に対応しているか",
+ ("claims_mdq_support","CLAIM_BASED","Whether the target claims support for MDQ",
+  ["declared_features.mdq"],[],"The source clause says 'Implementations that claim support for this protocol'; the declaration itself determines applicability."),
+ ("supports_outbound_encryption","CAPABILITY_BASED","Whether the target supports outbound encryption",
   ["declared_features.assertion_encryption"],
   ["target_emitted: saml:EncryptedAssertion","target_emitted: saml:EncryptedID","target_emitted: saml:EncryptedAttribute"],
-  "原文は 'If an implementation supports outbound encryption'。★ 観測は方向付きでなければならない: 対象が *送信した* 暗号要素のみが証拠になる。対象メタデータの KeyDescriptor use=encryption は『暗号文を受信・復号できる』証拠であって outbound 生成能力の証拠ではないため使わない"),
- ("claims_slo_support_sp","CLAIM_BASED","SP が SLO profile への対応を表明しているか",
+  "The source clause says 'If an implementation supports outbound encryption'. Evidence is directional: only encrypted elements emitted by the target demonstrate outbound capability. A target metadata KeyDescriptor with use=encryption demonstrates receiving/decryption capability, not outbound generation, and is therefore excluded."),
+ ("claims_slo_support_sp","CLAIM_BASED","Whether the SP claims support for the SLO profile",
   ["declared_features.single_logout"],[],
-  "原文が 'Service Providers that claim support for this profile'。申告が真理値そのもの"),
- ("supports_slo_sp","CAPABILITY_BASED","SP が実際に SLO profile に対応しているか",
+  "The source clause says 'Service Providers that claim support for this profile'; the declaration itself determines applicability."),
+ ("supports_slo_sp","CAPABILITY_BASED","Whether the SP actually supports the SLO profile",
   ["declared_features.single_logout"],
   ["target_metadata_has: md:SPSSODescriptor/md:SingleLogoutService","target_emitted: samlp:LogoutRequest","target_consumed: samlp:LogoutRequest"],
-  "原文は 'Service Providers that support the ... profile'（claim ではない）ため CAPABILITY_BASED"),
- ("supports_slo_initiation_sp","CAPABILITY_BASED","SP が session participant として SLO を開始し LogoutRequest を発行できるか",
+  "The source clause says 'Service Providers that support the ... profile', not 'claim support', so this is capability-based."),
+ ("supports_slo_initiation_sp","CAPABILITY_BASED","Whether the SP can initiate SLO as a session participant and issue a LogoutRequest",
   ["declared_features.single_logout"],
   ["target_emitted: samlp:LogoutRequest"],
-  "SAML2Prof 4.4.3.1 の session participant initiator 規則の適用条件。"
-  "受信だけを任意実装した SP に initiator 規則を誤適用しないため、supports_slo_sp から分離する。"
-  "観測は対象が実際に発行した LogoutRequest のみで、target_consumed は含めない"),
- ("supports_cbc","CAPABILITY_BASED","対象が AES-CBC ブロック暗号に対応しているか",
+  "Applicability condition for the session-participant initiator rules in SAML2Prof 4.4.3.1. It is separate from supports_slo_sp so that initiator rules are not imposed on an SP that implements only reception. Only a LogoutRequest actually emitted by the target is evidence; target_consumed is excluded."),
+ ("supports_cbc","CAPABILITY_BASED","Whether the target supports AES-CBC block encryption",
   ["declared_features.cbc"],
   ["target_emitted_encryption_method: aes128-cbc","target_emitted_encryption_method: aes256-cbc",
    "target_accepted_encryption_method: aes128-cbc","target_accepted_encryption_method: aes256-cbc"],
-  "IIP-ALG05.b の条件。CBC 非対応なら NOT_APPLICABLE であって違反ではない"),
- ("peer_declares_algorithm_support","CAPABILITY_BASED","ピア（Samlier）のメタデータがアルゴリズム対応を宣言しているか",
+  "Condition for IIP-ALG05.b. Lack of CBC support makes the obligation not applicable; it is not a violation."),
+ ("peer_declares_algorithm_support","CAPABILITY_BASED","Whether the Samlier peer metadata declares algorithm support",
   [],["suite_metadata_variant_declares_alg: true"],
-  "IIP-MD10 の 'If a SAML peer has declared algorithm support'。Suite 側の構成で決まるため常に決定可能"),
- ("setting_supported_by_implementation","CAPABILITY_BASED","当該メタデータ要素に対応する設定を対象が備えているか",
+  "IIP-MD10 says 'If a SAML peer has declared algorithm support'. The Suite controls this input, so it is always decidable."),
+ ("setting_supported_by_implementation","CAPABILITY_BASED","Whether the target provides a setting corresponding to the metadata element",
   ["declared_features.supported_settings"],
   ["target_behaviour_changed_on_metadata_edit: true"],
-  "IIP-SSO06 の (b) 'corresponds to settings supported by the implementation'。要素ごとに評価する"),
- ("not_token_translation_proxy","CLASSIFICATION_BASED","対象が token translation Proxy ではないか",
+  "IIP-SSO06(b) says 'corresponds to settings supported by the implementation'. Evaluate this separately for each element."),
+ ("not_token_translation_proxy","CLASSIFICATION_BASED","Whether the target is not a token translation Proxy",
   ["target.kind"],[],
-  "IIP-IDP13 末尾の 'This requirement does not apply to token translation Proxies.'。観測材料が存在しないため明示的な除外申告のみが FALSE を作れる",
+  "IIP-IDP13 ends with 'This requirement does not apply to token translation Proxies.' No protocol observation can establish the negative classification, so only an explicit declared exclusion can make the predicate false.",
   "The target was declared to be a token translation Proxy, to which IIP-IDP13 does not apply. This was not verified by the Suite."),
- ("supports_name_identifier_management","CAPABILITY_BASED","対象が SAML2Core 3.6 の Name Identifier Management に対応しているか",
+ ("supports_name_identifier_management","CAPABILITY_BASED","Whether the target supports Name Identifier Management from SAML2Core 3.6",
   ["declared_features.name_identifier_management"],
   ["target_metadata_has: md:IDPSSODescriptor/md:ManageNameIDService",
    "target_consumed: samlp:ManageNameIDRequest",
    "target_emitted: samlp:ManageNameIDResponse"],
-  "IIP-SSO05.a5 の条件。SAML2Core 8.3.7 の SPProvidedID は『SP が設定した代替識別子』を前提とし、その設定手段が §3.6 しかない。"
-  "★ 観測は方向付き: 対象が ManageNameIDRequest を *受理し* ManageNameIDResponse を *返した* ことが能力の証拠。"
-  "メタデータの ManageNameIDService だけでは宣言であって能力の観測ではないが、"
-  "IIP-MD01 が『メタデータは実際の設定を反映する』ことを求めるため補助証拠として採る"),
- ("proxies_to_non_saml_provider","CLASSIFICATION_BASED","対象が非 SAML の上流 provider へプロキシするか",
+  "Condition for IIP-SSO05.a5. SPProvidedID in SAML2Core 8.3.7 presupposes an alternative identifier established by the SP, and section 3.6 is the available mechanism. Evidence is directional: accepting ManageNameIDRequest and emitting ManageNameIDResponse demonstrates the capability. ManageNameIDService in metadata is a declaration rather than a behavioral observation, but it is retained as supporting evidence because IIP-MD01 requires metadata to reflect actual configuration."),
+ ("proxies_to_non_saml_provider","CLASSIFICATION_BASED","Whether the target proxies to a non-SAML upstream provider",
   ["target.upstream_kind"],[],
-  "SAML2Core 3.4.1.5.1 の一部の規範句は『If the authenticating identity provider is not a SAML identity provider』"
-  "が明示的な条件。SAML IdP にしかプロキシしない対象には適用されない。"
-  "★ 訂正: 前版は CAPABILITY_BASED とし『<saml:AuthenticatingAuthority> が SAML メタデータで解決できないこと』を"
-  "観測材料にしていたが、それは**メタデータ未登録・未取得の SAML IdP でも成立する**ため証拠にならなかった。"
-  "上流の種別はプロトコル面に現れないので、設定の確認（申告）でしか判定できない。"
-  "既定は真（適用する）とし、偽にするには理由付きの明示的な除外申告が要る",
+  "Some normative clauses in SAML2Core 3.4.1.5.1 are explicitly scoped by 'If the authenticating identity provider is not a SAML identity provider' and do not apply when every upstream provider is a SAML IdP. An earlier capability-based design treated an AuthenticatingAuthority value that could not be resolved in SAML metadata as evidence, but that is also true for an unregistered or unavailable SAML IdP. The upstream protocol type is not observable on the SAML protocol surface, so only a configuration attestation can determine the classification. The default is true; making it false requires an explicit exclusion with a reason.",
   "The target was declared to proxy only to SAML identity providers, so the rules that [SAML2Core] section "
   "3.4.1.5.1 scopes to a non-SAML authenticating identity provider do not apply. This was not verified by the Suite."),
- ("uses_small_integer_sessionindex","CAPABILITY_BASED","対象が SessionIndex に『小さい正整数・繰り返し定数』方式を使うか",
+ ("uses_small_integer_sessionindex","CAPABILITY_BASED","Whether the target uses the small-positive-integer or repeated-constant SessionIndex scheme",
   ["declared_features.sessionindex_scheme"],
   ["target_emitted_sessionindex_is_small_integer: true"],
-  "SAML2Core 2.7.2 は SessionIndex の相関防止のために **2 つの方式**を RECOMMENDED として示す: "
-  "(a) 小さい正整数・繰り返し定数を使う、(b) 囲む assertion の @ID を使う。"
-  "値域の濃度（SHOULD）とランダム選択（SHOULD）は **(a) の内部規則**なので、"
-  "(b) を採る実装には適用されない。★ 観測は方向付き: 対象が送出した SessionIndex の値が"
-  "小さい整数の集合に収まり、assertion の @ID と一致しないことが (a) の証拠"),
- ("uses_random_identifier_generation","CAPABILITY_BASED","対象が識別子の生成に乱数・擬似乱数を用いるか",
+  "SAML2Core 2.7.2 recommends two anti-correlation schemes: (a) small positive integers or repeated constants, and (b) the enclosing assertion ID. The SHOULD rules about value-space density and random selection are internal to scheme (a) and do not apply to scheme (b). Evidence is directional: a target-emitted SessionIndex drawn from a small integer set and unequal to the assertion ID demonstrates scheme (a)."),
+ ("uses_random_identifier_generation","CAPABILITY_BASED","Whether the target uses a random or pseudorandom identifier-generation technique",
   ["declared_features.random_id_generation"],
   ["target_emitted_identifiers_are_high_entropy: true"],
-  "SAML2Core 1.3.4 の衝突確率・seed に関する規範句は『In the case that a random or pseudorandom technique "
-  "is employed』が条件。連番やハッシュ由来など非乱数方式の実装には適用されない。"
-  "★ 非乱数方式でも 1.3.4 の『negligible probability』（IIP-SSO01.af / .ao）と"
-  "『exactly one declaration』（IIP-SSO01.cc）は無条件に適用される"),
- ("supports_authnrequest_proxying","CAPABILITY_BASED","対象が <AuthnRequest> のプロキシ（proxying identity provider）として振る舞うか",
+  "The collision-probability and seed clauses in SAML2Core 1.3.4 are scoped by 'In the case that a random or pseudorandom technique is employed'. They do not apply to sequential, hash-derived, or other non-random schemes. The unconditional negligible-probability and exactly-one-declaration rules still apply to non-random schemes through IIP-SSO01.af/.ao and .cc."),
+ ("supports_authnrequest_proxying","CAPABILITY_BASED","Whether the target acts as a proxying identity provider for AuthnRequest messages",
   ["declared_features.authnrequest_proxying"],
   ["target_emitted_authnrequest_to_upstream_idp: true",
    "target_emitted: saml:AuthenticatingAuthority"],
-  "SAML2Core 3.4.1.5.1 の規範句はすべて『プロキシする場合』が前提。"
-  "『An identity provider MAY proxy an <AuthnRequest> ...』とあるとおりプロキシ自体は任意なので、"
-  "プロキシしない対象では NOT_APPLICABLE。"
-  "★ 観測は方向付き: 対象が上流 IdP へ自分名義の <AuthnRequest> を送出したこと、"
-  "または自分の assertion に <saml:AuthenticatingAuthority> を入れたことだけが証拠になる"),
- ("emits_idplist_getcomplete","CAPABILITY_BASED","対象が <samlp:IDPList>/<samlp:GetComplete> を発行するか",
+  "Every normative clause in SAML2Core 3.4.1.5.1 presupposes proxying. Because 'An identity provider MAY proxy an <AuthnRequest>', proxying itself is optional and the rules are not applicable to a non-proxying target. Evidence is directional: only an AuthnRequest emitted by the target to an upstream IdP, or an AuthenticatingAuthority emitted in the target's assertion, demonstrates the capability."),
+ ("emits_idplist_getcomplete","CAPABILITY_BASED","Whether the target emits samlp:IDPList/samlp:GetComplete",
   ["declared_features.idplist_getcomplete"],
   ["target_emitted: samlp:GetComplete"],
-  "SAML2Core 3.4.1.3 の『Retrieving the resource associated with the URI MUST result in ...』は "
-  "GetComplete を発行した側が用意する資源への規範。発行しない対象では NOT_APPLICABLE"),
- ("unsolicited_acs_from_metadata","CAPABILITY_BASED","対象が unsolicited <Response> を発行し、かつその配送先 ACS をメタデータから決めるか",
+  "The SAML2Core 3.4.1.3 clause 'Retrieving the resource associated with the URI MUST result in ...' governs the resource supplied by the emitter of GetComplete. It is not applicable when the target does not emit GetComplete."),
+ ("unsolicited_acs_from_metadata","CAPABILITY_BASED","Whether the target emits unsolicited Responses and derives their ACS destination from metadata",
   ["declared_features.idp_initiated_sso","declared_features.metadata_driven_acs"],
   ["target_emitted_unsolicited_response: true",
    "target_used_metadata_acs_for_unsolicited: true"],
-  "SAML2Prof 4.1.5 の『If metadata as specified in [SAMLMeta] is used, the <Response> or artifact SHOULD be "
-  "delivered to the <md:AssertionConsumerService> endpoint ... designated as the default』は "
-  "**2 つの条件の連言**（unsolicited を発行する ∧ ACS 決定にメタデータを使う）。"
-  "★ 片方だけでは適用されない。unsolicited を出すがメタデータを使わず ACS を決める IdP には"
-  "この SHOULD は課されないため、1 つの述語に連言として畳んでいる。"
-  "観測は方向付き: 対象が unsolicited <Response> を送出し、その宛先がメタデータの ACS と一致したことが証拠"),
- ("derives_url_from_relaystate","CAPABILITY_BASED","対象が RelayState の値から遷移先 URL を導出するか",
+  "The SAML2Prof 4.1.5 recommendation is scoped by two conjunctive conditions: the target emits an unsolicited response and it uses metadata to determine the ACS. Neither condition alone is sufficient. An IdP that emits unsolicited responses but selects the ACS without metadata is outside this SHOULD. Evidence is directional: the target must emit the unsolicited Response and its destination must match the metadata ACS."),
+ ("derives_url_from_relaystate","CAPABILITY_BASED","Whether the target derives a navigation URL from RelayState",
   ["declared_features.relaystate_as_url"],
   ["target_redirected_user_agent_to_relaystate_value: true"],
-  "SAML2Errata E90 が追加する [SAMLProf] 新 §4.1.6 は『The URL scheme eventually derived SHOULD be limited to "
-  "\"https\" or \"http\"』と述べており、**URL を導出する場合**の制限である。"
-  "RelayState を不透明トークンとして扱う実装、絶対 URL を一切受け付けない実装も適合するため、"
-  "導出しない対象では NOT_APPLICABLE。"
-  "★ 観測は方向付き: 対象が RelayState の値そのものへ user agent を遷移させたことだけが証拠になる"),
+  "The new SAMLProf 4.1.6 added by SAML2Errata E90 says 'The URL scheme eventually derived SHOULD be limited to \"https\" or \"http\"'. This constrains implementations only when they derive a URL. Treating RelayState as an opaque token or rejecting every absolute URL is conforming, so the obligation is not applicable when no URL is derived. Evidence is directional: only navigation of the user agent to the RelayState value demonstrates the behavior."),
  ("allowcreate_general_interoperability_case","CLASSIFICATION_BASED",
-  "SP が AllowCreate を特定の状態管理用途に使わず、一般的な相互運用性の既定として扱う構成か",
+  "Whether the SP does not use AllowCreate for a specific state-management purpose and treats it as a general interoperability default",
   ["declared_features.allowcreate_specific_use"],[],
-  "SAML2Errata E14 の SHOULD は『Requesters that do not make specific use of this attribute』という条件付き。"
-  "対象が同意・動的識別子作成・Name Identifier Management 等の特定用途に使う構成では適用されない。"
-  "プロトコル面だけでは用途を否定できないため、偽にするには理由付きの明示的な除外申告を要求する",
+  "The SAML2Errata E14 SHOULD is scoped to 'Requesters that do not make specific use of this attribute'. It does not apply when the target uses AllowCreate for consent, dynamic identifier creation, Name Identifier Management, or another specific purpose. The absence of such a purpose cannot be established from protocol traffic, so false requires an explicit declared exclusion with a reason.",
   "The target was declared to make specific use of AllowCreate for state-management semantics, so the general interoperability recommendation does not apply. This was not verified by the Suite."),
  ("proxy_allowcreate_general_interoperability_case","CLASSIFICATION_BASED",
-  "対象が AuthnRequest をプロキシし、かつ AllowCreate を特定の状態管理用途に使わない構成か",
+  "Whether the target proxies AuthnRequest messages and does not use AllowCreate for a specific state-management purpose",
   ["declared_features.authnrequest_proxying","declared_features.allowcreate_specific_use"],
   [],
-  "proxy IdP に対する E14 の SHOULD は、プロキシ実行と『特定用途に使わない』という 2 条件の連言。"
-  "上流要求の観測はプロキシ実行しか証明せず『特定用途に使わない』ことを証明しないため、観測材料には使わない。"
-  "どちらかが偽なら適用されず、用途の否定はプロトコル面で証明できないため理由付き申告を要求する",
+  "The E14 SHOULD for a proxy IdP has two conjunctive conditions: the target performs proxying and does not make specific use of AllowCreate. Observing an upstream request proves only proxying, not the absence of a specific purpose, so it is not used as observed evidence. If either condition is false the obligation is not applicable; negating the purpose requires a reasoned declaration because it is not observable on the protocol surface.",
   "The target was declared either not to proxy AuthnRequest messages or to make specific use of AllowCreate for state-management semantics, so the general interoperability recommendation does not apply. This was not verified by the Suite."),
- ("relaystate_privacy_required","CLASSIFICATION_BASED","この配備が RelayState のプライバシー保護を必要とするか",
+ ("relaystate_privacy_required","CLASSIFICATION_BASED","Whether this deployment requires privacy protection for RelayState",
   ["target.relaystate_privacy"],[],
-  "SAML2Prof 4.1.3.1 の『unless the use of the profile does not require such privacy measures』。"
-  "原文が明示する適用除外だが、除外の根拠は配備側にしかないため申告でしか偽にできない。"
-  "★ 既定は真。偽にするには理由付きの明示的な除外申告が要り、その Run は結果の最上位に除外として現れる",
+  "SAML2Prof 4.1.3.1 says 'unless the use of the profile does not require such privacy measures'. This is an explicit source exclusion, but only the deployment can establish its basis. The default is true; false requires an explicit declared exclusion with a reason, and the exclusion is surfaced at the top level of the Run result.",
   "The deployment declared that the use of the profile does not require privacy measures for RelayState, "
   "as permitted by [SAML2Prof] section 4.1.3.1. This was not verified by the Suite."),
- ("slo_relaystate_privacy_required","CLASSIFICATION_BASED","この配備の Single Logout で RelayState のプライバシー保護が必要か",
+ ("slo_relaystate_privacy_required","CLASSIFICATION_BASED","Whether this deployment requires RelayState privacy protection for Single Logout",
   ["target.slo_relaystate_privacy"],[],
-  "SAML2Prof 4.4.3.1 の『unless the use of the profile does not require such privacy measures』。"
-  "Web Browser SSO の RelayState と配備上の privacy requirement が異なりうるため別述語にする。"
-  "偽にするには理由付きの明示的な除外申告を要求し、その Run の最上位に除外を表示する",
+  "SAML2Prof 4.4.3.1 says 'unless the use of the profile does not require such privacy measures'. This predicate is separate because the deployment's privacy requirement may differ between Web Browser SSO and Single Logout. False requires an explicit declared exclusion with a reason, surfaced at the top level of the Run result.",
   "The deployment declared that use of the Single Logout profile does not require privacy measures for RelayState, "
   "as permitted by [SAML2Prof] section 4.4.3.1. This was not verified by the Suite."),
- ("supports_unsolicited_responses","CAPABILITY_BASED","IdP が unsolicited <Response>（IdP-initiated SSO）を発行するか",
+ ("supports_unsolicited_responses","CAPABILITY_BASED","Whether the IdP emits unsolicited Responses for IdP-initiated SSO",
   ["declared_features.idp_initiated_sso"],
   ["target_emitted_unsolicited_response: true"],
-  "SAML2Prof 4.1.5 の 'An identity provider MAY initiate this profile by delivering an unsolicited <Response> message'。"
-  "★ 開始は MAY なので、発行しない IdP は違反ではなく NOT_APPLICABLE。"
-  "unsolicited 固有の義務（InResponseTo を含めない・既定 ACS に配送する）はこの条件の下でのみ適用される。"
-  "観測は方向付き: 対象が AuthnRequest なしに <Response> を送出したことだけが証拠になる"),
- ("supports_slo_idp","CAPABILITY_BASED","IdP が SLO profile に対応しているか",
+  "SAML2Prof 4.1.5 says an identity provider MAY initiate the profile with an unsolicited Response. Non-emission is therefore not a violation; unsolicited-specific obligations are not applicable. Only a Response emitted by the target without an AuthnRequest is directional evidence."),
+ ("supports_slo_idp","CAPABILITY_BASED","Whether the IdP supports the SLO profile",
   ["declared_features.single_logout"],
   ["target_metadata_has: md:IDPSSODescriptor/md:SingleLogoutService",
    "target_emitted: samlp:LogoutRequest",
    "target_consumed: samlp:LogoutRequest"],
-  "SAML2Prof 4.1.4.2（E26 反映）の 'If the identity provider supports the Single Logout profile ... "
-  "any authentication statements MUST include a SessionIndex attribute'。"
-  "★ IIP-IDP17 は IdP に SLO を MUST としているので適合 IdP では常に真になるが、"
-  "義務の条件は原文どおり SLO 対応の有無に置く（IIP-IDP17 違反の対象で SessionIndex を二重に FAIL にしないため）"),
- ("supports_artifact_binding","CAPABILITY_BASED","対象が HTTP Artifact バインディングに対応しているか",
+  "SAML2Prof 4.1.4.2 as amended by E26 says that when the identity provider supports Single Logout, authentication statements MUST include SessionIndex. Although IIP-IDP17 independently requires SLO support, this predicate preserves the source condition and avoids reporting a second SessionIndex failure when the target already violates IIP-IDP17."),
+ ("supports_artifact_binding","CAPABILITY_BASED","Whether the target supports the HTTP Artifact binding",
   ["declared_features.artifact_binding"],
   ["target_metadata_has: md:ArtifactResolutionService",
    "target_emitted: samlp:ArtifactResolve",
    "target_consumed: samlp:ArtifactResolve"],
-  "SAML2Prof 4.1.4.4 は 'If the HTTP Artifact binding is used to deliver the <Response>' が前提。"
-  "IIP-SSO02 / SSO03 が要求するのは Redirect と POST だけなので、Artifact 非対応は違反ではなく NOT_APPLICABLE"),
- ("supports_encrypted_nameid","CAPABILITY_BASED","対象が暗号化された名前識別子（saml:EncryptedID）を発行できるか",
+  "SAML2Prof 4.1.4.4 is scoped by 'If the HTTP Artifact binding is used to deliver the <Response>'. IIP-SSO02 and IIP-SSO03 require only Redirect and POST, so lack of Artifact support is not a violation."),
+ ("supports_encrypted_nameid","CAPABILITY_BASED","Whether the target can emit encrypted name identifiers as saml:EncryptedID",
   ["declared_features.encrypted_nameid"],
   ["target_emitted: saml:EncryptedID"],
-  "SAML2Core 3.4.1.1 の Format=...:encrypted は結果の assertion に <EncryptedID> を要求する。"
-  "ただし IIP-IDP09.b は識別子の暗号化を OPTIONAL としているため、非対応なら NOT_APPLICABLE。"
-  "★ 観測は方向付き: 対象が *送信した* <EncryptedID> のみが証拠になる"),
- ("reissues_foreign_persistent_identifier","CAPABILITY_BASED","対象が他エンティティ生成の persistent 識別子を再発行するか",
+  "Format=...:encrypted in SAML2Core 3.4.1.1 requires EncryptedID in the resulting assertion. IIP-IDP09.b makes identifier encryption OPTIONAL, so lack of support is not applicable rather than a violation. Evidence is directional: only EncryptedID emitted by the target demonstrates the capability."),
+ ("reissues_foreign_persistent_identifier","CAPABILITY_BASED","Whether the target reissues a persistent identifier generated by another entity",
   ["declared_features.proxy_idp"],
   ["target_reissued_upstream_persistent_nameid: true"],
-  "IIP-SSO05.a6 / .a7 の条件。SAML2Core 8.3.7 の再発行規則は『a different system entity might later issue its own "
-  "protocol message or assertion containing the identifier』に該当する構成でのみ適用される。"
-  "★ 観測は方向付き: 上流 Samlier-IdP が発行した NameID と同一の値を、対象が自身の Assertion で送出したことだけが証拠になる。"
-  "対象が Proxy を名乗るだけでは能力の観測ではない"),
+  "Condition for IIP-SSO05.a6/.a7. The reissuance rules in SAML2Core 8.3.7 apply only when 'a different system entity might later issue its own protocol message or assertion containing the identifier'. Evidence is directional: the target must emit in its own Assertion the same NameID value that the upstream Samlier IdP emitted. Merely claiming to be a proxy is not a capability observation."),
 ]
-L=["# tests/predicates.yaml — 条件述語の固定集合（G1 成果物）",
-   "# 生成: build_g1.py / 手編集しない",
-   f"generated_at: {NOW}","schema_version: 1",
-   "# kind: CLAIM_BASED      = 申告そのものが条件（observed 不要）",
-   "#       CAPABILITY_BASED = 実際の能力が条件（observed 必須。declaration-only FALSE は UNKNOWN）",
-   "#       CLASSIFICATION_BASED = 製品分類が条件（declaration_only_exclusion のみ FALSE 可）",
+L=["# tests/predicates.yaml — canonical G1 applicability predicates",
+   "# Generated by tools/g1_author.py. Do not edit manually.",
+   f"generated_at: {NOW}","schema_version: 2",
+   "# CLAIM_BASED: the declaration itself determines applicability; observed evidence is unnecessary.",
+   "# CAPABILITY_BASED: actual capability determines applicability; declaration-only false remains UNKNOWN.",
+   "# CLASSIFICATION_BASED: only declaration_only_exclusion may make the classification false.",
    "predicates:"]
 for _p in PRED:
     name,kind,desc,decl,obs,note = _p[:6]
     excl = _p[6] if len(_p)>6 else None
     assert (kind=="CLASSIFICATION_BASED")==(excl is not None), \
-        f"{name}: CLASSIFICATION_BASED は declaration_only_exclusion.statement_en が必須、それ以外は持ってはならない"
-    L+=[f"  {name}:",f"    kind: {kind}",f"    description_ja: {y(desc)}"]
+        f"{name}: CLASSIFICATION_BASED requires declaration_only_exclusion.statement_en; other kinds must not have it"
+    L+=[f"  {name}:",f"    kind: {kind}",f"    description_en: {y(desc)}"]
     L.append("    declared:"+(" []" if not decl else ""))
     for d in decl: L.append(f"      - {y(d)}")
     L.append("    observed:"+(" []" if not obs else ""))
@@ -416,7 +368,7 @@ for _p in PRED:
     if kind=="CLASSIFICATION_BASED":
         L+=["    declaration_only_exclusion:","      allowed: true","      requires_reason: true",
             f"      statement_en: {yq(excl)}"]
-    L.append(f"    rationale_ja: {y(note)}")
+    L.append(f"    rationale_en: {y(note)}")
 L.append("")
 open(os.path.join(TESTS,'predicates.yaml'),'w',encoding='utf-8').write('\n'.join(L))
 print("wrote specs.yaml / predicates.yaml")
@@ -439,28 +391,29 @@ for rid in RIDS:
 
 MUSTC={'MUST','MUST_NOT','REQUIRED'}
 CORE_SECTIONS={'2.1','2.2','2.3','2.4','2.5'}
-# linked_obligations で使える種別。増やすときは docs/03 §リンクの意味 と
-# g1_validate.py の SR-22g を同時に更新すること（意味の定義がない種別を成果物に入れない）。
+# Allowed linked-obligation kinds. Any extension must update the semantic
+# definition in docs/03 and SR-22g in g1_validate.py at the same time.
 LINK_KINDS = {'inherit_variants'}
+LINK_VARIANT_APPLICABILITY = {'owner_condition', 'linked_condition'}
 
 def level_assignment(rid,o):
-    """Core = MUST_CLASS かつ SLO/ECP/Discovery 以外。Samlier 独自分類。"""
+    """Samlier-specific Core: MUST_CLASS excluding SLO, ECP, and Discovery."""
     sec=SECTION_OF[rid][0]
     slo_ecp = sec in ('3.2','4.2','4.3') or rid in ('IIP-SP04',)
     core = (o['level'] in MUSTC) and not slo_ecp
     return {r:('core' if core else 'full') for r in o['roles']}
 
-L=["# tests/coverage.yaml — 要件カタログ（G1 成果物 / 判定レベルの唯一の出典）",
-   "# 生成: build_g1.py（原文からオフセットと digest を解決）/ 手編集しない",
+L=["# tests/coverage.yaml — canonical G1 requirements catalog and sole source of verdict levels",
+   "# Generated by tools/g1_author.py after resolving source offsets and digests. Do not edit manually.",
    f"generated_at: {NOW}",
-   "schema_version: 1",
+   "schema_version: 2",
    "g1_state: PENDING_REVIEW",
-   "# 作成者は reviewer / approved_at を埋めない。別のレビュアーが原文と直接照合して承認する。",
+   "# Authors leave reviewer and approved_at empty. An independent reviewer must compare the catalog directly with the source.",
    "spec: kantara-fedinterop-impl",
    "spec_version: \"1.1\"",
    "source_digest: "+yq(SRC_SHA),
-   "catalog_digest: null   # specs.yaml + predicates.yaml 全体（後処理で埋める）",
-   "# 承認記録はこのファイルに置かない。tests/approvals/g1.yaml（対象 commit の外）に置く。",
+   "catalog_digest: null   # Filled after generation from the complete specs.yaml and predicates.yaml documents.",
+   "# Approval evidence is external to the target commit in tests/approvals/g1.yaml.",
    "clause_offset_convention:",
    "  base: normalized requirement section",
    "  start: 0-based",
@@ -503,31 +456,28 @@ for rid in RIDS:
         else:
             L.append("        condition: null")
         if cond and cond['kind']=='CLASSIFICATION_BASED':
-            # 適用除外はカタログ内で「原文のどの文が除外を作っているか」を verbatim で持たせる。
-            # 検証側（SR-14）はこの文字列が IIP 節または参照節に実在することを確かめる。
+            # Store the exact source sentence that creates the exclusion.
+            # SR-14 verifies it against either the IIP clause or reference text.
             if not o.get('exclusion_clause_en'):
-                raise SystemExit(f"{o['key']}: CLASSIFICATION_BASED の条件には exclusion_clause_en が必須")
+                raise SystemExit(f"{o['key']}: a CLASSIFICATION_BASED condition requires exclusion_clause_en")
             L.append(f"        exclusion_clause_en: {y(o['exclusion_clause_en'])}")
         elif o.get('exclusion_clause_en'):
-            raise SystemExit(f"{o['key']}: exclusion_clause_en は CLASSIFICATION_BASED の条件を持つ義務にだけ書ける")
+            raise SystemExit(f"{o['key']}: exclusion_clause_en is valid only with a CLASSIFICATION_BASED condition")
         if o['testability']=='CONFIG':
-            assert o.get('config_semantics'), f"{o['key']}: CONFIG は configuration_failure_semantics の明示が必須"
+            assert o.get('config_semantics'), f"{o['key']}: CONFIG requires explicit configuration_failure_semantics"
         if o.get('config_semantics'):
             L.append(f"        configuration_failure_semantics: {o['config_semantics']}")
-        L+= [f"        summary_en: {y(o['summary_en'])}",
-             f"        summary_ja: {y(o['summary_ja'])}"]
+        L.append(f"        summary_en: {y(o['summary_en'])}")
         if o.get('spec_item'):
             if 'reference_derivation' not in o:
-                raise SystemExit(f"{o['key']}: references_spec を持つ義務は authoring 入力で "
-                                 f"reference_derivation を明示すること（生成側で推測しない）")
+                raise SystemExit(f"{o['key']}: obligations with references_spec must explicitly set reference_derivation")
             rd=o['reference_derivation']
             if rd is True and not o.get('reference_evidence'):
-                raise SystemExit(f"{o['key']}: reference_derivation=True なのに reference_evidence がない")
+                raise SystemExit(f"{o['key']}: reference_derivation=True requires reference_evidence")
             if rd is False and o.get('reference_evidence'):
-                raise SystemExit(f"{o['key']}: reference_derivation=False なのに reference_evidence がある")
+                raise SystemExit(f"{o['key']}: reference_derivation=False must not include reference_evidence")
             if rd is False and not o.get('reference_derivation_note'):
-                raise SystemExit(f"{o['key']}: reference_derivation=False には理由（reference_derivation_note）が必須。"
-                                 f"参照仕様を挙げながら根拠を持たない理由を書くこと")
+                raise SystemExit(f"{o['key']}: reference_derivation=False requires reference_derivation_note explaining why the cited specification is not verdict evidence")
             L.append(f"        references_spec: {y(o['spec_item'])}")
             L.append(f"        reference_derivation: {'true' if rd else 'false'}")
             if rd is False:
@@ -538,10 +488,9 @@ for rid in RIDS:
                 L+= [f"          - spec: {y(ev['spec'])}",
                      f"            locator: {yq(ev['locator'])}",
                      f"            section_digest: {yq(ev['section_digest'])}",
-                     f"            basis_ja: {y(ev['basis_ja'])}"]
+                     f"            basis_en: {y(ev['basis_en'])}"]
         if o.get('applicability_note_en'):
             L.append(f"        applicability_note_en: {y(o['applicability_note_en'])}")
-            L.append(f"        applicability_note_ja: {y(o['applicability_note_ja'])}")
         la=level_assignment(rid,o)
         L.append("        level_assignment: { "+", ".join(f"{k}: {v}" for k,v in la.items())+" }")
         L.append("        source_clauses:")
@@ -549,38 +498,41 @@ for rid in RIDS:
             L.append(f"          - {{ start: {cc['start']}, end: {cc['end']}, digest: {yq(cc['digest'])}, occurrences: {cc['occurrences']} }}")
         if o['testability']=='NOT_OBSERVABLE':
             L.append(f"        not_observable_reason_en: {y(o['not_observable_reason_en'])}")
-            L.append(f"        not_observable_reason_ja: {y(o['not_observable_reason_ja'])}")
             L.append("        required_variants: []")
         else:
             L.append("        required_variants:")
             for v in o.get('variants',[]):
-                # ★ 安定 ID: 説明文の内容から導出する。
-                #   配列インデックスだと並び替えで参照が壊れる。
-                #   内容が変われば ID も変わる（= variant が変わったということ）。
-                # 義務キーを混ぜて、別義務の同一説明文が衝突しないようにする
+                # Stable ID derived from the English description. Include the
+                # obligation key to prevent cross-obligation collisions.
                 vid='v-'+hashlib.sha256((o['key']+'\x00'+v).encode('utf-8')).hexdigest()[:10]
                 L.append(f"          - id: {vid}")
-                L.append(f"            description_ja: {y(v)}")
+                L.append(f"            description_en: {y(v)}")
         if o.get('linked_obligations'):
             L.append("        linked_obligations:")
             for lk in o['linked_obligations']:
                 if lk.get('kind') not in LINK_KINDS:
-                    raise SystemExit(f"{o['key']}: linked_obligations.kind は {sorted(LINK_KINDS)} のいずれか"
-                                     f"（受け取った値: {lk.get('kind')!r}）。"
-                                     f"新しい種別を足すには docs/03 §リンクの意味 と g1_validate.py SR-22g を先に更新すること")
-                if not lk.get('note_ja'):
-                    raise SystemExit(f"{o['key']}: linked_obligations には note_ja（何を取り込むかの説明）が必須")
+                    raise SystemExit(f"{o['key']}: linked_obligations.kind must be one of {sorted(LINK_KINDS)}; got {lk.get('kind')!r}. Define new kinds in docs/03 and g1_validate.py SR-22g first")
+                if not lk.get('note_en'):
+                    raise SystemExit(f"{o['key']}: linked_obligations requires note_en explaining the inherited content")
+                applicability = lk.get('variant_applicability', 'owner_condition')
+                if applicability not in LINK_VARIANT_APPLICABILITY:
+                    raise SystemExit(
+                        f"{o['key']}: linked_obligations.variant_applicability must be one of "
+                        f"{sorted(LINK_VARIANT_APPLICABILITY)}; got {applicability!r}"
+                    )
                 L+= [f"          - obligation: {lk['obligation']}",
-                     f"            kind: {lk['kind']}",
-                     f"            note_ja: {y(lk['note_ja'])}"]
+                     f"            kind: {lk['kind']}"]
+                if applicability != 'owner_condition':
+                    L.append(f"            variant_applicability: {applicability}")
+                L.append(f"            note_en: {y(lk['note_en'])}")
         if o.get('controls'):
             L.append("        controls:")
             for v in o['controls']: L.append(f"          - {y(v)}")
-        if o.get('notes_ja'): L.append(f"        notes_ja: {y(o['notes_ja'])}")
-        if o.get('open_question'): L.append(f"        open_question_ja: {y(o['open_question'])}")
+        if o.get('notes_en'): L.append(f"        notes_en: {y(o['notes_en'])}")
+        if o.get('open_question'): L.append(f"        open_question_en: {y(o['open_question'])}")
         L+= ["        authored_by: samlier-g1-builder",
              "        review:",
-             "          # state は起票側の記録。承認の正本は tests/approvals/g1.yaml",
+             "          # Authoring state only. Canonical approval evidence is in tests/approvals/g1.yaml.",
              "          state: PENDING_REVIEW",
              "          reviewer: null",
              "          approved_at: null",
@@ -592,12 +544,12 @@ for rid in RIDS:
 L.append("")
 open(os.path.join(TESTS,'coverage.yaml'),'w',encoding='utf-8').write('\n'.join(L))
 print("wrote coverage.yaml:",nob,"obligations /",len(RIDS),"requirements")
-# ---- 後処理: 書き出した coverage.yaml を読み直し、obligation_digest を実測して埋める ----
-# 検証側と同じ「YAML から見える値」で計算することで、author / validator の一致を保証する。
+# Re-read the emitted YAML and compute obligation digests from the same values
+# visible to the validator.
 try:
     import yaml as _yaml
 except ImportError:
-    raise SystemExit("PyYAML が必要です:  .venv/bin/pip install -r tools/requirements.txt")
+    raise SystemExit("PyYAML is required: .venv/bin/pip install -r tools/requirements.lock")
 _path=os.path.join(TESTS,'coverage.yaml')
 _doc=_yaml.safe_load(open(_path,encoding='utf-8'))
 _preds=_yaml.safe_load(open(os.path.join(TESTS,'predicates.yaml'),encoding='utf-8'))['predicates']
@@ -609,7 +561,7 @@ for _n,_l in enumerate(_lines):
         _lines[_n]='          obligation_digest: "%s"'%_digests[_i]; _i+=1
 assert _i==len(_digests), (_i,len(_digests))
 open(_path,'w',encoding='utf-8').write('\n'.join(_lines))
-# カタログ全体の digest（specs.yaml + predicates.yaml）を coverage.yaml に刻む
+# Record the digest of the complete specs and predicates catalogs.
 _specs=_yaml.safe_load(open(os.path.join(TESTS,'specs.yaml'),encoding='utf-8'))
 _cat=X.catalog_digest(_specs,{'predicates':_preds})
 _txt=open(_path,encoding='utf-8').read().replace('catalog_digest: null','catalog_digest: "%s"'%_cat,1)
@@ -617,4 +569,4 @@ open(_path,'w',encoding='utf-8').write(_txt)
 print("filled obligation_digest:",_i,"/ catalog_digest:",_cat[:22])
 
 
-print("done. 次に:  python3 tools/g1_docgen.py  および  python3 tools/g1_validate.py")
+print("done; next run tools/g1_docgen.py and tools/g1_validate.py")

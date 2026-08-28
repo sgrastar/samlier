@@ -1,4 +1,5 @@
-# G1 ツールの固定依存（tools/g1_docgen.py, tools/g1_validate.py, tools/g1_author.py）
+# Pinned dependencies for the G1 tools (g1_docgen.py, g1_validate.py, g1_author.py)
 #   python3 -m venv .venv && .venv/bin/pip install -r tools/requirements.txt
 PyYAML==6.0.2
+jsonschema==4.26.0
 pdfminer.six==20240706

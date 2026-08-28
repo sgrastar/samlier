@@ -1,4 +1,4 @@
-# G1 の成果物は「ファイルのバイト列そのもの」を digest 対象にしている
-# （tests/approvals/g1.yaml の artifact_digests、SR-38 の作業ツリー照合）。
-# EOL 変換が入ると clone 先で digest が一致しなくなるため、変換を一切行わない。
+# G1 artifacts are digest-covered as the exact bytes of the files
+# (artifact_digests in tests/approvals/g1.yaml and the SR-38 working-tree check).
+# EOL conversion would make digests differ in the clone, so perform no conversion at all.
 * -text

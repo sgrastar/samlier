@@ -1,166 +1,165 @@
-# AGENTS.md — Samlier の実装エージェント向け規約
+# AGENTS.md — Rules for Samlier implementation agents
 
-Samlier は SAML 実装の適合性を判定するツールである。
-**誤った判定は他人の製品を不当に「不適合」と表示する**ため、
-この規約は「動くこと」より優先される。
+Samlier is a tool for determining the conformance of SAML implementations.
+**An incorrect determination can unfairly label someone else's product as “non-conforming,”**
+so these rules take precedence over merely “making it work.”
 
-設計の全体像は [`docs/README.md`](docs/README.md)。判断に迷ったら実装より先に設計文書を読む。
+See [`docs/README.md`](docs/README.md) for the overall design. When in doubt, read the design documents before implementing.
 
 ---
 
-## 絶対に守ること
+## Absolute requirements
 
-### 1. 承認済みの G1 成果物を編集しない
+### 1. Do not edit approved G1 artifacts
 
 ```
 tests/coverage.yaml   tests/specs.yaml   tests/predicates.yaml   tests/approvals/*
 ```
 
-これらは**署名済みの承認記録に digest で拘束されている**。
-1 バイトでも変えると承認が失効する（`tools/g1_validate.py` の SR-25c / SR-36 / SR-38）。
+These are **bound by digest to signed approval records**.
+Changing even one byte invalidates the approval (`SR-25c` / `SR-36` / `SR-38` in `tools/g1_validate.py`).
 
-判定レベル（MUST / SHOULD / MAY）を変えたくなったら、それは**仕様解釈の変更**であり、
-コードではなく G1 のやり直し（原文照合 → 再承認）が必要。**勝手に直さない。**
+If you want to change a judgment level (MUST / SHOULD / MAY), that is a **change in specification interpretation**;
+it requires rerunning G1 (source-text comparison → reapproval), not changing code. **Do not change it unilaterally.**
 
-### 2. 生成物を手編集しない
+### 2. Do not manually edit generated artifacts
 
-| 生成物 | 生成元 | コマンド |
+| Artifact | Generator | Command |
 |---|---|---|
 | `docs/04-requirement-coverage.md` | `tests/coverage.yaml` | `tools/g1_docgen.py` |
-| `build/spec-reconcile-report.json` | validator の実行結果（**Git 管理外**。正本は CI artifact） | `tools/g1_validate.py` |
-| ドキュメント中の `result.json` 例 | `Evaluator` の golden fixture | （M1 で実装） |
-| ドキュメント中の母数（義務数・要件数など） | `tests/coverage.yaml` | `tools/g1_docgen.py` |
+| `build/spec-reconcile-report.json` | validator execution result (**not tracked by Git**; the canonical copy is the CI artifact) | `tools/g1_validate.py` |
+| `result.json` examples in documents | `Evaluator` golden fixture | (implemented in M1) |
+| Counts in documents (number of obligations, requirements, etc.) | `tests/coverage.yaml` | `tools/g1_docgen.py` |
 
-`tools/g1_docgen.py --check` が CI で差分を検出する。
+`tools/g1_docgen.py --check` detects differences in CI.
 
-**母数は本文に直書きしない。** `<!--g1:obligations-->542<!--/g1-->` のようにマーカーで書き、
-`g1_docgen.py` に埋めさせる。説明のための架空の数を書くときは行に `<!--g1-literal-->` を置く。
-直書きは `g1_validate.py` の **SR-41** が検出して FAIL にする
-（義務を足したときに複数ファイルの数値が取り残される事故を防ぐため）。
+**Do not hard-code counts in the body text.** Write them with markers such as `<!--g1:obligations-->544<!--/g1-->`,
+and have `g1_docgen.py` insert them. When writing a fictional number for explanation, put `<!--g1-literal-->` on the line.
+Hard-coded values are detected by **SR-41** in `g1_validate.py` and cause FAIL
+(to prevent stale numbers across multiple files when obligations are added).
 
-### 3. ケースは Verdict を返さない
+### 3. Cases do not return Verdict
 
-ケース実装が返すのは **`outcome`**（`satisfied` / `satisfied_with_note` / `violated` /
-`indeterminate` / `inconsistent` / `not_verified`）だけ。
+Case implementations return only **`outcome`** (`satisfied` / `satisfied_with_note` / `violated` /
+`indeterminate` / `inconsistent` / `not_verified`).
 
-`PASS` / `FAIL` / `WARNING` への変換は **`Evaluator` が `coverage.yaml` の
-`level` を見て一元的に行う**（[docs/05 §2.3](docs/05-test-definition-format.md)）。
+Conversion to `PASS` / `FAIL` / `WARNING` is performed centrally by **`Evaluator`**, which consults the `level` in `coverage.yaml`
+([docs/05 §2.3](docs/05-test-definition-format.md)).
 
-> ここを破ると **SHOULD 義務を FAIL にする**。実際に一度やらかしている
-> （[docs/11 の R10](docs/11-review-log.md)）。ケース側に `Verdict` を返す型を作らない。
+> Violating this causes a **SHOULD obligation to become FAIL**. This has actually happened once
+> ([R10 in docs/11](docs/11-review-log.md)). Do not create a case-side type that returns `Verdict`.
 
-### 4. 送信は outbox のみ
+### 4. Sending is outbox-only
 
-ケースは対象へ直接 HTTP を送らない。`OutboundAction` を返し、Runner が outbox で実行する
-（[docs/05 §4.3](docs/05-test-definition-format.md)）。
+Cases do not send HTTP directly to the target. They return `OutboundAction`, which Runner executes through the outbox
+([docs/05 §4.3](docs/05-test-definition-format.md)).
 
-- `actionId` は `CaseState` から**決定論的に導出**する。
-  `UUID.randomUUID()` / `System.nanoTime()` は使わない
-- 配信不明（`UNKNOWN_DELIVERY`）を**対象の FAIL にしない**。
-  再送で replay エラーが返っても、それは Suite 側の不確実性である
-- 再送可否はケースが宣言しない。`OutboundKind` の allowlist で Runner が決める
+- `actionId` is **deterministically derived** from `CaseState`.
+  Do not use `UUID.randomUUID()` / `System.nanoTime()`.
+- Do **not treat unknown delivery (`UNKNOWN_DELIVERY`) as FAIL for the target**.
+  Even if replay on retry returns an error, that is uncertainty on the Suite side.
+- Cases do not declare whether retry is allowed. Runner decides using the `OutboundKind` allowlist.
 
-### 5. 「適用されない」と「検証できなかった」を混同しない
+### 5. Do not confuse “not applicable” with “could not be verified”
 
-| | 使ってよい場合 |
+| | Permitted use |
 |---|---|
-| `NOT_APPLICABLE` | **役割違い**、または**条件付き義務の条件が偽**。この 2 つだけ |
-| `NOT_VERIFIED(reason)` | それ以外の「実行できなかった」全て。母数に残り、MUST なら Run は未完了 |
+| `NOT_APPLICABLE` | **Role mismatch**, or **the condition of a conditional obligation is false**. These two cases only. |
+| `NOT_VERIFIED(reason)` | Every other case of “could not execute.” It remains in the denominator, and if MUST, the Run is incomplete. |
 
-実行環境の都合で試験できない MUST を `NOT_APPLICABLE` にすると、
-**構成を選ぶだけで MUST の検証を回避できてしまう**。
+Marking a MUST as `NOT_APPLICABLE` because the environment prevents testing it
+**would allow MUST verification to be bypassed simply by choosing a configuration**.
 
-### 6. 原文にない条件・閾値を足さない
+### 6. Do not add conditions or thresholds absent from the source
 
-仕様に数値がない要件（クロックスキュー等）に Samlier 独自の絶対閾値を入れない。
-実務的に伝えたい観測は **advisory**（`affects_verdict: false`）にする
-（[docs/04 の Advisory 節](docs/04-requirement-coverage.md)）。
+Do not impose a Samlier-specific absolute threshold on requirements with no numeric value in the specification (such as clock skew).
+Make operationally useful observations **advisory** (`affects_verdict: false`)
+([the Advisory section of docs/04](docs/04-requirement-coverage.md)).
 
-### 7. 対照のないケースを作らない
+### 7. Do not create cases without controls
 
-「この期待値を満たすが義務は満たしていない実装」が作れるなら、そのケースに検出力はない。
-positive / negative control を必ず対にする（[docs/01 の G2](docs/01-scope-and-roadmap.md)）。
+If an implementation can satisfy the expected value while failing the obligation, that case has no detection power.
+Always pair positive / negative controls ([G2 in docs/01](docs/01-scope-and-roadmap.md)).
 
-**`linked_obligations` の展開分も覆う。** `kind: inherit_variants` のリンクは
-「リンク先の `required_variants` も覆え」という意味で、**推移的**に展開する。
-`role` / `level` / `condition` / `testability` は**継承しない**（義務自身の値を使う）。
-覆っても**リンク先義務の網羅にはならない**（二重計上しない）。
-規則の全文は [docs/03 §リンクの意味](docs/03-test-model.md)。
+**Cover expanded `linked_obligations` as well.** A link with `kind: inherit_variants` means
+“also cover the linked obligation's `required_variants`,” and must be expanded **transitively**.
+Always use the owning obligation's `role` / `level` / `testability`. Variant applicability normally uses
+the owner's condition (`owner_condition`), but when the link explicitly declares
+`variant_applicability: linked_condition`, apply the linked obligation's condition **only to the imported variants**.
+Do not silently discard or infer this setting.
+Coverage does **not** count as coverage of the linked obligation itself (do not double-count).
+See [the section on link semantics in docs/03](docs/03-test-model.md) for the complete rule.
 
-### 8. 生のリクエストを壊さない
+### 8. Do not corrupt the raw request
 
-HTTP-Redirect バインディングの署名検証は **URL デコード前のクエリ文字列のバイト列**が対象。
-パースして再構成すると検証が壊れ、**正しい実装を「署名不正」と誤判定する**
-（[docs/02 §3.5](docs/02-architecture.md)）。
+Signature verification for the HTTP-Redirect binding covers the **bytes of the query string before URL decoding**.
+Parsing and reconstructing it breaks verification and can falsely report a **correct implementation as “invalid signature.”**
+([docs/02 §3.5](docs/02-architecture.md)).
 
-### 9. 資格情報を永続化しない
+### 9. Do not persist credentials
 
-ECP の HTTP Basic 認証情報は Run スコープのメモリのみ。
-`CaseState` にも outbox の payload にも Transcript にも書かない。
-`Authorization` / `Cookie` は **Recorder への投入前**に不可逆に除去する
-（[docs/02 §5.2](docs/02-architecture.md)）。
+ECP HTTP Basic credentials exist only in memory for the Run scope.
+Do not write them to `CaseState`, outbox payloads, or Transcripts.
+Irreversibly remove `Authorization` / `Cookie` **before submitting data to Recorder**
+([docs/02 §5.2](docs/02-architecture.md)).
 
 ---
 
-## 変更ごとに実行する検証
+## Checks to run for every change
 
 ```bash
-# 依存（初回のみ）
+# Dependencies (first run only)
 python3 -m venv .venv
 .venv/bin/pip install --require-hashes -r tools/requirements.lock
 
-# 常に
-.venv/bin/python tools/g1_docgen.py --check        # 生成物の一致
-.venv/bin/python tools/g1_validate.py --structural-only   # 構造規則（ネットワーク不要）
+# Always
+.venv/bin/python tools/g1_docgen.py --check        # Confirm generated artifacts match
+.venv/bin/python tools/g1_validate.py --structural-only   # Structural rules (no network required)
 
-# tests/ や tools/g1_* を触ったとき
-.venv/bin/python tools/g1_validate.py              # 原文と全参照仕様を照合（ネットワーク要）
+# When touching tests/ or tools/g1_*
+.venv/bin/python tools/g1_validate.py              # Compare against source text and all referenced specifications (network required)
 
-# 承認後
-G1_TOOLS_COMMIT=<40桁SHA> PY=.venv/bin/python tools/g1_ci_verify.sh
+# After approval
+G1_TOOLS_COMMIT=<40-digit SHA> PY=.venv/bin/python tools/g1_ci_verify.sh
 ```
 
-`--structural-only` がブロッキング違反を返したら、**その変更は入れない**。
+If `--structural-only` reports a blocking violation, **do not include that change**.
 
 ---
 
-## 作業の順序（ゲート）
+## Work order (gates)
 
 ```
-G1a ✅ カタログ作成
-G1b ⏳ 義務の意味レビュー（作成者以外が原文と照合し署名承認）
-M0     骨格実装        ← G1b 後に着手してよい。テスト 0 件
-G2  ⏳ テスト設計       ← ケース定義・対照・mutant。作成者以外がレビュー
-M1〜   判定ケース実装   ← ★ G2 完了後
+G1a ✅ Catalog creation
+G1b ⏳ Review of obligation meaning (source-text comparison and signed approval by someone other than the author)
+M0     Skeleton implementation        ← May begin after G1b. 0 tests.
+G2  ⏳ Test design       ← Case definitions, controls, mutants. Reviewed by someone other than the author.
+M1〜   Verdict case implementation   ← ★ After G2 is complete.
 ```
 
-**M1 以降を G2 の前に始めない。**
-過去に原文照合 49 件中 41 件の誤りが出ており、
-「義務は正しいがケースに検出力がない」という失敗が最も起きやすい段階である。
+**Do not begin M1 or later before G2.**
+In the past, 41 of 49 source-text comparisons contained errors;
+the most likely failure is “the obligations are correct, but the cases have no detection power.”
 
----
+## Implementation stack
 
-## 実装スタック
-
-| 層 | 選択 |
+| Layer | Choice |
 |---|---|
-| 言語 | Java 21 |
-| Web | Javalin + Jetty（生リクエストへのアクセスが必要なため） |
-| SAML | OpenSAML 5.x（正常系）+ 生 DOM/StAX（異常系。Phase 4 の足場） |
+| Language | Java 21 |
+| Web | Javalin + Jetty (raw request access is required) |
+| SAML | OpenSAML 5.x (normal paths) + raw DOM/StAX (abnormal paths; foundation for Phase 4) |
 | XML Security | Apache Santuario |
-| DB | SQLite（Transcript はファイル、DB には参照のみ） |
-| フロント | React + Vite。`report.html` は同じアプリの静的ビルド |
-| ビルド | Gradle (Kotlin DSL) |
+| DB | SQLite (Transcript is a file; DB contains references only) |
+| Frontend | React + Vite. `report.html` is a static build of the same application. |
+| Build | Gradle (Kotlin DSL) |
 
-`docs/02-architecture.md` のコード構成に従う。
-特に **`peer/`（テスト用・検証が緩い）と `auth/`（管理用・厳格）を混ぜない**
-（[docs/09 D-09](docs/09-open-decisions.md)）。
+Follow the code structure in [`docs/02-architecture.md`](docs/02-architecture.md).
+In particular, do not mix **`peer/` (for tests; relaxed validation)** with **`auth/` (for administration; strict validation)**
+([docs/09 D-09](docs/09-open-decisions.md)).
 
----
+## Reading order when in doubt
 
-## 迷ったときに読む順
-
-1. [`docs/03-test-model.md`](docs/03-test-model.md) — 判定語彙・集約規則・共通判定手順
-2. [`docs/05-test-definition-format.md`](docs/05-test-definition-format.md) — テスト定義と実装インタフェース
-3. [`docs/02-architecture.md`](docs/02-architecture.md) — Test Peer 設計・ECP・Transcript
-4. [`docs/11-review-log.md`](docs/11-review-log.md) — **過去に何を間違えたか**。同じ轍を踏まないため
+1. [`docs/03-test-model.md`](docs/03-test-model.md) — Verdict vocabulary, aggregation rules, and common evaluation procedure
+2. [`docs/05-test-definition-format.md`](docs/05-test-definition-format.md) — Test definitions and implementation interfaces
+3. [`docs/02-architecture.md`](docs/02-architecture.md) — Test Peer design, ECP, and Transcript
+4. [`docs/11-review-log.md`](docs/11-review-log.md) — **What has been done wrong before**, to avoid repeating the same mistakes

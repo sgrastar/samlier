@@ -1,26 +1,26 @@
 #!/usr/bin/env python3
-"""g1_validate.py — G1 成果物の独立検証（:specReconcile）
+"""g1_validate.py — Independent validation of G1 artifacts (:specReconcile)
 
-★ 生成処理から独立している。コミット済みの成果物を「読み込んで」照合するだけで、
-   一切の値を書き戻さない。原文は取得（またはキャッシュ）したものを使い、
-   ダイジェストは specs.yaml に記録済みの値と比較する。
+★ Independent of generation: it only reads and reconciles committed artifacts and
+   never writes values back. It uses the fetched (or cached) source text and
+   compares its digest with the value recorded in specs.yaml.
 
-  使い方:  python3 tools/g1_validate.py [--offline | --structural-only]
+  Usage:  python3 tools/g1_validate.py [--offline | --structural-only]
 
-    --offline          原文はキャッシュのみ（取得しない）
-    --structural-only  原文を一切参照せず、構造規則だけを実行する。
-                       ★ CI の g1Check 用。除外リストを CI 側に書かずに済む。
-  依存  :  PyYAML
-  出力  :  build/spec-reconcile-report.json  終了コード 0=PASS / 1=FAIL
+    --offline          Use only cached source text (do not fetch it).
+    --structural-only  Do not inspect source text; run structural checks only.
+                       ★ For CI g1Check; no CI-side exclusion list is needed.
+  Dependency: PyYAML
+  Output: build/spec-reconcile-report.json  exit code 0=PASS / 1=FAIL
 """
 import os,re,sys,json,html,hashlib,unicodedata,datetime,uuid,urllib.request
-# ★ tools/ を sys.path に入れない。未追跡の tools/yaml.py 等で
-#   標準/サードパーティモジュールを shadow され、署名検証より先に任意コードが走る。
+# ★ Do not add tools/ to sys.path. An untracked tools/yaml.py or similar could
+#   shadow a standard/third-party module and run arbitrary code before signature verification.
 try:
     import yaml
 except ImportError:
-    sys.exit("PyYAML が必要です:  .venv/bin/pip install -r tools/requirements.txt")
-# g1_extract は「この validator と同じディレクトリのファイル」を明示パスで読み込む
+    sys.exit("PyYAML is required: .venv/bin/pip install -r tools/requirements.txt")
+# Load g1_extract by explicit path from the same directory as this validator.
 import importlib.util as _ilu
 _here=os.path.dirname(os.path.abspath(__file__))
 _spec=_ilu.spec_from_file_location('g1_extract_local',os.path.join(_here,'g1_extract.py'))
@@ -43,29 +43,29 @@ def load(name):
     with open(os.path.join(TESTS,name),encoding='utf-8') as f: return yaml.safe_load(f)
 specs=load('specs.yaml'); cov=load('coverage.yaml'); preds=load('predicates.yaml')
 
-# ---- 原文の取得（validator 自身は digest を書かない） ----
+# ---- Fetch source text (the validator itself never writes digests) ----
 primary=specs['specs'][cov['spec']]
 raw=None
 if not STRUCT_ONLY:
     try:
         raw,_=X.fetch(ROOT,cov['spec'],primary['url'],mode=MODE)
     except Exception as e:
-        raw=None; check("SR-00","primary spec を取得できる",False,f"{type(e).__name__}: {e}")
+        raw=None; check("SR-00","primary spec can be fetched",False,f"{type(e).__name__}: {e}")
 if STRUCT_ONLY:
     pass
 elif raw is None:
-    check("SR-01","原文を取得できる（--offline かつキャッシュなし）",False,"no source"); 
+    check("SR-01","source text can be fetched (--offline with no cache)",False,"no source");
 else:
     got='sha256:'+hashlib.sha256(raw).hexdigest()
-    check("SR-01","取得した原文のダイジェストが specs.yaml の記録値と一致する",
+    check("SR-01","fetched source digest matches the value recorded in specs.yaml",
           got==primary.get('source_digest'), f"fetched={got} recorded={primary.get('source_digest')}")
-    check("SR-01b","coverage.yaml の source_digest が specs.yaml と一致する",
+    check("SR-01b","coverage.yaml source_digest matches specs.yaml",
           cov.get('source_digest')==primary.get('source_digest'), cov.get('source_digest'))
 
 reqs=cov['requirements']
 obs=[(r['id'],o) for r in reqs for o in r['obligations']]
 
-# ---- 正規化（coverage.yaml が宣言する手順をそのまま再現する） ----
+# ---- Normalization (reproduce the procedure declared by coverage.yaml) ----
 SEC={}
 if raw is not None:
     t=raw.decode('utf-8')
@@ -95,34 +95,34 @@ if raw is not None:
             else: out.append(ch)
         txt=''.join(out)
         SEC[rid]=dict(text=txt,nn=sp,digest='sha256:'+hashlib.sha256(txt.encode()).hexdigest(),length=len(txt))
-    check("SR-02","要件ラベルが 69 個、重複なし",len(LAB)==69 and len({r for r,_ in LAB})==69,len(LAB))
+    check("SR-02","69 requirement labels exist with no duplicates",len(LAB)==69 and len({r for r,_ in LAB})==69,len(LAB))
     src_ids={r for r,_ in LAB}; cid=set(x['id'] for x in reqs)
-    check("SR-02b","coverage の要件 ID 集合が原文のラベル集合と完全一致する",src_ids==cid,
+    check("SR-02b","coverage requirement IDs exactly match the source label set",src_ids==cid,
           f"missing={sorted(src_ids-cid)[:5]} extra={sorted(cid-src_ids)[:5]}")
 
 
 cov_ids=[r['id'] for r in reqs]
-check("SR-03","coverage.yaml の要件数が 69",len(reqs)==69,len(reqs))
-check("SR-03b","coverage.yaml の要件 ID が一意",len(cov_ids)==len(set(cov_ids)),
+check("SR-03","coverage.yaml contains 69 requirements",len(reqs)==69,len(reqs))
+check("SR-03b","coverage.yaml requirement IDs are unique",len(cov_ids)==len(set(cov_ids)),
       [x for x in set(cov_ids) if cov_ids.count(x)>1])
 badpar=[o['key'] for r in reqs for o in r['obligations']
         if not o['key'].startswith(r['id']+'.')]
-check("SR-03c","obligation key が親要件 ID + '.' で始まる",not badpar,badpar[:6])
-# suffix は [a-z] を基本とし、a–z を使い切った要件では 2 文字（aa, ab, ...）を認める。
-# 数字の付加（h1, k2 …）は「同じ規範句から派生した細目」を表す。
+check("SR-03c","obligation keys start with the parent requirement ID plus '.'",not badpar,badpar[:6])
+# Suffixes normally use [a-z]; after exhausting a–z, two letters (aa, ab, ...) are allowed.
+# A numeric suffix (h1, k2, ...) denotes a detail derived from the same normative sentence.
 badsuf=[o['key'] for _,o in obs if not re.fullmatch(r'[a-z]{1,2}[0-9]?',o['key'].rsplit('.',1)[1])]
-check("SR-03d","obligation key の suffix が [a-z]{1,2}[0-9]? の形式",not badsuf,badsuf[:6])
-check("SR-04","全 69 要件に 1 件以上の obligation がある",all(r['obligations'] for r in reqs),
+check("SR-03d","obligation key suffixes match [a-z]{1,2}[0-9]?",not badsuf,badsuf[:6])
+check("SR-04","all 69 requirements have at least one obligation",all(r['obligations'] for r in reqs),
       [r['id'] for r in reqs if not r['obligations']])
 
 if SEC:
     bad=[r['id'] for r in reqs if r['source_section_digest']!=SEC.get(r['id'],{}).get('digest')]
-    check("SR-05","記録された節ダイジェストが原文から再計算した値と一致する",not bad,bad[:5])
+    check("SR-05","recorded section digests match values recomputed from the source",not bad,bad[:5])
     badlen=[r['id'] for r in reqs if r['source_section_length']!=SEC.get(r['id'],{}).get('length')]
-    check("SR-06","記録された節長が一致する",not badlen,badlen[:5])
+    check("SR-06","recorded section lengths match",not badlen,badlen[:5])
     badnn=[r['id'] for r in reqs
            if [(s['start'],s['end']) for s in (r['non_normative_spans'] or [])]!=SEC.get(r['id'],{}).get('nn')]
-    check("SR-07","記録された非規範スパンが一致する",not badnn,badnn[:5])
+    check("SR-07","recorded non-normative spans match",not badnn,badnn[:5])
     rng=[];dg=[];ovl=[];amb=[]
     for rid,o in obs:
         S=SEC.get(rid)
@@ -134,13 +134,13 @@ if SEC:
             if any(not(c['end']<=a or c['start']>=b) for a,b in S['nn']): ovl.append(o['key'])
             n=S['text'].count(sub)
             if n!=c.get('occurrences') : amb.append(f"{o['key']}:recorded={c.get('occurrences')} actual={n}")
-    check("SR-08","0 <= start < end <= 節長 / 空範囲なし",not rng,rng[:5])
-    check("SR-09","source_clauses の digest が原文の部分文字列と一致する",not dg,dg[:5])
-    check("SR-10","source_clauses が非規範スパンと重ならない",not ovl,ovl[:5])
-    check("SR-11","句の出現回数が記録値と一致する（複数一致の見落としを検出）",not amb,amb[:5])
+    check("SR-08","0 <= start < end <= section length; no empty ranges",not rng,rng[:5])
+    check("SR-09","source_clause digests match source substrings",not dg,dg[:5])
+    check("SR-10","source_clauses do not overlap non-normative spans",not ovl,ovl[:5])
+    check("SR-11","clause occurrence counts match recorded values (detect missed multiple matches)",not amb,amb[:5])
     multi=[f"{o['key']}({c['occurrences']})" for rid,o in obs for c in o['source_clauses'] if c.get('occurrences',1)>1]
-    check("SR-12","同一文字列が節内に複数現れる句がない（あれば曖昧）",not multi,multi[:8])
-    # 語の検査は句単位
+    check("SR-12","no clause string occurs multiple times within a section (ambiguous if so)",not multi,multi[:8])
+    # Check terms at clause granularity.
     bc=[];bx=[]
     for rid,o in obs:
         cond=o.get('condition') or {}
@@ -148,42 +148,43 @@ if SEC:
         if not S: continue
         clause=' '.join(S['text'][c['start']:c['end']] for c in o['source_clauses'])
         if cond.get('predicate_kind')=='CLAIM_BASED' and not re.search(r'claim',clause,re.I): bc.append(o['key'])
-    check("SR-13","CLAIM_BASED の条件が『claim』を含む句に紐づく",not bc,bc)
+    check("SR-13","CLAIM_BASED conditions attach to clauses containing 'claim'",not bc,bc)
 
-# ---- 構造検査（原文なしでも動く） ----
+# ---- Structural checks (run without source text) ----
 pk={n:d['kind'] for n,d in preds['predicates'].items()}
 unk=[o['key'] for _,o in obs if (o.get('condition') or {}).get('predicate') not in list(pk)+[None]]
-check("SR-15","condition の predicate が predicates.yaml に定義済み",not unk,unk)
+check("SR-15","condition predicate is defined in predicates.yaml",not unk,unk)
 mism=[o['key'] for _,o in obs if o.get('condition') and pk.get(o['condition']['predicate'])!=o['condition']['predicate_kind']]
-check("SR-16","condition の predicate_kind が predicates.yaml と一致",not mism,mism)
+check("SR-16","condition predicate_kind matches predicates.yaml",not mism,mism)
 noobs=[n for n,d in preds['predicates'].items() if d['kind']=='CAPABILITY_BASED' and not d.get('observed')]
-check("SR-17","CAPABILITY_BASED の述語が空でない observed を持つ",not noobs,noobs)
+check("SR-17","CAPABILITY_BASED predicates have a non-empty observed value",not noobs,noobs)
 noexcl=[n for n,d in preds['predicates'].items() if d['kind']=='CLASSIFICATION_BASED' and not d.get('declaration_only_exclusion')]
-check("SR-18","CLASSIFICATION_BASED の述語が declaration_only_exclusion を持つ",not noexcl,noexcl)
+check("SR-18","CLASSIFICATION_BASED predicates have declaration_only_exclusion",not noexcl,noexcl)
 nocfg=[o['key'] for _,o in obs if o['testability']=='CONFIG' and not o.get('configuration_failure_semantics')]
-check("SR-19","CONFIG の全 obligation が configuration_failure_semantics を明示している",not nocfg,nocfg)
+check("SR-19","every CONFIG obligation declares configuration_failure_semantics",not nocfg,nocfg)
 badcfg=[o['key'] for _,o in obs if o.get('configuration_failure_semantics') not in (None,'normative_capability','test_precondition')]
-check("SR-20","configuration_failure_semantics の値が既定の 2 値のいずれか",not badcfg,badcfg)
+check("SR-20","configuration_failure_semantics is one of the two defined values",not badcfg,badcfg)
 LV={'MUST','MUST_NOT','REQUIRED','SHOULD','SHOULD_NOT','RECOMMENDED','MAY','OPTIONAL'}
 badlv=[o['key'] for _,o in obs if o['level'] not in LV]
-check("SR-21","level が RFC2119 の既定値",not badlv,badlv)
+check("SR-21","level is an RFC 2119 defined value",not badlv,badlv)
 novar=[o['key'] for _,o in obs if o['testability']!='NOT_OBSERVABLE' and not o.get('required_variants')]
-check("SR-22","NOT_OBSERVABLE 以外の全 obligation に required_variants がある",not novar,novar)
-# ---- linked_obligations（参照による取り込み）----
-# 意味は docs/03-test-model.md §リンクの意味 で定義されている。
-# ここでは「G2 が展開規則を機械適用できる形になっているか」だけを検査する。
-LINK_KINDS={'inherit_variants'}   # 種別を増やすときは docs/03 と g1_author.py を同時に更新する
+check("SR-22","all non-NOT_OBSERVABLE obligations have required_variants",not novar,novar)
+# ---- linked_obligations (reference inclusion) ----
+# The meaning is defined in docs/03-test-model.md, under the link semantics section.
+# This only checks that G2 can mechanically apply the expansion rules.
+LINK_KINDS={'inherit_variants'}   # Update docs/03 and g1_author.py together when adding kinds.
+LINK_VARIANT_APPLICABILITY={'owner_condition','linked_condition'}
 _keys={o['key'] for _,o in obs}
 _obl={o['key']:o for _,o in obs}
 _badshape=[(o['key'],lk) for _,o in obs for lk in (o.get('linked_obligations') or [])
-           if not isinstance(lk,dict) or not lk.get('obligation') or not lk.get('kind') or not lk.get('note_ja')]
-check("SR-22g-shape","linked_obligations が {obligation, kind, note_ja} の形",not _badshape,_badshape[:5])
+           if not isinstance(lk,dict) or not lk.get('obligation') or not lk.get('kind') or not lk.get('note_en')]
+check("SR-22g-shape","linked_obligations have the shape {obligation, kind, optional variant_applicability, note_en}",not _badshape,_badshape[:5])
 def _links(o):
     return [lk for lk in (o.get('linked_obligations') or []) if isinstance(lk,dict) and lk.get('obligation')]
 _dang=[(o['key'],lk['obligation']) for _,o in obs for lk in _links(o) if lk['obligation'] not in _keys]
-check("SR-22d","linked_obligations の参照先が実在する",not _dang,_dang[:5])
+check("SR-22d","linked_obligations targets exist",not _dang,_dang[:5])
 _self=[o['key'] for _,o in obs if o['key'] in [lk['obligation'] for lk in _links(o)]]
-check("SR-22e","linked_obligations が自己参照していない",not _self,_self[:5])
+check("SR-22e","linked_obligations do not self-reference",not _self,_self[:5])
 _link={o['key']:[lk['obligation'] for lk in _links(o)] for _,o in obs}
 def _cyc():
     for k in _link:
@@ -195,19 +196,27 @@ def _cyc():
                 st.append((nx,path+[nx]))
     return None
 _c=_cyc()
-check("SR-22f","linked_obligations に循環がない",_c is None,_c or '')
+check("SR-22f","linked_obligations contain no cycles",_c is None,_c or '')
 _badkind=[(o['key'],lk['kind']) for _,o in obs for lk in _links(o) if lk['kind'] not in LINK_KINDS]
-check("SR-22g","linked_obligations の kind が定義済みの語彙",not _badkind,_badkind[:5])
-# 展開（推移閉包）が有限かつ非空であること。G2 の covers_variants はこの集合を母数にする。
+check("SR-22g","linked_obligation kinds use the defined vocabulary",not _badkind,_badkind[:5])
+_badscope=[(o['key'],lk.get('variant_applicability')) for _,o in obs for lk in _links(o)
+           if lk.get('variant_applicability','owner_condition') not in LINK_VARIANT_APPLICABILITY]
+check("SR-22j","linked_obligation variant_applicability uses the defined vocabulary",not _badscope,_badscope[:5])
+_missing_link_condition=[(o['key'],lk['obligation']) for _,o in obs for lk in _links(o)
+                         if lk.get('variant_applicability')=='linked_condition'
+                         and not (_obl.get(lk['obligation']) or {}).get('condition')]
+check("SR-22k","linked_condition scope points to an obligation with a condition",not _missing_link_condition,_missing_link_condition[:5])
+# The transitive expansion must be finite and non-empty. G2 covers_variants uses this set as its denominator.
 def _expand(key,depth=0):
-    """inherit_variants を推移的にたどって variant 参照集合を作る。SR-22f で循環がないことは保証済み。
+    """Build the transitive variant reference set for inherit_variants.
+    SR-22f guarantees that there are no cycles.
 
-    ★ 実在しないキー・未知の kind でも例外を投げない。ここで落ちると SR-22d / SR-22g の
-      指摘そのものがレポートに出ず、検査器が黙って死ぬ（実際にそうなっていた）。
+    ★ Do not raise for missing keys or unknown kinds. If this fails here, the
+      SR-22d / SR-22g findings disappear from the report and the validator dies silently.
     """
     o=_obl.get(key)
-    if o is None: return set()          # 実在しない参照は SR-22d が報告する
-    if depth>4: raise RuntimeError(f"{key}: リンクの深さが 4 を超えた")
+    if o is None: return set()          # SR-22d reports missing references.
+    if depth>4: raise RuntimeError(f"{key}: link depth exceeds 4")
     out={f"{key}#{v['id']}" for v in (o.get('required_variants') or [])}
     for lk in _links(o):
         if lk['kind']=='inherit_variants':
@@ -219,56 +228,56 @@ for _,o in obs:
     try:
         if not _expand(o['key']): _empty.append(o['key'])
     except RuntimeError as e: _deep.append(str(e))
-check("SR-22h","linked_obligations の展開が有限（深さ 4 以内）で非空",not _empty and not _deep,(_empty+_deep)[:5])
-# 取り込み元が NOT_OBSERVABLE（variant を持たない）だと展開しても増えない＝リンクが無意味
+check("SR-22h","linked_obligation expansion is finite (depth <= 4) and non-empty",not _empty and not _deep,(_empty+_deep)[:5])
+# A NOT_OBSERVABLE source (with no variants) adds nothing when expanded; the link is meaningless.
 _noop=[(o['key'],lk['obligation']) for _,o in obs for lk in _links(o)
        if lk['kind']=='inherit_variants' and _obl.get(lk['obligation'],{}).get('testability')=='NOT_OBSERVABLE']
-check("SR-22i","inherit_variants の参照先が NOT_OBSERVABLE でない",not _noop,_noop[:5])
+check("SR-22i","inherit_variants targets are not NOT_OBSERVABLE",not _noop,_noop[:5])
 
 badv=[o['key'] for _,o in obs
       for v in (o.get('required_variants') or [])
-      if not isinstance(v,dict) or not v.get('id') or not v.get('description_ja')]
-check("SR-22b","required_variants が {id, description_ja} の形で、安定 ID を持つ",not badv,badv[:5])
+      if not isinstance(v,dict) or not v.get('id') or not v.get('description_en')]
+check("SR-22b","required_variants have the shape {id, description_en} and stable IDs",not badv,badv[:5])
 _vids=[v['id'] for _,o in obs for v in (o.get('required_variants') or [])]
-check("SR-22c","variant の id が全体で一意",len(_vids)==len(set(_vids)),
-      f"{len(_vids)-len(set(_vids))} 件重複")
+check("SR-22c","variant IDs are unique across all variants",len(_vids)==len(set(_vids)),
+      f"{len(_vids)-len(set(_vids))} duplicates")
 nore=[o['key'] for _,o in obs if o['testability']=='NOT_OBSERVABLE' and not o.get('not_observable_reason_en')]
-check("SR-23","NOT_OBSERVABLE の obligation に理由文がある",not nore,nore)
+check("SR-23","NOT_OBSERVABLE obligations have a reason",not nore,nore)
 norv=[o['key'] for _,o in obs if not o.get('review') or 'state' not in o['review']]
-check("SR-24","全 obligation に review ブロックがある",not norv,norv)
+check("SR-24","all obligations have a review block",not norv,norv)
 badrv=[o['key'] for _,o in obs
        if not all(o.get('review',{}).get(k) for k in ('source_spec','spec_version','source_selector','source_section_digest'))]
-check("SR-25","review に source_spec / spec_version / source_selector / source_section_digest がある",not badrv,badrv[:5])
+check("SR-25","review contains source_spec / spec_version / source_selector / source_section_digest",not badrv,badrv[:5])
 cat_now=X.catalog_digest(specs,preds)
-check("SR-25a","coverage.yaml の catalog_digest が specs.yaml + predicates.yaml の現在値と一致する",
+check("SR-25a","coverage.yaml catalog_digest matches current specs.yaml + predicates.yaml values",
       cov.get('catalog_digest')==cat_now, f"recorded={cov.get('catalog_digest')} now={cat_now}")
 nod=[o['key'] for _,o in obs if not (o.get('review') or {}).get('obligation_digest')]
-check("SR-25b","全 obligation に review.obligation_digest がある",not nod,nod[:5])
+check("SR-25b","all obligations have review.obligation_digest",not nod,nod[:5])
 staled=[o['key'] for _,o in obs
         if (o.get('review') or {}).get('obligation_digest') and
            (o['review']['obligation_digest']!=X.obligation_digest(o,preds['predicates']))]
-check("SR-25c","review.obligation_digest が現在の義務内容と一致する（承認前でも改変を検出）",not staled,staled[:6])
+check("SR-25c","review.obligation_digest matches the current obligation content (detect changes before approval)",not staled,staled[:6])
 selfrev=[o['key'] for _,o in obs if o['review'].get('reviewer') and o['review']['reviewer']==o.get('authored_by')]
-check("SR-26","reviewer が作成者と異なる（未設定なら空で通過）",not selfrev,selfrev)
+check("SR-26","reviewer differs from the author (unset is allowed)",not selfrev,selfrev)
 uses=sorted({o['references_spec'].split('#')[0] for _,o in obs if o.get('references_spec')})
 missing=[u for u in uses if u not in specs['specs']]
-check("SR-27","references_spec が specs.yaml に登録済み",not missing,missing)
+check("SR-27","references_spec is registered in specs.yaml",not missing,missing)
 nourl=[k for k,v in specs['specs'].items() if v.get('role')!='referenced-unversioned' and not v.get('url')]
-check("SR-28","版のある全仕様に URL がある",not nourl,nourl)
+check("SR-28","all versioned specifications have a URL",not nourl,nourl)
 dupe=[o['key'] for _,o in obs]
-check("SR-29","obligation key が一意",len(dupe)==len(set(dupe)),len(dupe)-len(set(dupe)))
+check("SR-29","obligation keys are unique",len(dupe)==len(set(dupe)),len(dupe)-len(set(dupe)))
 
-# ---- 参照仕様の取得と照合 ----
+# ---- Fetch and reconcile referenced specifications ----
 used=[] if STRUCT_ONLY else sorted({o['references_spec'].split('#')[0] for _,o in obs if o.get('references_spec')} |
             {ev['spec'] for _,o in obs for ev in (o.get('reference_evidence') or [])})
 nodg=[] if STRUCT_ONLY else [k for k,v in specs['specs'].items()
       if v.get('role')!='referenced-unversioned' and not v.get('source_digest')]
 if not STRUCT_ONLY:
-    check("SR-32","カタログの全仕様（版なし文書を除く）に source_digest が記録されている",not nodg,nodg)
+    check("SR-32","all catalog specifications except unversioned documents have a recorded source_digest",not nodg,nodg)
 used_nodg=[] if STRUCT_ONLY else [k for k in used if not specs['specs'].get(k,{}).get('source_digest')
            and specs['specs'].get(k,{}).get('role')!='referenced-unversioned']
 if not STRUCT_ONLY:
-    check("SR-32b","義務が参照する全仕様に source_digest がある",not used_nodg,used_nodg)
+    check("SR-32b","all specifications referenced by obligations have a source_digest",not used_nodg,used_nodg)
 
 reftext={}; fetch_fail=[]; dg_bad=[]
 for k in ([] if STRUCT_ONLY else sorted(specs['specs'])):
@@ -283,7 +292,7 @@ for k in ([] if STRUCT_ONLY else sorted(specs['specs'])):
     else:
         try: reftext[k]=X.normalize(raw,sp['url'])
         except Exception as e: fetch_fail.append(f"{k}:{e}")
-if not STRUCT_ONLY: check("SR-33","カタログの全仕様を取得でき、記録された source_digest と一致する",
+if not STRUCT_ONLY: check("SR-33","all catalog specifications can be fetched and match their recorded source_digest",
       not dg_bad and not fetch_fail, f"digest_mismatch={dg_bad[:3]} unavailable={fetch_fail[:3]}")
 
 ev_bad=[]; ev_n=0
@@ -291,25 +300,26 @@ for rid,o in ([] if STRUCT_ONLY else obs):
     for ev in o.get('reference_evidence') or []:
         ev_n+=1
         t2=reftext.get(ev['spec'])
-        if t2 is None: ev_bad.append(f"{o['key']}: {ev['spec']} 未取得"); continue
+        if t2 is None: ev_bad.append(f"{o['key']}: {ev['spec']} not fetched"); continue
         try: sec=X.section(t2,ev['locator'])
-        except KeyError as e: ev_bad.append(f"{o['key']}: locator 解決不可 {e}"); continue
+        except KeyError as e: ev_bad.append(f"{o['key']}: locator cannot be resolved: {e}"); continue
         if X.sha(sec)!=ev['section_digest']:
-            ev_bad.append(f"{o['key']}: section digest 不一致")
-if not STRUCT_ONLY: check("SR-34","reference_evidence の locator が解決でき、節ダイジェストが一致する",not ev_bad,
+            ev_bad.append(f"{o['key']}: section digest mismatch")
+if not STRUCT_ONLY: check("SR-34","reference_evidence locators resolve and section digests match",not ev_bad,
       f"n={ev_n} bad={ev_bad[:4]}")
 
-# ---- SR-14: 適用除外文の実在検証 ----
-# CLASSIFICATION_BASED の条件は「原文が明示的に除外している」ことが前提。
-# その除外文を verbatim で持たせ、IIP の要件節または参照仕様の節に実在することを確かめる。
-# （前版は要件節に 'does not apply' が含まれるかだけを見ていたため、
-#   参照仕様側に除外文がある義務を弾き、逆に無関係な 'does not apply' を通していた）
+# ---- SR-14: verify the existence of exclusion clauses ----
+# CLASSIFICATION_BASED conditions require an explicit exclusion in the source text.
+# Keep that exclusion clause verbatim and verify it exists in an IIP requirement
+# section or a referenced specification section.
+# (The previous version only checked for 'does not apply' in the requirement section,
+# rejecting obligations whose exclusion was in a referenced specification and accepting unrelated text.)
 cls=[(rid,o) for rid,o in obs if (o.get('condition') or {}).get('predicate_kind')=='CLASSIFICATION_BASED']
 noexcl=[o['key'] for _,o in cls if not o.get('exclusion_clause_en')]
 strayexcl=[o['key'] for _,o in obs
            if o.get('exclusion_clause_en')
            and (o.get('condition') or {}).get('predicate_kind')!='CLASSIFICATION_BASED']
-check("SR-14a","CLASSIFICATION_BASED の義務が exclusion_clause_en を持ち、他の義務は持たない",
+check("SR-14a","CLASSIFICATION_BASED obligations have exclusion_clause_en and other obligations do not",
       not noexcl and not strayexcl,(noexcl+strayexcl)[:5])
 if not STRUCT_ONLY:
     bx=[]
@@ -325,53 +335,55 @@ if not STRUCT_ONLY:
             try: hay.append(X.section(t2,ev['locator']))
             except KeyError: pass
         if not any(ex in h for h in hay):
-            bx.append(f"{o['key']}: 除外文が IIP 節にも参照節にも実在しない")
-    check("SR-14","exclusion_clause_en が IIP 節または参照節に verbatim で実在する",not bx,bx[:5])
+            bx.append(f"{o['key']}: exclusion clause exists in neither the IIP nor referenced section")
+    check("SR-14","exclusion_clause_en exists verbatim in an IIP or referenced section",not bx,bx[:5])
 
-# 参照根拠の要否は義務側の宣言（reference_derivation）から導く。ハードコードしない。
+# Derive whether reference evidence is required from the obligation declaration
+# (reference_derivation); do not hard-code it.
 nodecl=[o['key'] for _,o in obs if o.get('references_spec') and o.get('reference_derivation') is None]
-check("SR-35","references_spec を持つ全義務が reference_derivation を明示している",not nodecl,nodecl[:8])
+check("SR-35","all obligations with references_spec explicitly declare reference_derivation",not nodecl,nodecl[:8])
 noev=[o['key'] for _,o in obs if o.get('reference_derivation') is True and not o.get('reference_evidence')]
-check("SR-35b","reference_derivation: true の義務に reference_evidence がある",not noev,noev)
+check("SR-35b","reference_derivation: true obligations have reference_evidence",not noev,noev)
 nonote=[o['key'] for _,o in obs if o.get('reference_derivation') is False and not o.get('reference_derivation_note')]
-check("SR-35d","reference_derivation: false の義務に理由（reference_derivation_note）がある",not nonote,nonote[:6])
+check("SR-35d","reference_derivation: false obligations have a reason (reference_derivation_note)",not nonote,nonote[:6])
 orph=[o['key'] for _,o in obs if o.get('reference_evidence') and o.get('reference_derivation') is not True]
-check("SR-35c","reference_evidence を持つ義務は reference_derivation: true である",not orph,orph)
+check("SR-35c","obligations with reference_evidence have reference_derivation: true",not orph,orph)
 
-# ---- G1 の完了条件 ----
-opens=[o['key'] for _,o in obs if o.get('open_question_ja')]
-check("SR-30","未解決の open question が残っていない（G1 完了の条件）",not opens,opens)
+# ---- G1 completion conditions ----
+opens=[o['key'] for _,o in obs if any(k.startswith('open_question_') for k in o)]
+check("SR-30","no unresolved open questions remain (G1 completion condition)",not opens,opens)
 
-# APPROVED を名乗る義務は承認根拠が揃っていなければならない（state の書き換えだけでは通さない）
+# An obligation claiming APPROVED must have complete approval evidence;
+# changing state alone is not sufficient.
 secdg={r['id']:r['source_section_digest'] for r in reqs}
 bad_appr=[]
 for rid,o in obs:
     rv=o.get('review') or {}
     if rv.get('state')!='APPROVED': continue
     k=o['key']
-    if not rv.get('reviewer'):      bad_appr.append(f"{k}: reviewer 未設定")
-    if not rv.get('approved_at'):   bad_appr.append(f"{k}: approved_at 未設定")
+    if not rv.get('reviewer'):      bad_appr.append(f"{k}: reviewer is unset")
+    if not rv.get('approved_at'):   bad_appr.append(f"{k}: approved_at is unset")
     if rv.get('reviewer') and rv.get('reviewer')==o.get('authored_by'):
         bad_appr.append(f"{k}: reviewer==authored_by")
-    if rv.get('source_spec')!=cov['spec']:           bad_appr.append(f"{k}: source_spec 不一致")
-    if str(rv.get('spec_version'))!=str(cov['spec_version']): bad_appr.append(f"{k}: spec_version 不一致")
-    if rv.get('source_selector') not in (rid,'#'+rid): bad_appr.append(f"{k}: source_selector 不一致")
+    if rv.get('source_spec')!=cov['spec']:           bad_appr.append(f"{k}: source_spec mismatch")
+    if str(rv.get('spec_version'))!=str(cov['spec_version']): bad_appr.append(f"{k}: spec_version mismatch")
+    if rv.get('source_selector') not in (rid,'#'+rid): bad_appr.append(f"{k}: source_selector mismatch")
     if rv.get('source_section_digest')!=secdg.get(rid):
-        bad_appr.append(f"{k}: 承認時の節 digest が現在値と不一致（原文が変わった可能性）")
+        bad_appr.append(f"{k}: approval-time section digest differs from the current value (source may have changed)")
     if rv.get('obligation_digest')!=X.obligation_digest(o,preds['predicates']):
-        bad_appr.append(f"{k}: 承認時の obligation digest が現在値と不一致（義務の内容が変わった）")
+        bad_appr.append(f"{k}: approval-time obligation digest differs from the current value (obligation changed)")
 noauth=[o['key'] for _,o in obs if not o.get('authored_by')]
-check("SR-25d","全 obligation に authored_by がある（reviewer≠author の判定に必要）",not noauth,noauth[:5])
+check("SR-25d","all obligations have authored_by (needed to compare reviewer and author)",not noauth,noauth[:5])
 
 # ============================================================================
-# 承認（G1b）の検証
+# Approval (G1b) validation
 #
-# 設計:
-#   - 承認対象 = ある commit C における tests/{coverage,specs,predicates}.yaml
-#   - 承認記録 = tests/approvals/g1.yaml。**C の外**（後続の commit）に置く
-#     （承認記録を C の中に置くと、記録を追記した時点で C が変わる自己参照になる）
-#   - 承認の真正性 = 署名された git オブジェクト（commit / tag）でのみ担保する
-#     YAML 内の reviewer 文字列は自己申告であり、それだけでは承認と認めない
+# Design:
+#   - Approval target = tests/{coverage,specs,predicates}.yaml at a commit C.
+#   - Approval record = tests/approvals/g1.yaml, placed outside C (in a later commit).
+#     (Putting the record in C would make C self-referential when the record is appended.)
+#   - Approval authenticity = established only by a signed git object (commit / tag).
+#     The reviewer string in YAML is self-reported and is not sufficient by itself.
 # ============================================================================
 import subprocess,datetime as _dt,re as _re
 
@@ -385,7 +397,7 @@ def _git(*a,binary=False):
 
 
 def _iso_full(v):
-    """文字列全体を ISO-8601 として解析し、タイムゾーン付き datetime のみ許可する。"""
+    """Parse the entire string as ISO-8601 and allow only timezone-aware datetimes."""
     t=str(v)
     try:
         d=_dt.datetime.fromisoformat(t.replace('Z','+00:00'))
@@ -393,34 +405,39 @@ def _iso_full(v):
         return False
     return d.tzinfo is not None
 
-# 承認が守る対象。validator 自身も含める（検査器を弱める改変を検出するため）。
+# Files protected by approval, including this validator (to detect validator weakening).
 PROTECTED_PATHS=('tests/coverage.yaml','tests/specs.yaml','tests/predicates.yaml',
-                 'tests/approvals/g1.yaml','tools/g1_validate.py','tools/g1_extract.py')
+                 'tests/approvals/g1.yaml','tools/g1_validate.py','tools/g1_extract.py',
+                 'tools/g1_migration_validate.py','tools/g1_schema_validate.py',
+                 'tools/g1_language_check.py','tools/g1-semantic-exceptions.yaml',
+                 'schema/g1-coverage-v2.json','schema/g1-predicates-v2.json',
+                 'schema/g1-specs-v2.json','schema/g1-variant-map-v1.json',
+                 'schema/g1-semantic-exceptions-v1.json')
 APPROVAL_REL='tests/approvals/g1.yaml' 
 APPROVAL_PATH=os.path.join(ROOT,APPROVAL_REL)
 appr=None; appr_src_problems=[]; _sig_info=None
 if os.path.exists(APPROVAL_PATH):
-    # ★ 承認記録の正本は「作業ツリーの内容」ではなく
-    #    「その内容が入っている署名済み commit の中身」である。
-    #    作業ツリーを信じると、署名済み commit を指したまま中身を書き換えられる。
+    # ★ The approval record of record is the content in the signed commit
+    #    containing it, not the working-tree content. Trusting the working tree
+    #    would allow content changes while retaining the signed commit reference.
     try: appr_peek=yaml.safe_load(open(APPROVAL_PATH,encoding='utf-8'))
     except Exception: appr_peek=None
     _lg=_git('log','-1','--format=%H','--',APPROVAL_REL)
     _sig_commit=_lg.stdout.strip() if _lg and _lg.returncode==0 else ''
     if not _sig_commit:
-        appr_src_problems.append(f"{APPROVAL_REL} が git にコミットされていない（承認は commit されている必要がある）")
+        appr_src_problems.append(f"{APPROVAL_REL} is not committed to git (approval must be committed)")
     else:
         _kind=((appr_peek or {}).get('evidence') or {}).get('kind')
         if _kind=='signed-tag':
             _tag=((appr_peek or {}).get('evidence') or {}).get('tag')
             if not _tag:
-                appr_src_problems.append("evidence.kind=signed-tag には evidence.tag が必須")
+                appr_src_problems.append("evidence.tag is required when evidence.kind=signed-tag")
                 _v=None
             else:
                 _v=_git('verify-tag',str(_tag))
                 _rt=_git('rev-list','-n','1',str(_tag))
                 if not _rt or _rt.returncode!=0 or _rt.stdout.strip()!=_sig_commit:
-                    appr_src_problems.append(f"tag {_tag} が承認記録を含む commit {_sig_commit[:12]} を指していない")
+                    appr_src_problems.append(f"tag {_tag} does not point to commit {_sig_commit[:12]} containing the approval record")
         else:
             _v=_git('verify-commit',_sig_commit)
         if _kind=='signed-tag':
@@ -443,27 +460,27 @@ if os.path.exists(APPROVAL_PATH):
                                key=_p[1] if len(_p)>1 else None,
                                trust=_p[2] if len(_p)>2 else None)
         if not _v or _v.returncode!=0:
-            appr_src_problems.append(f"承認記録の署名検証に失敗（{_kind or 'signed-commit'} / commit {_sig_commit[:12]}）")
+            appr_src_problems.append(f"approval record signature verification failed ({_kind or 'signed-commit'} / commit {_sig_commit[:12]})")
         else:
             _blob=_git('show',f'{_sig_commit}:{APPROVAL_REL}',binary=True)
             if not _blob or _blob.returncode!=0:
-                appr_src_problems.append("署名済み commit から承認記録を読み出せない")
+                appr_src_problems.append("cannot read the approval record from the signed commit")
             else:
                 appr=yaml.safe_load(_blob.stdout.decode('utf-8'))
                 appr['_signed_commit']=_sig_commit
-                # ★ 承認が守るのは承認記録だけではない。
-                #   署名済み A の tree と「保護対象ファイルの現在値」を全て突き合わせる。
-                #   これをしないと A の後で coverage を書き換え digest を再計算するだけで通る。
+                # ★ Approval protects more than the approval record.
+                #   Compare the signed commit A's tree with every current protected file.
+                #   Otherwise coverage could be changed after A and its digest recomputed.
                 for _rel in PROTECTED_PATHS:
                     _cur=os.path.join(ROOT,_rel)
                     _b=_git('show',f'{_sig_commit}:{_rel}',binary=True)
                     if not _b or _b.returncode!=0:
-                        appr_src_problems.append(f"{_rel} が署名済み commit に存在しない"); continue
+                        appr_src_problems.append(f"{_rel} is absent from the signed commit"); continue
                     if not os.path.exists(_cur):
-                        appr_src_problems.append(f"{_rel} が作業ツリーに存在しない"); continue
+                        appr_src_problems.append(f"{_rel} is absent from the working tree"); continue
                     if X.sha(open(_cur,'rb').read())!=X.sha(_b.stdout):
-                        appr_src_problems.append(f"{_rel} が署名済み承認 commit の内容と異なる（承認後に変更された）")
-                # 追加・削除も検出する（tests/ 配下のファイル集合の一致）
+                        appr_src_problems.append(f"{_rel} differs from the signed approval commit (changed after approval)")
+                # Also detect additions and deletions (the file sets under tests/ and tools/ must match).
                 for _dir in ('tests','tools'):
                     _ls=_git('ls-tree','-r','--name-only',_sig_commit,_dir)
                     if not _ls or _ls.returncode!=0: continue
@@ -474,42 +491,42 @@ if os.path.exists(APPROVAL_PATH):
                         for _f in _fn:
                             if _f.endswith('.pyc'): continue
                             _n.add(os.path.relpath(os.path.join(_dp,_f),ROOT))
-                    # gitignore されているもの（tools/g1_authoring.py 等）は集合から除く
+                    # Exclude gitignored files (such as tools/g1_authoring.py) from the set.
                     if _n:
                         _ci=subprocess.run(['git','-C',ROOT,'check-ignore','--stdin'],
                                            input='\n'.join(sorted(_n)),capture_output=True,text=True,timeout=30)
                         _n-=set(_ci.stdout.split())
                     if _a!=_n:
                         appr_src_problems.append(
-                            f"{_dir}/ のファイル集合が署名済み commit と異なる"
-                            f"（追加 {sorted(_n-_a)[:3]} / 削除 {sorted(_a-_n)[:3]}）")
+                            f"file set under {_dir}/ differs from the signed commit"
+                            f" (added {sorted(_n-_a)[:3]} / deleted {sorted(_a-_n)[:3]})")
 
-# coverage.yaml 側の state は起票の記録であり、承認の正本ではない
+# The coverage.yaml state is an authoring record, not the approval record of record.
 state_claims=[o['key'] for _,o in obs if (o.get('review') or {}).get('state')!='PENDING_REVIEW']
 
 approved_keys=set(); appr_problems=[]; appr_entries={}; signers=set()
 if appr is None:
     if state_claims:
-        appr_problems.append(f"承認記録 tests/approvals/g1.yaml が無いのに coverage.yaml が APPROVED を主張している（{len(state_claims)} 件）")
+        appr_problems.append(f"coverage.yaml claims APPROVED without tests/approvals/g1.yaml ({len(state_claims)} obligations)")
 else:
     tc=str(appr.get('target_commit') or '')
     if not _re.fullmatch(r'[0-9a-f]{40}',tc):
-        appr_problems.append("target_commit は 40 桁の完全な SHA-1 でなければならない（短縮 SHA を認めない）")
+        appr_problems.append("target_commit must be a complete 40-character SHA-1 (abbreviated SHAs are not allowed)")
     else:
         r=_git('rev-parse','--verify','--quiet',tc+'^{commit}')
         if not r or r.returncode!=0 or r.stdout.strip()!=tc:
-            appr_problems.append(f"target_commit {tc[:12]} が git に存在しない、または完全一致で解決できない")
+            appr_problems.append(f"target_commit {tc[:12]} does not exist in git or cannot be resolved exactly")
         else:
-            # 承認対象の内容を「対象 commit から」読み出して digest を突き合わせる
+            # Read approval targets from the target commit and compare their digests.
             for rel in ('tests/coverage.yaml','tests/specs.yaml','tests/predicates.yaml'):
                 r2=_git('show',f'{tc}:{rel}',binary=True)
                 if not r2 or r2.returncode!=0:
-                    appr_problems.append(f"{rel} が対象 commit に存在しない"); continue
+                    appr_problems.append(f"{rel} is absent from the target commit"); continue
                 want=(appr.get('artifact_digests') or {}).get(rel)
                 got=X.sha(r2.stdout)
                 if want!=got:
-                    appr_problems.append(f"{rel}: 承認記録の digest が対象 commit の内容と不一致")
-            # 承認対象 commit の coverage から義務 digest を再計算する
+                    appr_problems.append(f"{rel}: approval-record digest differs from target commit content")
+            # Recompute obligation digests from the target commit's coverage.
             r3=_git('show',f'{tc}:tests/coverage.yaml',binary=True)
             r4=_git('show',f'{tc}:tests/predicates.yaml',binary=True)
             if r3 and r3.returncode==0 and r4 and r4.returncode==0:
@@ -520,35 +537,36 @@ else:
                 for e in (appr.get('approvals') or []):
                     k=e.get('obligation')
                     appr_entries[k]=e
-                    if k not in target_obs: appr_problems.append(f"{k}: 対象 commit に存在しない義務"); continue
+                    if k not in target_obs: appr_problems.append(f"{k}: obligation is absent from the target commit"); continue
                     if e.get('obligation_digest')!=X.obligation_digest(target_obs[k],cpred):
-                        appr_problems.append(f"{k}: 承認 digest が対象 commit の内容と不一致"); continue
-                    if not e.get('reviewer'): appr_problems.append(f"{k}: reviewer 未設定"); continue
+                        appr_problems.append(f"{k}: approval digest differs from target commit content"); continue
+                    if not e.get('reviewer'): appr_problems.append(f"{k}: reviewer is unset"); continue
                     if e['reviewer']==target_auth.get(k): appr_problems.append(f"{k}: reviewer==authored_by"); continue
                     if not _iso_full(e.get('approved_at')):
-                        appr_problems.append(f"{k}: approved_at がタイムゾーン付き ISO-8601 でない"); continue
+                        appr_problems.append(f"{k}: approved_at is not a timezone-aware ISO-8601 value"); continue
                     approved_keys.add(k)
                 missing=[k for k in target_obs if k not in appr_entries]
-                if missing: appr_problems.append(f"承認されていない義務が {len(missing)} 件（例 {missing[:3]}）")
-    # 外部証拠: 署名された git オブジェクトのみを受け付ける
+                if missing: appr_problems.append(f"{len(missing)} obligations are not approved (examples {missing[:3]})")
+    # External evidence: accept only signed git objects.
     ev=appr.get('evidence') or {}
     if ev.get('kind') not in ('signed-commit','signed-tag'):
-        appr_problems.append("evidence.kind は signed-commit / signed-tag のいずれかで必須")
+        appr_problems.append("evidence.kind is required and must be signed-commit or signed-tag")
     if not (ev.get('reviewers') or []):
-        appr_problems.append("evidence.reviewers は非空で必須（個別義務の reviewer と突き合わせるため）")
+        appr_problems.append("evidence.reviewers is required and must be non-empty (to compare with per-obligation reviewers)")
     if not ev.get('evidence_url'):
-        appr_problems.append("evidence.evidence_url が必須（PR / レビュー記録の URL）")
-    # 署名の検証は「承認記録が入っている commit」に対して実施済み（appr_src_problems）。
-    # ★ evidence.ref のようなフィールドは置かない。記録の中に自分を含む commit の SHA を
-    #   書くのは自己参照であり、署名し直すたびに SHA が変わって整合しない。
-    #   署名済み commit は `git log -1 -- <path>` で一意に特定できる。
+        appr_problems.append("evidence.evidence_url is required (PR or review-record URL)")
+    # Signature verification has already been performed against the commit
+    # containing the approval record (appr_src_problems).
+    # ★ Do not add fields such as evidence.ref. Recording the SHA of a commit
+    #   containing the record is self-referential; the SHA changes on re-signing.
+    #   A signed commit is uniquely identified by `git log -1 -- <path>`.
     if 'ref' in ev:
-        appr_problems.append("evidence.ref は使用しない（自己参照になるため）。フィールドごと削除すること")
+        appr_problems.append("do not use evidence.ref (it is self-referential); remove the field")
     if ev.get('evidence_url') and not _re.match(r'https://[^\s]+\.[^\s]+',str(ev['evidence_url'])):
-        appr_problems.append("evidence_url が https の URL 形式でない")
-    # ★ 署名者 principal と reviewer を結び付ける。
-    #   YAML 内の reviewer は自己申告に過ぎず、許可鍵の保持者が架空の名前を書けば
-    #   reviewer != authored_by を通せてしまう。
+        appr_problems.append("evidence_url is not an HTTPS URL")
+    # ★ Bind the signer principal to the reviewer.
+    #   The YAML reviewer is self-reported; an allowed-key holder could otherwise
+    #   enter a fictitious name and bypass reviewer != authored_by.
     signers=set()
     if _sig_info:
         if _sig_info.get('kind')=='signed-tag':
@@ -559,47 +577,48 @@ else:
         else:
             if _sig_info.get('signer'): signers.add(str(_sig_info['signer']).strip())
     signers={x for x in signers if x}
-    # 外部固定の principal → reviewer-id マッピング（CI が渡す。無ければ principal 自身）
+    # Externally fixed principal -> reviewer-ID mapping (provided by CI;
+    # use the principal itself when absent).
     _map={}
     for _pair in (os.environ.get('G1_SIGNER_MAP') or '').split(','):
         if '=' in _pair:
             _k,_v=_pair.split('=',1); _map[_k.strip()]=_v.strip()
     mapped={_map.get(x,x) for x in signers}
     if not signers:
-        appr_problems.append("署名者 principal を取得できなかった（reviewer と結び付けられない）")
+        appr_problems.append("could not obtain the signer principal (cannot bind it to a reviewer)")
     else:
         unbound=sorted({e.get('reviewer') for e in (appr.get('approvals') or []) if e.get('reviewer')} - mapped)
         if unbound:
             appr_problems.append(
-                f"reviewer が署名者 principal と一致しない: {unbound[:3]}（署名者={sorted(mapped)}）。"
-                f"複数レビュアーを認める場合は reviewer ごとの署名済み記録が必要")
+                f"reviewer does not match the signer principal: {unbound[:3]} (signers={sorted(mapped)}). "
+                f"Allowing multiple reviewers requires a signed record for each reviewer")
 
-    # per-obligation reviewer は evidence.reviewers に含まれていなければならない
+    # Each per-obligation reviewer must be included in evidence.reviewers.
     allowed=set(ev.get('reviewers') or [])
     bad_rv=sorted({e.get('reviewer') for e in (appr.get('approvals') or [])} - allowed - {None})
-    if bad_rv: appr_problems.append(f"evidence.reviewers に無い reviewer: {bad_rv[:3]}")
+    if bad_rv: appr_problems.append(f"reviewers missing from evidence.reviewers: {bad_rv[:3]}")
 
 _ut=_git('status','--porcelain','--untracked-files=all','tools')
 _extra=[l[3:] for l in (_ut.stdout.splitlines() if _ut and _ut.returncode==0 else []) if l[3:].endswith('.py')]
-check("SR-40","tools/ に未追跡・未コミットの Python モジュールがない（shadow import の防止）",
+check("SR-40","tools/ has no untracked or uncommitted Python modules (prevent shadow imports)",
       not _extra,_extra[:5])
 
-check("SR-38","承認が対象 commit の外にある署名付き記録に拘束されている",
+check("SR-38","approval is bound to a signed record outside the target commit",
       not appr_problems and not appr_src_problems,(appr_src_problems+appr_problems)[:6])
 
 pending=[o['key'] for _,o in obs if o['key'] not in approved_keys]
-check("SR-31","全 obligation が承認済み（G1 承認の条件）",not pending,f"{len(pending)}/{len(obs)} が未承認")
+check("SR-31","all obligations are approved (G1 approval condition)",not pending,f"{len(pending)}/{len(obs)} unapproved")
 
-# ---- SR-41: 母数の直書き検出 ----
-# docs の本文に「N 義務 / N 要件 / N 仕様 / N 述語」を直書きすると、義務を足したときに
-# 必ず取り残される（実際 133 / 132 のまま 4 ファイルが古くなっていた）。
-# 数値は <!--g1:KEY-->…<!--/g1--> のマーカー経由でしか書けないことを機械で強制する。
-#   例外 1: 04-requirement-coverage.md は全文が生成物（g1_docgen.py --check が担保）
-#   例外 2: 11-review-log.md はレビュー記録。当時の数値をそのまま残す（docgen の対象からも外す）
-#   例外 3: 行に <!--g1-literal--> がある場合（説明のための架空の数）
+# ---- SR-41: detect hard-coded totals ----
+# Hard-coding "N obligations / N requirements / N specifications / N predicates"
+# in docs leaves stale values when obligations are added (four files once remained
+# at 133 / 132). Enforce that totals appear only through <!--g1:KEY-->...<!--/g1--> markers.
+#   Exception 1: 04-requirement-coverage.md is fully generated (checked by g1_docgen.py --check).
+#   Exception 2: 11-review-log.md is a review record and retains historical values (also excluded from docgen).
+#   Exception 3: the line contains <!--g1-literal--> (a fictitious explanatory number).
 _STAT_SKIP={'04-requirement-coverage.md','11-review-log.md'}
 _MARK_SPAN=re.compile(r'<!--g1:[a-z_]+-->.*?<!--/g1-->',re.S)
-_BARE=re.compile(r'(?<![\d.])(\d+)\s*(義務|要件|仕様|述語|variant)')
+_BARE=re.compile(r'(?<![\d.])(\d+)\s*(obligations?|requirements?|specifications?|predicates?|variants?)',re.I)
 _scan=[]
 for _d,_fs in (('docs',sorted(os.listdir(os.path.join(ROOT,'docs')))),
                ('tools',['ci-stages.md','README.md']),('.',['AGENTS.md'])):
@@ -612,29 +631,30 @@ for _rel,_p in _scan:
     for _n,_line in enumerate(open(_p,encoding='utf-8').read().split('\n'),1):
         if '<!--g1-literal-->' in _line: continue
         for _m in _BARE.finditer(_MARK_SPAN.sub('',_line)):
-            if _m.group(1)=='1': continue     # 「1 要件」「1 義務」は構造の説明であって母数ではない
+            if _m.group(1)=='1': continue     # "1 requirement" and "1 obligation" explain structure, not totals.
             _hard.append(f"{_rel}:{_n}: {_m.group(0)}")
-check("SR-41","母数が本文に直書きされていない（<!--g1:KEY--> マーカー経由であること）",
+check("SR-41","totals are not hard-coded in prose (use <!--g1:KEY--> markers)",
       not _hard,_hard[:8])
 
-check("SR-39","coverage.yaml の g1_state が起票値（PENDING_REVIEW）のまま変更されていない",
+check("SR-39","coverage.yaml g1_state remains its authoring value (PENDING_REVIEW)",
       cov.get('g1_state')=='PENDING_REVIEW',
-      f"g1_state={cov.get('g1_state')}（承認では coverage.yaml を編集しない。"
-      f"完了状態は tests/approvals/g1.yaml から導出する）")
+      f"g1_state={cov.get('g1_state')} (do not edit coverage.yaml for approval; "
+      f"completion is derived from tests/approvals/g1.yaml)")
 
 npass=sum(1 for c in R if c['result']=='PASS'); nfail=len(R)-npass
-# 未承認・未解決は「G1 未完了」を示すものであり、作成フェーズの提出可否とは分ける
+# Unapproved or unresolved items indicate incomplete G1 and are separate from
+# whether authoring-phase artifacts may be submitted.
 blocking=[c for c in R if c['result']=='FAIL' and c['id'] not in ('SR-30','SR-31')]
 g1_ready = (not blocking) and (not opens) and (not pending)
 report=dict(task=":specReconcile",run_id=str(uuid.uuid4()),executed_at=NOW,
-  validator="tools/g1_validate.py (生成処理から独立。値を書き戻さない)",
+  validator="tools/g1_validate.py (independent of generation; writes no values back)",
   provenance=dict(
       repo_root=ROOT,
       validator_source=os.environ.get('G1_VALIDATOR_SOURCE'),
       validator_source_kind=os.environ.get('G1_VALIDATOR_SOURCE_KIND'),
       runner_source=os.environ.get('G1_RUNNER_SOURCE'),
-      note="validator_source_kind が external-pin でなければ、検査器の取得元は "
-           "承認記録が指す target_commit である。CI では G1_VALIDATOR_COMMIT を外部固定すること"),
+      note="unless validator_source_kind is external-pin, the validator source is the "
+           "target_commit referenced by the approval record. CI must pin G1_VALIDATOR_COMMIT externally"),
   mode=("structural-only" if STRUCT_ONLY else ("offline" if OFFLINE else "network")),
   source=dict(spec=cov['spec'],version=cov['spec_version'],url=primary['url'],
               recorded_digest=primary.get('source_digest'),cache="build/spec-cache/ (gitignored)"),
@@ -652,14 +672,14 @@ report=dict(task=":specReconcile",run_id=str(uuid.uuid4()),executed_at=NOW,
       signer_principals=sorted(signers) if appr else None,
       signer_map_applied=bool(os.environ.get('G1_SIGNER_MAP')),
       approved_obligations=len(approved_keys)) if appr else None),
-  g1=dict(state=('APPROVED' if g1_ready else 'PENDING_REVIEW'),  # 導出値。coverage.yaml の記載ではない
+  g1=dict(state=('APPROVED' if g1_ready else 'PENDING_REVIEW'),  # Derived value, not coverage.yaml content.
           authored_state=cov.get('g1_state'),open_questions=opens,unapproved=len(pending),
           blocking_failures=[c['id'] for c in blocking],
           complete=bool(g1_ready),
-          complete_formula="no blocking failures AND no open questions AND all obligations approved via tests/approvals/g1.yaml (coverage.yaml は承認時に編集しない)"),
+          complete_formula="no blocking failures AND no open questions AND all obligations approved via tests/approvals/g1.yaml (do not edit coverage.yaml for approval)"),
   checks=R,
-  note="SR-30 / SR-31 は G1 の完了条件であり、作成フェーズでは FAIL のまま提出される。"
-       "それ以外の FAIL は成果物の欠陥を意味する。")
+  note="SR-30 / SR-31 are G1 completion conditions and may remain FAIL during the authoring phase. "
+       "Other FAIL results indicate artifact defects.")
 os.makedirs(BUILD,exist_ok=True)
 json.dump(report,open(os.path.join(BUILD,'spec-reconcile-report.json'),'w',encoding='utf-8'),ensure_ascii=False,indent=2)
 print(f"{npass}/{len(R)} PASS  (blocking failures: {len(blocking)})")

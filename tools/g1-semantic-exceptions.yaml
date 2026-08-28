@@ -1,0 +1,81 @@
+schema_version: 1
+baseline_commit: ca54c4b83ac1a3208591f03772b4cf52c62045d4
+status: REQUIRES_G1B_REVIEW
+exceptions:
+  - id: G1B-FINAL-01
+    obligation: IIP-IDP16.a
+    fields: [linked_obligations, control_count]
+    finding: Linked variants discarded the source obligation's supported-setting condition.
+    source: SAML2ECP Section 2.3.10, SAML2Prof Section 4.1.6, and IIP-SSO06 condition (b).
+    counterexample: An ECP IdP without an attribute-profile setting could be failed for metadata support that the source profile does not require.
+    correction: Retain the linked obligation's condition for imported variants and document the HoK runtime scope.
+  - id: G1B-FINAL-02
+    obligation: IIP-MD12.a
+    fields: [configuration_failure_semantics]
+    finding: A required certificate-consumption capability was modeled as a test precondition.
+    source: IIP-MD12 requires support for the listed certificate forms.
+    counterexample: A product that rejects a supported certificate form could escape with not_verified instead of a violation.
+    correction: Treat inability to support the certificate form as absence of a normative capability.
+  - id: G1B-FINAL-03
+    obligation: IIP-MD12.b
+    fields: [configuration_failure_semantics]
+    finding: A required certificate-consumption capability was modeled as a test precondition.
+    source: IIP-MD12 requires support for expired certificates.
+    counterexample: A product that rejects an expired certificate could escape with not_verified instead of a violation.
+    correction: Treat inability to support the certificate form as absence of a normative capability.
+  - id: G1B-FINAL-04
+    obligation: IIP-MD12.c
+    fields: [configuration_failure_semantics]
+    finding: A required certificate-consumption capability was modeled as a test precondition.
+    source: IIP-MD12 requires support for certificates signed with any digest algorithm.
+    counterexample: A product that rejects a covered digest algorithm could escape with not_verified instead of a violation.
+    correction: Treat inability to support the certificate form as absence of a normative capability.
+  - id: G1B-FINAL-05
+    obligation: IIP-MD12.d
+    fields: [configuration_failure_semantics]
+    finding: A required certificate-consumption capability was modeled as a test precondition.
+    source: IIP-MD12 incorporates the normative certificate variations cited by the catalog.
+    counterexample: A product that rejects a covered certificate variation could escape with not_verified instead of a violation.
+    correction: Treat inability to support the certificate form as absence of a normative capability.
+  - id: G1B-FINAL-06
+    obligation: IIP-SP15.b
+    fields: [condition]
+    finding: The profile-level SLO support condition was omitted.
+    source: IIP-SP15 applies to Service Providers that support the SAML V2.0 Single Logout profile.
+    counterexample: A Service Provider that does not support SLO was reported as satisfying an inapplicable obligation.
+    correction: Apply the supports_slo_sp capability predicate.
+  - id: G1B-FINAL-07
+    obligation: IIP-SP15.c
+    fields: [condition]
+    finding: The profile-level SLO support condition was omitted.
+    source: IIP-SP15 applies to Service Providers that support the SAML V2.0 Single Logout profile.
+    counterexample: A Service Provider that does not support SLO was reported as satisfying an inapplicable obligation.
+    correction: Apply the supports_slo_sp capability predicate.
+  - id: G1B-FINAL-08
+    obligation: IIP-SP15.d
+    fields: [condition]
+    finding: The profile-level SLO support condition was omitted.
+    source: IIP-SP15 applies to Service Providers that support the SAML V2.0 Single Logout profile.
+    counterexample: A Service Provider that does not support SLO was reported as satisfying an inapplicable obligation.
+    correction: Apply the supports_slo_sp capability predicate.
+  - id: G1B-FINAL-09
+    obligation: IIP-SP16.b
+    fields: [source_clauses]
+    finding: The source range extended into the following obligation.
+    source: IIP-SP16, first normative sentence.
+    counterexample: The signed evidence range attributed decryption behavior to the configuration obligation.
+    correction: Bind the obligation to the exact first sentence at normalized offsets 141 through 254.
+  - id: G1B-FINAL-10
+    obligation: IIP-SP16.c
+    fields: [source_clauses]
+    finding: The source range omitted its own RFC 2119 verb and the unspecified-order phrase.
+    source: IIP-SP16, second normative sentence.
+    counterexample: The signed evidence range did not independently support the MUST assigned to this obligation.
+    correction: Bind the obligation to the complete second sentence at normalized offsets 255 through 466.
+  - id: G1B-FINAL-11
+    obligation: IIP-MD08.a
+    fields: [control_count]
+    finding: The catalog omitted the normative permission to choose any published encryption key.
+    source: IIP-MD08 states that any one of multiple encryption keys may be used.
+    counterexample: A test could incorrectly require one specific key or key order and reject a conforming implementation.
+    correction: Add a nonrestrictive control that forbids requiring a particular key or ordering.

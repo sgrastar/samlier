@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://samlier.example/schema/g1-specs-v2.json",
+  "title": "Samlier G1 specification catalog",
+  "type": "object",
+  "propertyNames": { "not": { "pattern": "_ja$" } },
+  "required": ["schema_version", "specs"],
+  "properties": {
+    "schema_version": { "const": 2 },
+    "specs": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "propertyNames": { "not": { "pattern": "_ja$" } },
+        "required": ["title", "publisher", "version", "url", "role"]
+      }
+    }
+  }
+}

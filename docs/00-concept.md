@@ -1,119 +1,116 @@
-# 00. コンセプト
+# 00. Concept
 
-## 1. 課題
+## 1. Problem
 
-OIDC / OAuth には OpenID Foundation の Conformance Suite と OpenID Certification があり、
-「この製品はこのプロファイルに適合している」ことを再現可能な形で示せる。
+OIDC / OAuth has the OpenID Foundation Conformance Suite and OpenID Certification,
+which make it possible to demonstrate reproducibly that “this product conforms to this profile.”
 
-SAML にはこれに相当する、広く認知された仕組みが存在しない。
-一方で、実装品質を判断する材料そのものは公開されている。
+SAML has no widely recognized mechanism equivalent to this.
+At the same time, the materials for assessing implementation quality are publicly available.
 
-| 文書 | 発行 | 位置づけ |
+| Document | Issuer | Positioning |
 |---|---|---|
-| SAML V2.0 Core / Bindings / Profiles / Metadata | OASIS | 基本仕様 |
-| SAML V2.0 Conformance Requirements | OASIS | 適合クラスの定義（実行可能テストではない） |
-| Security and Privacy Considerations for SAML V2.0 | OASIS | 攻撃者モデルの根拠 |
-| **SAML V2.0 Implementation Profile for Federation Interoperability v1.1** | Kantara Initiative (2019-12-18) | **実装者向けの相互運用要件。Phase 1 の対象** |
-| SAML V2.0 Deployment Profile for Federation Interoperability v2.0 | Kantara Initiative | 配備者向け（旧 SAML2int の後継） |
-| Metadata Interoperability Profile | OASIS | メタデータ鍵の扱い |
+| SAML V2.0 Core / Bindings / Profiles / Metadata | OASIS | Core specifications |
+| SAML V2.0 Conformance Requirements | OASIS | Definition of conformance classes (not executable tests) |
+| Security and Privacy Considerations for SAML V2.0 | OASIS | Basis for the attacker model |
+| **SAML V2.0 Implementation Profile for Federation Interoperability v1.1** | Kantara Initiative (2019-12-18) | **Interoperability requirements for implementers. Scope of Phase 1** |
+| SAML V2.0 Deployment Profile for Federation Interoperability v2.0 | Kantara Initiative | For deployers (successor to the former SAML2int) |
+| Metadata Interoperability Profile | OASIS | Handling of metadata keys |
 
-つまり **「何を満たすべきか」は文書化されているが、「満たしているかを確かめる共通の手段」がない**。
+In short, **“what must be satisfied” is documented, but there is no “common means of verifying whether it is satisfied.”**
 
-## 2. 作るもの
+## 2. What we are building
 
-> 仕様上の要求を実行可能なテストに翻訳し、誰でも同じ条件で SAML 実装を検証できる OSS。
+> An OSS tool that translates specification requirements into executable tests so that anyone can verify a SAML implementation under the same conditions.
 
-認定機関を名乗らない。**再現可能なテスト結果そのもの**を品質の証明として流通させる。
+It will not call itself a certification body. **Reproducible test results themselves** will serve as the evidence of quality and be shareable.
 
-### なぜ Kantara Implementation Profile から始めるのか
+### Why start with the Kantara Implementation Profile
 
-- 実装者（software implementer）向けに書かれており、配備固有の事情に依存しない
-- 全 <!--g1:requirements-->69<!--/g1--> 要件に `[IIP-xxNN]` の一意な識別子が振られている（テストとの 1:1 / 1:N 対応が作れる）
-- ほぼ全てが MUST。「守っているか」の二値判定に適する
-- Keycloak / Shibboleth / SimpleSAMLphp / Authentik といった実装が実際に参照している
+- It is written for software implementers and does not depend on deployment-specific circumstances.
+- All <!--g1:requirements-->69<!--/g1--> requirements have unique `[IIP-xxNN]` identifiers (making 1:1 / 1:N mappings to tests possible).
+- Nearly all are MUST requirements, making them suitable for binary “is it observed?” determinations.
+- Implementations such as Keycloak / Shibboleth / SimpleSAMLphp / Authentik actually refer to it.
 
-## 3. 非目標（Non-goals）
+## 3. Non-goals
 
-| やらないこと | 理由 |
+| What we will not do | Reason |
 |---|---|
-| 認定・認証（Certification）を発行する | 認定機関としての正統性がない。「Tested」までに留める |
-| 「Certified」「Compliant」等の語を結果に使う | 誤認を招く。使用語は `Tested` / `Conformance Test Result` |
-| SAML 1.x のサポート | 対象外 |
-| 特定製品（Authrim 含む）専用のコード | Suite から見れば全ての実装が等しく外部実装 |
-| SAML ライブラリ / IdP / SP 製品そのものを提供する | Test Peer は「テスト用の相手役」であり本番利用を想定しない |
-| 性能・負荷試験 | スコープ外 |
-| 対象システムへの侵入的な操作 | Phase 4 の Security Profile でも、あくまで対象との正規プロトコル経路のみを使う |
+| Issue certification or authentication (Certification) | We have no legitimacy as a certification body. We stop at “Tested.” |
+| Use terms such as “Certified” or “Compliant” in results | They could mislead. The terms used are `Tested` / `Conformance Test Result`. |
+| Support SAML 1.x | Out of scope |
+| Provide code dedicated to a specific product (including Authrim) | From the Suite’s perspective, every implementation is equally an external implementation. |
+| Provide the SAML library / IdP / SP product itself | A Test Peer is “the other party for testing” and is not intended for production use. |
+| Performance or load testing | Out of scope |
+| Intrusive operations against the target system | Even in the Phase 4 Security Profile, only the normal protocol path with the target will be used. |
 
-## 4. 既存ツールとの関係
+## 4. Relationship to existing tools
 
-調査した既存 OSS / サービス:
+Existing OSS / services investigated:
 
-| 名前 | 何をするか | 本 Suite との差分 |
+| Name | What it does | Difference from this Suite |
 |---|---|---|
-| [codice/saml-conformance](https://github.com/codice/saml-conformance) | SAML Core 仕様に対する IdP のブラックボックステスト。Kotlin/Java、CLI ベース | **IdP 専用**、SP テスト不可。Kantara IIP ではなく OASIS Core が対象。**LGPL-3.0** のためコード再利用は license 上の制約が大きい。Web UI・結果共有なし。事実上メンテナンスが停滞 |
-| SAMLtest.id (Shibboleth) | 公開の試験用 IdP / SP。手で繋いで動作確認する | 「動くか」は分かるが、要件単位の合否レポートは出ない |
-| samltool.com / SAMLTracer 等 | SAML メッセージのデコード・検証ユーティリティ | 単発の解析ツール。テストプラン・レポートの概念がない |
-| [spid-sp-test](https://pypi.org/project/spid-sp-test/) / AgID spid-saml-check | イタリア SPID プロファイル専用の適合性チェッカ | **国内プロファイル専用**。構造は非常に参考になる（レポート JSON、CLI）。汎用 SAML には使えない |
-| SAML Raider / WS-Attacker / EsPReSSO | SAML への攻撃テスト（Burp 拡張など） | 手動のペネトレーションテスト用。Phase 4 の参考。適合性レポートは出ない |
+| [codice/saml-conformance](https://github.com/codice/saml-conformance) | Black-box testing of an IdP against the SAML Core specification. Kotlin/Java, CLI-based | **IdP-only**; SP testing is unavailable. It targets OASIS Core, not the Kantara IIP. Because it is **LGPL-3.0**, code reuse is subject to substantial license constraints. No Web UI or result sharing. Maintenance has effectively stalled. |
+| SAMLtest.id (Shibboleth) | Public test IdP / SP. Connect manually to check operation | It shows whether something works, but does not produce pass/fail reports by requirement. |
+| samltool.com / SAMLTracer, etc. | Utilities for decoding and validating SAML messages | One-off analysis tools, with no concept of a test plan or report. |
+| [spid-sp-test](https://pypi.org/project/spid-sp-test/) / AgID spid-saml-check | Conformance checkers dedicated to the Italian SPID profile | **Dedicated to a national profile.** Its structure is highly informative (report JSON, CLI), but it cannot be used for generic SAML. |
+| SAML Raider / WS-Attacker / EsPReSSO | Attack testing against SAML (such as Burp extensions) | For manual penetration testing. A reference for Phase 4. Does not produce conformance reports. |
 
-**本 Suite の独自性**は次の 4 点に集約される。
+**This Suite’s distinctiveness** comes down to these four points.
 
-1. IdP と SP の**両方向**をテストする
-2. **Requirement ID 単位**のレポート（仕様根拠まで追跡可能）
-3. Web UI + Docker で、**専門知識がなくても Test Plan を作って実行できる**
-4. 結果を**共有可能な形式**として流通させる
+1. Test **both directions**: IdP and SP.
+2. Produce **Requirement ID-level** reports (with traceability to the specification basis).
+3. With a Web UI + Docker, allow users without specialized knowledge to create and run a **Test Plan**.
+4. Distribute results in a **shareable format**.
 
-> 注: codice/saml-conformance は LGPL-3.0、**Samlier は Apache-2.0**。
-> 設計・テスト観点の参照は自由だが、**コードのコピーは行わない**こと。
-> `ctk/idp/NotTested.md`（外部から検証不能な要件の一覧）は考え方の参考として有用。
+> Note: codice/saml-conformance is LGPL-3.0, while **Samlier is Apache-2.0**.
+> Design and test perspectives may be consulted freely, but **code must not be copied**.
+> `ctk/idp/NotTested.md` (a list of requirements that cannot be verified externally) is useful as a conceptual reference.
 
-## 5. Phase 1 の成功条件
+## 5. Phase 1 success criteria
 
-> 任意の SAML IdP/SP 実装者が Docker を起動し、Web UI から Kantara Implementation Profile v1.1 ベースの
-> テストを実行し、各 Requirement の PASS/FAIL と根拠を確認でき、希望すればその結果を
-> 公開 URL として第三者に提示できること。
+> Any SAML IdP/SP implementer can start Docker, use the Web UI to run tests based on the Kantara Implementation Profile v1.1,
+> inspect the PASS/FAIL and basis for each Requirement, and, if desired, present the result to a third party as a
+> public URL.
 
-これに、検証可能な受け入れ条件を足す。
+Add verifiable acceptance criteria to this.
 
-### ★ 検出力は mutant peer で証明する
+### ★ Prove detection power with mutant peers
 
-**「リファレンス実装 3 つで結果に差が出ること」を完了条件にしてはならない。**
-差が出ないことは Suite の欠陥を意味しない — 3 製品とも適合している可能性も、
-差が出ても設定の違いに過ぎない可能性もある。実製品は**オラクルにならない**。
+**Do not make “the results differ for three reference implementations” a completion condition.**
+No difference does not indicate a Suite defect — all three products may conform, or any difference may merely be a configuration difference. Real products are **not oracles**.
 
-代わりに、**既知の違反を注入した mutant Test IdP / Test SP** を用意し、
-「狙った義務が必ず違反として検出されること」を golden test にする。
+Instead, provide **mutant Test IdP / Test SP** implementations with known violations injected,
+and make “the targeted obligation is always detected as violated” a golden test.
 
-#### ★ 用語: mutant は「対象（SUT）」であって Suite の Test Peer ではない
+#### ★ Terminology: a mutant is the target (SUT), not the Suite’s Test Peer
 
-Samlier の `peer/`（Test IdP / Test SP）は**検査する側**であり、常に正しく動く。
-mutant は**検査される側（SUT: System Under Test）**に注入する。
-`tests/mutants/` は「意図的に違反する対象実装」の定義であり、`peer/` とは別物。
-混同すると「Suite 側を壊して検出力を測る」という誤った実装になる。
+Samlier’s `peer/` (Test IdP / Test SP) is **the inspecting side** and always operates correctly.
+A mutant is injected into **the inspected side (SUT: System Under Test)**.
+`tests/mutants/` defines “target implementations that intentionally violate requirements” and is separate from `peer/`.
+Confusing them leads to the incorrect implementation of “break the Suite side to measure detection power.”
 
-#### ★ オラクルは「絶対値」ではなく baseline からの差分
+#### ★ The oracle is a difference from baseline, not an absolute value
 
-「正常な SUT では全義務が PASS」は**成立しない**。
-役割違い（SP プロファイルでの `IIP-IDP*`）、条件付き義務、`CONFIG`、`ATTESTED` があるため、
-単一の Run で全義務が PASS になることはない。
-同様に「`reject-everything` ではどの義務も PASS してはならない」も**誤り**で、
-拒否を要求する `MUST_NOT` 系は一律拒否でも満たせる。
+“All obligations are PASS for a normal SUT” **does not hold**.
+Because of role differences (`IIP-IDP*` in the SP profile), conditional obligations, `CONFIG`, and `ATTESTED`, no single Run makes all obligations PASS.
+Likewise, “no obligation may PASS under `reject-everything`” is **incorrect**:
+`MUST_NOT` obligations requiring rejection can be satisfied by uniformly rejecting.
 
-そこで **baseline outcome vector** を先に取り、mutant はそこからの**差分**で判定する。
+Therefore, first obtain a **baseline outcome vector**, and judge mutants by their **differences** from it.
 
-#### ★ baseline は 1 本では足りない — matrix にする
+#### ★ One baseline is insufficient — use a matrix
 
-`role: sp` の baseline では **`IIP-IDP*` が全て `NOT_APPLICABLE`** になり、
-IdP の mutant を検出できない。Core/Full、条件付き機能、`CONFIG` の設定差も覆えない。
+With an `role: sp` baseline, all **`IIP-IDP*` become `NOT_APPLICABLE`**, so IdP mutants cannot be detected. Differences in Core/Full, conditional features, and `CONFIG` settings are also not covered.
 
 ```yaml
 # tests/mutants/baselines.yaml
 baselines:
   - id: sp-full-slo-enc
-    role: sp                     # SUT の役割（Suite は Test IdP を演じる）
+    role: sp                     # Role of the SUT (the Suite plays the Test IdP)
     profile: sp-full
     declared_features: { single_logout: true, assertion_encryption: true, ecp: false }
-    config_fixture: tests/fixtures/sut/sp-full-slo-enc/    # ★ 設定差で結果が変わる
+    config_fixture: tests/fixtures/sut/sp-full-slo-enc/    # ★ Results change with configuration differences
     interaction: { allow_browser_steps: true, allow_attestation: true }
   - id: sp-core-minimal
     role: sp
@@ -130,97 +127,93 @@ baselines:
     profile: idp-core
     declared_features: { ecp: false }
     config_fixture: tests/fixtures/sut/idp-core-no-ecp/
-outcomes:                        # baseline ごとの期待 outcome（全 <!--g1:case_target-->541<!--/g1--> 義務）
+outcomes:                        # Expected outcome per baseline (all <!--g1:case_target-->543<!--/g1--> obligations)
   sp-full-slo-enc:
     IIP-SP13.a: satisfied
     IIP-SP13.b: satisfied
-    IIP-IDP01.a: not_applicable  # 役割違い
-    IIP-SP14.c: not_supported    # OPTIONAL の未実装申告
+    IIP-IDP01.a: not_applicable  # Different role
+    IIP-SP14.c: not_supported    # Declaration of an unimplemented OPTIONAL
     ...
 ```
 
-**期待値は `outcome` で書き、Verdict は書かない。**
-`satisfied` / `violated` から `PASS` / `WARNING` / `NOT_SUPPORTED` への変換は
-`Evaluator` が `level` を見て行う（[docs/05 §2.3](05-test-definition-format.md)）。
-mutant 定義に `FAIL` と書くと、SHOULD 義務を一律 FAIL にする誤りが再発する。
+**Write expected values as `outcome`, not Verdict.**
+`Evaluator` converts `satisfied` / `violated` to `PASS` / `WARNING` / `NOT_SUPPORTED` by looking at `level` ([docs/05 §2.3](05-test-definition-format.md)).
+Writing `FAIL` in a mutant definition would repeat the error of uniformly turning SHOULD obligations into FAIL.
 
 ```yaml
 # tests/mutants/no-signature-validation.yaml
 id: no-signature-validation
-base: sp-full-slo-enc            # ★ どの baseline に対する mutant かを明示
-injected_violation_ja: Response の XML 署名を一切検証しない
-expected_changes:                # baseline から変わるべき義務（outcome で書く）
+base: sp-full-slo-enc            # ★ Explicitly identify the baseline for this mutant
+injected_violation_en: Do not validate XML signatures on Responses at all
+expected_changes:                # Obligations that should change from baseline (written as outcome)
   IIP-SP13.a: violated
   IIP-MD07.b: violated
-unchanged_required: all_others   # それ以外は baseline と一致すること
+unchanged_required: all_others   # Everything else must match the baseline
 ```
 
-`unchanged_required: all_others` が要点で、これがないと
-**「何でも violated にする Suite」が golden test を通ってしまう**。
+The key is `unchanged_required: all_others`; without it, **a Suite that marks everything violated could pass the golden test**.
 
-#### control の失敗は対象の違反ではない
+### An unsuccessful control is not a target violation
 
-positive control（満たす実装が通ること）が失敗した場合、
-それは**対象の規範違反ではなく Suite 側の問題**である。
-`violated`（→ FAIL）にせず **`control_failed`** として扱い、
-当該ケースは `NOT_VERIFIED(control_failed)` にする。
-これを混同すると、Suite の不具合を対象の不適合として表示することになる。
+If the positive control (a conforming implementation passes) fails,
+that is **a problem on the Suite side, not a normative violation by the target**.
+Do not treat it as `violated` (→ FAIL); treat it as **`control_failed`** and make the case `NOT_VERIFIED(control_failed)`.
+Confusing these would display a Suite defect as target nonconformance.
 
-### 初期の mutant セット
+### Initial mutant set
 
-G2 で `tests/cases.yaml` の `detected_by_mutants` と対応づける。
+Map these to `detected_by_mutants` in `tests/cases.yaml` during G2.
 
-| mutant | base | 注入する違反 | `expected_changes` |
+| mutant | base | Injected violation | `expected_changes` |
 |---|---|---|---|
-| `no-signature-validation` | sp-full | 署名を検証しない | IIP-SP13.a / IIP-MD07.b |
-| `first-key-only` | sp-full | 複数鍵の最初しか試さない | IIP-MD07.b / IIP-SP08.c |
-| `first-key-only-idp` | idp-full | 同上（SLO の EncryptedID） | IIP-IDP19.c |
-| `gcm128-only` | sp-full | AES128-GCM しか受け付けない | IIP-ALG04.b |
-| `oaep-sha1-reject` | sp-full | DigestMethod sha1 を拒否する | IIP-ALG06.c |
-| `crash-on-extension` | sp-full / idp-full | 未知の拡張要素で落ちる | IIP-EXT01.b |
-| `crash-on-unknown-attribute` | sp-full / idp-full | 未知属性で落ちる | IIP-EXT01.c |
-| `truncate-256` | sp-full / idp-full | 256 文字の値を切り詰める | IIP-G02.a |
-| `ignore-force-authn` | idp-full | `ForceAuthn` を無視 | IIP-IDP06.a |
-| `no-error-response` | idp-full | エラー時に Response を返さない | IIP-IDP05.a / IIP-SSO03.b |
-| `single-acs-only` | idp-full | ACS が 1 つしか使えない | IIP-IDP12.a |
-| `reject-everything` | 各 baseline | 全て拒否する | **positive control を持つ全ケースが変化する**こと。`MUST_NOT` 系は baseline のまま |
-| `accept-everything` | 各 baseline | 全て受理する | **negative control を持つ全ケースが変化する**こと |
+| `no-signature-validation` | sp-full | Do not validate signatures | IIP-SP13.a / IIP-MD07.b |
+| `first-key-only` | sp-full | Try only the first of multiple keys | IIP-MD07.b / IIP-SP08.c |
+| `first-key-only-idp` | idp-full | Same (EncryptedID in SLO) | IIP-IDP19.c |
+| `gcm128-only` | sp-full | Accept only AES128-GCM | IIP-ALG04.b |
+| `oaep-sha1-reject` | sp-full | Reject DigestMethod sha1 | IIP-ALG06.c |
+| `crash-on-extension` | sp-full / idp-full | Crash on an unknown extension element | IIP-EXT01.b |
+| `crash-on-unknown-attribute` | sp-full / idp-full | Crash on an unknown attribute | IIP-EXT01.c |
+| `truncate-256` | sp-full / idp-full | Truncate a 256-character value | IIP-G02.a |
+| `ignore-force-authn` | idp-full | Ignore `ForceAuthn` | IIP-IDP06.a |
+| `no-error-response` | idp-full | Return no Response on error | IIP-IDP05.a / IIP-SSO03.b |
+| `single-acs-only` | idp-full | Support only one ACS | IIP-IDP12.a |
+| `reject-everything` | Every baseline | Reject everything | **Every case with a positive control changes**; `MUST_NOT` obligations remain at baseline |
+| `accept-everything` | Every baseline | Accept everything | **Every case with a negative control changes** |
 
-`reject-everything` / `accept-everything` は
-**control の機能そのものを検証する対照 mutant** である。
+`reject-everything` / `accept-everything` are **control mutants that validate the controls themselves**.
 
-**受け入れ条件**
+**Acceptance criteria**
 
-- [ ] baseline matrix が **IdP / SP × Core / Full × 主要な条件付き機能**を覆う
-- [ ] 各 baseline の outcome vector が固定され、2 回実行して一致する（再現性）
-- [ ] 各 mutant が `base` を明示している
-- [ ] 各 mutant で `expected_changes` の義務が**その通りに変化**する
-- [ ] 各 mutant で **それ以外の義務が baseline と一致**する
-- [ ] `reject-everything` で **positive control を持つ全ケース**が変化する
-- [ ] `accept-everything` で **negative control を持つ全ケース**が変化する
-- [ ] **全義務が 1 件以上の mutant で検出される、または `mutant_waiver` を持つ**
-      （[G2 の通過条件](01-scope-and-roadmap.md)）
-- [ ] control の失敗が `control_failed` として扱われ、対象の FAIL にならない
-- [ ] Test Plan 作成から結果表示まで、利用者が触るドキュメントが `README` 1 枚で足りる
-- [ ] 対象側で必要な設定作業が **メタデータ URL の登録 1 回 + オプション設定** に収まる
-- [ ] 同じ Suite バージョン・同じ Test Plan で 2 回実行して結果が一致する
-- [ ] 外部から検証不能な義務が `PASS` に混ざっていない（[03](03-test-model.md) の判定語彙）
+- [ ] The baseline matrix covers **IdP / SP × Core / Full × major conditional features**.
+- [ ] Each baseline’s outcome vector is fixed and matches across two executions (reproducibility).
+- [ ] Each mutant explicitly specifies `base`.
+- [ ] For each mutant, the obligations in `expected_changes` **change as specified**.
+- [ ] For each mutant, **all other obligations match the baseline**.
+- [ ] With `reject-everything`, **every case with a positive control** changes.
+- [ ] With `accept-everything`, **every case with a negative control** changes.
+- [ ] **Every obligation is detected by at least one mutant or has `mutant_waiver`**
+      ([G2 pass criteria](01-scope-and-roadmap.md)).
+- [ ] Control failures are treated as `control_failed` and do not become target FAIL results.
+- [ ] From Test Plan creation through result display, the user-facing documentation fits in one `README`.
+- [ ] Required target-side configuration fits within **one metadata URL registration + optional settings**.
+- [ ] Two executions with the same Suite version and Test Plan produce identical results.
+- [ ] Obligations that cannot be verified externally are not mixed into `PASS` ([03](03-test-model.md) verdict vocabulary).
 
-**リファレンス実装（Keycloak / Shibboleth / SimpleSAMLphp）の位置づけ**は
-「回帰検知と相互運用の確認」であり、**検出力の証明ではない**（[09 D-12](09-open-decisions.md)）。
+The **position of the reference implementations (Keycloak / Shibboleth / SimpleSAMLphp)** is
+“regression detection and interoperability confirmation,” and **not proof of detection power** ([09 D-12](09-open-decisions.md)).
 
-## 6. Authrim との関係（明文化）
+## 6. Relationship with Authrim (explicitly stated)
 
-Authrim は本プロジェクトの発案元だが、Samlier のコードには **Authrim 固有の依存を一切入れない**。
-Suite から見れば Authrim も Keycloak も等しく「外部の SAML 実装」である。
+Authrim originated this project, but Samlier’s code will contain **no Authrim-specific dependencies**.
+From the Suite’s perspective, Authrim and Keycloak are equally “external SAML implementations.”
 
-3 つの文脈で Authrim が登場しうるが、それぞれ別の話として扱う。
+Authrim may appear in three contexts, each treated as a separate matter.
 
-| 文脈 | 扱い |
+| Context | Treatment |
 |---|---|
-| **テスト対象としての Authrim** | 他の実装と完全に同じ。優遇も特別扱いもしない。リファレンス実装の公開サンプルに含める場合は、Keycloak / Shibboleth / SimpleSAMLphp と同じ書式・同じ Test Plan 構成で並べる |
-| **Hosted 版のログイン IdP としての Authrim**（将来） | 配備上の選択にすぎない。Samlier が実装するのは標準準拠の OIDC RP であり、設定で Keycloak にも Auth0 にも向けられること。→ [09 D-09](09-open-decisions.md) |
-| **開発中の動作確認相手としての Authrim** | 自由に使ってよいが、Authrim でしか通らないテストを書かないこと。CI のリファレンス実装は Authrim 以外を必ず含める |
+| **Authrim as a test target** | Exactly the same as any other implementation. No preferential or special treatment. If included in public samples of reference implementations, list it alongside Keycloak / Shibboleth / SimpleSAMLphp using the same format and Test Plan structure. |
+| **Authrim as the login IdP for the Hosted version** (future) | Merely a deployment choice. Samlier implements a standards-compliant OIDC RP that can be directed to Keycloak or Auth0 through configuration. → [09 D-09](09-open-decisions.md) |
+| **Authrim as a peer for development-time operational checks** | It may be used freely, but do not write tests that pass only with Authrim. CI reference implementations must always include implementations other than Authrim. |
 
-> 利益相反に見えないことが重要。README に上記を明記し、
-> 公開する Authrim の結果は他の実装と同じ扱いにする。
+> It is important that this not appear to be a conflict of interest. State the above in the README,
+> and treat published Authrim results the same as results for other implementations.
