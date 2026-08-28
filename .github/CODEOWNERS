@@ -1,20 +1,20 @@
-# 承認プロトコルの trust anchor になるファイル。
-# branch protection で「CODEOWNERS のレビュー必須」にしないと、
-# これらを書き換えるだけでゲート全体が無効になる。
+# Files that serve as trust anchors for the approval protocol.
+# Unless branch protection requires CODEOWNERS review,
+# rewriting these files disables the entire gate.
 
-# CI 定義そのもの（最後の trust anchor）
+# The CI definitions themselves (the final trust anchor)
 /.github/                     @sgrastar
 
-# 検査器と実行入口
+# Validators and execution entry points
 /tools/g1_validate.py         @sgrastar
 /tools/g1_trusted_verify.py   @sgrastar
 /tools/g1_extract.py          @sgrastar
-/tools/g1_ci_verify.sh        @sgrastar
+/tools/g1_ci_verify.sh         @sgrastar
 /tools/g1_docgen.py           @sgrastar
 
-# ★ 依存。署名検証より前に実行されるコードを決めるため trust anchor に含む
+# ★ Dependencies. Included as trust anchors because they determine the code executed before signature verification.
 /tools/requirements.txt       @sgrastar
 /tools/requirements.lock      @sgrastar
 
-# 承認対象の成果物
+# Approved artifacts
 /tests/                       @sgrastar

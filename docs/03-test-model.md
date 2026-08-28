@@ -1,26 +1,26 @@
-# 03. テストモデル
+# 03. Test Model
 
-## 1. データモデル
+## 1. Data Model
 
 ```
-Profile          静的。IIP v1.1 IdP Core / IdP Full / SP Core / SP Full
-  └─ Requirement 静的。IIP-G01 … IIP-IDP21（69 件）
-       └─ Obligation ★ 静的。1 要件の中の「役割 × 条件 × RFC2119 レベル」単位の義務
-            └─ TestCase  静的。1 Obligation に 0..N ケース。YAML + 実装クラス
+Profile          Static. IIP v1.1 IdP Core / IdP Full / SP Core / SP Full
+  └─ Requirement Static. IIP-G01 … IIP-IDP21 (69 items)
+       └─ Obligation ★ Static. An obligation unit of “role × condition × RFC2119 level” within one requirement
+            └─ TestCase  Static. 0..N cases per Obligation. YAML + implementation class
 
-TestPlan         利用者が作る。Profile + Target + 構成宣言 + 発行された Test Peer 鍵/entityID
-  └─ TestRun     1 回の実行
-       └─ CaseRun  ケース 1 件の実行結果（Verdict + 根拠 + Transcript 参照）
+TestPlan         Created by the user. Profile + Target + configuration declarations + issued Test Peer key/entityID
+  └─ TestRun     One execution
+       └─ CaseRun  Execution result for one case (Verdict + rationale + Transcript reference)
 
-判定は CaseRun → Obligation → Requirement(役割別) → Run の順に集約する（§6, §7）
+Determinations are aggregated in the order CaseRun → Obligation → Requirement (by role) → Run (§6, §7)
 ```
 
-### ★ なぜ Obligation 層が要るのか
+### ★ Why the Obligation Layer Is Necessary
 
-1 つの要件 ID の中に、**役割ごとに異なるレベル**や**条件付きの義務**が同居している。
-`applies_to: [idp, sp]` と単一の `level` では正しい FAIL / WARNING を導出できない。
+Within a single requirement ID, **different levels by role** and **conditional obligations** coexist.
+Correct FAIL / WARNING results cannot be derived from `applies_to: [idp, sp]` and a single `level`.
 
-| 要件 | 原文の構造 |
+| Requirement | Structure of the original text |
 |---|---|
 | IIP-MD01 | *Identity Providers **MUST** and Service Providers **SHOULD** support … the Metadata Query Protocol* |
 | IIP-MD10 | *… Identity providers **MUST** and Service Providers **SHOULD** limit the use of algorithms* |
@@ -29,7 +29,7 @@ TestPlan         利用者が作る。Profile + Target + 構成宣言 + 発行�
 | IIP-ALG08 | *… **MUST** support the ability to prevent the use of particular algorithms … The set of such algorithms **MUST** be configurable and it is **RECOMMENDED** that the default set include …* |
 | IIP-MD09 | *… **MUST** be capable of publishing the cryptographic capabilities … It is **RECOMMENDED** that they support dynamic generation* |
 
-したがって要件を義務に分解する。
+Therefore, requirements are decomposed into obligations.
 
 ```yaml
 # tests/coverage.yaml
@@ -55,99 +55,101 @@ TestPlan         利用者が作る。Profile + Target + 構成宣言 + 発行�
     - key: IIP-SP14.b
       roles: [sp]
       level: MUST
-      condition: declared_features.single_logout == true   # ★ 条件付き MUST
+      condition: declared_features.single_logout == true   # ★ Conditional MUST
       summary_en: "If claiming SLO support, be capable of issuing logout requests"
 ```
 
-- `condition` は**三値**で評価する（下記 ★）。偽なら **`NOT_APPLICABLE`**（母数から除外）
-- 判定レベルは**義務単位**で決まる。`IIP-SP13.a` を満たせなければ FAIL、
-  `IIP-SP13.b`（既定で拒否）を満たさなければ **WARNING**（FAIL ではない）
-- 要件の Verdict は、その役割に適用される義務の集約（§6）
+- `condition` is evaluated using **three-valued logic** (see ★ below). If false, it is **`NOT_APPLICABLE`** (excluded from the denominator).
+- The determination level is set **per obligation unit**. If `IIP-SP13.a` is not satisfied, the result is FAIL;
+  if `IIP-SP13.b` (reject by default) is not satisfied, the result is **WARNING** (not FAIL).
+- A requirement's Verdict is the aggregation of the obligations applicable to that role (§6).
 
-### ★ 条件の評価: `effective_result` と `conflict` を分離する
+### ★ Separate Condition Evaluation: `effective_result` and `conflict`
 
-`condition` を Test Plan の自己申告だけで評価すると、
-**「SLO は未対応です」と申告するだけで条件付き MUST を回避できてしまう**。
+If `condition` is evaluated solely from the Test Plan's self-declaration,
+one can avoid a conditional MUST simply by declaring, **“SLO is not supported.”**
 
-評価は **2 つの独立した値**を出す。1 つに畳むと、
-「実行すべきか」と「矛盾があるか」が区別できなくなる。
+The evaluation produces **two independent values**. If they are collapsed into one,
+“whether it should be executed” and “whether there is a contradiction” can no longer be distinguished.
 
 ```
-effective_result ∈ { TRUE, FALSE, UNKNOWN }   → ケースを実行するか（スケジューリング）
-conflict         ∈ { true, false }            → 申告と観測が食い違っているか
+effective_result ∈ { TRUE, FALSE, UNKNOWN }   → whether to execute the case (scheduling)
+conflict         ∈ { true, false }            → whether the declaration and observation disagree
 ```
 
-| `effective_result` | ケース | 義務への入力 |
+| `effective_result` | Case | Input to obligation |
 |---|---|---|
-| `TRUE` | 実行する | （なし。通常どおりケースを集約） |
-| `FALSE` | 実行しない | `NOT_APPLICABLE` |
-| `UNKNOWN` | 実行しない | `NOT_VERIFIED(applicability_undetermined)` |
+| `TRUE` | Execute | (None. Aggregate the case as usual.) |
+| `FALSE` | Do not execute | `NOT_APPLICABLE` |
+| `UNKNOWN` | Do not execute | `NOT_VERIFIED(applicability_undetermined)` |
 
-`conflict = true` は **`effective_result` と独立に** `INCONSISTENT` を義務の集約に注入する。
-重大度順序上 `INCONSISTENT` は `NOT_APPLICABLE` より上位なので、
-**矛盾したまま義務が黙って除外されることはない**。
+`conflict = true` injects `INCONSISTENT` into the obligation aggregation **independently of** `effective_result`.
+Because `INCONSISTENT` ranks higher than `NOT_APPLICABLE` in severity order,
+an obligation **cannot be silently excluded while contradictory**.
 
-| declared | observed | effective_result | conflict | 結果 |
+| declared | observed | effective_result | conflict | Result |
 |---|---|---|---|---|
-| true | true | `TRUE` | false | 実行 |
-| false | false | `FALSE` | false | `NOT_APPLICABLE` |
-| **false** | **true** | `TRUE`（観測優先） | **true** | 実行 + `INCONSISTENT` |
-| **true** | **false** | `FALSE`（観測優先） | **true** | 実行しない + `INCONSISTENT` |
-| true / false | 材料なし | 述語の種類による（下記） | false | — |
-| 材料なし | 材料なし | `UNKNOWN` | false | `NOT_VERIFIED` |
+| true | true | `TRUE` | false | Execute |
+| false | false | `FALSE` | false | NOT_APPLICABLE |
+| **false** | **true** | `TRUE` (observation takes precedence) | **true** | Execute + `INCONSISTENT` |
+| **true** | **false** | `FALSE` (observation takes precedence) | **true** | Do not execute + `INCONSISTENT` |
+| true / false | No evidence | Depends on predicate type (below) | false | — |
+| No evidence | No evidence | `UNKNOWN` | false | `NOT_VERIFIED` |
 
-### ★ 述語の種類によって「申告だけ」の扱いを変える
+### ★ Handling of “Declaration Only” Depends on Predicate Type
 
-観測材料が得られなかったとき、申告をそのまま採用してよいかは**条件の性質による**。
-一律に採用すると、`target.kind = token_translation_proxy` や
-`outbound_encryption: false` を選ぶだけで MUST を除外できてしまう。
+When no observational evidence is available, whether the declaration may be adopted as-is **depends on the nature of the condition**.
+Adopting it uniformly would allow a MUST to be excluded simply by selecting `target.kind = token_translation_proxy` or
+`outbound_encryption: false`.
 
-| 種類 | 条件の性質 | 例 | 観測材料がないときの `FALSE` 申告 |
+| Type | Nature of condition | Example | `FALSE` declaration when no observational evidence is available |
 |---|---|---|---|
-| `CLAIM_BASED` | **「対応を表明しているか」そのものが条件** | IIP-SP14.b *SPs **that claim support** for this profile* | ✅ **`FALSE` を採用**。申告が真理値そのものだから |
-| `CAPABILITY_BASED` | 実際の能力が条件 | IIP-MD08 *implementations **that support outbound encryption*** | ❌ **`UNKNOWN`** → `NOT_VERIFIED(applicability_undetermined)`。申告だけで能力の不在を証明できない |
-| `CLASSIFICATION_BASED` | 製品の分類が条件 | IIP-IDP13 *does not apply to **token translation Proxies*** | ❌ 既定は **`UNKNOWN`**（下記の例外あり） |
+| `CLAIM_BASED` | The condition itself is **whether support is claimed** | IIP-SP14.b *SPs **that claim support** for this profile* | ✅ **Adopt `FALSE`**. The declaration itself is the truth value. |
+| `CAPABILITY_BASED` | The condition is actual capability | IIP-MD08 *implementations **that support outbound encryption*** | ❌ **`UNKNOWN`** → `NOT_VERIFIED(applicability_undetermined)`. The absence of capability cannot be proved by declaration alone. |
+| `CLASSIFICATION_BASED` | The condition is the product classification | IIP-IDP13 *does not apply to **token translation Proxies*** | ❌ The default is **`UNKNOWN`** (with the exception below). |
 
-`CLASSIFICATION_BASED` は再実行しても観測材料が増えないため、
-`UNKNOWN` のままでは永久に完全なレポートを作れない。そこで**明示的な除外申告**の経路だけを開ける。
+Because rerunning a `CLASSIFICATION_BASED` condition does not increase the observational evidence,
+a complete report can never be produced while it remains `UNKNOWN`. Therefore, only the
+explicit exclusion-declaration path is opened.
 
 ```
-利用者が「この製品は token translation Proxy である」と
-明示的な除外申告（チェックボックス + 理由の記入）を行った場合に限り、
-effective_result = FALSE を採用する。ただし:
+Only when the user makes an explicit exclusion declaration that
+“this product is a token translation Proxy”
+(check box + entry of a reason), adopt:
+effective_result = FALSE. However:
 
-  - applicability[].basis = "declaration_only_exclusion" を記録する
-  - coverage.excluded_by_declaration に計上する
-  - run.scope_qualifications[] に機械可読な記録を残す
-  - ★ run.conformance が CONFORMANT / CONFORMANT_WITH_WARNINGS にならない
+  - Record applicability[].basis = "declaration_only_exclusion"
+  - Count it in coverage.excluded_by_declaration
+  - Leave a machine-readable record in run.scope_qualifications[]
+  - ★ run.conformance must not become CONFORMANT / CONFORMANT_WITH_WARNINGS
 ```
 
-### ★ 申告のみの除外があった Run は `CONFORMANT` を返さない
+### ★ A Run with a Declaration-Only Exclusion Does Not Return `CONFORMANT`
 
-`conformance_statement` に注記するだけでは不十分である。
-**バッジや API の利用者は `run.conformance` しか読まない。**
-それでは「token translation Proxy です」と申告するだけで ECP の MUST を除外した
-`CONFORMANT` を機械的に取得できてしまう。
+Merely adding a note to `conformance_statement` is insufficient.
+**Badges and API consumers read only `run.conformance`.**
+That would make it possible to mechanically obtain `CONFORMANT` with the ECP MUST excluded simply by declaring,
+“This is a token translation Proxy.”
 
-そこで **enum の値そのものに現れるようにする**。
+Therefore, **make it appear in the enum value itself**.
 
 ```
 run.conformance ∈ {
     CONFORMANT,
     CONFORMANT_WITH_WARNINGS,
-    CONFORMANT_WITH_DECLARED_EXCLUSIONS,   ★ 新設
+    CONFORMANT_WITH_DECLARED_EXCLUSIONS,   ★ Newly added
     NON_CONFORMANT,
     INDETERMINATE
 }
 
-excluded_by_declaration > 0 かつ他が全て充足
-    → CONFORMANT_WITH_DECLARED_EXCLUSIONS   （WARNING の有無を問わない）
+excluded_by_declaration > 0 and everything else is satisfied
+    → CONFORMANT_WITH_DECLARED_EXCLUSIONS   (regardless of whether WARNING exists)
 ```
 
-`run.conformance == "CONFORMANT"` で分岐する素朴な利用者は**この値に一致しない**。
-第 2 のフィールドを読み飛ばされる問題が起きない。
+A naïve consumer branching on `run.conformance == "CONFORMANT"` **will not match this value**.
+The problem of the second field being skipped cannot occur.
 
-併せて `run.scope_qualifications[]` に機械可読な詳細を残す。
+Also retain machine-readable details in `run.scope_qualifications[]`.
 
 ```json
 "scope_qualifications": [
@@ -155,307 +157,313 @@ excluded_by_declaration > 0 かつ他が全て充足
     "predicate": "is_token_translation_proxy",
     "target_kind": "token_translation_proxy",
     "excluded_obligations": ["IIP-IDP13.a", "IIP-IDP13.b"],
-    "reason": "<利用者が記入した理由>",
-    "attested_by": "<利用者の識別子 or 'anonymous'>",
+    "reason": "<reason entered by the user>",
+    "attested_by": "<user identifier or 'anonymous'>",
     "attested_at": "2026-08-25T04:12:03Z",
     "verified": false }
 ]
 ```
 
-`target.kind` も結果 JSON に必ず含める（[06 §1](06-results-and-publication.md)）。
+`target.kind` must also always be included in the result JSON ([06 §1](06-results-and-publication.md)).
 
-### ★ 除外範囲は原文の除外文が属する要件だけ
+### ★ The Exclusion Scope Is Limited to the Requirement Containing the Original Exclusion Text
 
-上の例で除外されるのは **IIP-IDP13 の義務だけ**である。
-*This requirement does not apply to token translation Proxies.* は
-**IIP-IDP13 の末尾にある文**であり、IIP-IDP14〜16 には及ばない。
-IDP14（HTTP Basic）・IDP15（SAML-EC の鍵）・IDP16（ECP 設定のメタデータ取り込み）は
-**無条件の MUST** である。
+In the example above, only the **obligations of IIP-IDP13** are excluded.
+*This requirement does not apply to token translation Proxies.* is
+**a sentence at the end of IIP-IDP13** and does not extend to IIP-IDP14–16.
+IDP14 (HTTP Basic), IDP15 (SAML-EC keys), and IDP16 (ECP configuration metadata import)
+are **unconditional MUSTs**.
 
-- `excluded_obligations` は**手で列挙しない**。
-  `coverage.yaml` で当該 `condition` を持つ義務を Evaluator が機械的に集める
-- ある除外述語が複数の要件にまたがる場合、**各要件の原文に除外文があること**を
-  `:specReconcile` が原文を取得して確認する（[04 設計ゲート G1](04-requirement-coverage.md)）
-- CI 規則 5b-4: 同じ `predicate` を持つ義務が、**原文該当節に除外文を含まない要件**に
-  付いていたら落とす
+- `excluded_obligations` is **not manually enumerated**.
+  The Evaluator mechanically collects the obligations with the relevant `condition` in `coverage.yaml`.
+- If an exclusion predicate spans multiple requirements, `:specReconcile` obtains the original text and confirms that
+  the exclusion text exists in the original text of **each requirement** ([04 Design Gate G1](04-requirement-coverage.md)).
+- CI rule 5b-4: if an obligation with the same `predicate` is attached to a requirement whose
+  **corresponding section in the original text contains no exclusion text**, reject it.
 
-> 除外の範囲が 1 要件でも広がると、**無条件 MUST を自己申告だけで消せる**ようになる。
-> 除外述語の付与範囲は G1 のレビュー対象そのものである。
+> If the exclusion scope expands by even one requirement, **an unconditional MUST can be removed by self-declaration alone**.
+> The scope to which an exclusion predicate is attached is itself the subject of G1 review.
 
-**黙って除外できる経路は作らない。** 除外は可能だが、必ず結果の最上位に現れる。
+**Do not create a path for silent exclusion.** Exclusion is possible, but it must always appear at the top level of the result.
 
-### 観測材料
+### Observational Evidence
 
-各条件は **申告値と観測事実の両方**から評価する。
+Each condition is evaluated from **both the declaration value and observed facts**.
 
-| 条件 | 種類 | 申告 | 観測（優先） |
+| Condition | Type | Declaration | Observation (precedence) |
 |---|---|---|---|
 | `claims_single_logout` | `CLAIM_BASED` | `declared_features.single_logout` | — |
-| `supports_single_logout` | `CAPABILITY_BASED` | 同上 | 対象メタデータの `<SingleLogoutService>` / 実際の LogoutRequest 発行 |
-| `supports_outbound_encryption` | `CAPABILITY_BASED` | `declared_features.assertion_encryption` | 実際に `<EncryptedAssertion>` / `<EncryptedID>` を生成したか |
-| `supports_ecp` | `CAPABILITY_BASED` | `declared_features.ecp` | 対象メタデータの `SingleSignOnService` に SOAP バインディングがあるか |
-| `is_token_translation_proxy` | `CLASSIFICATION_BASED` | `target.kind` | — （明示的な除外申告のみ） |
+| `supports_single_logout` | `CAPABILITY_BASED` | Same as above | `<SingleLogoutService>` in the target metadata / actual issuance of a LogoutRequest |
+| `supports_outbound_encryption` | `CAPABILITY_BASED` | `declared_features.assertion_encryption` | Whether `<EncryptedAssertion>` / `<EncryptedID>` was actually generated |
+| `supports_ecp` | `CAPABILITY_BASED` | `declared_features.ecp` | Whether the target metadata's `SingleSignOnService` has a SOAP binding |
+| `is_token_translation_proxy` | `CLASSIFICATION_BASED` | `target.kind` | — (explicit exclusion declaration only) |
 
-規則:
+Rules:
 
-1. **観測が申告と矛盾したら `conflict = true`**。`effective_result` は観測を優先する
-2. 観測材料がない場合の扱いは**述語の種類**による（上表）
-3. 適用性の判定根拠（`declared` / `observed` / `effective_result` / `conflict` / `basis`）は
-   結果 JSON に**全件**記録する（[06 §1](06-results-and-publication.md)）
-4. `ApplicabilityEvaluation` は `Evaluator.evaluate()` の明示的な入力である（§6.2, §7.5）
+1. **If observation contradicts the declaration, set `conflict = true`**. Observation takes precedence for `effective_result`.
+2. Handling when no observational evidence is available depends on the **predicate type** (the table above).
+3. The basis for the applicability determination (`declared` / `observed` / `effective_result` / `conflict` / `basis`) is
+   recorded **for every item** in the result JSON ([06 §1](06-results-and-publication.md)).
+4. `ApplicabilityEvaluation` is an explicit input to `Evaluator.evaluate()` (§6.2, §7.5).
 
-### ★ リンクの意味 — `linked_obligations`
+### ★ Meaning of Links — `linked_obligations`
 
-原文が **別の節の規則をそのまま取り込む**ことがある。
-例: IIP-IDP16（ECP, §2.3.10）の冒頭は Browser SSO **§4.1.6 の規則を継承**する。
-これを注記だけで表すと、G2 でケースを起こすときに継承分が落ちる。
-そこで `coverage.yaml` に**機械可読なリンク**を持たせる。
+The original text sometimes **incorporates a rule from another section as-is**.
+For example, the beginning of IIP-IDP16 (ECP, §2.3.10) **inherits the rules of Browser SSO §4.1.6**.
+Representing this only as a note would cause the inherited portion to be omitted when creating cases in G2.
+Therefore, `coverage.yaml` carries a **machine-readable link**.
 
 ```yaml
 linked_obligations:
   - obligation: IIP-SSO06.a
-    kind: inherit_variants          # 現時点で定義されている唯一の種別
-    note_ja: "…なぜ取り込むのか…"
+    kind: inherit_variants          # The only type currently defined
+    note_en: "…why it is incorporated…"
 ```
 
-**意味の定義**（G2 / 実装はこの通りに扱うこと）:
+**Definition of Meaning** (G2 / implementations MUST handle this accordingly):
 
-| # | 規則 | 理由 |
+| # | Rule | Reason |
 |---|---|---|
-| **L1** | `kind: inherit_variants` は「**A のケースは B の `required_variants` も覆わなければならない**」。展開は**推移的** | 継承分をケース設計から落とさないため |
-| **L2** | **`role` / `level` / `condition` / `testability` は継承しない**。常に A 自身の値を使う | A は別の文脈（ECP / SLO 等）で成立する義務。B の条件や役割を持ち込むと誤適用になる |
-| **L3** | 展開後の variant は **`<obligation-key>#<variant-id>`** で参照する（`covers_variants` の記法） | どの義務由来の variant かを判別できるようにするため |
-| **L4** | **二重計上しない**。A のケースが B の variant を覆っても **B の網羅は満たされない**（逆も同じ）。completeness / mutant coverage の母数は**義務単位**で数える | 「A のケースがあるから B も済み」を防ぐ |
-| **L5** | ケースの digest には**展開後の variant ID 集合**を含める。B の variant を編集すると A のケースの digest も変わり、**再レビューが必要**になる | B の変更が A のケースに黙って波及するのを防ぐ |
-| **L6** | `docs/04` は A 側に「**参照取り込み**」、B 側に「**被参照**」を出力する | 片方向だけだと B の編集者が影響範囲に気づけない |
+| **L1** | `kind: inherit_variants` means that "**A's cases MUST also cover B's `required_variants`**." Expansion is **transitive** | To prevent inherited items from being omitted from case design |
+| **L2** | **`role` / `level` / `condition` / `testability` are not inherited**. Always use A's own values | A is an obligation established in a different context (ECP / SLO, etc.). Importing B's conditions or role would result in misapplication |
+| **L3** | Expanded variants are referenced using **`<obligation-key>#<variant-id>`** (the `covers_variants` notation) | To identify which obligation a variant originated from |
+| **L4** | **Do not double-count**. Even if A's case covers B's variant, **B's coverage is not satisfied** (and vice versa). The denominators for completeness / mutant coverage are counted **per obligation** | To prevent “B is also done because A has a case” |
+| **L5** | Include the **set of expanded variant IDs** in the case digest. Editing B's variant changes the digest of A's case as well, requiring **re-review** | To prevent changes to B from silently propagating to A's cases |
+| **L6** | `docs/04` outputs “**reference import**” on A's side and “**referenced by**” on B's side | If only one direction is shown, editors of B may fail to notice the impact scope |
 
-**CI で強制していること**（`tools/g1_validate.py`）:
+**Enforced by CI** (`tools/g1_validate.py`):
 
-| 検査 | 内容 |
+| Check | Content |
 |---|---|
-| `SR-22g-shape` | `{obligation, kind, note_ja}` の形であること |
-| `SR-22d` | 参照先が実在すること |
-| `SR-22e` | 自己参照でないこと |
-| `SR-22f` | 循環がないこと |
-| `SR-22g` | `kind` が定義済みの語彙（現在は `inherit_variants` のみ）であること |
-| `SR-22h` | 展開が有限（深さ 4 以内）で、空でないこと |
-| `SR-22i` | 取り込み先が `NOT_OBSERVABLE` でないこと（variant がなくリンクが無意味になる） |
+| `SR-22g-shape` | Must have the shape `{obligation, kind, note_en}` |
+| `SR-22d` | The reference target exists |
+| `SR-22e` | It is not a self-reference |
+| `SR-22f` | There are no cycles |
+| `SR-22g` | `kind` is a defined vocabulary term (currently only `inherit_variants`) |
+| `SR-22h` | Expansion is finite (within depth 4) and non-empty |
+| `SR-22i` | The import target is not `NOT_OBSERVABLE` (which would make the link meaningless because there are no variants) |
 
-> **種別を増やすときは、`docs/03`（この表）→ `g1_author.py` の `LINK_KINDS` →
-> `g1_validate.py` の `SR-22g` を同時に更新する。**
-> 意味の定義がない `kind` が成果物に入ることを禁じている。
+> **When adding a type, update `docs/03` (this table) → `LINK_KINDS` in `g1_author.py` →
+> `SR-22g` in `g1_validate.py` at the same time.**
+> This prohibits artifacts from containing a `kind` whose meaning is undefined.
 
-## 2. Test Plan の構成項目
+## 2. Test Plan Components
 
-元メモの UI 案は「Profile / metadata URL / オプション」だけだったが、
-これでは実行できないテストが多数出る。実際に必要な項目は次の通り。
+The original memo's UI proposal contained only “Profile / metadata URL / options,”
+but this would leave many tests impossible to execute. The actually required components are as follows.
 
 ```yaml
 name: "Keycloak 26 IdP"
 profile: idp-full                  # idp-core | idp-full | sp-core | sp-full
 
 target:
-  kind: idp | sp | token_translation_proxy   # ★ 適用性の判定に使う
-  #  token_translation_proxy を選ぶと IIP-IDP13 は NOT_APPLICABLE になる
-  #  （原文: "This requirement does not apply to token translation Proxies."）
+  kind: idp | sp | token_translation_proxy   # ★ Used to determine applicability
+  #  Selecting token_translation_proxy makes IIP-IDP13 NOT_APPLICABLE
+  #  (original text: "This requirement does not apply to token translation Proxies.")
   entity_id: "https://kc.example.org/realms/test"
   metadata_source:
     kind: url | mdq | upload
     location: "https://kc.example.org/realms/test/protocol/saml/descriptor"
 
-# Suite のメタデータを対象にどう渡すか ★ 多くのメタデータ系テストの前提条件
+# How to deliver the Suite's metadata to the target ★ A precondition for many metadata-related tests
 suite_metadata_delivery:
   kind: manual | http_url | mdq
-  # manual  = 利用者が XML をダウンロードして対象に貼り付ける
-  #           → IIP-MD01〜MD04 は NOT_VERIFIED(plan_configuration)。
-  #             NOT_APPLICABLE ではない（母数に残り、Run は
-  #             conformance=INDETERMINATE / completeness=INCOMPLETE になる）
-  # http_url= 対象が Suite の metadata URL を定期取得する
-  # mdq     = 対象が Suite の MDQ を引く（IIP-MD01 の検証に必須）
+  # manual  = The user downloads the XML and pastes it into the target
+  #           → IIP-MD01–MD04 are NOT_VERIFIED(plan_configuration).
+  #             They are not NOT_APPLICABLE (they remain in the denominator,
+  #             and the Run becomes conformance=INDETERMINATE / completeness=INCOMPLETE)
+  # http_url= The target periodically retrieves the Suite's metadata URL
+  # mdq     = The target queries the Suite's MDQ (required to verify IIP-MD01)
 
-declared_features:               # 対象が実装していると申告する任意機能
+declared_features:               # Optional features that the target declares it implements
   single_logout: true
   ecp: false
   assertion_encryption: true
   encrypted_nameid: false
-  idp_discovery: false           # SP のみ
-  accepts_unsolicited_sso: true  # SP のみ。false ならアーミング方式にフォールバック
+  idp_discovery: false           # SP only
+  accepts_unsolicited_sso: true  # SP only. If false, fall back to the arming method
 
 parameters:
-  clock_skew_tolerance_seconds: 180   # 「reasonable」の解釈値。結果に必ず記録する
-  metadata_refresh_wait_seconds: 300  # IIP-MD02 の待ち時間
-  test_user_hint: "testuser / ログイン方法のメモ（結果には出さない）"
+  clock_skew_tolerance_seconds: 180   # Interpretive value for “reasonable.” MUST always be recorded in the result
+  metadata_refresh_wait_seconds: 300  # Waiting time for IIP-MD02
+  test_user_hint: "testuser / Notes on the login method (not shown in the result)"
 
 interaction:
-  allow_browser_steps: true      # false ならバックチャネルのみのテストに限定
-  allow_attestation: true        # false なら ATTESTED なケースは
-                                 # NOT_VERIFIED(interaction_disallowed)。
-                                 # INDETERMINATE は「実行したが証拠不足」の場合に限る
+  allow_browser_steps: true      # If false, limit tests to back-channel-only tests
+  allow_attestation: true        # If false, ATTESTED cases become
+                                 # NOT_VERIFIED(interaction_disallowed).
+                                 # INDETERMINATE is limited to cases where execution occurred but evidence was insufficient
 ```
 
-> **重要**: `declared_features` と `parameters` は **結果に必ず刻む**。
-> これがないと 2 つの結果を比較できない。「PASS 74」だけの数字には意味がない。
+> **Important**: `declared_features` and `parameters` **MUST always be recorded in the result**.
+> Without them, two results cannot be compared. A number such as “PASS 74” has no meaning by itself.
 
-## 3. テスト可能性の分類（5 系統）
+## 3. Testability Classification (5 Categories)
 
-SAML のブラックボックステストは、全てを機械的に観測できるわけではない。
-元メモに完全に欠けていた点なので、明示的にモデル化する。
-この分類は **義務ごと**に `coverage.yaml` に記録する（[05 §2.1](05-test-definition-format.md)）。
+SAML black-box tests cannot all be observed mechanically.
+Because this point was completely absent from the original memo, it is explicitly modeled here.
+This classification is recorded in `coverage.yaml` **for each obligation** ([05 §2.1](05-test-definition-format.md)).
 
-| モード | 説明 | 例 |
+| Mode | Description | Example |
 |---|---|---|
-| `AUTOMATED` | Suite が対象と直接やりとりして完結する。ブラウザ不要 | メタデータの静的検査、MDQ、SOAP SLO、ECP |
-| `BROWSER` | 利用者のブラウザが SAML のユーザーエージェントとして必要 | Web Browser SSO 全般 |
-| `ATTESTED` | 対象内部の挙動が外から見えないため、利用者に構造化された質問をして答えてもらう | 「SP はエラーを表示し、ログインセッションを作らなかったか?」 |
-| `CONFIG` | 対象側の設定変更を利用者に依頼したうえで `AUTOMATED`/`BROWSER` を行う | Suite のメタデータを再読込させる、属性リリース設定を変える |
-| `NOT_OBSERVABLE` | 外部からは原理的に検証できない。テストを作らず、レポートに理由付きで出す | 「persistent NameID に意味を持たせていない」（IIP-SP12） |
+| `AUTOMATED` | The Suite interacts directly with the target and completes the test. No browser is required | Static metadata inspection, MDQ, SOAP SLO, ECP |
+| `BROWSER` | The user's browser is required as the SAML user agent | Web Browser SSO in general |
+| `ATTESTED` | Because behavior inside the target is not visible externally, the user is asked structured questions and provides answers | “Did the SP display an error and not create a login session?” |
+| `CONFIG` | After asking the user to change the target's configuration, perform `AUTOMATED`/`BROWSER` | Have the target reload the Suite's metadata, change the attribute release configuration |
+| `NOT_OBSERVABLE` | It cannot in principle be verified externally. Do not create a test; report it with a reason | “Does not assign meaning to persistent NameID” (IIP-SP12) |
 
-### ATTESTED の扱い方
+### Handling ATTESTED
 
 ```
 ┌──────────────────────────────────────────────┐
-│ IIP-SP13-02  未署名 Response を拒否すること   │
+│ IIP-SP13-02  MUST reject an unsigned Response │
 ├──────────────────────────────────────────────┤
-│ Suite は署名のない Response を SP の ACS に   │
-│ POST しました。                               │
+│ The Suite POSTed an unsigned Response to the  │
+│ SP's ACS.                                     │
 │                                              │
-│ 対象 SP の画面はどうなりましたか?             │
-│  ○ エラーが表示され、ログインしなかった       │
-│  ○ ログインが成功してしまった      ← FAIL     │
-│  ○ その他 / 分からない            ← 判定保留  │
+│ What happened on the target SP's screen?      │
+│  ○ An error was displayed and login did not   │
+│    occur                                       │
+│  ○ Login succeeded                 ← FAIL     │
+│  ○ Other / Don't know              ← Hold     │
+│    determination                              │
 │                                              │
-│ [送信]  [ブラウザの実際の画面を再確認する]    │
+│ [Submit]  [Recheck the browser's actual screen]│
 └──────────────────────────────────────────────┘
 ```
 
-- 利用者の申告に基づく結果は、レポート上で必ず `(attested)` と表示する
-- 申告に矛盾がある場合（例: Suite は HTTP 302 でセッション Cookie の発行を観測したのに
-  「ログインしなかった」と申告）は `INCONSISTENT` として警告する
-- 公開結果では attested な項目の件数を必ず表示する
+- Results based on the user's report MUST always be displayed as `(attested)` in the report
+- If the report conflicts with observations (for example, the Suite observed issuance of a session Cookie through HTTP 302, while the user reported that “login did not occur”), issue an `INCONSISTENT` warning
+- Public results MUST always display the number of attested items
 
-## 4. 判定語彙（Verdict）
+## 4. Verdict Vocabulary
 
-**適用されない**ことと**検証できなかった**ことを厳密に分ける。ここが最も間違えやすい。
+Strictly distinguish between **not applicable** and **could not be verified**. This is the easiest point to get wrong.
 
-| Verdict | 意味 | 母数 | MUST で起きたときの Run への影響 |
+| Verdict | Meaning | Denominator | Impact on the Run when it occurs for MUST |
 |---|---|---|---|
-| `PASS` | 検証し、義務を満たしていた | 含む | — |
-| `WARNING` | SHOULD / RECOMMENDED を満たさない、または PASS だが注意点がある | 含む | `CONFORMANT_WITH_WARNINGS` |
-| `FAIL` | 検証し、義務を満たしていなかった | 含む | `NON_CONFORMANT` |
-| `INCONSISTENT` | 利用者の申告と Suite の観測が矛盾する | 含む | `conformance = INDETERMINATE` / `completeness = INCOMPLETE`（申告のやり直しを促す） |
-| `INDETERMINATE` | 実行したが判定に足る証拠が得られなかった | 含む | `conformance = INDETERMINATE` / `completeness = INCOMPLETE` |
-| `NOT_VERIFIED` | **義務は適用されるが、この Run では検証できなかった**（`reason` 必須） | 含む | `conformance = INDETERMINATE` / `completeness = INCOMPLETE` |
-| `NOT_OBSERVABLE` | 外部プロトコル面から**原理的に**検証できない。要件側の静的な属性 | 含む（別枠で表示） | 適合の主張から**明示的に除外**（§7） |
-| `NOT_SUPPORTED` | `MAY` / `OPTIONAL` の義務を「未実装」と申告された | 除外 | — |
-| `NOT_APPLICABLE` | **義務の適用条件が成立しない**（役割外、条件付き義務の条件が偽） | **除外** | — |
-| `ERROR` | Suite 側の障害（タイムアウト、内部例外、Suite のバグ） | 含む | `conformance = INDETERMINATE` / `completeness = INCOMPLETE` |
+| `PASS` | Verified, and the obligation was satisfied | Included | — |
+| `WARNING` | A SHOULD / RECOMMENDED was not satisfied, or there is a point of caution despite PASS | Included | `CONFORMANT_WITH_WARNINGS` |
+| `FAIL` | Verified, and the obligation was not satisfied | Included | `NON_CONFORMANT` |
+| `INCONSISTENT` | The user's report conflicts with the Suite's observation | Included | `conformance = INDETERMINATE` / `completeness = INCOMPLETE` (prompt the user to redo the report) |
+| `INDETERMINATE` | Execution occurred, but evidence sufficient for determination was not obtained | Included | `conformance = INDETERMINATE` / `completeness = INCOMPLETE` |
+| `NOT_VERIFIED` | **The obligation applies, but could not be verified in this Run** (`reason` is required) | Included | `conformance = INDETERMINATE` / `completeness = INCOMPLETE` |
+| `NOT_OBSERVABLE` | It cannot **in principle** be verified from the external protocol surface. A static attribute of the requirement | Included (displayed separately) | **Explicitly excluded** from the conformance claim (§7) |
+| `NOT_SUPPORTED` | The implementation is reported as absent for a `MAY` / `OPTIONAL` obligation | Excluded | — |
+| `NOT_APPLICABLE` | **The applicability condition of the obligation is not satisfied** (outside the role, or the condition of a conditional obligation is false) | **Excluded** | — |
+| `ERROR` | A Suite-side failure (timeout, internal exception, or Suite bug) | Included | `conformance = INDETERMINATE` / `completeness = INCOMPLETE` |
 
-### ★ `NOT_APPLICABLE` を使ってよい場合は 2 つだけ
+### ★ There are only 2 cases in which `NOT_APPLICABLE` may be used
 
-**誤り**: 「Test Plan の構成上テストできないから `NOT_APPLICABLE`」。
-実行環境を選んだことで、無条件の MUST が適用外になるわけではない。
-これを許すと **MUST 要件の検証を構成で回避できてしまう**。
+**Incorrect**: “`NOT_APPLICABLE` because the test cannot be performed due to the Test Plan configuration.”
+Choosing the execution environment does not make an unconditional MUST inapplicable.
+Allowing this would mean that **verification of MUST requirements could be avoided through configuration**.
 
-`NOT_APPLICABLE` が正しいのは次の 2 つのみ。
+`NOT_APPLICABLE` is correct only in the following 2 cases.
 
-1. **役割が違う**: SP プロファイルにおける `IIP-IDP*`（そもそも義務の主体ではない）
-2. **条件付き義務の条件が偽**: `IIP-SP14.b` は「SLO 対応を表明している SP」にのみ課される MUST。
-   表明していなければこの義務は存在しない
+1. **Different role**: `IIP-IDP*` in an SP profile (the obligation's subject is not the SP in the first place)
+2. **The condition of a conditional obligation is false**: `IIP-SP14.b` is a MUST imposed only on an SP that declares support for SLO.
+   If it has not made that declaration, this obligation does not exist
 
-それ以外の「実行できなかった」は全て **`NOT_VERIFIED`** であり、母数に含まれ、
-MUST なら `conformance = INDETERMINATE` / `completeness = INCOMPLETE` になる（[§7.2](#72-判定)）。
+All other cases of “could not execute” are **`NOT_VERIFIED`**, are included in the denominator,
+and, for MUST, result in `conformance = INDETERMINATE` / `completeness = INCOMPLETE` ([§7.2](#72-determination)).
 
-### `NOT_VERIFIED` の reason（必須）
+### `NOT_VERIFIED` Reasons (Required)
 
-| reason | 例 |
+| reason | Example |
 |---|---|
-| `plan_configuration` | `suite_metadata_delivery: manual` を選んだため IIP-MD01〜04 を実行できない |
-| `target_unreachable` | 対象から Suite に到達できず、バックチャネル系を実行できない（[07 §2](07-deployment-and-networking.md)） |
-| `target_config_unavailable` | 製品に能力はあるが、**利用者の権限・環境の都合で**設定・確認できなかった |
-| `capability_undetermined` | **製品にその能力があるのか、利用者が設定できないだけなのかを判別できなかった** |
-| `precondition_failed` | 前提ケースが FAIL したため実行しなかった |
+| `plan_configuration` | IIP-MD01–04 cannot be executed because `suite_metadata_delivery: manual` was selected |
+| `target_unreachable` | The target cannot reach the Suite, so back-channel tests cannot be executed ([07 §2](07-deployment-and-networking.md)) |
+| `target_config_unavailable` | The product has the capability, but configuration or verification could not be performed **due to the user's permissions or environment** |
+| `capability_undetermined` | **It could not be determined whether the product has the capability or whether the user simply cannot configure it** |
+| `precondition_failed` | Not executed because a prerequisite case returned FAIL |
 | `interaction_disallowed` | `allow_browser_steps: false` / `allow_attestation: false` |
-| `user_skipped` | 利用者が実行しなかった |
-| `timeout` | `WAITING_*` がタイムアウトした |
-| `not_implemented` | Suite 側にまだ実装がない。**リリース時は 0 件であることを CI で強制する** |
+| `user_skipped` | The user did not execute it |
+| `timeout` | A `WAITING_*` timed out |
+| `not_implemented` | The Suite side has not yet implemented it. **CI MUST enforce that there are 0 cases at release time** |
 
-> UI は `NOT_VERIFIED` を「未検証（あと N 件で完全なレポートになります）」として提示し、
-> reason ごとに**どうすれば検証できるか**を出す。隠さない。
+> The UI presents `NOT_VERIFIED` as “Not verified (N more items are needed for a complete report)”
+> and shows **how verification can be performed** for each reason. Do not hide it.
 
-### ★ 「設定できない」ときの共通判定手順
+### ★ Common Determination Procedure When Configuration Cannot Be Performed
 
-多くの義務が「**〜できること**」という**能力**の要求である
-（*MUST support the ability to …* / *MUST be configurable with …* / *MUST be capable of …*）。
-対象側の設定が所望の状態にできなかったことを
-**一律に `NOT_VERIFIED(target_config_unavailable)` にしてはならない**。
+Many obligations require the **capability** to “**be able to …**”
+(*MUST support the ability to …* / *MUST be configurable with …* / *MUST be capable of …*).
+The fact that the target could not be configured into the desired state
+**MUST NOT uniformly be treated as `NOT_VERIFIED(target_config_unavailable)`**.
 
-ただし **ケースが `FAIL` を返してもいけない**。
-[05 §2.3](05-test-definition-format.md) の通り、ケースが返すのは `outcome` であり、
-Verdict への変換は Evaluator が `obligation.level` を見て一元的に行う。
-**ここを直接 `FAIL` にすると、SHOULD 義務を FAIL にする**（R2 で潰したはずの誤りが再発する）。
+However, **the case MUST NOT return `FAIL` either**.
+As specified in [05 §2.3](05-test-definition-format.md), cases return `outcome`, and
+conversion to Verdict is performed centrally by the Evaluator based on `obligation.level`.
+**If this is directly made `FAIL`, a SHOULD obligation becomes FAIL** (repeating the error that was supposedly eliminated in R2).
 
-#### 手順
+#### Procedure
 
 ```
-① まず適用性を評価する（§1）
-     effective_result == FALSE  → NOT_APPLICABLE。ケースは実行しない
-     ★ 例: IIP-ALG05.b（CBC 対応実装は使用時に警告すべき）は
-        CBC 非対応なら条件が偽 → NOT_APPLICABLE であって FAIL ではない
+① First assess applicability (§1)
+     effective_result == FALSE  → NOT_APPLICABLE. Do not execute the case
+     ★ Example: IIP-ALG05.b (an implementation supporting CBC SHOULD issue a warning when used)
+        If CBC is unsupported, the condition is false → NOT_APPLICABLE, not FAIL
 
-② ケースを実行する。設定が達成できなければ利用者に問う（Runner が共通に出す）
+② Execute the case. If the configuration cannot be achieved, ask the user (Runner displays this commonly)
    ┌──────────────────────────────────────────────┐
-   │ Q. 製品にその設定能力が存在しますか?          │
-   │   ○ 製品にその機能がない / 設定項目が存在しない│
-   │   ○ 機能はあるが、私の権限・環境では変更できない│
-   │   ○ 分からない                                │
+   │ Q. Does the product have this configuration  │
+   │    capability?                                │
+   │   ○ The product does not have the feature /  │
+   │     configuration item does not exist        │
+   │   ○ The feature exists, but I cannot change  │
+   │     it with my permissions / in my environment│
+   │   ○ Don't know                                │
    └──────────────────────────────────────────────┘
 
-③ ケースは outcome を返す（Verdict は返さない）
+③ The case returns outcome (not Verdict)
 ```
 
-| 回答 | ケースが返す `outcome` | `reason_code` |
+| Answer | Case returns `outcome` | `reason_code` |
 |---|---|---|
-| 製品にその機能がない | **`violated`** ※ | `capability_absent` |
-| 権限・環境の制約で変更できない | `not_verified` | `target_config_unavailable` |
-| 分からない | `not_verified` | `capability_undetermined` |
+| The product does not have the feature | **`violated`** ※ | `capability_absent` |
+| Cannot change it due to permission or environment constraints | `not_verified` | `target_config_unavailable` |
+| Don't know | `not_verified` | `capability_undetermined` |
 
-※ ただし `violated` を返すのは、**その設定能力自体が義務である**場合に限る（下記）。
+※ However, returning `violated` is permitted only when **the configuration capability itself is the obligation** (see below).
 
-#### `configuration_failure_semantics`（テスト定義の必須フィールド）
+#### `configuration_failure_semantics` (Required Test Definition Field)
 
-`mode: CONFIG` は**実行方式**であって、「設定能力が規範要件か」を意味しない。
-テスト定義に明示する。
+`mode: CONFIG` is an **execution method**; it does not mean that “the configuration capability is a normative requirement.”
+This MUST be stated explicitly in the test definition.
 
-| 値 | 意味 | 能力なしのときの `outcome` |
+| Value | Meaning | `outcome` when capability is absent |
 |---|---|---|
-| `normative_capability` | **設定できること自体が義務**（*MUST be configurable with at least two decryption keys* など） | `violated` + `capability_absent` |
-| `test_precondition` | 設定は**テストを成立させるための前提**にすぎず、できないこと自体は義務違反ではない（例: 属性リリースポリシーを変えて差を観測する） | `not_verified` + `test_precondition_unavailable` |
+| `normative_capability` | **The ability to configure it is itself an obligation** (such as *MUST be configurable with at least two decryption keys*) | `violated` + `capability_absent` |
+| `test_precondition` | The configuration is **only a precondition for making the test possible**; the inability itself is not a violation (for example, changing the attribute release policy to observe a difference) | `not_verified` + `test_precondition_unavailable` |
 
-#### Verdict への変換（Evaluator が行う）
+#### Conversion to Verdict (Performed by the Evaluator)
 
 ```
 outcome: violated (capability_absent)
    × MUST_CLASS   → FAIL
-   × SHOULD_CLASS → WARNING          ★ FAIL にしない
+   × SHOULD_CLASS → WARNING          ★ Do not make it FAIL
    × MAY_CLASS    → NOT_SUPPORTED
 ```
 
-#### 規約
+```
 
-1. **`mode: CONFIG` の全ケースが `configuration_failure_semantics` を持つ**（CI 規則 5d）
-2. ケース実装は `FAIL` / `WARNING` を返さない。返せる型がない（[05 §4](05-test-definition-format.md)）
-3. 質問文は Runner が共通に出す（文言のばらつきが判定のばらつきになる）
-4. 「分からない」を選んだ Run は `completeness = INCOMPLETE`。後から再申告できる
-5. 適用性の評価はケース実行より**先**。条件が偽の義務でこの手順に入ってはならない
+#### Conventions
 
-> R9 でこの手順を新設したとき、**全 `CONFIG` ケースを直接 `FAIL` に写像**していた。
-> ケースが Verdict を返さないという設計に反し、SHOULD 義務と条件付き義務を誤判定する。
-> 判定規則を共通化しても、**変換は必ず Evaluator に通す**。
+1. **Every `mode: CONFIG` case has `configuration_failure_semantics`** (CI rule 5d)
+2. Case implementations do not return `FAIL` / `WARNING`. There is no type they can return ([05 §4](05-test-definition-format.md))
+3. The question text is issued commonly by Runner (variation in wording causes variation in determinations)
+4. A Run for which the user selects “I don't know” has `completeness = INCOMPLETE`. It can be re-declared later
+5. Applicability evaluation occurs **before** case execution. A procedure with a false condition must not enter this process
 
-### `NOT_SUPPORTED` の適用範囲（再掲・§3 の規則）
+> When this procedure was newly established in R9, **all `CONFIG` cases were mapped directly to `FAIL`**.
+> This violated the design in which cases do not return Verdict, and incorrectly determined SHOULD obligations and conditional obligations.
+> Even when determination rules are standardized, **the conversion must always pass through Evaluator**.
+
+### Scope of `NOT_SUPPORTED` (reiterated; §3 rule)
 
 ```
-義務の RFC2119 レベル        利用者が「未実装」と申告した場合
+RFC2119 level of obligation       When the user declares “not implemented”
 ─────────────────────────────────────────────────
 MUST / MUST NOT / REQUIRED  →  FAIL   (reason: declared-unsupported)
 SHOULD / RECOMMENDED        →  WARNING
@@ -464,121 +472,121 @@ MAY / OPTIONAL              →  NOT_SUPPORTED
 
 ### `INCONSISTENT`
 
-利用者の申告が Suite の観測と矛盾する場合に付く。
-例: Suite は対象 ACS への POST 後に `302 → 保護リソース` と `Set-Cookie` を観測したのに、
-利用者が「ログインしなかった」と申告した。
+Applied when the user's declaration contradicts the Suite's observations.
+Example: The Suite observed `302 → protected resource` and `Set-Cookie` after POST to the target ACS,
+but the user declared “did not log in.”
 
-- 自動的に PASS にも FAIL にもしない
-- UI で矛盾点（観測した証拠）を提示し、**再申告または再実行**を促す
-- 未解消のまま Run を終えた場合、MUST なら `conformance = INDETERMINATE` / `completeness = INCOMPLETE`
+- Do not automatically make it PASS or FAIL
+- Present the contradiction (the observed evidence) in the UI and prompt the user to **re-declare or re-run**
+- If the Run ends with the contradiction unresolved, then for MUST, `conformance = INDETERMINATE` / `completeness = INCOMPLETE`
 
-## 5. Negative test の証拠ラダー
+## 5. Evidence ladder for negative tests
 
-「対象が不正なメッセージを拒否したこと」をどう認定するか。強い順に。
+How should it be determined that “the target rejected the invalid message”? In descending order of strength.
 
-| 段階 | 証拠 | 自動判定 |
+| Level | Evidence | Automatic determination |
 |---|---|---|
-| L1 | SAML の `<Status>` にエラー（`Requester` / `RequestDenied` 等）を含む応答が返った | 可 |
-| L2 | 対象エンドポイントが HTTP 4xx / 5xx を返した | 可 |
-| L3 | Suite が観測できる範囲で、成功を示す状態遷移が起きなかった | 条件付きで可 |
-| L4 | 対象の画面にエラーが表示されたことを利用者が申告した | `ATTESTED` |
-| — | 上記いずれも得られない | `INDETERMINATE` |
+| L1 | A response was returned containing an error in SAML `<Status>` (`Requester` / `RequestDenied`, etc.) | Yes |
+| L2 | The target endpoint returned HTTP 4xx / 5xx | Yes |
+| L3 | Within the scope observable by the Suite, no state transition indicating success occurred | Conditionally |
+| L4 | The user declared that an error was displayed on the target's screen | `ATTESTED` |
+| — | None of the above was obtained | `INDETERMINATE` |
 
-**ルール: 「何も起きなかった」ことだけを根拠に PASS にしない。**
+**Rule: Do not make PASS based only on the fact that “nothing happened.”**
 
-L3 の自動判定は Suite 側の観測点に限る（Suite の ACS に成功 Response が届かなかった等）。
-対象のセッション Cookie は見られないため、それ以外は L4 に落とす。
+Automatic determination at L3 is limited to observation points on the Suite side (for example, no successful Response reached the Suite's ACS).
+Because the target's session Cookie cannot be viewed, all other cases fall to L4.
 
-> IIP-IDP05（条件が許すときエラー Response を返すこと）が満たされている IdP ほど、
-> negative test を L1 で自動判定できる。IIP-IDP05 は他の多くのテストの検出力を左右する
-> **キー要件**として、実行順序の早い位置に置く。
+> The more an IdP satisfies IIP-IDP05 (returning an error Response when conditions permit),
+> the more negative tests can be automatically determined at L1. IIP-IDP05 is a
+> **key requirement** affecting the detection power of many other tests and should be placed early in the execution order.
 
-## 6. 集約規則（決定表）
+## 6. Aggregation rules (decision table)
 
-### 6.1 重大度順序
+### 6.1 Severity ordering
 
-集約は常に **「最も重大なものが勝つ」**。順序を一意に定める。
+Aggregation always follows **“the most severe item wins.”** The ordering is defined uniquely.
 
 ```
 FAIL  >  INCONSISTENT  >  ERROR  >  INDETERMINATE  >  NOT_VERIFIED
       >  WARNING  >  PASS  >  NOT_SUPPORTED  >  NOT_OBSERVABLE  >  NOT_APPLICABLE
 ```
 
-設計上の判断:
+Design decisions:
 
-- **`FAIL` > `ERROR`**: 既知の不適合が Suite 側の障害に隠れてはならない。
-  1 ケースが FAIL、別のケースが ERROR なら、義務は `FAIL`
-- **`NOT_VERIFIED` > `PASS`**: 一部のケースだけ通っても、未検証のケースが残る義務は
-  `NOT_VERIFIED`。**これがレビュー指摘 2 の修正点**
-- **`NOT_VERIFIED` > `WARNING`**: 未検証は SHOULD 違反より不完全性が高い
-- **`INCONSISTENT` > `ERROR`**: 矛盾は利用者の行動で解消できるため、先に提示する
+- **`FAIL` > `ERROR`**: Known non-conformance must not be hidden by a failure on the Suite side.
+  If one case is FAIL and another case is ERROR, the obligation is `FAIL`
+- **`NOT_VERIFIED` > `PASS`**: Even if only some cases pass, an obligation with remaining unverified cases is
+  `NOT_VERIFIED`. **This is the correction for review finding 2**
+- **`NOT_VERIFIED` > `WARNING`**: Unverified status represents greater incompleteness than a SHOULD violation
+- **`INCONSISTENT` > `ERROR`**: A contradiction can be resolved through the user's action, so it is presented first
 
 ### 6.2 CaseRun → Obligation
 
-義務の Verdict は **ケースの集約だけでは決まらない**。
-適用性の評価結果（[§1 の三値評価](#-条件の評価は三値で行う自己申告だけを信じない)）も入力になる。
+An obligation's Verdict is **not determined by case aggregation alone**.
+The result of applicability evaluation ([the three-valued evaluation in §1](#-conditions-are-evaluated-in-three-values-do-not-trust-self-declarations-alone)) is also an input.
 
 ```
 verdict(obligation) = max_severity(
-      applicabilityVerdict(obligation)              ★ 適用性の評価も 1 つの入力
+      applicabilityVerdict(obligation)              ★ Applicability evaluation is also one input
     ∪ { verdict(case) for case in cases(obligation) }
 )
 
-applicabilityVerdicts(o) = 次の 2 つの入力（独立）
+applicabilityVerdicts(o) = the following 2 inputs (independent)
     ① effective_result(o) == FALSE    → NOT_APPLICABLE
        effective_result(o) == UNKNOWN → NOT_VERIFIED(applicability_undetermined)
-       effective_result(o) == TRUE    → （入力なし。ケースを実行して集約）
-    ② conflict(o) == true             → INCONSISTENT   ★ ① と独立に注入される
-    （`CONFLICT` という第 4 の値は存在しない。conflict は独立した boolean）
+       effective_result(o) == TRUE    → (no input; execute and aggregate cases)
+    ② conflict(o) == true             → INCONSISTENT   ★ Injected independently of ①
+    (There is no fourth value called `CONFLICT`; conflict is an independent boolean)
 ```
 
-`INCONSISTENT` は重大度順序で `PASS` と `NOT_APPLICABLE` の両方より上位なので、
+Because `INCONSISTENT` ranks above both `PASS` and `NOT_APPLICABLE` in the severity ordering,
 
-- 矛盾したまま全ケースが PASS しても義務は `INCONSISTENT` になる
-- **矛盾したまま義務が `NOT_APPLICABLE` として黙って除外されることもない**
+- Even if all cases PASS while the contradiction remains, the obligation becomes `INCONSISTENT`
+- **An obligation with an unresolved contradiction is never silently excluded as `NOT_APPLICABLE`**
 
-矛盾を無視して適合を主張する経路がなくなる。
+This eliminates any path for ignoring a contradiction and claiming conformance.
 
-`ApplicabilityEvaluation` は `Evaluator.evaluate()` の明示的な入力である
-（署名の正本は [§7.5](#75--判定は-1-つの関数に閉じ込める)）。
+`ApplicabilityEvaluation` is an explicit input to `Evaluator.evaluate()`
+(the authoritative signature is [§7.5](#75--confine-determination-to-a-single-function)).
 
-評価結果は全件（`effective_result` ∈ TRUE/FALSE/UNKNOWN と `conflict`）を結果 JSON の
-`applicability[]` に、判断根拠つきで記録する（[06 §1](06-results-and-publication.md)）。
+All evaluation results (`effective_result` ∈ TRUE/FALSE/UNKNOWN and `conflict`) are recorded, with the grounds for the determination,
+in `applicability[]` in the result JSON ([06 §1](06-results-and-publication.md)).
 
 ```
 verdict_from_cases(obligation) = max_severity( verdict(case) for case in cases(obligation) )
 
-ただし:
-  cases(obligation) が空          → NOT_OBSERVABLE または NOT_VERIFIED(not_implemented)
-                                    （coverage.yaml の testability により決まる。CI で検証）
-  obligation.condition が偽       → NOT_APPLICABLE（ケースを実行しない）
-  obligation.roles に対象役割なし → NOT_APPLICABLE
+However:
+  cases(obligation) is empty          → NOT_OBSERVABLE or NOT_VERIFIED(not_implemented)
+                                      (determined by testability in coverage.yaml; verified in CI)
+  obligation.condition is false       → NOT_APPLICABLE (do not execute cases)
+  obligation.roles contains no target role → NOT_APPLICABLE
 ```
 
-### 6.3 Obligation → Requirement（役割別）
+### 6.3 Obligation → Requirement (by role)
 
 ```
 verdict(requirement, role) = max_severity(
     verdict(o) for o in obligations(requirement) if role in o.roles
 )
-すべて NOT_APPLICABLE → NOT_APPLICABLE
+all NOT_APPLICABLE → NOT_APPLICABLE
 ```
 
-要件表示は**役割別**に行う。IdP プロファイルの Run では IdP に適用される義務のみを出す。
+Requirements are displayed **by role**. A Run for an IdP profile displays only obligations applicable to the IdP.
 
-### 6.4 決定表（テーブル駆動テストで固定する）
+### 6.4 Decision table (fixed through table-driven tests)
 
-実装では次の表をそのままテストデータにする。`>` は左が勝つ。
+In the implementation, use the following table directly as test data. `>` means the left side wins.
 
-| 入力（同一義務内のケース集合） | 集約結果 |
+| Input (set of cases within the same obligation) | Aggregated result |
 |---|---|
 | `{PASS}` | `PASS` |
 | `{PASS, PASS}` | `PASS` |
 | `{PASS, WARNING}` | `WARNING` |
-| `{PASS, NOT_VERIFIED}` | **`NOT_VERIFIED`** ← 旧規則では PASS だった |
+| `{PASS, NOT_VERIFIED}` | **`NOT_VERIFIED`** ← was PASS under the old rule |
 | `{PASS, NOT_VERIFIED, WARNING}` | `NOT_VERIFIED` |
 | `{PASS, FAIL}` | `FAIL` |
-| `{FAIL, ERROR}` | **`FAIL`** ← 既知の FAIL を隠さない |
+| `{FAIL, ERROR}` | **`FAIL`** ← do not hide a known FAIL |
 | `{FAIL, INCONSISTENT}` | `FAIL` |
 | `{INCONSISTENT, ERROR}` | `INCONSISTENT` |
 | `{ERROR, INDETERMINATE}` | `ERROR` |
@@ -587,38 +595,37 @@ verdict(requirement, role) = max_severity(
 | `{PASS, NOT_APPLICABLE}` | `PASS` |
 | `{NOT_SUPPORTED, NOT_APPLICABLE}` | `NOT_SUPPORTED` |
 | `{NOT_OBSERVABLE}` | `NOT_OBSERVABLE` |
-| `{NOT_OBSERVABLE, PASS}` | `PASS`（一部でも検証できたなら検証結果を優先） |
+| `{NOT_OBSERVABLE, PASS}` | `PASS` (if even part of it can be verified, prioritize the verification result) |
 | `{NOT_OBSERVABLE, FAIL}` | `FAIL` |
 | `{NOT_APPLICABLE}` | `NOT_APPLICABLE` |
-| `{}`（ケースなし） | `NOT_OBSERVABLE` または `NOT_VERIFIED(not_implemented)` |
+| `{}` (no cases) | `NOT_OBSERVABLE` or `NOT_VERIFIED(not_implemented)` |
 
-> CI に `VerdictAggregationTest` を置き、**10 値 × 10 値の全 100 組み合わせ**と
-> 上表を突き合わせる。順序を変える PR は必ずこのテストを壊す。
+> Place `VerdictAggregationTest` in CI and compare **all 100 combinations of 10 values × 10 values**
+> against the table above. A PR that changes the ordering must break this test.
 
-## 7. Run の全体判定
+## 7. Overall Run determination
 
-### 7.1 母数の定義
+### 7.1 Definition of the denominator
 
 ```
-applicable   = 適用される全義務（NOT_APPLICABLE を除いた全て）
-must_set     = applicable のうち level ∈ {MUST, MUST NOT, REQUIRED}
-observable   = must_set のうち NOT_OBSERVABLE でないもの   ← 適合主張の母数
+applicable   = all applicable obligations (all except NOT_APPLICABLE)
+must_set     = those in applicable whose level ∈ {MUST, MUST NOT, REQUIRED}
+observable   = those in must_set that are not NOT_OBSERVABLE   ← denominator for claiming conformance
 ```
 
-### 7.2 判定
+### 7.2 Determination
 
-`WARNING` は「義務は満たしているが注意点がある」または「SHOULD/RECOMMENDED を満たさない」を表す。
-**MUST 義務に `WARNING` が付くこともある**ため、MUST の充足判定は `{PASS, WARNING}` を
-「充足」として扱う。
+`WARNING` means “the obligation is satisfied but has a point requiring attention” or “SHOULD/RECOMMENDED is not satisfied.”
+Because a MUST obligation may also receive `WARNING`, treat `{PASS, WARNING}` as “satisfied” when determining MUST satisfaction.
 
 ```
 satisfied(o)   ≡ verdict(o) ∈ {PASS, WARNING}
 unresolved(o)  ≡ verdict(o) ∈ {NOT_VERIFIED, INDETERMINATE, INCONSISTENT, ERROR}
 ```
 
-**適合性（conformance）と実行完全性（completeness）は別の軸である。**
-1 つのラベルに畳むと、MUST が全部通っていれば SHOULD が全滅していても
-`CONFORMANT` になってしまう（レビュー指摘 7）。**2 つのフィールドに分ける。**
+**Conformance and execution completeness are separate axes.**
+If they are collapsed into one label, the Run becomes `CONFORMANT` when all MUSTs pass even if every SHOULD fails
+(review finding 7). **Separate them into two fields.**
 
 ```
 run.conformance ∈ { CONFORMANT, CONFORMANT_WITH_WARNINGS,
@@ -629,7 +636,7 @@ run.conformance ∈ { CONFORMANT, CONFORMANT_WITH_WARNINGS,
   CONFORMANT_WITH_DECLARED_EXCLUSIONS
                              ∀ o ∈ must_observable : satisfied(o)
                              ∧ coverage.excluded_by_declaration > 0
-                             （WARNING の有無を問わない。★ 最優先で判定する）
+                             (regardless of whether WARNING exists. ★ Determine this with highest priority)
   CONFORMANT_WITH_WARNINGS   ∀ o ∈ must_observable : satisfied(o)
                              ∧ coverage.excluded_by_declaration = 0
                              ∧ ∃ o ∈ W : verdict(o) = WARNING
@@ -637,81 +644,83 @@ run.conformance ∈ { CONFORMANT, CONFORMANT_WITH_WARNINGS,
                              ∧ coverage.excluded_by_declaration = 0
                              ∧ ¬∃ o ∈ W : verdict(o) = WARNING
 
-  W = applicable ∩ selected_profile      ← ★ WARNING を数える集合
-      （選択したプロファイル(Core / Full)に含まれる、適用される全義務。レベルを問わない）
+  W = applicable ∩ selected_profile      ← ★ Set counted for WARNING
+      (all applicable obligations included in the selected profile (Core / Full), regardless of level)
 
 run.completeness ∈ { COMPLETE, INCOMPLETE }
 
-  INCOMPLETE   ∃ o ∈ observable(全レベル。選択したプロファイルに含まれる全義務)
+  INCOMPLETE   ∃ o ∈ observable (all levels; all obligations included in the selected profile)
                : unresolved(o)
-  COMPLETE     それ以外
+  COMPLETE     otherwise
 ```
 
-- `run.conformance` の**合否**は `must_observable` のみで決まる。適合の主張はここに閉じる
-- ★ ただし **`WARNING` を数える集合 `W` は選択プロファイルの全義務**である。
-  SHOULD 違反があれば `CONFORMANT` ではなく `CONFORMANT_WITH_WARNINGS` になる。
-  「MUST が全部通っているので警告は表に出ない」という状態を作らない。
-  `W` の定義を `must_observable` にすると SHOULD 違反が完全に隠れ、
-  `applicable` 全体にすると Core 実行時に Full の義務まで数えてしまうため、
-  **選択プロファイルとの積**を取る
-- `VerdictAggregationTest` に「MUST 全 PASS + SHOULD 1 件 WARNING」と
-  「MUST 1 件 satisfied_with_note」の両ケースを含める
-- `run.completeness` は **選択したプロファイル（Core / Full）の全義務**を見る。
-  Full を選んだのに SHOULD 義務が `ERROR` や `NOT_VERIFIED` なら `INCOMPLETE` になる
-- **UI とレポートは 2 つを必ず併記する**。片方だけの表示を禁止する
-
+- The **pass/fail** of `run.conformance` is determined only by `must_observable`. The conformance claim is confined here
+- ★ However, **the set `W` counted for `WARNING` consists of all obligations in the selected profile**.
+  If there is a SHOULD violation, the result is `CONFORMANT_WITH_WARNINGS`, not `CONFORMANT`.
+  Do not create a state in which warnings are not surfaced because “all MUSTs pass.”
+  If `W` were defined as `must_observable`, SHOULD violations would be completely hidden;
+  if it were defined as all of `applicable`, obligations from Full would also be counted during a Core Run.
+  Therefore, **take the intersection with the selected profile**
+- Include both “all MUSTs PASS + 1 SHOULD WARNING” and “1 MUST `satisfied_with_note`”
+  in `VerdictAggregationTest`
+- `run.completeness` considers **all obligations in the selected profile (Core / Full)**.
+  If Full is selected but a SHOULD obligation is `ERROR` or `NOT_VERIFIED`, it becomes `INCOMPLETE`
 ```
+
+- **The UI and report MUST always be displayed together**. Displaying only one of them is prohibited.
+
+```text
 CONFORMANT (tested scope)  ·  INCOMPLETE (3 obligations unresolved) <!--g1-literal-->
 ```
 
-- 従来の単一ラベル `INCOMPLETE` は `conformance = INDETERMINATE` に相当する。
-  混同を避けるため、適合性側の名称を `INDETERMINATE` に改めた
+- The former single label `INCOMPLETE` corresponds to `conformance = INDETERMINATE`.
+  To avoid confusion, the name on the conformance side has been changed to `INDETERMINATE`.
 
-`RunVerdictTest` で両フィールドの網羅性・排他性を検証する
-（[05 §5](05-test-definition-format.md) の規則 18）。
+`RunVerdictTest` verifies the completeness and exclusivity of both fields
+([05 §5](05-test-definition-format.md), rule 18).
 
-### 7.3 ★ `NOT_OBSERVABLE` な MUST 義務があるときの適合表明
+### 7.3 ★ Conformance statements when `NOT_OBSERVABLE` MUST obligations exist
 
-Kantara IIP には、外部のプロトコル面からは原理的に検証できない MUST 義務がある
-（例: IIP-SP12「persistent NameID に仕様を超えた意味を持たせない」）。
-これらを理由に全ての Run を `conformance = INDETERMINATE` にすると、最上位の判定が無意味になる。
+Kantara IIP contains MUST obligations that cannot, in principle, be verified from the external protocol surface
+(for example, IIP-SP12, “Do not give a persistent NameID meaning beyond the specification”).
+If every Run were assigned `conformance = INDETERMINATE` for this reason, the top-level determination would become meaningless.
 
-そこで **適合の主張範囲を構造的に限定する**。
+Therefore, **the scope of the conformance claim is structurally limited**.
 
-- 適合判定の母数は `observable` のみ
-- `NOT_OBSERVABLE` な MUST 義務は**必ず件数と一覧を併記**する
-- UI・レポート・公開ページは **`CONFORMANT` を単独で表示してはならない**。
-  常に結果 JSON の `conformance_statement` をそのまま伴う
+- The denominator for the conformance determination consists only of `observable` obligations.
+- `NOT_OBSERVABLE` MUST obligations **MUST always be accompanied by both a count and a list**.
+- The UI, report, and public page **MUST NOT display `CONFORMANT` by itself**.
+  They MUST always display the result JSON’s `conformance_statement` unchanged alongside it.
 
-> ⚠ **ここに置いていた表示例は削除しました。**
-> レビューで、SP の Run の例に `IIP-IDP02.b` が混在し、
-> `IIP-SP11.b` が現在の義務分解に存在しないことが指摘されました（役割・キーの不整合）。
-> **`conformance_statement` も `Evaluator` の golden fixture から生成**します
-> （[§7.5](#75--判定は-1-つの関数に閉じ込める)）。生成に切り替わるまで例は置きません。
+> ⚠ **The display example previously placed here has been removed.**
+> During review, it was pointed out that `IIP-IDP02.b` was mixed into the example for an SP Run,
+> and that `IIP-SP11.b` does not exist in the current obligation decomposition
+> (role/key inconsistency).
+> **`conformance_statement` is also generated from the `Evaluator` golden fixture**
+> ([§7.5](#75--confine-determination-to-a-single-function)). No example will be included until the system switches to generation.
 
-`conformance ≠ CONFORMANT` の場合も同様に、未解決の義務 ID と reason を全件列挙する。
+Likewise, when `conformance ≠ CONFORMANT`, all unresolved obligation IDs and reasons are enumerated.
 
-### 7.4 カバレッジ指標（結果 JSON に必須）
+### 7.4 Coverage metrics (required in the result JSON)
 
-適合ラベルだけでは「何をどれだけ確かめたか」が伝わらない。
-**分母と分子を一意に定義する**（レビュー指摘 14）。
+Conformance labels alone do not convey what was verified or how much was verified.
+**The denominator and numerator are defined uniquely** (review finding 14).
 
-```
-applicable       = 適用される全義務（NOT_APPLICABLE を除く）
-must_applicable  = applicable のうち level ∈ MUST_CLASS
+```text
+applicable       = all applicable obligations (excluding NOT_APPLICABLE)
+must_applicable  = among applicable, those whose level ∈ MUST_CLASS
                    MUST_CLASS = {MUST, MUST_NOT, REQUIRED}
-must_observable  = must_applicable のうち verdict ≠ NOT_OBSERVABLE   ← 適合主張の母数
-must_resolved    = must_observable のうち verdict ∈ {PASS, WARNING, FAIL}
-                   （＝結論に達したもの。NOT_VERIFIED / INDETERMINATE /
-                     INCONSISTENT / ERROR は含まない）
+must_observable  = among must_applicable, those whose verdict ≠ NOT_OBSERVABLE   ← denominator of the conformance claim
+must_resolved    = among must_observable, those whose verdict ∈ {PASS, WARNING, FAIL}
+                   (= those for which a conclusion was reached; NOT_VERIFIED / INDETERMINATE /
+                     INCONSISTENT / ERROR are not included)
 
-verified_ratio   = must_resolved / must_observable     ← 分母は must_observable
+verified_ratio   = must_resolved / must_observable     ← denominator is must_observable
 ```
 
-`verified_ratio` は**「適合率」ではなく「結論に達した割合」**である。
-FAIL も分子に入る。名前が誤解を招くため、UI では
-`Resolved: 45 / 47 externally-testable MUST obligations` のように分数で表示し、
-比率単独では出さない。
+`verified_ratio` is **“the proportion for which a conclusion was reached,” not “the conformance rate.”**
+FAIL is also included in the numerator. Because the name can be misleading, the UI displays it as a fraction,
+such as `Resolved: 45 / 47 externally-testable MUST obligations`, and does not display the ratio by itself.
 
 ```json
 "coverage": {
@@ -728,16 +737,16 @@ FAIL も分子に入る。名前が誤解を招くため、UI では
 }
 ```
 
-**公開ページはこの指標を適合ラベルと同じ大きさで表示する。**
-「PASS 74」だけが独り歩きする状態を構造的に防ぐ。
+**The public page displays these metrics at the same size as the conformance label.**
+This structurally prevents a state in which only “PASS 74” takes on a life of its own.
 
-### 7.5 ★ 判定は 1 つの関数に閉じ込める
+### 7.5 ★ Confine determination to a single function
 
-Run 判定・要件集約・カバレッジ指標を導出するコードは **1 箇所**に置く。
+The code that derives the Run determination, requirement aggregation, and coverage metrics **MUST be placed in one location**.
 
 ```java
 public final class Evaluator {
-    /** ★ これが唯一の正本。§6.2 と同じ署名でなければならない。 */
+    /** ★ This is the sole canonical source. Its signature MUST be identical to §6.2. */
     public static RunResult evaluate(CoverageCatalog catalog,
                                      TestPlan plan,
                                      List<ApplicabilityEvaluation> applicability,
@@ -746,47 +755,47 @@ public final class Evaluator {
 }
 ```
 
-> **署名は 1 箇所にしか書かない。** 前回のレビューで、§6.2 で
-> `ApplicabilityEvaluation` を入力に加えたのに、ここの署名が旧形式のまま残っており、
-> 実装者がこちらを正とすると同じ問題が再発する状態になっていた。
-> ドキュメント側では **§7.5 を正本**とし、§6.2 は参照だけにする。
+> **The signature MUST be written in only one place.** In the previous review, although
+> `ApplicabilityEvaluation` had been added as an input in §6.2, the signature here remained in its old form,
+> leaving the system in a state where the same problem would recur if an implementer treated this one as canonical.
+> In the documentation, **§7.5 is the canonical source** and §6.2 is reference-only.
 
-- UI・`result.json`・`report.html`・ドキュメントの例、**全てがこの関数の出力を使う**
-- ドキュメント中の JSON 例は手書きしない。`Evaluator` の出力を
-  golden fixture として `docs/` に生成し、CI で差分を検出する
-  （[06 §1](06-results-and-publication.md)、[05 §5](05-test-definition-format.md) の規則 23）
+- The UI, `result.json`, `report.html`, and **all** examples in the documentation use this function’s output.
+- JSON examples in the documentation MUST NOT be handwritten. The `Evaluator` output is generated into `docs/`
+  as a golden fixture, and differences are detected in CI
+  ([06 §1](06-results-and-publication.md), [05 §5](05-test-definition-format.md), rule 23).
 
-> 前回のレビューで、ドキュメント中の `result.json` 例が
-> 自分自身の判定規則と矛盾していることが指摘された。
-> **例を手で書く限り必ずずれる。** 生成物にする。
+> The previous review pointed out that the `result.json` examples in the documentation
+> contradicted their own determination rules.
+> **As long as examples are written by hand, they will inevitably diverge.** Make them generated artifacts.
 
-## 8. Test Run の状態機械
+## 8. Test Run state machine
 
-```
+```text
         ┌─────────┐
         │ CREATED │
         └────┬────┘
              │ start
              ▼
-      ┌─────────────┐   全ケース終了    ┌───────────┐
-      │  RUNNING    │──────────────────▶│ COMPLETED │
-      └──┬───┬───┬──┘                   └───────────┘
-         │   │   │                            ▲
-         │   │   └── 利用者の操作待ち ────┐    │
-         │   │       ┌────────────────┐  │    │
-         │   └──────▶│ WAITING_BROWSER│──┘    │
-         │           └────────────────┘       │
-         │           ┌────────────────┐       │
-         ├──────────▶│ WAITING_ATTEST │───────┤
-         │           └────────────────┘       │
-         │           ┌────────────────┐       │
-         ├──────────▶│ WAITING_CONFIG │───────┤
-         │           └────────────────┘       │
-         │           ┌────────────────────┐   │
-         └──────────▶│ WAITING_CREDENTIAL │───┘
+      ┌─────────────┐   All cases finished    ┌───────────┐
+      │  RUNNING    │────────────────────────▶│ COMPLETED │
+      └──┬───┬───┬──┘                         └───────────┘
+         │   │   │                                  ▲
+         │   │   └── Waiting for user action ───┐   │
+         │   │       ┌────────────────┐         │   │
+         │   └──────▶│ WAITING_BROWSER│─────────┘   │
+         │           └────────────────┘             │
+         │           ┌────────────────┐             │
+         ├──────────▶│ WAITING_ATTEST │─────────────┤
+         │           └────────────────┘             │
+         │           ┌────────────────┐             │
+         ├──────────▶│ WAITING_CONFIG │─────────────┤
+         │           └────────────────┘             │
+         │           ┌────────────────────┐         │
+         └──────────▶│ WAITING_CREDENTIAL │─────────┘
                      └────────────────────┘
-                       再起動で ECP 資格情報が失われた場合
-                       （[05 §4.3.2](05-test-definition-format.md)）
+                       When ECP credentials are lost on restart
+                       ([05 §4.3.2](05-test-definition-format.md))
              │ abort / timeout
              ▼
         ┌─────────┐
@@ -794,45 +803,45 @@ public final class Evaluator {
         └─────────┘
 ```
 
-- `WAITING_*` には**タイムアウト**を設ける（既定 15 分）。
-  切れたケースは **`NOT_VERIFIED(timeout)`**（`SKIPPED` は語彙から廃止済み）
-- Run 中の状態は SSE で UI にプッシュする
-- Run を中断しても Transcript は残す
+- `WAITING_*` states MUST have a **timeout** (15 minutes by default).
+  Cases that time out become **`NOT_VERIFIED(timeout)`** (`SKIPPED` has already been removed from the vocabulary).
+- The state during a Run is pushed to the UI via SSE.
+- The Transcript is retained even if the Run is interrupted.
 
-## 9. テスト実行順序
+## 9. Test execution order
 
-順序に依存がある。Runner は依存を宣言的に扱う。
+There are dependencies on the order. The Runner handles dependencies declaratively.
 
+```text
+1. Preflight        Reachability of the Suite itself, time, TLS, and whether target metadata can be retrieved
+2. Metadata (static) Inspection of the target metadata’s syntax, signature, and algorithm declarations (AUTOMATED)
+3. Metadata (dynamic) Distribution and signature of Suite metadata, and validUntil (CONFIG)
+4. Algorithms       Verification of supported signature and encryption algorithms
+5. Core SSO         Normal Web Browser SSO flow (BROWSER; first login occurs here)
+6. SSO variations   NameID / AuthnContext / ForceAuthn / IsPassive / attributes
+7. Error handling   Negative flows, including IIP-IDP05
+8. SLO              Single Logout (placed later because it destroys the session)
+9. ECP              Back channel (AUTOMATED; may run at any time)
 ```
-1. Preflight        Suite 自身の到達性、時刻、TLS、対象メタデータ取得可否
-2. Metadata (静的)  対象メタデータの構文・署名・アルゴリズム宣言の検査（AUTOMATED）
-3. Metadata (動的)  Suite メタデータの配布・署名・validUntil（CONFIG）
-4. Algorithms       署名・暗号アルゴリズムの対応確認
-5. Core SSO         Web Browser SSO の正常系（BROWSER・ここで初回ログイン）
-6. SSO variations   NameID / AuthnContext / ForceAuthn / IsPassive / 属性
-7. Error handling   IIP-IDP05 を含む negative 系
-8. SLO              Single Logout（セッションを壊すので後半）
-9. ECP              バックチャネル（AUTOMATED、いつでも可）
-```
 
-`ForceAuthn` と `SLO` はセッションを壊すため必ず末尾に置く。
-Runner はケース定義の `requires_session` / `destroys_session` フラグから順序を決める。
+`ForceAuthn` and `SLO` MUST always be placed at the end because they destroy the session.
+The Runner determines the order from the case definitions’ `requires_session` / `destroys_session` flags.
 
-## 10. Preflight チェック（新規追加）
+## 10. Preflight checks (newly added)
 
-元メモにはないが、これがないと利用者が原因不明の失敗に悩まされる。
-Test Plan 作成直後に必ず走る。
+This was not included in the original notes, but without it users would be left struggling with failures of unknown cause.
+It MUST always run immediately after the Test Plan is created.
 
-- [ ] `PUBLIC_BASE_URL` が設定されており、Suite 自身がその URL で自分に到達できるか
-- [ ] コンテナの時刻が NTP 同期されているか（ズレは全テストを壊す）
-- [ ] 対象のメタデータ URL が取得でき、パースでき、有効期限内か
-- [ ] 対象メタデータの `SingleSignOnService` / `AssertionConsumerService` が
-      Suite から到達可能なホストか（バックチャネルが必要な場合）
-- [ ] **`Target → Suite` の到達性は Preflight では確定しない**。Preflight は
-      `reachability = ASSERTED` までしか出せず、`CONFIRMED` への昇格は
-      対象からの inbound リクエストを観測して初めて起きる（[07 §2](07-deployment-and-networking.md)）
-- [ ] Suite の base URL が HTTPS か（多くの SP は http の ACS を拒否する）
-- [ ] 対象の TLS 証明書チェーンが検証可能か（自己署名なら明示的に許可させる）
+- [ ] Is `PUBLIC_BASE_URL` configured, and can the Suite itself reach itself at that URL?
+- [ ] Is the container’s time synchronized with NTP? (A discrepancy breaks all tests.)
+- [ ] Can the target metadata URL be retrieved and parsed, and is it within its validity period?
+- [ ] Are the target metadata’s `SingleSignOnService` / `AssertionConsumerService` reachable from the Suite
+      when a back channel is required?
+- [ ] **Reachability from `Target → Suite` is not established by Preflight**. Preflight can report only
+      `reachability = ASSERTED`; promotion to `CONFIRMED` occurs only after an inbound request from the target
+      has been observed ([07 §2](07-deployment-and-networking.md)).
+- [ ] Is the Suite’s base URL HTTPS? (Many SPs reject an HTTP ACS.)
+- [ ] Is the target’s TLS certificate chain verifiable? (If it is self-signed, require explicit permission.)
 
-Preflight の結果は Run の一部として記録し、失敗した項目に依存するテストは
-**`NOT_VERIFIED`（該当する reason 付き）**にする。`NOT_APPLICABLE` にはしない（§4）。
+The Preflight results are recorded as part of the Run, and tests depending on failed items are assigned
+**`NOT_VERIFIED` (with the applicable reason)**. They MUST NOT be assigned `NOT_APPLICABLE` (§4).

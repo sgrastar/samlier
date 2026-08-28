@@ -1,372 +1,364 @@
-# 11. 設計レビュー記録
+# 11. Design Review Log
 
-## R1 — 2026-08-25 判定モデル・カバレッジ定義のレビュー
+## R1 — 2026-08-25 Review of the Judgment Model and Coverage Definition
 
-**結論**: 指摘は 9 件すべて妥当だった。うち 3 件（指摘 4 の RFC2119 レベル読み違い）は
-[Kantara IIP v1.1 原文](https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html)
-を再取得して照合し、確認したうえで修正した。
+**Conclusion**: All 9 findings were valid. Of these, 3 findings (the misreading of the RFC2119 levels in Finding 4) were corrected after re-fetching and cross-checking the
+[Kantara IIP v1.1 original text](https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html).
 
-### 反映結果
+### Results Applied
 
-| # | 指摘 | 判定 | 対応 |
+| # | Finding | Judgment | Action |
 |---|---|---|---|
-| 1 | 実行できない MUST を `NOT_APPLICABLE` にすると検証を回避できる | **妥当** | `NOT_VERIFIED`（reason 必須）を新設。`NOT_APPLICABLE` は「役割違い」「条件付き義務の条件が偽」の 2 つのみに限定。CI に `NotApplicableGuardTest` を追加 → [03 §4](03-test-model.md), [05 §5](05-test-definition-format.md) |
-| 2 | 集約規則が未実施ケースを PASS にする / `INCONSISTENT` が語彙にない / FAIL が ERROR に隠れる | **妥当** | 重大度順序を一意に定義（`FAIL > INCONSISTENT > ERROR > INDETERMINATE > NOT_VERIFIED > WARNING > PASS > …`）。`INCONSISTENT` を語彙に追加。決定表を作成し、10×10 の全組み合わせをテーブル駆動テストで固定 → [03 §6](03-test-model.md) |
-| 3 | YAML が役割別・条項別の RFC2119 レベルを表現できない | **妥当** | **Obligation 層**を新設。`coverage.yaml` に `obligations[]`（roles / level / condition）を持ち、テスト定義は `obligation:` を指す。判定レベルはカタログのみが持ち、テスト定義にも実装にも書かない → [03 §1](03-test-model.md), [05 §2](05-test-definition-format.md) |
-| 4 | 一部のテスト方針が原文より厳しく偽 FAIL を出す | **妥当（原文で確認）** | 下表の通り訂正 → [04](04-requirement-coverage.md) |
-| 5 | 「v0.1 で全 69 要件」と実際の計画が矛盾 / 集計が表と不一致 | **妥当** | 「掲載する」と「判定可能にする」を分離。IIP-SP05 を `secondary_peer` オプションで Phase 1 に戻した。手書き集計を削除し `coverage.yaml` からの生成に切替 → [01](01-scope-and-roadmap.md), [04](04-requirement-coverage.md) |
-| 6 | Transcript が ECP のパスワードを保存する設計になっている | **妥当** | Recorder の入口に **Redactor** を置き、`Authorization` / `Cookie` / パスワード相当のフォーム値を**永続化前に不可逆除去**。`RedactorTest` で `/data` 全体を検査 → [02 §5.2](02-architecture.md), [08 §4](08-suite-security.md) |
-| 7 | 対話ステップを同期的な `execute()` で再開できない | **妥当** | `start(ctx)` / `resume(ctx, state, event)` の明示的状態遷移に変更。`CaseStep` は sealed interface、`CaseState` は JSON 化して SQLite に永続化。冪等性を規約化 → [05 §4](05-test-definition-format.md) |
-| 8 | ECP エンドポイントの役割が逆 | **妥当** | IdP の ECP 対応を試験するとき Samlier は **ECP クライアント + SP**。`/p/{plan}/idp/ecp` を削除し `/p/{plan}/sp/paos`（PAOS Response Consumer）を追加。メタデータに PAOS ACS を含める → [02 §3.7](02-architecture.md) |
-| 9 | Preflight だけでは Target→Suite 到達性を判定できない | **妥当** | 到達性を `ASSERTED` / `CONFIRMED` に分離。nonce を仕込んだメタデータへの inbound を観測して初めて `CONFIRMED` に昇格。`requires.reachability` を宣言したケースはそれまで実行しない → [07 §2](07-deployment-and-networking.md) |
+| 1 | Verification can be bypassed by marking a MUST that cannot be executed as `NOT_APPLICABLE` | **Valid** | Introduced `NOT_VERIFIED` (with `reason` required). Limited `NOT_APPLICABLE` to only two cases: “role mismatch” and “the condition of a conditional obligation is false.” Added `NotApplicableGuardTest` to CI → [03 §4](03-test-model.md), [05 §5](05-test-definition-format.md) |
+| 2 | Aggregation rules make unexecuted cases PASS / `INCONSISTENT` is absent from the vocabulary / FAIL is hidden by ERROR | **Valid** | Uniquely defined the severity order (`FAIL > INCONSISTENT > ERROR > INDETERMINATE > NOT_VERIFIED > WARNING > PASS > …`). Added `INCONSISTENT` to the vocabulary. Created a decision table and fixed all 10×10 combinations with table-driven tests → [03 §6](03-test-model.md) |
+| 3 | YAML cannot express RFC2119 levels by role and clause | **Valid** | Introduced the **Obligation layer**. `coverage.yaml` now has `obligations[]` (roles / level / condition), and test definitions point to an `obligation:`. Only the catalog contains judgment levels; neither test definitions nor implementations specify them → [03 §1](03-test-model.md), [05 §2](05-test-definition-format.md) |
+| 4 | Some testing policies are stricter than the original text and produce false FAIL results | **Valid (confirmed against the original text)** | Corrected as shown below → [04](04-requirement-coverage.md) |
+| 5 | “All 69 requirements in v0.1” contradicts the actual plan / totals do not match the table | **Valid** | Separated “include in the documents” from “make judgment possible.” Returned IIP-SP05 to Phase 1 with the `secondary_peer` option. Removed hand-written totals and switched to generation from `coverage.yaml` → [01](01-scope-and-roadmap.md), [04](04-requirement-coverage.md) |
+| 6 | The Transcript design stores ECP passwords | **Valid** | Placed a **Redactor** at the Recorder boundary and **irreversibly remove** `Authorization` / `Cookie` / password-equivalent form values **before persistence**. Inspect the entire `/data` tree with `RedactorTest` → [02 §5.2](02-architecture.md), [08 §4](08-suite-security.md) |
+| 7 | Interactive steps cannot be resumed through a synchronous `execute()` | **Valid** | Changed to explicit state transitions with `start(ctx)` / `resume(ctx, state, event)`. `CaseStep` is a sealed interface, and `CaseState` is serialized to JSON and persisted in SQLite. Idempotency was made a formal rule → [05 §4](05-test-definition-format.md) |
+| 8 | The roles of the ECP endpoints are reversed | **Valid** | When testing an IdP’s ECP support, Samlier is the **ECP client + SP**. Removed `/p/{plan}/idp/ecp` and added `/p/{plan}/sp/paos` (PAOS Response Consumer). Include a PAOS ACS in metadata → [02 §3.7](02-architecture.md) |
+| 9 | Preflight alone cannot determine Target→Suite reachability | **Valid** | Separated reachability into `ASSERTED` / `CONFIRMED`. Promote to `CONFIRMED` only after observing inbound traffic to metadata containing a nonce. Cases declaring `requires.reachability` are not executed until then → [07 §2](07-deployment-and-networking.md) |
 
-### 指摘 4 の原文照合結果
+### Results of Cross-Checking the Original Text for Finding 4
 
-| 要件 | 原文（該当部） | 修正前の誤り | 訂正後 |
+| Requirement | Original text (relevant part) | Error before correction | After correction |
 |---|---|---|---|
-| **IIP-MD09** | *Implementations **MUST be capable of publishing** the cryptographic capabilities … It is **RECOMMENDED** that they support dynamic generation* | 「メタデータに `alg:*` がなければ FAIL」 | MUST は「公開**できる**こと」。メタデータに宣言がないだけでは FAIL にせず、公開機能の有無を `ATTESTED` で確認。動的生成は RECOMMENDED → 未対応は WARNING |
-| **IIP-ALG08** | *MUST support the ability to prevent the use of particular algorithms … The set … **MUST be configurable** and it is **RECOMMENDED** that the default set include …* | 「既定で MD5 等が無効でなければ FAIL」 | 既定集合は RECOMMENDED → WARNING。MUST は「禁止できること」「集合が設定可能なこと」。利用者に禁止設定をしてもらってから検証する `CONFIG` に変更 |
-| **IIP-SP13** | *Service Providers **MUST** support the ability to reject unsigned `<samlp:Response>` elements and **SHOULD** do so by default* | 「既定設定で拒否しなければ FAIL」 | 既定拒否は SHOULD → WARNING。FAIL は「設定しても拒否できない」場合のみ |
+| **IIP-MD09** | *Implementations **MUST be capable of publishing** the cryptographic capabilities … It is **RECOMMENDED** that they support dynamic generation* | “FAIL if there is no `alg:*` in metadata” | The MUST is the ability to **publish**. Absence of a declaration in metadata alone does not produce FAIL; confirm whether the publishing function exists through `ATTESTED`. Dynamic generation is RECOMMENDED → lack of support is WARNING |
+| **IIP-ALG08** | *MUST support the ability to prevent the use of particular algorithms … The set … **MUST be configurable** and it is **RECOMMENDED** that the default set include …* | “FAIL if MD5 and others are not disabled by default” | The default set is RECOMMENDED → WARNING. The MUST is the ability to prohibit algorithms and the configurability of the set. Changed to `CONFIG`, where the user configures the prohibition before verification |
+| **IIP-SP13** | *Service Providers **MUST** support the ability to reject unsigned `<samlp:Response>` elements and **SHOULD** do so by default* | “FAIL unless the default configuration rejects them” | Default rejection is SHOULD → WARNING. FAIL only when rejection is impossible even after configuration |
 
-**併せて訂正した要件**
+**Requirements Corrected at the Same Time**
 
-| 要件 | 内容 |
+| Requirement | Content |
 |---|---|
-| IIP-MD01 / IIP-MD10 | *Identity Providers **MUST** and Service Providers **SHOULD*** — 役割別に義務を分割 |
-| IIP-SP14 | *SPs **SHOULD** support … SPs **that claim support** … **MUST** be capable of issuing* — 条件付き MUST として `condition` で表現。表明しなければ `NOT_APPLICABLE` <br>⚠ **R2 で訂正**: 「唯一の条件付き例」と書いたのは誤り。IIP-SP15 / SP16 / SP17 も同じ SLO 条件付き、IIP-MD08 は outbound 暗号化条件付きだった |
-| IIP-G02 | *MUST be able to **accept**, without error or truncation …* — 受信側の義務なので**両役割で試験できる**。`N`（検証不能）としていたのは誤り。IdP には `AuthnRequest/@ProviderName` に 256 文字を入れて送る |
-| IIP-IDP21 | *in a manner that **allows deployers to avoid** assignment of identifiers that differ only by case* — 生成方式の**設定可能性**に関する義務。観測した 1 件の NameID の文字集合からは判定できず、`[A-Za-z]` 混在を理由に WARNING を出すのは誤り（UUID や Base64 でも要件は満たしうる） |
-| IIP-SP04 | MUST の未実装申告は `NOT_SUPPORTED` ではなく **FAIL(declared-unsupported)**（`NOT_SUPPORTED` は MAY/OPTIONAL 専用） |
+| IIP-MD01 / IIP-MD10 | *Identity Providers **MUST** and Service Providers **SHOULD*** — Split the obligation by role |
+| IIP-SP14 | *SPs **SHOULD** support … SPs **that claim support** … **MUST** be capable of issuing* — Expressed as a conditional MUST using `condition`. If not claimed, `NOT_APPLICABLE` <br>⚠ **Corrected in R2**: It was incorrect to describe this as the “only conditional example.” IIP-SP15 / SP16 / SP17 had the same SLO condition, and IIP-MD08 had a conditional outbound-encryption condition |
+| IIP-G02 | *MUST be able to **accept**, without error or truncation …* — This is an obligation of the receiving side, so it **can be tested for both roles**. It was incorrect to mark it `N` (not verifiable). Send an IdP a 256-character value in `AuthnRequest/@ProviderName` |
+| IIP-IDP21 | *in a manner that **allows deployers to avoid** assignment of identifiers that differ only by case* — An obligation concerning the **configurability** of the generation method. It cannot be judged from the character set of one observed NameID, and issuing a WARNING because `[A-Za-z]` is mixed is incorrect (the requirement can also be satisfied with UUID or Base64) |
+| IIP-SP04 | A declaration that a MUST is unimplemented is **FAIL(declared-unsupported)**, not `NOT_SUPPORTED` (`NOT_SUPPORTED` is exclusively for MAY/OPTIONAL) |
 
-### 未反映・持ち越し
+### Not Yet Applied / Carried Forward
 
-| 項目 | 状態 |
+| Item | Status |
 |---|---|
-| 全 69 要件 × 義務単位の RFC2119 レベル再照合 | **未完了**。今回照合したのは 9 件のみ。`coverage.yaml` の作成時に全件を原文と 1 行ずつ突き合わせる。3/9 に読み違いがあったことから、**残りにも同程度の誤りがある前提で進める** |
-| 手書きカバレッジ表の生成物化 | 実装開始時（[09 D-10](09-open-decisions.md)）。それまで [04](04-requirement-coverage.md) の集計値は使わない |
-| Core / Full の義務単位への割り当て | `coverage.yaml` 作成時 |
+| Re-cross-checking RFC2119 levels by obligation unit for all 69 requirements | **Incomplete**. Only 9 requirements were checked this time. When creating `coverage.yaml`, cross-check every item against the original text line by line. Since 3/9 contained misreadings, proceed **on the assumption that the remainder contains errors at a similar rate** |
+| Turning the hand-written coverage table into generated output | At implementation start ([09 D-10](09-open-decisions.md)). Until then, do not use the totals in [04](04-requirement-coverage.md) |
+| Assigning Core / Full to obligation units | When creating `coverage.yaml` |
 
-### この修正で変わった前提
+### Assumptions Changed by This Correction
 
-- **クイック実行モードの結果は「適合」を名乗れない**。飛ばした義務は `NOT_VERIFIED` として
-  母数に残り、Run 判定は `INCOMPLETE` になる。UI で明示する
-- **`CONFORMANT` を単独で表示することを禁止**。常に「外部から検証可能な MUST 義務 N 件中 M 件が通過。
-  検証不能な MUST 義務 K 件は評価していない」という定型文を伴う（[03 §7.3](03-test-model.md)）
-- **判定レベルの唯一の出典は `coverage.yaml`**。テスト定義も実装も FAIL/WARNING を決めない。
-  ケースは `outcome`（satisfied / violated / …）だけを返し、Runner がレベルと突き合わせて Verdict にする
+- **The result of quick-execution mode cannot be called “conformant.”** Skipped obligations remain in the denominator as `NOT_VERIFIED`, and the Run judgment becomes `INCOMPLETE`. Make this explicit in the UI
+- **Displaying `CONFORMANT` alone is prohibited.** It must always be accompanied by the standard wording: “M of N externally verifiable MUST obligations passed. K MUST obligations that could not be verified were not evaluated.” ([03 §7.3](03-test-model.md))
+- **The sole source of judgment levels is `coverage.yaml`.** Neither test definitions nor implementations decide FAIL/WARNING. Cases return only `outcome` (satisfied / violated / …), and Runner compares it with the level to produce the Verdict
 
 ---
 
-## R2 — 2026-08-25 結果 JSON・条件付き義務・ECP のレビュー
+## R2 — 2026-08-25 Review of Result JSON, Conditional Obligations, and ECP
 
-**結論**: 指摘 14 件すべて妥当だった。仕様解釈に関わる 6 件（2, 4, 5, 6, 7, 8）は
-原文を再取得して照合し、**すべて指摘の通りであることを確認**した。
-R1 で「9 件すべて反映済み」と述べたが、**反映は不完全だった**（指摘 12 の残存箇所）。
+**Conclusion**: All 14 findings were valid. Six findings involving specification interpretation (2, 4, 5, 6, 7, 8) were cross-checked against the original text, and **all were confirmed to be exactly as reported**.
+R1 stated that “all 9 findings had been applied,” but **the application was incomplete** (the residual portion of Finding 12).
 
-### 反映結果
+### Results Applied
 
-| # | 指摘 | 判定 | 対応 |
+| # | Finding | Judgment | Action |
 |---|---|---|---|
-| 1 | `result.json` 例が自身の判定規則と矛盾（未解決 MUST があるのに CONFORMANT 系、IdP Run に SP 専用義務、`not_observable` キー重複） | **妥当** | 手書きの例を**全廃**。構造のみを残し、値は `Evaluator` の golden fixture に。JSON Schema + 不変条件テスト 10 件を定義 → [06 §1](06-results-and-publication.md), [03 §7.5](03-test-model.md) |
-| 2 | SP15〜17 も条件付き MUST。「SP14 が唯一」は誤り | **妥当（原文で確認）** | 3 件を条件付き MUST に訂正。R1 の記述も訂正 → [04](04-requirement-coverage.md) |
-| 3 | 条件判定を自己申告だけにすると義務を回避できる | **妥当** | 条件を **三値評価**（TRUE / FALSE / UNKNOWN）に。`observed` 材料を必須化し、申告と観測の矛盾は `INCONSISTENT`（観測優先）。UNKNOWN は `NOT_VERIFIED(applicability_undetermined)` → [03 §1](03-test-model.md), [05 §2.1](05-test-definition-format.md) |
-| 4 | IIP-MD08 の条件とテスト対象が誤り（SP08 と取り違え） | **妥当（原文で確認）** | outbound 暗号化への条件付き MUST に訂正。「ピアの複数暗号鍵を消費できるか」に対象を修正 → [04](04-requirement-coverage.md) |
-| 5 | IIP-MD04 の too distant 閾値は**対象側で設定可能**。Samlier が 90 日で FAIL にするのは誤り | **妥当（原文で確認）** | 独自閾値を撤回。対象側で閾値 T を設定してもらい、`T−δ` / `T+δ` の**境界値ペア**で検証。設定可能性自体も義務 → [09 D-14](09-open-decisions.md), [04](04-requirement-coverage.md) |
-| 6 | IIP-IDP15 の検査対象は `samlec:GeneratedKey`（SAML-EC ドラフト §5.3.1） | **妥当（原文で確認）** | `ecp:RelayState`/`ecp:Request` を検査するという記述は誤り。`peer/ecp/` を `profile/` と `samlec/` に分割。参照ドラフトの版を `specs.yaml` に固定 → [02 §3.7](02-architecture.md) |
-| 7 | IIP-IDP13 は channel bindings の検証も MUST | **妥当（原文で確認）** | *MUST support "Bearer" subject confirmation **and verification of channel bindings***。5 ケースを定義 → [02 §3.7](02-architecture.md), [04](04-requirement-coverage.md) |
-| 8 | MD02 / ALG06 / SP09 / IDP05 / IDP17 のカバレッジ不足。全件照合を設計ゲートにすべき | **妥当（原文で確認）** | 5 件すべて訂正。**設計ゲート G1** を新設し、テスト実装の前段に置いた → [04 設計ゲート G1](04-requirement-coverage.md), [01](01-scope-and-roadmap.md) |
-| 9 | 中断・再開 API にクラッシュ整合性がない | **妥当** | ケース実装は送信せず、`OutboundAction` を返す **outbox 方式**に。次状態と送信意図を同一トランザクションで永続化。`actionId` は state から決定論的に導出（`UUID.randomUUID()` を静的解析で禁止） → [05 §4.3](05-test-definition-format.md) |
-| 10 | 判定の正本が digest に含まれていない | **妥当** | `evaluation_bundle.digest` を新設（`coverage.yaml` + `defs/*` + `specs.yaml` + outcome 写像版 + 集約ポリシー版）。外部ドラフトは版まで固定 → [06 §1](06-results-and-publication.md) |
-| 11 | シークレット URL の扱いが未設計 | **妥当** | クエリを廃し **fragment → HttpOnly/Secure/SameSite Cookie 交換**。トークンはハッシュ保存、公開 ID と分離、`Referrer-Policy: no-referrer`、CSRF 対策、ローテーション・失効 → [09 D-09](09-open-decisions.md) |
-| 12 | 旧記述が残り R1 の指摘 1・2 が完全反映されていない | **妥当** | 6 箇所すべて修正（README, 03 ×3, 07, 09 D-10） |
-| 13 | Core/Full 定義がカバレッジ表と不一致 | **妥当** | `Full = 全義務` / `Core ⊂ Full` と定義し直し、選定基準を明文化。IIP-MD02 を Core に訂正。`level_assignment` を義務単位に → [01](01-scope-and-roadmap.md) |
-| 14 | Run 判定とカバレッジ率の定義が不整合。全レベルの写像が未定義 | **妥当** | `satisfied ≡ {PASS, WARNING}` を導入し 4 判定を網羅的・排他的に。`verified_ratio = must_resolved / must_observable` と分母を一意化。8 レベルを 3 クラスに正規化する表を追加 → [03 §7.2/§7.4](03-test-model.md), [05 §2.3](05-test-definition-format.md) |
+| 1 | The `result.json` example contradicts its own judgment rules (CONFORMANT-family result despite an unresolved MUST, SP-only obligations in an IdP Run, duplicate `not_observable` key) | **Valid** | **Eliminated all** hand-written examples. Retained only the structure; values now come from the `Evaluator` golden fixture. Defined JSON Schema + 10 invariant tests → [06 §1](06-results-and-publication.md), [03 §7.5](03-test-model.md) |
+| 2 | SP15–17 are also conditional MUSTs. “SP14 is the only one” is incorrect | **Valid (confirmed against the original text)** | Corrected all 3 as conditional MUSTs. Corrected the R1 wording as well → [04](04-requirement-coverage.md) |
+| 3 | Obligations can be bypassed if condition evaluation relies only on self-declaration | **Valid** | Changed conditions to **three-valued evaluation** (TRUE / FALSE / UNKNOWN). Made `observed` evidence mandatory; contradictions between declaration and observation become `INCONSISTENT` (observation takes precedence). UNKNOWN becomes `NOT_VERIFIED(applicability_undetermined)` → [03 §1](03-test-model.md), [05 §2.1](05-test-definition-format.md) |
+| 4 | The condition and test target for IIP-MD08 are incorrect (confused with SP08) | **Valid (confirmed against the original text)** | Corrected to a conditional MUST concerning outbound encryption. Changed the target to “whether multiple encryption keys from the peer can be consumed” → [04](04-requirement-coverage.md) |
+| 5 | The too-distant threshold for IIP-MD04 is **configurable by the target**. It is incorrect for Samlier to FAIL at 90 days | **Valid (confirmed against the original text)** | Withdrew the proprietary threshold. Have the target set threshold T, then verify using the **boundary-value pair** `T−δ` / `T+δ`. Configurability itself is also an obligation → [09 D-14](09-open-decisions.md), [04](04-requirement-coverage.md) |
+| 6 | The inspection target for IIP-IDP15 is `samlec:GeneratedKey` (SAML-EC draft §5.3.1) | **Valid (confirmed against the original text)** | The statement that `ecp:RelayState`/`ecp:Request` should be inspected was incorrect. Split `peer/ecp/` into `profile/` and `samlec/`. Fix the referenced draft version in `specs.yaml` → [02 §3.7](02-architecture.md) |
+| 7 | IIP-IDP13 also has a MUST to verify channel bindings | **Valid (confirmed against the original text)** | *MUST support "Bearer" subject confirmation **and verification of channel bindings***. Defined 5 cases → [02 §3.7](02-architecture.md), [04](04-requirement-coverage.md) |
+| 8 | Coverage is insufficient for MD02 / ALG06 / SP09 / IDP05 / IDP17. Complete cross-checking should be a design gate | **Valid (confirmed against the original text)** | Corrected all 5. Established **Design Gate G1** and placed it before test implementation → [04 Design Gate G1](04-requirement-coverage.md), [01](01-scope-and-roadmap.md) |
+| 9 | The suspend/resume API lacks crash consistency | **Valid** | Cases no longer send; they return an **outbox-based** `OutboundAction`. Persist the next state and sending intent in the same transaction. Derive `actionId` deterministically from state (statically prohibit `UUID.randomUUID()` ) → [05 §4.3](05-test-definition-format.md) |
+| 10 | The canonical judgment is not included in the digest | **Valid** | Introduced `evaluation_bundle.digest` (`coverage.yaml` + `defs/*` + `specs.yaml` + outcome-mapping version + aggregation-policy version). Fix external drafts through their versions → [06 §1](06-results-and-publication.md) |
+| 11 | Handling of secret URLs is unspecified | **Valid** | Eliminated query parameters and use **fragment → HttpOnly/Secure/SameSite Cookie exchange**. Store token hashes, separate them from public IDs, use `Referrer-Policy: no-referrer`, CSRF protection, rotation, and revocation → [09 D-09](09-open-decisions.md) |
+| 12 | Old descriptions remain, so R1 Findings 1 and 2 are not fully applied | **Valid** | Corrected all 6 locations (README, 03 ×3, 07, 09 D-10) |
+| 13 | The Core/Full definition does not match the coverage table | **Valid** | Redefined `Full = all obligations` / `Core ⊂ Full` and documented the selection criteria. Corrected IIP-MD02 to Core. Made `level_assignment` obligation-based → [01](01-scope-and-roadmap.md) |
+| 14 | Run judgment and coverage-rate definitions are inconsistent. Mapping for all levels is undefined | **Valid** | Introduced `satisfied ≡ {PASS, WARNING}` and covered the 4 judgments exhaustively and exclusively. Uniquely defined the denominator as `verified_ratio = must_resolved / must_observable`. Added a table normalizing 8 levels into 3 classes → [03 §7.2/§7.4](03-test-model.md), [05 §2.3](05-test-definition-format.md) |
 
-### 原文照合の結果（R2）
+### Results of Cross-Checking the Original Text (R2)
 
-| 要件 | 原文の該当部 | 修正前の誤り |
+| Requirement | Relevant part of the original text | Error before correction |
 |---|---|---|
-| IIP-SP15/16/17 | いずれも *SPs that support the SingleLogout profile …* | 無条件 MUST として扱っていた |
-| IIP-MD08 | *implementations that support outbound encryption* … *consume any number of encryption keys bound to a single role descriptor* | 無条件 MUST。かつ「SP の復号鍵ロールオーバー」と取り違えていた（それは IIP-SP08） |
-| IIP-MD04 | *too far into the future (**configurable**)* | Samlier が 90 日という絶対閾値で FAIL 判定 |
-| IIP-MD02 | *redirects (301, 302, 307) MUST be honored* / *both `<md:EntityDescriptor>` and `<md:EntitiesDescriptor>`* / *any number of child elements* | 3 条項が欠落。逆に**原文にない ETag / Last-Modified** を検査対象にしていた |
-| IIP-ALG06 | `rsa-oaep-mgf1p` / `rsa-oaep` / DigestMethod **sha256 と sha1 の両方** / **既定 MGF1-SHA1** | 後半 3 条項が欠落 |
-| IIP-SP09 | *preserve POST bodies across successful SSO*（RECOMMENDED、サイズ制限あり） | 欠落 |
-| IIP-IDP05 | *provided that the user agent remains available **and an acceptable location … is known*** | 未登録 ACS を FAIL 条件に使っていた（原文はその場合エラー Response を返さないことを許す） |
-| IIP-IDP13 | *MUST support "Bearer" subject confirmation **and verification of channel bindings*** | channel bindings が欠落 |
-| IIP-IDP15 | *in accordance with **[SAML-EC], Section 5.3.1*** | ECP Profile の要素を検査するとしていた |
-| IIP-IDP17 | *MUST support … SingleLogout profile **and** the … Asynchronous Single Logout Protocol Extension* | Async SLO 固有のケースが未定義 |
+| IIP-SP15/16/17 | Each says *SPs that support the SingleLogout profile …* | Treated as unconditional MUSTs |
+| IIP-MD08 | *implementations that support outbound encryption* … *consume any number of encryption keys bound to a single role descriptor* | Unconditional MUST. Also confused it with “SP decryption-key rollover” (that is IIP-SP08) |
+| IIP-MD04 | *too far into the future (**configurable**)* | FAIL judgment based on Samlier’s absolute 90-day threshold |
+| IIP-MD02 | *redirects (301, 302, 307) MUST be honored* / *both `<md:EntityDescriptor>` and `<md:EntitiesDescriptor>`* / *any number of child elements* | 3 clauses were missing. Conversely, **ETag / Last-Modified**, which are absent from the original text, were incorrectly included as inspection targets |
+| IIP-ALG06 | `rsa-oaep-mgf1p` / `rsa-oaep` / both DigestMethod **sha256 and sha1** / **default MGF1-SHA1** | The latter 3 clauses were missing |
+| IIP-SP09 | *preserve POST bodies across successful SSO* (RECOMMENDED, with size restrictions) | Missing |
+| IIP-IDP05 | *provided that the user agent remains available **and an acceptable location … is known*** | Used an unregistered ACS as a FAIL condition (the original text permits not returning an error Response in that case) |
+| IIP-IDP13 | *MUST support "Bearer" subject confirmation **and verification of channel bindings*** | Channel bindings were missing |
+| IIP-IDP15 | *in accordance with **[SAML-EC], Section 5.3.1*** | Treated ECP Profile elements as the inspection target |
+| IIP-IDP17 | *MUST support … SingleLogout profile **and** the … Asynchronous Single Logout Protocol Extension* | No Async SLO-specific case was defined |
 
-### この修正で変わった前提
+### Assumptions Changed by This Correction
 
-- **テストケースの実装前に設計ゲート G1（全 69 要件の原文照合）を置く**。
-  17 件照合して 11 件に誤りがあった以上、残り 52 件も同様と考えるべき
-- **ドキュメント中の JSON 例は手書きしない**。`Evaluator` の出力を golden fixture として生成する
-- **自己申告だけで MUST 義務を除外できない**。条件には観測材料が必須
-- **Samlier が仕様にない絶対閾値を判定に使わない**（IIP-MD04.c）。
-  設定可能な閾値は対象側に設定させ、境界値で検証する
-- **ケース実装は自分で送信しない**。outbox 経由でクラッシュ整合性を確保する
+- **Design Gate G1 (cross-checking the original text for all 69 requirements) is placed before test-case implementation.**
+  Since 11 of 17 cross-checked requirements contained errors, the remaining 52 should be treated the same way
+- **Do not hand-write JSON examples in documents.** Generate `Evaluator` output as golden fixtures
+- **MUST obligations cannot be excluded by self-declaration alone.** Conditions require observed evidence
+- **Samlier must not use absolute thresholds absent from the specification for judgments** (IIP-MD04.c).
+  Have the target configure the configurable threshold and verify it with boundary values
+- **Case implementations do not send directly.** Ensure crash consistency through the outbox
 
 ---
 
-## R3 — 2026-08-25 適用除外・ECP 詳細・配信保証のレビュー
+## R3 — 2026-08-25 Review of Applicability Exclusions, ECP Details, and Delivery Guarantees
 
-**結論**: 指摘 11 件すべて妥当だった。仕様に関わる 3 件（1, 2, 3）は原文で確認し、
-すべて指摘の通りであることを確認した。加えて照合中に **IIP-IDP13 の
-`excepting IIP-SSO02 and IIP-SSO03`** という未記載の除外も見つかった。
+**Conclusion**: All 11 findings were valid. Three specification-related findings (1, 2, 3) were confirmed against the original text,
+and all were confirmed to be exactly as reported. In addition, cross-checking revealed an undocumented exclusion in IIP-IDP13:
+**`excepting IIP-SSO02 and IIP-SSO03`**.
 
-### 反映結果
+### Results Applied
 
-| # | P | 指摘 | 判定 | 対応 |
+| # | P | Finding | Judgment | Action |
 |---|---|---|---|---|
-| 1 | P1 | IIP-IDP13 の token translation Proxy 適用除外が欠落 | **妥当（原文で確認）** | *This requirement does not apply to token translation Proxies.* を確認。Test Plan に `target.kind` を追加し条件付き義務化。**加えて `excepting IIP-SSO02 and IIP-SSO03` も未記載だったので追記** → [04](04-requirement-coverage.md), [03 §2](03-test-model.md) |
-| 2 | P1 | ECP→IdP に PAOS ヘッダを残している | **妥当（原文で確認）** | ECP v2 §2.3.4 *Any header blocks received from the service provider **MUST be removed***。区間ごとのヘッダ集合を表にし、`EcpClient` が SP 由来ヘッダを保持しないデータ構造にすることを規定 → [02 §3.7](02-architecture.md) |
-| 3 | P1 | channel binding の成功ケースが出力を検証していない | **妥当（原文で確認）** | §2.3.6.2 は一致時に `cb:ChannelBindings` を **SOAP ヘッダと `<saml:Advice>` の両方**に含めることを MUST としている。片方だけなら違反。ケース 5 も *MUST be signed if the channel bindings extension option is used* に基づき「未署名ならエラー Response」と期待を具体化 → [02 §3.7](02-architecture.md) |
-| 4 | P1 | outbox で exactly-once は保証できない | **妥当。前版の記述は論理が逆だった** | 「同一 ID なら リプレイ検出に引っかからない」は誤りで、**同一 ID の再送こそ検出対象**。`UNKNOWN_DELIVERY` 状態を新設し、①まず inbound を待つ ②`replay_safe` なら再送 ③それ以外は `NOT_VERIFIED(delivery_unknown)` ④**再送時の replay エラーを対象の FAIL にしない**、を規定。`suite_incidents[]` に別枠記録 → [05 §4.3.1](05-test-definition-format.md), [06 §1](06-results-and-publication.md) |
-| 5 | P1 | 永続 outbox と ECP 資格情報の非保存が両立していない | **妥当** | 資格情報を `payload` に載せず実行時注入に変更。`requiresEphemeralCredential` を追加し、再起動後は `WAITING_CREDENTIAL` で再入力待ち。拒否・TTL 超過は `NOT_VERIFIED(credential_unavailable)`。暗号化秘密ストア案は「鍵も `/data` にある」ため不採用 → [05 §4.3.2](05-test-definition-format.md), [03 §8](03-test-model.md) |
-| 6 | P2 | 適用性の矛盾が Verdict に接続されていない | **妥当** | `ApplicabilityEvaluation` を `Evaluator.evaluate()` の明示的入力に。`CONFLICT` は `INCONSISTENT` として集約に入り、重大度順序上 `PASS` より上位なので**矛盾したまま PASS にならない**。`applicability[]` に `declared` / `observed` / `conflict` を追加 → [03 §6.2](03-test-model.md), [06 §1](06-results-and-publication.md) |
-| 7 | P2 | Full 実行でも未評価の SHOULD が無視される | **妥当** | **適合性と実行完全性を別フィールドに分離**。`run.conformance`（MUST のみ）と `run.completeness`（選択プロファイルの全義務）。両方の併記を必須化。旧 `INCOMPLETE` は適合性側では `INDETERMINATE` に改称 → [03 §7.2](03-test-model.md) |
-| 8 | P2 | MD04 の設定不能時の判定が矛盾 | **妥当** | (a) 製品に設定機能が存在しない → **FAIL** / (b) 機能はあるが利用者が確認・変更できない → **`NOT_VERIFIED(target_config_unavailable)`** に分離。質問文で明示的に選ばせる → [09 D-14](09-open-decisions.md) |
-| 9 | P2 | G1 が「レビュー可能」までで承認を要求していない | **妥当** | 全義務に `review: { reviewer, approved_at, source_digest, spec_version }` を必須化。**reviewer が作成者と同一なら CI が落ちる**。参照版変更・`source_digest` 不一致・要約/レベル/条件の編集で**承認が失効**する規則を追加 → [04 設計ゲート G1](04-requirement-coverage.md), [05 §5](05-test-definition-format.md) |
-| 10 | P2 | fragment トークンがブラウザ履歴に残る | **妥当** | 値の読み取り**直後・ネットワーク処理より前**に `history.replaceState` で除去（交換の成否によらず実行）。管理画面に厳格な CSP、`POST /api/manage/session` の `Origin` 検証を追加 → [09 D-09](09-open-decisions.md) |
-| 11 | P3 | `conformance_statement` の例が役割混在 | **妥当** | SP の Run に `IIP-IDP02.b` が混在し `IIP-SP11.b` が存在しないキーだった。**例を削除**し、golden fixture からの生成に切り替えるまで置かない → [03 §7.3](03-test-model.md) |
+| 1 | P1 | The exclusion for applying IIP-IDP13 to token translation Proxies is missing | **Valid (confirmed against the original text)** | Confirmed *This requirement does not apply to token translation Proxies.* Added `target.kind` to the Test Plan and made it a conditional obligation. **Also added the previously undocumented `excepting IIP-SSO02 and IIP-SSO03`** → [04](04-requirement-coverage.md), [03 §2](03-test-model.md) |
+| 2 | P1 | The PAOS header is retained in ECP→IdP | **Valid (confirmed against the original text)** | ECP v2 §2.3.4: *Any header blocks received from the service provider **MUST be removed***. Tabulated the header set for each segment and specified a data structure in which `EcpClient` does not retain SP-originated headers → [02 §3.7](02-architecture.md) |
+| 3 | P1 | The channel-binding success case does not verify the output | **Valid (confirmed against the original text)** | §2.3.6.2 makes it a MUST to include `cb:ChannelBindings` in **both the SOAP header and `<saml:Advice>`** when they match. Only one is a violation. Case 5 was also made to expect “an error Response if unsigned,” based on *MUST be signed if the channel bindings extension option is used* → [02 §3.7](02-architecture.md) |
+| 4 | P1 | Exactly-once cannot be guaranteed by the outbox | **Valid. The previous version’s logic was reversed** | “A replay with the same ID is not caught by replay detection” was incorrect; **resending the same ID is precisely what must be detected**. Introduced `UNKNOWN_DELIVERY` and specified: ① first wait for inbound ② resend if `replay_safe` ③ otherwise `NOT_VERIFIED(delivery_unknown)` ④ **do not treat a replay error on resend as the target’s FAIL**. Record it separately in `suite_incidents[]` → [05 §4.3.1](05-test-definition-format.md), [06 §1](06-results-and-publication.md) |
+| 5 | P1 | Persistent outbox and non-persistence of ECP credentials are incompatible | **Valid** | Changed to inject credentials at execution time rather than placing them in `payload`. Added `requiresEphemeralCredential`; after restart, wait for re-entry with `WAITING_CREDENTIAL`. Rejection or TTL expiry is `NOT_VERIFIED(credential_unavailable)`. Rejected the encrypted secret-store proposal because “the key is also in `/data`” → [05 §4.3.2](05-test-definition-format.md), [03 §8](03-test-model.md) |
+| 6 | P2 | Applicability conflicts are not connected to the Verdict | **Valid** | Made `ApplicabilityEvaluation` an explicit input to `Evaluator.evaluate()`. `CONFLICT` enters aggregation as `INCONSISTENT`; because it is above `PASS` in the severity order, **a conflict cannot remain PASS**. Added `declared` / `observed` / `conflict` to `applicability[]` → [03 §6.2](03-test-model.md), [06 §1](06-results-and-publication.md) |
+| 7 | P2 | Unevaluated SHOULDs are ignored even in a Full execution | **Valid** | **Separated conformance and execution completeness into distinct fields**. `run.conformance` (MUST only) and `run.completeness` (all obligations in the selected profile). Both must be shown. Renamed the former `INCOMPLETE` to `INDETERMINATE` on the conformance side → [03 §7.2](03-test-model.md) |
+| 8 | P2 | The judgment when MD04 cannot be configured is inconsistent | **Valid** | Separated (a) product has no configuration function → **FAIL**, from (b) function exists but the user cannot confirm or change it → **`NOT_VERIFIED(target_config_unavailable)`**. Require an explicit choice in the question text → [09 D-14](09-open-decisions.md) |
+| 9 | P2 | G1 requires reviewability but not approval | **Valid** | Made `review: { reviewer, approved_at, source_digest, spec_version }` mandatory for every obligation. **CI fails if `reviewer` is the same as the author**. Added rules that approval becomes invalid when the reference version changes, `source_digest` differs, or the summary/level/condition is edited → [04 Design Gate G1](04-requirement-coverage.md), [05 §5](05-test-definition-format.md) |
+| 10 | P2 | Fragment tokens remain in browser history | **Valid** | Remove them with `history.replaceState` **immediately after reading and before network processing** (execute regardless of exchange success). Added a strict CSP to the administration screen and `Origin` validation for `POST /api/manage/session` → [09 D-09](09-open-decisions.md) |
+| 11 | P3 | The `conformance_statement` example mixes roles | **Valid** | The SP Run included `IIP-IDP02.b`, and `IIP-SP11.b` was a nonexistent key. **Deleted the example** and do not place one until switching to generation from golden fixtures → [03 §7.3](03-test-model.md) |
 
-### この修正で変わった前提
+### Assumptions Changed by This Correction
 
-- **適用除外の文を要件末尾に持つ要件がある**。G1 の分解手順に「除外の文を見落とさない」を明記した。
-  IIP-IDP13 だけで 2 つの除外（token translation Proxy / IIP-SSO02・SSO03）があった
-- **exactly-once は目標にしない**。目標は「Suite の不確実性を対象の不適合に転嫁しない」こと。
-  Suite が自分の障害で他人の製品を FAIL と表示するのが最悪の失敗である
-- **適合性と実行完全性は 2 つのフィールド**。1 つに畳むと必ずどちらかが隠れる
-- **G1 は作成者だけでは通過できない**。義務ごとに作成者以外の承認と原文ダイジェストを要求し、
-  参照版が変われば承認が失効する
-- **ドキュメント中の例は JSON も文章も全て生成物**にする。手書きの例は 3 回連続で不整合を生んだ
+- **Some requirements have applicability-exclusion text at the end.** Explicitly added “do not overlook exclusion text” to the G1 decomposition procedure.
+  IIP-IDP13 alone had two exclusions (token translation Proxy / IIP-SSO02 / SSO03)
+- **Exactly-once is not the goal.** The goal is “do not transfer the Suite’s uncertainty to the target’s non-conformance.”
+  The worst failure is for the Suite to display another party’s product as FAIL because of its own failure
+- **Conformance and execution completeness are two fields.** Folding them into one inevitably hides one or the other
+- **G1 cannot be passed by the author alone.** Require approval by someone other than the author and the original-text digest for each obligation; approval becomes invalid when the reference version changes
+- **All examples in documents, both JSON and prose, should be generated artifacts.** Hand-written examples caused inconsistencies three times in a row
 
-### 未反映・持ち越し
+### Not Yet Applied / Carried Forward
 
-| 項目 | 状態 |
+| Item | Status |
 |---|---|
-| 全 69 要件の原文照合と独立レビュー承認 | **設計ゲート G1**。実装着手の前提条件 |
-| `Evaluator` / golden fixture の実装 | M0。それまでドキュメント中の例は「構造のみ」 |
-| ECP v2 §2.3 の全ヘッダ仕様の精査 | G1 に含める（今回確認したのは §2.3.4 / §2.3.6.2 のみ） |
+| Cross-checking the original text for all 69 requirements and independent review approval | **Design Gate G1**. A prerequisite for starting implementation |
+| Implementation of `Evaluator` / golden fixtures | M0. Until then, document examples contain “structure only” |
+| Detailed review of all ECP v2 §2.3 header specifications | Included in G1 (this review confirmed only §2.3.4 / §2.3.6.2) |
 
 ---
 
-## R4 — 2026-08-25 原文追加照合・適用性の方向性・配信保証のレビュー
+## R4 — 2026-08-25 Review of Additional Original-Text Cross-Checks, Applicability Direction, and Delivery Guarantees
 
-**結論**: 指摘 11 件すべて妥当だった。追加照合した 3 件（SSO07 / ALG05 / SP04）は
-**3 件とも原文と意味がずれていた**。累計の誤読率は **14/20**。
-G1 を実装前ゲートにした判断は妥当だったと確認できた。
+**Conclusion**: All 11 findings were valid. The 3 additionally cross-checked requirements (SSO07 / ALG05 / SP04)
+were **all three semantically different from the original text**. The cumulative misreading rate was **14/20**.
+This confirmed that making G1 a pre-implementation gate was the correct decision.
 
-### 原文照合の結果（R4）
+### Results of Cross-Checking the Original Text (R4)
 
-| 要件 | 原文 | 修正前の誤り |
+| Requirement | Original text | Error before correction |
 |---|---|---|
-| **IIP-SSO07** | *REQUIRED that implementations **successfully process** messages containing any optional content* — 処理は **SAML2Core の要素別処理規則**に従い、要素によっては**エラーが正しい** | 「未対応でも**処理を継続**する」としていた。**正しくエラーを返す実装を不適合にする**期待値だった |
-| **IIP-ALG05** | `.a` MAY（CBC 対応）+ `.b` *Implementations supporting them **SHOULD warn on use*** | `.b` が欠落。逆に**原文にない**「CBC が既定なら WARNING」という独自条件を持っていた |
-| **IIP-SP04** | `.a` MUST（IdP Discovery 対応）+ `.b` *discovery mechanisms **SHOULD use SAML metadata** to determine the endpoint(s)* | `.b` が欠落 |
+| **IIP-SSO07** | *REQUIRED that implementations **successfully process** messages containing any optional content* — Processing follows the **element-specific processing rules in SAML2Core**, and **an error is correct** for some elements | It was stated that processing should **continue even when unsupported**. The expected result would have deemed a **correctly erroring implementation non-conformant** |
+| **IIP-ALG05** | `.a` MAY (CBC support) + `.b` *Implementations supporting them **SHOULD warn on use*** | `.b` was missing. Conversely, it had the proprietary condition **“WARNING if CBC is the default,”** which is absent from the original text |
+| **IIP-SP04** | `.a` MUST (IdP Discovery support) + `.b` *discovery mechanisms **SHOULD use SAML metadata** to determine the endpoint(s)* | `.b` was missing |
 
-IIP-SSO07 は **IIP の文だけでは期待値が決まらず、SAML2Core まで遡る必要がある**類型だった。
-G1 の分解手順に「参照先仕様まで遡る」を追加した。
+IIP-SSO07 was a type where **the expected result cannot be determined from the IIP wording alone and requires tracing back to SAML2Core**.
+Added “trace back to referenced specifications” to the G1 decomposition procedure.
 
-### 反映結果
+### Results Applied
 
-| # | P | 指摘 | 対応 |
+| # | P | Finding | Action |
 |---|---|---|---|
-| 1 | P1 | IIP-SSO07 は「処理継続」ではない | 要素別に期待値を分けたケースへ。満たせない `<Subject>` → **エラーが正**、未知の `<Conditions>` 子要素 → 無視可。各要素の期待値は G1 で SAML2Core まで遡って確定 → [04](04-requirement-coverage.md) |
-| 2 | P1 | IIP-ALG05 の条件付き SHOULD が欠落 | `.a` MAY / `.b` 条件付き SHOULD に分解。独自条件「CBC が既定なら WARNING」を削除 → [04](04-requirement-coverage.md) |
-| 3 | P1 | IIP-SP04 の SHOULD が欠落 | `.a` MUST / `.b` SHOULD に分解。固定 URL 手入力のみの実装は WARNING → [04](04-requirement-coverage.md) |
-| 4 | P1 | 自己申告だけで条件付き MUST を除外できる | 述語に **`CLAIM_BASED` / `CAPABILITY_BASED` / `CLASSIFICATION_BASED`** の種別を導入。後 2 者の declaration-only FALSE は `UNKNOWN`。`CLASSIFICATION_BASED` のみ、明示的な除外申告があれば FALSE を採るが `excluded_by_declaration` に計上し `conformance_statement` に必ず明記 → [03 §1](03-test-model.md) |
-| 5 | P1 | `CONFLICT` が適用性の方向を失う | **`effective_result`（TRUE/FALSE/UNKNOWN）と `conflict`（bool）を分離**。前者でケースのスケジューリング、後者で `INCONSISTENT` を注入。`declared=false/observed=true` と `declared=true/observed=false` が区別できるようになった → [03 §1, §6.2](03-test-model.md) |
-| 6 | P1 | `UNKNOWN_DELIVERY` の不変条件が正当な FAIL を禁止 | 不変条件 9c のスコープを **当該 CaseRun のみ**に限定。同じ義務の別ケースが違反を証明していれば義務は `FAIL` が正しい → [06 §1.2](06-results-and-publication.md) |
-| 7 | P1 | Evaluator の署名から `ApplicabilityEvaluation` が消えている | §7.5 の署名を正本とし、`applicability` と `incidents` を追加。§6.2 は参照のみに → [03 §7.5](03-test-model.md) |
-| 8 | P2 | `CONFORMANT_WITH_WARNINGS` の WARNING 範囲が未定義 | `W = applicable ∩ selected_profile` と明示。合否は `must_observable`、WARNING の計数は選択プロファイル全体。SHOULD 違反が隠れない → [03 §7.2](03-test-model.md) |
-| 9 | P2 | 二軸判定への移行が文書全体で未完了 | README / 01 / 03 / 04 / 07 の旧単一ラベルを全て二軸表記に移行。公開ページのワイヤーフレームにも `Conformance` / `Completeness` を併記 → 全文書 |
-| 10 | P2 | `replay_safe` の自己宣言は検証不能 | ケースからの宣言を**廃止**。再送可否を `OutboundKind` 単位で Runner が固定する allowlist に（`Retry.SAFE` は GET かつ状態を持たないものだけ）。迷ったら `UNSAFE` → [05 §4.3.1](05-test-definition-format.md) |
-| 11 | P2 | オリジン分離が「検討」のまま / CSP に nonce がない | 配備モード別の規範レベルに統一（Hosted は **MUST**、同一オリジンなら起動拒否）。CSP に `'nonce-{per-response-random}'` を明示し `'unsafe-inline'`/`'strict-dynamic'` を禁止 → [08 §5](08-suite-security.md), [07 §7](07-deployment-and-networking.md), [09 D-09](09-open-decisions.md) |
+| 1 | P1 | IIP-SSO07 is not “continue processing” | Changed to cases with element-specific expected results. An unsupported `<Subject>` → **an error is correct**; an unknown `<Conditions>` child element → may be ignored. Determine each element’s expected result through SAML2Core during G1 → [04](04-requirement-coverage.md) |
+| 2 | P1 | The conditional SHOULD in IIP-ALG05 is missing | Split into `.a` MAY / `.b` conditional SHOULD. Removed the proprietary condition “WARNING if CBC is the default” → [04](04-requirement-coverage.md) |
+| 3 | P1 | The SHOULD in IIP-SP04 is missing | Split into `.a` MUST / `.b` SHOULD. An implementation that only accepts manually entered fixed URLs is WARNING → [04](04-requirement-coverage.md) |
+| 4 | P1 | Conditional MUSTs can be excluded by self-declaration alone | Introduced **`CLAIM_BASED` / `CAPABILITY_BASED` / `CLASSIFICATION_BASED`** predicate kinds. Declaration-only FALSE is `UNKNOWN` for the latter two. Only `CLASSIFICATION_BASED` accepts an explicit exclusion declaration as FALSE, but counts it in `excluded_by_declaration` and requires it to be stated in `conformance_statement` → [03 §1](03-test-model.md) |
+| 5 | P1 | `CONFLICT` loses the direction of applicability | **Separated `effective_result` (TRUE/FALSE/UNKNOWN) and `conflict` (bool)**. The former schedules cases; the latter injects `INCONSISTENT`. This now distinguishes `declared=false/observed=true` from `declared=true/observed=false` → [03 §1, §6.2](03-test-model.md) |
+| 6 | P1 | The invariant for `UNKNOWN_DELIVERY` prohibits a legitimate FAIL | Limited the scope of invariant 9c to **the relevant CaseRun only**. If another case for the same obligation proves a violation, the obligation should correctly be `FAIL` → [06 §1.2](06-results-and-publication.md) |
+| 7 | P1 | `ApplicabilityEvaluation` disappeared from the Evaluator signature | Made the §7.5 signature canonical and added `applicability` and `incidents`. §6.2 is reference-only → [03 §7.5](03-test-model.md) |
+| 8 | P2 | The WARNING scope of `CONFORMANT_WITH_WARNINGS` is undefined | Explicitly define `W = applicable ∩ selected_profile`. Pass/fail uses `must_observable`; WARNING counting covers the entire selected profile. SHOULD violations cannot be hidden → [03 §7.2](03-test-model.md) |
+| 9 | P2 | Migration to two-axis judgment is incomplete throughout the documents | Migrated all old single-label notation in README / 01 / 03 / 04 / 07 to two-axis notation. The public-page wireframe also shows `Conformance` / `Completeness` side by side → All documents |
+| 10 | P2 | `replay_safe` self-declaration cannot be verified | **Eliminated declarations from cases.** Runner fixes resendability through an `OutboundKind`-level allowlist (`Retry.SAFE` only for GETs with no state). When uncertain, use `UNSAFE` → [05 §4.3.1](05-test-definition-format.md) |
+| 11 | P2 | Origin separation remains “under consideration” / CSP has no nonce | Unified normative levels by deployment mode (Hosted is **MUST**; reject startup for same-origin deployment). Explicitly specify `'nonce-{per-response-random}'` in CSP and prohibit `'unsafe-inline'`/`'strict-dynamic'` → [08 §5](08-suite-security.md), [07 §7](07-deployment-and-networking.md), [09 D-09](09-open-decisions.md) |
 
-### 累計の誤読率
+### Cumulative Misreading Rate
 
-| 回 | 照合数 | 誤り |
+| Round | Cross-checked | Errors |
 |---|---|---|
 | R1 | 9 | 5 |
 | R2 | 8 | 6 |
 | R4 | 3 | 3 |
-| **累計** | **20** | **14** |
+| **Cumulative** | **20** | **14** |
 
-残り 49 要件も同程度の誤りを含む前提で G1 に臨む。
-特に **IIP の文だけで期待値が決まらない義務**（SAML2Core / ECP Profile / SAML-EC /
-Async SLO / IdPDisco / MetaIOP へ遡るもの）を分解時に洗い出す。
+Proceed with G1 on the assumption that the remaining 49 requirements contain errors at a similar rate.
+In particular, identify during decomposition any **obligation whose expected result cannot be determined from the IIP text alone** (those requiring tracing back to SAML2Core / ECP Profile / SAML-EC /
+Async SLO / IdPDisco / MetaIOP).
 
-### この修正で変わった前提
+### Assumptions Changed by This Correction
 
-- **適用性は 2 つの値**。「実行すべきか」と「矛盾があるか」を 1 つに畳まない
-- **申告の重みは条件の性質で変わる**。「対応を表明しているか」が条件そのものの義務だけ、
-  申告を真理値として採用してよい
-- **再送可否をケース作者に決めさせない**。CI で証明できない安全性を宣言させない
-- **Suite の障害は当該ケースだけを汚染する**。別ケースが証明した FAIL を隠さない
-- **オリジン分離は Hosted で MUST**。起動時に強制する
+- **Applicability has two values.** Do not fold “should this be executed?” and “is there a conflict?” into one value
+- **The weight of a declaration varies with the nature of the condition.** Only when the condition itself is the obligation “is support claimed?” may the declaration be adopted as truth
+- **Do not let case authors determine resendability.** Do not make them declare safety that CI cannot prove
+- **A Suite failure contaminates only the relevant case.** Do not hide a FAIL proven by another case
+- **Origin separation is MUST in Hosted mode.** Enforce it at startup
 
 ---
 
-## R5 — 2026-08-25 原文追加照合・除外の機械可読性のレビュー
+## R5 — 2026-08-25 Review of Additional Original-Text Cross-Checks and Machine Readability of Exclusions
 
-**結論**: 指摘 10 件すべて妥当だった。追加照合した 5 件（G03 / MD01 / MD03 / MD12 / SP06）は
-**5 件とも未分解の規範内容があった**。SSO07 は R4 の修正が部分的だったことも確認した。
-累計の誤読率は **19/25**。
+**Conclusion**: All 10 findings were valid. The 5 additionally cross-checked requirements (G03 / MD01 / MD03 / MD12 / SP06)
+**all contained normative content that had not been decomposed**. It was also confirmed that the R4 correction for SSO07 was partial.
+The cumulative misreading rate was **19/25**.
 
-### 原文照合の結果（R5）
+### Results of Cross-Checking the Original Text (R5)
 
-| 要件 | 原文 | 修正前の欠落 |
+| Requirement | Original text | Missing content before correction |
 |---|---|---|
-| **IIP-G03** | `.a` *MUST not send … SAML protocol messages containing a DTD* / `.b` *MUST have the ability to **reject***  | `.a`（送信側の MUST NOT）が欠落。受信拒否だけを見ていた |
-| **IIP-MD01** | + *Implementations **that claim support** for this protocol MUST be able to request and utilize metadata from one or more MDQ responders* | `.b`（`CLAIM_BASED` 条件付き MUST）が欠落 |
-| **IIP-MD03** | + *MUST be possible to **ignore the other contents of the certificate** and verify … based solely on the public key* / + *MUST be possible to **limit the use of a trusted key to a single metadata source*** | `.b` `.c` が欠落 |
-| **IIP-MD12** | *any number of long-lived, self-signed …* / *expired …* / *any digest algorithm …* / 証明書は *not yet valid, carry critical or non-critical extensions* でもよい | バリエーション不足（複数証明書・not-yet-valid・拡張・KeyUsage） |
-| **IIP-SP06** | + *MUST be capable of including **any number of** `AuthnContextClassRef` elements* | `.b` が欠落。単一 ClassRef だけで PASS になりえた |
-| **IIP-SSO07** | *such content MUST either result in errors or be ignored, **as directed by the processing rules for the element or attribute in [SAML2Core]***。例示は `<saml:Subject>` / `<saml:Conditions>` / `<samlp:AuthnRequest>` | R4 の修正が部分的。「エラーも無視も可」では**検出力がゼロ** |
+| **IIP-G03** | `.a` *MUST not send … SAML protocol messages containing a DTD* / `.b` *MUST have the ability to **reject*** | `.a` (sender-side MUST NOT) was missing. Only rejection on receipt was checked |
+| **IIP-MD01** | + *Implementations **that claim support** for this protocol MUST be able to request and utilize metadata from one or more MDQ responders* | `.b` (conditional `CLAIM_BASED` MUST) was missing |
+| **IIP-MD03** | + *MUST be possible to **ignore the other contents of the certificate** and verify … based solely on the public key* / + *MUST be possible to **limit the use of a trusted key to a single metadata source*** | `.b` and `.c` were missing |
+| **IIP-MD12** | *any number of long-lived, self-signed …* / *expired …* / *any digest algorithm …* / certificates may be *not yet valid, carry critical or non-critical extensions* | Insufficient variants (multiple certificates, not-yet-valid, extensions, KeyUsage) |
+| **IIP-SP06** | + *MUST be capable of including **any number of** `AuthnContextClassRef` elements* | `.b` was missing. PASS could be obtained with only one ClassRef |
+| **IIP-SSO07** | *such content MUST either result in errors or be ignored, **as directed by the processing rules for the element or attribute in [SAML2Core]***. Examples are `<saml:Subject>` / `<saml:Conditions>` / `<samlp:AuthnRequest>` | The R4 correction was partial. “Either an error or ignored” has **zero detection power** |
 
-### 反映結果
+### Results Applied
 
-| # | P | 指摘 | 対応 |
+| # | P | Finding | Action |
 |---|---|---|---|
-| 1 | P1 | 公開ページ例が二軸判定と矛盾（`Resolved 45/47` + `NOT_VERIFIED 2` なのに `CONFORMANT`） | **数値例を削除**。公開ページも golden fixture から生成する。「必ず含める項目」の規定だけを残した → [06 §3](06-results-and-publication.md) |
-| 2 | P1 | IIP-SSO07 の期待値が未確定 | **ケース化の規則**を定義: SAML2Core が**一意の結果を規定している要素だけ**を verdict 対象にし、両方許される要素は情報記録のみ。前版の「未知の `<Conditions>` 子要素」は削除（それは IIP-EXT01 の領域）。`<saml:Subject>` は verdict 対象になりうる。各要素の確定は G1 → [04](04-requirement-coverage.md) |
-| 3 | P1 | 新述語モデルを coverage.yaml / CI 規則が表現できない | `predicate_kind` をスキーマに追加。`observed` の必須性を種別ごとに分岐（CI 規則 5b-1〜5b-3）。`CLAIM_BASED` は原文に *claim(s) support* 相当の語があることを `source_digest` の対象文で CI 確認する → [05 §2.1, §5](05-test-definition-format.md) |
-| 4 | P1 | 自己申告による除外でも `CONFORMANT` を返せる | **enum の値そのもの**に現れるようにした: `CONFORMANT_WITH_DECLARED_EXCLUSIONS` を新設。`run.conformance == "CONFORMANT"` で分岐する素朴な利用者は一致しない。`run.scope_qualifications[]`（理由・申告者・時刻・除外義務一覧）と `target.kind` を結果に追加 → [03 §1, §7.2](03-test-model.md), [06 §1](06-results-and-publication.md) |
-| 5 | P1 | IIP-G03 の送信側 MUST NOT が欠落 | `.a` を追加。**対象が生成した全 SAML プロトコルメッセージに `<!DOCTYPE` がないこと**を Transcript 全件に対する受動チェックとして横断適用 → [04](04-requirement-coverage.md) |
-| 6 | P1 | IIP-MD01 の条件付き MUST が欠落 | `.b` を `CLAIM_BASED` 義務として追加。`secondary_peer` の未登録 entityID でメッセージを送り、MDQ で動的取得できるかを検証 → [04](04-requirement-coverage.md) |
-| 7 | P1 | IIP-MD03 の鍵処理義務が 2 つ欠落 | `.b`（証明書の他の内容を無視し公開鍵のみで検証）/ `.c`（信頼鍵を単一メタデータソースに限定）を追加 → [04](04-requirement-coverage.md) |
-| 8 | P1 | IIP-MD12 の証明書バリエーション不足 | 複数証明書 / not-yet-valid / critical extension / 制限的 KeyUsage / SHA-512 を variant に追加 → [04](04-requirement-coverage.md) |
-| 9 | P1 | IIP-SP06 の「任意個数の ClassRef」が欠落 | `.b` を追加。0 / 1 / 複数の ClassRef を設定してもらい生成物を検査 → [04](04-requirement-coverage.md) |
-| 10 | P2 | 廃止した `CONFLICT` が不変条件に残存 | 不変条件 9 を `effective_result` + `conflict` の構造に更新。`CONFLICT` という値が存在しないことを明記 → [06 §1.2](06-results-and-publication.md), [05 §5](05-test-definition-format.md) |
+| 1 | P1 | The public-page example contradicts two-axis judgment (`Resolved 45/47` + `NOT_VERIFIED 2` but `CONFORMANT`) | **Deleted the numeric example**. Generate the public page from golden fixtures as well. Retained only requirements for “items that must always be included” → [06 §3](06-results-and-publication.md) |
+| 2 | P1 | The expected result for IIP-SSO07 is undetermined | Defined **case-design rules**: only elements for which SAML2Core specifies **a unique result** are verdict-bearing; elements for which both outcomes are permitted are information-only. Deleted the previous “unknown `<Conditions>` child element” (that belongs to IIP-EXT01). `<saml:Subject>` may be verdict-bearing. Finalize each element in G1 → [04](04-requirement-coverage.md) |
+| 3 | P1 | The new predicate model cannot be expressed by `coverage.yaml` / CI rules | Added `predicate_kind` to the schema. Made `observed` mandatory conditionally by kind (CI rules 5b-1 through 5b-3). CI verifies for `CLAIM_BASED` that the source text targeted by `source_digest` contains wording equivalent to *claim(s) support* → [05 §2.1, §5](05-test-definition-format.md) |
+| 4 | P1 | A `CONFORMANT` result can still be returned for a self-declared exclusion | Made it appear in **the enum value itself**: introduced `CONFORMANT_WITH_DECLARED_EXCLUSIONS`. A naïve consumer branching on `run.conformance == "CONFORMANT"` will not match. Added `run.scope_qualifications[]` (reason, declarant, time, excluded-obligation list) and `target.kind` to the result → [03 §1, §7.2](03-test-model.md), [06 §1](06-results-and-publication.md) |
+| 5 | P1 | The sender-side MUST NOT in IIP-G03 is missing | Added `.a`. Apply as a passive cross-cutting check over the entire Transcript: **none of the SAML protocol messages generated by the target may contain `<!DOCTYPE`** → [04](04-requirement-coverage.md) |
+| 6 | P1 | The conditional MUST in IIP-MD01 is missing | Added `.b` as a `CLAIM_BASED` obligation. Send a message using an unregistered entityID from `secondary_peer` and verify whether it can be dynamically retrieved through MDQ → [04](04-requirement-coverage.md) |
+| 7 | P1 | Two key-processing obligations in IIP-MD03 are missing | Added `.b` (ignore other certificate contents and verify using only the public key) / `.c` (limit a trusted key to a single metadata source) → [04](04-requirement-coverage.md) |
+| 8 | P1 | IIP-MD12 has insufficient certificate variants | Added multiple certificates / not-yet-valid / critical extension / restrictive KeyUsage / SHA-512 to the variants → [04](04-requirement-coverage.md) |
+| 9 | P1 | The “any number of ClassRef” requirement in IIP-SP06 is missing | Added `.b`. Ask the target to configure 0 / 1 / multiple ClassRefs and inspect the generated output → [04](04-requirement-coverage.md) |
+| 10 | P2 | The retired `CONFLICT` remains in an invariant | Updated invariant 9 to the `effective_result` + `conflict` structure. Explicitly state that the value `CONFLICT` does not exist → [06 §1.2](06-results-and-publication.md), [05 §5](05-test-definition-format.md) |
 
-### 累計の誤読率
+### Cumulative Misreading Rate
 
-| 回 | 照合数 | 誤り |
+| Round | Cross-checked | Errors |
 |---|---|---|
 | R1 | 9 | 5 |
 | R2 | 8 | 6 |
 | R4 | 3 | 3 |
 | R5 | 6 | 6 |
-| **累計** | **26** | **20** |
+| **Cumulative** | **26** | **20** |
 
-**照合した要件の 8 割近くに誤りがあった。** 残り 43 要件も同じ前提で扱う。
-特に **「+ もう 1 つの MUST」が文の後半に隠れている**類型（MD01 / MD03 / SP06 / G03）が多い。
-G1 の分解では、**要件を 1 文ずつでなく 1 節ずつ読み切る**こと。
+**Nearly 80% of the cross-checked requirements contained errors.** Treat the remaining 43 requirements on the same assumption.
+In particular, many are of the type where **“one more MUST” is hidden in the second half of the sentence** (MD01 / MD03 / SP06 / G03).
+In G1 decomposition, **read through each requirement clause by clause, not sentence by sentence**.
 
-### この修正で変わった前提
+### Assumptions Changed by This Correction
 
-- **除外は enum の値に現れる**。第 2 のフィールドを読み飛ばされる設計にしない
-- **検出力のないケースは作らない**。「エラーでも無視でもよい」は義務を検証していない
-- **述語の種類ごとに CI 規則を分岐**する。一律の必須化は新モデルと矛盾する
-- **手書きの例は全廃**。JSON・適合表明・公開ページの 3 か所すべてを生成物にする
-  （手書きは 4 回連続で不整合を生んだ）
+- **Exclusions appear in enum values.** Do not design a second field that users can skip
+- **Do not create cases without detection power.** “Either an error or ignored” does not verify an obligation
+- **Branch CI rules by predicate kind.** Uniform mandatory requirements contradict the new model
+- **Eliminate all hand-written examples.** Generate JSON, conformance statements, and public pages in all three locations
+  (hand-written examples caused inconsistencies four times in a row)
 
 ---
 
-## R6 — 2026-08-25 除外範囲・仕様分解の整合性レビュー
+## R6 — 2026-08-25 Review of Exclusion Scope and Specification-Decomposition Consistency
 
-**結論**: 指摘 10 件すべて妥当だった。追加照合した 4 件（MD05 / MD06 / SSO06 / IDP04）は
-**4 件とも未分解が残っていた**。累計の誤読率は **25/31**（集計表と一致）。
+**Conclusion**: All 10 findings were valid. The 4 additionally cross-checked requirements (MD05 / MD06 / SSO06 / IDP04)
+**all had remaining content that had not been decomposed**. The cumulative misreading rate was **25/31** (matching the summary table).
 
-### 原文照合の結果（R6）
+### Results of Cross-Checking the Original Text (R6)
 
-| 要件 | 原文 | 修正前の欠落・誤り |
+| Requirement | Original text | Missing content / error before correction |
 |---|---|---|
-| **IIP-IDP13 の除外範囲** | *This requirement does not apply to token translation Proxies.* は **IIP-IDP13 の末尾の文** | 除外例に IIP-IDP14 以降を含めていた。IDP14〜16 は**無条件 MUST** |
-| **IIP-MD05** | 必須は **6 仕様**（SAML V2.0 Metadata / Schema / Metadata IOP / Entity Attributes / Algorithm Support / Login and Discovery UI）+ *other metadata extension content … **MUST NOT** prevent consumption and use* | 6 仕様を個別義務にしていない。MUST NOT が欠落。**`mdrpi` を必須に含めていたが原文のリストにない** |
-| **IIP-MD06** | *interoperating with **any number of** SAML peers … **without additional inputs or separate configuration*** / 信頼はメタデータのみから導出でき、署名検証にも SOAP/TLS にも別 trust store を要求しない | 証明書の PKIX 処理（実際は MD12 / MD03.c の領域）しか扱っていなかった |
-| **IIP-SSO06** | *for any metadata element identified as "MUST" or "MAY" in the Web Browser SSO Profile **Use of Metadata** section*（[SAML2Prof] **§4.1.6**） | 「利用者の申告」だけで、要素の列挙も追従の検証もなかった |
-| **IIP-IDP04** | `.a` *RequestedAttribute … **including the isRequired XML attribute*** / `.b` *support the **AttributeConsumingServiceIndex** attribute*（別の MUST） | `isRequired` が未明示。`.a` と `.b` を分けていなかった |
+| **Scope of the IIP-IDP13 exclusion** | *This requirement does not apply to token translation Proxies.* is **the final sentence of IIP-IDP13** | The exclusion examples included IIP-IDP14 and later. IDP14–16 are **unconditional MUSTs** |
+| **IIP-MD05** | The required set is **6 specifications** (SAML V2.0 Metadata / Schema / Metadata IOP / Entity Attributes / Algorithm Support / Login and Discovery UI) + *other metadata extension content … **MUST NOT** prevent consumption and use* | The 6 specifications were not made separate obligations. The MUST NOT was missing. **`mdrpi` was incorrectly included as mandatory even though it is absent from the original list** |
+| **IIP-MD06** | *interoperating with **any number of** SAML peers … **without additional inputs or separate configuration*** / trust can be derived solely from metadata, and neither signature verification nor SOAP/TLS requires a separate trust store | Only certificate PKIX processing was covered (actually the domain of MD12 / MD03.c) |
+| **IIP-SSO06** | *for any metadata element identified as "MUST" or "MAY" in the Web Browser SSO Profile **Use of Metadata** section* ([SAML2Prof] **§4.1.6**) | Only user declaration was used; there was no enumeration of the elements or verification of following them |
+| **IIP-IDP04** | `.a` *RequestedAttribute … **including the isRequired XML attribute*** / `.b` *support the **AttributeConsumingServiceIndex** attribute* (a separate MUST) | `isRequired` was not explicit. `.a` and `.b` were not separated |
 
-### 反映結果
+### Results Applied
 
-| # | P | 指摘 | 対応 |
+| # | P | Finding | Action |
 |---|---|---|---|
-| 1 | P1 | token translation Proxy の除外範囲が広がっている | 除外を **IIP-IDP13 の義務だけ**に限定。`excluded_obligations` は**手で列挙せず** `coverage.yaml` から Evaluator が機械的に集める。CI 規則 5b-4 で「除外述語を持つ義務の要件に除外文があること」を検査 → [03 §1](03-test-model.md), [05 §5](05-test-definition-format.md) |
-| 2 | P1 | IIP-MD01 の表と `coverage.yaml` 例が不一致 | 例を 3 義務（IdP:MUST / SP:SHOULD / `CLAIM_BASED` 条件付き MUST）に修正 → [05 §2.1](05-test-definition-format.md) |
-| 3 | P1 | IIP-SP06 の「0 個」は不正な SAML | SAML Core §3.3.2.2.1 では `ClassRef`/`DeclRef` は 1 個以上。**0 個のケースを削除**し、1 個 / 複数個に。0 個は不正メッセージ生成（IIP-EXT01 / Phase 4）の領域であることを明記 → [04](04-requirement-coverage.md) |
-| 4 | P1 | IIP-MD03 は 4 義務 | `.b`（検証鍵の out-of-band 設定）を `.a` の括弧書きから独立させ 4 義務に → [04](04-requirement-coverage.md) |
-| 5 | P1 | `conflict=true` の不変条件が重大度順序と矛盾 | 「verdict が `INCONSISTENT` である」→「集約入力に `INCONSISTENT` が**注入されている**」に修正。検証は「重大度が `INCONSISTENT` **以上**」。同じ義務に FAIL があれば FAIL が正しい → [06 §1.2](06-results-and-publication.md) |
-| 6 | P2 | G1 の `observed` 必須規則が新述語モデルと矛盾 / `source_digest` からは語を検査できない | G1 の条件を述語種別ごとに分岐。**`source_excerpt_normalized`（正規化済み原文断片）と `source_selector`** を追加し、`CLAIM_BASED` の妥当性検証（規則 5b-3）がこの断片を使うようにした → [04 G1](04-requirement-coverage.md), [05 §5](05-test-definition-format.md) |
-| 7 | P1 | IIP-MD05 の 6 仕様と MUST NOT が未分解 | `.a`〜`.f`（6 仕様）+ `.g`（MUST NOT）に分解。**`mdrpi` を必須リストから外し**、`.g` 側の題材に回した → [04](04-requirement-coverage.md) |
-| 8 | P1 | IIP-MD06 が証明書処理しか扱っていない | `.a` 任意数のピア・追加入力なし / `.b` 署名検証に別 trust store 不要 / `.c` SOAP/TLS に別 trust store 不要 に分解 → [04](04-requirement-coverage.md) |
-| 9 | P1 | IIP-SSO06 が自己申告のみ | [SAML2Prof] §4.1.6 の MUST/MAY 要素を列挙し、**Suite メタデータの値を変更して追従するか**を検証する形に。要素一覧の確定は G1 → [04](04-requirement-coverage.md) |
-| 10 | P1 | IIP-IDP04 の `isRequired` と Index が未分解 | `.a`（`isRequired` を含む `RequestedAttribute` に基づく判断）と `.b`（`AttributeConsumingServiceIndex` 対応）を別 MUST に。`.b` は Suite 側から自動判定できる → [04](04-requirement-coverage.md) |
+| 1 | P1 | The scope of the token translation Proxy exclusion has expanded | Limited the exclusion to **the obligations of IIP-IDP13 only**. Collect `excluded_obligations` mechanically from `coverage.yaml` through Evaluator rather than listing them manually. CI rule 5b-4 verifies that a requirement with an exclusion predicate contains exclusion text → [03 §1](03-test-model.md), [05 §5](05-test-definition-format.md) |
+| 2 | P1 | The IIP-MD01 table and the `coverage.yaml` example are inconsistent | Corrected the example to 3 obligations (IdP:MUST / SP:SHOULD / conditional `CLAIM_BASED` MUST) → [05 §2.1](05-test-definition-format.md) |
+| 3 | P1 | “0” ClassRefs is invalid SAML | SAML Core §3.3.2.2.1 requires at least one `ClassRef`/`DeclRef`. **Deleted the 0-case** and retained one / multiple. Explicitly state that 0 is the domain of invalid-message generation (IIP-EXT01 / Phase 4) → [04](04-requirement-coverage.md) |
+| 4 | P1 | IIP-MD03 contains 4 obligations | Made `.b` (out-of-band configuration of the verification key) independent from the parenthetical text in `.a`, resulting in 4 obligations → [04](04-requirement-coverage.md) |
+| 5 | P1 | The `conflict=true` invariant contradicts the severity order | Changed “the verdict is `INCONSISTENT`” to “`INCONSISTENT` is **injected** into the aggregation input.” Verify that severity is **at least** `INCONSISTENT`. If the same obligation has a FAIL, FAIL is correct → [06 §1.2](06-results-and-publication.md) |
+| 6 | P2 | G1’s `observed`-required rule contradicts the new predicate model / words cannot be inspected from `source_digest` | Branch G1 conditions by predicate kind. Added **`source_excerpt_normalized` (a normalized original-text excerpt) and `source_selector`**, and made validity checking of `CLAIM_BASED` (rule 5b-3) use the excerpt → [04 G1](04-requirement-coverage.md), [05 §5](05-test-definition-format.md) |
+| 7 | P1 | The 6 specifications and MUST NOT in IIP-MD05 are not decomposed | Decomposed into `.a`–`.f` (6 specifications) + `.g` (MUST NOT). **Removed `mdrpi` from the mandatory list** and moved it to the subject matter of `.g` → [04](04-requirement-coverage.md) |
+| 8 | P1 | IIP-MD06 covers only certificate processing | Decomposed into `.a` any number of peers / no additional input, `.b` no separate trust store for signature verification, and `.c` no separate trust store for SOAP/TLS → [04](04-requirement-coverage.md) |
+| 9 | P1 | IIP-SSO06 relies only on self-declaration | Enumerated the MUST/MAY elements in [SAML2Prof] §4.1.6 and changed to verify **whether the Suite follows changes to metadata values**. Finalize the element list in G1 → [04](04-requirement-coverage.md) |
+| 10 | P1 | `isRequired` and the Index in IIP-IDP04 are not decomposed | Split into separate MUSTs: `.a` (judgment based on `RequestedAttribute`, including `isRequired`) and `.b` (support for `AttributeConsumingServiceIndex`). `.b` can be automatically judged from the Suite side → [04](04-requirement-coverage.md) |
 
-### 累計の誤読率
+### Cumulative Misreading Rate
 
-| 回 | 照合数 | 誤り |
+| Round | Cross-checked | Errors |
 |---|---|---|
 | R1 | 9 | 5 |
 | R2 | 8 | 6 |
 | R4 | 3 | 3 |
 | R5 | 6 | 6 |
 | R6 | 5 | 5 |
-| **累計** | **31** | **25** |
+| **Cumulative** | **31** | **25** |
 
-**照合した要件の 8 割に誤りがあった。** 直近 3 回は照合した要件が**全件**誤っている。
-残り 38 要件も同じ前提で扱う。
+**80% of the cross-checked requirements contained errors.** In the most recent 3 rounds, **every** cross-checked requirement was wrong.
+Treat the remaining 38 requirements on the same assumption.
 
-観察された誤りの類型（G1 の分解手順に反映済み）:
+Observed error categories (already incorporated into the G1 decomposition procedure):
 
-| 類型 | 例 |
+| Category | Examples |
 |---|---|
-| **もう 1 つの MUST が文の後半に隠れている** | G03 / MD01 / MD03 / SP06 / IDP04 / SP04 / ALG05 |
-| **列挙された仕様・要素を個別義務にしていない** | MD05（6 仕様）/ ALG06（5 条項）/ SSO06（§4.1.6 の要素群） |
-| **参照先仕様まで遡らないと期待値が決まらない** | SSO07（SAML2Core）/ IDP15（SAML-EC）/ SSO06（SAML2Prof §4.1.6）/ IDP13（ECP v2） |
-| **要件末尾の適用除外を見落とす** | IDP13（token translation Proxy / IIP-SSO02・SSO03） |
-| **条件付きであることを見落とす** | SP14〜17 / MD08 / MD01.c / SSO06 |
-| **Samlier が原文にない条件・閾値を足す** | MD04.c（90 日）/ ALG05（既定が CBC）/ MD05（mdrpi）/ IDP21（文字集合） |
-| **隣接する要件の内容と取り違える** | MD08 ↔ SP08 / MD06 ↔ MD12 |
+| **Another MUST is hidden in the second half of the sentence** | G03 / MD01 / MD03 / SP06 / IDP04 / SP04 / ALG05 |
+| **Enumerated specifications or elements were not made individual obligations** | MD05 (6 specifications) / ALG06 (5 clauses) / SSO06 (element group in §4.1.6) |
+| **Expected result cannot be determined without tracing back to a referenced specification** | SSO07 (SAML2Core) / IDP15 (SAML-EC) / SSO06 (SAML2Prof §4.1.6) / IDP13 (ECP v2) |
+| **Applicability exclusion at the end of a requirement was overlooked** | IDP13 (token translation Proxy / IIP-SSO02 / SSO03) |
+| **Conditional nature was overlooked** | SP14–17 / MD08 / MD01.c / SSO06 |
+| **Samlier added conditions or thresholds absent from the original text** | MD04.c (90 days) / ALG05 (CBC default) / MD05 (mdrpi) / IDP21 (character set) |
+| **Confused with the content of an adjacent requirement** | MD08 ↔ SP08 / MD06 ↔ MD12 |
 
-### この修正で変わった前提
+### Assumptions Changed by This Correction
 
-- **除外の範囲は要件単位**。除外述語が隣接要件に広がっていないことを CI で検査する
-- **`excluded_obligations` を手で書かない**。カタログから機械的に集める
-- **`source_digest` だけでは足りない**。CI が原文の語を検査できるよう
-  正規化済みの原文断片を併せて保存する
-- **不変条件は集約規則と矛盾しない形で書く**。「等しい」ではなく「以上」
-- **Samlier が原文にないものを足していないか**も G1 のレビュー項目にする
-  （不足だけでなく過剰も誤りである）
+- **Exclusion scope is at the requirement level.** CI checks that an exclusion predicate does not spread to adjacent requirements
+- **Do not write `excluded_obligations` manually.** Collect them mechanically from the catalog
+- **`source_digest` alone is insufficient.** Store a normalized original-text excerpt as well so CI can inspect the words
+- **Invariants must be written consistently with aggregation rules.** Use “at least,” not “equal to”
+- **Whether Samlier has added things absent from the original text** is also a G1 review item
+  (excess is an error, not only omission)
 
 ---
 
-## R7 — 2026-08-25 参照仕様の追加照合と digest 規則の整合性レビュー
+## R7 — 2026-08-25 Review of Additional Referenced-Specification Cross-Checks and Digest-Rule Consistency
 
-**結論**: 指摘 6 件すべて妥当だった。追加照合した 2 件（IDP16 / SP17・IDP20）に加え、
-MD06 と IDP04 の修正内容そのものにも誤りがあった（**私の R6 修正が過剰だった**）。
-累計の誤読率は **27/33**。
+**Conclusion**: All 6 findings were valid. In addition to the 2 additionally cross-checked items (IDP16 / SP17 / IDP20),
+the corrections themselves for MD06 and IDP04 were also wrong (**my R6 corrections were excessive**).
+The cumulative misreading rate was **27/33**.
 
-> **R5 / R6 の記録の一部は本節で上書きされます。**
-> `source_excerpt_normalized` を使う方式（R6 指摘 6 の対応）は R7 で撤回し、
-> `:specReconcile` が原文を取得して検査する方式に置き換えました。
+> **Parts of the R5 / R6 records are superseded by this section.**
+> The method using `source_excerpt_normalized` (the response to R6 Finding 6) was withdrawn in R7 and replaced with a method in which
+> `:specReconcile` retrieves and inspects the original text.
 
-### 原文照合の結果（R7）
+### Results of Cross-Checking the Original Text (R7)
 
-| 要件 | 原文 | 修正前の誤り |
+| Requirement | Original text | Error before correction |
 |---|---|---|
-| **IIP-MD06.c** | *implementations **should confine themselves to supporting front-channel bindings*** — TLS の話は SAML メッセージングに TLS を使う場合の制約 | R6 で無条件 MUST にしていた。**バックチャネルを持たない実装まで FAIL にする**ところだった |
-| **IIP-IDP04.a** | *including the value of the enclosed `isRequired` XML attribute* — **判断材料にできる能力**を要求するのみで、`true`/`false` の結果は規定していない | R6 で「`isRequired` を変えれば属性集合が変わる」ことを期待していた。**適合実装が両者を同じポリシーで扱うことは許される** |
-| **IIP-IDP16** | [SAML2ECP] §2.3.10 の列挙: PAOS ACS / **SOAP `SingleSignOnService`** / **`cb:supportsChannelBindings`** / **HoK 対応時の `hoksso:ProtocolBinding`** / ACS の `index` `isDefault` | PAOS ACS しか扱っていなかった |
-| **IIP-SP17 / IIP-IDP20** | 両者とも [SAML2Prof] **§4.4.5** を参照 | SLO エンドポイントへの追従だけ。**暗号化時の `<md:KeyDescriptor use="encryption">`** が欠落（§4.4.5 の正確な列挙は G1 で原文確認） |
+| **IIP-MD06.c** | *implementations **should confine themselves to supporting front-channel bindings*** — TLS is a constraint when TLS is used for SAML messaging | R6 made it an unconditional MUST. This would have **failed implementations that do not have a back channel** |
+| **IIP-IDP04.a** | *including the value of the enclosed `isRequired` XML attribute* — Requires only the **ability to use it as input to a judgment**; it does not prescribe a `true`/`false` result | R6 expected “changing `isRequired` changes the attribute set.” **A conformant implementation may treat both with the same policy** |
+| **IIP-IDP16** | Enumeration in [SAML2ECP] §2.3.10: PAOS ACS / **SOAP `SingleSignOnService`** / **`cb:supportsChannelBindings`** / **`hoksso:ProtocolBinding` when HoK is supported** / ACS `index` and `isDefault` | Only PAOS ACS was covered |
+| **IIP-SP17 / IIP-IDP20** | Both refer to [SAML2Prof] **§4.4.5** | Only following SLO endpoints. **`<md:KeyDescriptor use="encryption">`** for encryption was missing (the exact §4.4.5 enumeration is to be confirmed against the original text in G1) |
 
-### 反映結果
+### Results Applied
 
-| # | P | 指摘 | 対応 |
+| # | P | Finding | Action |
 |---|---|---|---|
-| 1 | P1 | `source_digest` の検証規則が成立しない（節の全文と省略付き断片のダイジェストが一致するはずがない） | **`source_excerpt_normalized` を廃止**。`source_selector` + `source_section_digest` のみにし、語の検査は **`:specReconcile`**（原文を `build/spec-cache/` に取得するネットワーク要のジョブ）が行う。**原文を 1 文字も配布せずに**検査でき、[09 D-11](09-open-decisions.md) とも両立する → [04 G1](04-requirement-coverage.md), [05 §5](05-test-definition-format.md) |
-| 2 | P1 | IIP-MD06.c が無条件 MUST | `condition: uses_tls_for_saml_messaging`（`CAPABILITY_BASED`）に。front-channel のみの実装を FAIL にしない → [04](04-requirement-coverage.md) |
-| 3 | P1 | IIP-IDP04.a が配備ポリシーを勝手に固定 | Samlier が結果を決めない手順に: ①対象側で「`isRequired` で差が出るポリシー」を設定してもらう ②その状態で variant を配布して差を観測 ③設定できない場合は **(a) 製品が判断材料にできない → FAIL** / **(b) 利用者が設定・確認できない → `NOT_VERIFIED`** に分岐 → [04](04-requirement-coverage.md) |
-| 4 | P2 | R6 の累計値が内部で矛盾（`24/30` vs 集計表 `25/31`） | 集計表に合わせて `25/31` に訂正 |
-| 5 | P1 | IIP-IDP16 が PAOS ACS だけ | §2.3.10 の 5 要素（`.a`〜`.e`）に分解。HoK は条件付き → [04](04-requirement-coverage.md) |
-| 6 | P1 | IIP-SP17 / IIP-IDP20 に `KeyDescriptor` が不足 | 両者を `.a` `SingleLogoutService` / `.b` **暗号化時の `KeyDescriptor use="encryption"`**（`condition: uses_encrypted_identifiers`）に分解。§4.4.5 の正確な列挙は G1 で確定 → [04](04-requirement-coverage.md) |
-| — | 補足 | MD05.g の題材を `mdrpi` だけにすると検出力が落ちる | **未知の名前空間の well-formed な拡張**を必ず併用する（実装が知りようのない要素で試す） → [04](04-requirement-coverage.md) |
+| 1 | P1 | The `source_digest` verification rule cannot work (the digest of a section’s full text cannot match the digest of an abbreviated excerpt) | **Eliminated `source_excerpt_normalized`**. Retained only `source_selector` + `source_section_digest`; word inspection is performed by **`:specReconcile`** (a network-required job that retrieves the original text into `build/spec-cache/`). This permits inspection **without distributing even one character of the original text**, and is also consistent with [09 D-11](09-open-decisions.md) → [04 G1](04-requirement-coverage.md), [05 §5](05-test-definition-format.md) |
+| 2 | P1 | IIP-MD06.c is an unconditional MUST | Made it `condition: uses_tls_for_saml_messaging` (`CAPABILITY_BASED`). Do not FAIL front-channel-only implementations → [04](04-requirement-coverage.md) |
+| 3 | P1 | IIP-IDP04.a arbitrarily fixes a deployment policy | Changed to a procedure in which Samlier does not determine the result: ① have the target configure a policy “that produces a difference based on `isRequired`” ② distribute variants in that state and observe the difference ③ if it cannot be configured, branch into **(a) product cannot use it as input to a judgment → FAIL** / **(b) user cannot configure or confirm it → `NOT_VERIFIED`** → [04](04-requirement-coverage.md) |
+| 4 | P2 | R6’s cumulative values were internally inconsistent (`24/30` vs summary table `25/31`) | Corrected to `25/31` to match the summary table |
+| 5 | P1 | IIP-IDP16 covers only PAOS ACS | Decomposed the 5 elements of §2.3.10 into `.a`–`.e`. HoK is conditional → [04](04-requirement-coverage.md) |
+| 6 | P1 | `KeyDescriptor` is missing from IIP-SP17 / IIP-IDP20 | Decomposed both into `.a` `SingleLogoutService` / `.b` **`KeyDescriptor use="encryption"` when encryption is used** (`condition: uses_encrypted_identifiers`). Confirm the exact §4.4.5 enumeration in G1 → [04](04-requirement-coverage.md) |
+| — | Note | Detection power is reduced if the subject matter of MD05.g is only `mdrpi` | **Always combine it with a well-formed extension in an unknown namespace** (test with an element the implementation cannot know about) → [04](04-requirement-coverage.md) |
 
-### 累計の誤読率
+### Cumulative Misreading Rate
 
-| 回 | 照合数 | 誤り |
+| Round | Cross-checked | Errors |
 |---|---|---|
 | R1 | 9 | 5 |
 | R2 | 8 | 6 |
@@ -374,59 +366,57 @@ MD06 と IDP04 の修正内容そのものにも誤りがあった（**私の R6
 | R5 | 6 | 6 |
 | R6 | 5 | 5 |
 | R7 | 2 | 2 |
-| **累計** | **33** | **27** |
+| **Cumulative** | **33** | **27** |
 
-★ R7 では **前回の修正内容そのもの**にも 2 件の誤りがあった（MD06.c / IDP04.a）。
-いずれも**原文にない条件を Samlier が足した**類型であり、
-R6 で新設したはずの「過剰も誤り」というレビュー観点が、自分の修正には効いていなかった。
+★ In R7, there were also 2 errors in **the previous correction itself** (MD06.c / IDP04.a).
+Both were of the type **“Samlier added a condition absent from the original text,”** and the review perspective newly introduced in R6—“excess is also an error”—had not been applied to my own corrections.
 
-**含意**: G1 のレビューは「原文にある内容が全て分解されているか」だけでなく、
-**「分解した内容が全て原文にあるか」を逆向きにも確認する**必要がある。
-承認チェックリストに双方向の確認を明記する。
+**Implication**: G1 review must confirm not only “whether everything in the original text has been decomposed,”
+but also, in the reverse direction, **“whether everything decomposed is present in the original text.”**
+Specify bidirectional confirmation in the approval checklist.
 
-### この修正で変わった前提
+### Assumptions Changed by This Correction
 
-- **原文はリポジトリに置かない**。CI は `:specReconcile` で取得時に検査する。
-  日常の `./gradlew check` はオフラインで完結する
-- **能力の義務と結果の義務を混同しない**。「X を判断材料にできること」と
-  「X が真なら Y すること」は別物であり、後者を勝手に期待値にしない
-- **G1 の確認は双方向**。不足の検出だけでなく、Samlier が足した過剰の検出も行う
+- **Do not place the original text in the repository.** CI inspects it when retrieved through `:specReconcile`.
+  Routine `./gradlew check` completes offline
+- **Do not confuse capability obligations with result obligations.** “Being able to use X as input to a judgment” and “doing Y when X is true” are different; do not arbitrarily expect the latter
+- **G1 confirmation is bidirectional.** Detect not only omissions but also excess added by Samlier
 
 ---
 
-## R8 — 2026-08-25 原文根拠の検証と義務分解の粒度レビュー
+## R8 — 2026-08-25 Review of Verifying Original-Text Grounds and the Granularity of Obligation Decomposition
 
-**結論**: 指摘 9 件すべて妥当だった。原文照合した 6 件（G01 / G02 / SSO02 / SSO04 / MD07 / SP08・IDP19）は
-**6 件とも不足または過剰があった**。累計の誤読率は **33/39**。
+**Conclusion**: All 9 findings were valid. The 6 cross-checked requirements (G01 / G02 / SSO02 / SSO04 / MD07 / SP08 / IDP19)
+**all contained omissions or excesses**. The cumulative misreading rate was **33/39**.
 
-### 原文照合の結果（R8）
+### Results of Cross-Checking the Original Text (R8)
 
-| 要件 | 原文 | 修正前の誤り |
+| Requirement | Original text | Error before correction |
 |---|---|---|
-| **IIP-G01** | *MUST allow for **reasonable** clock skew* — 3〜5 分が *reasonable default*。**上限も、許容しすぎた場合の不適合条件もない** | 「±3600 秒でも受理したら WARNING」は**原文に根拠がない**（過剰） |
-| **IIP-G02** | *comprised of **any combination of valid XML characters** and contain up to 256 characters* | 長さ 256 の 1 例だけ。文字集合を検証していない。かつ `<saml:AttributeValue>` は `xs:string` とは限らない |
-| **IIP-SSO02** | *MUST support the HTTP-Redirect **and** HTTP-POST bindings* — 両方への対応が義務 | SP テストが「どちらを使うか観測」だけで、**両方を発行できる能力を証明していない** |
-| **IIP-SSO04** | *MUST support the signing of assertions and responses, **both together and independently*** | IdP テストが 1 構成の観測のみ。**Response 単独署名の能力を検証していない** |
-| **IIP-MD07** | *MUST have the ability to consume … any number of signing keys* + *MUST attempt to use each signing key … until … verified*（**MUST が 2 回**） | 1 義務にまとめていた |
-| **IIP-SP08 / IIP-IDP19** | *MUST support decryption* + *MUST be configurable with at least two decryption keys* + *MUST attempt to use each decryption key*（**MUST が 3 回**） | 1 義務にまとめていた。**IIP-SP16 では既に 3 義務に分解済みで、同じ構造なのに不統一だった** |
+| **IIP-G01** | *MUST allow for **reasonable** clock skew* — 3–5 minutes is a *reasonable default*. **There is no upper limit or non-conformance condition for allowing too much** | “WARNING if ±3600 seconds is accepted” had **no basis in the original text** (excess) |
+| **IIP-G02** | *comprised of **any combination of valid XML characters** and contain up to 256 characters* | Only one 256-character example. The character set was not tested. Also, `<saml:AttributeValue>` is not necessarily `xs:string` |
+| **IIP-SSO02** | *MUST support the HTTP-Redirect **and** HTTP-POST bindings* — support for both is required | The SP test only observed which one was used; it did not prove the **ability to issue both** |
+| **IIP-SSO04** | *MUST support the signing of assertions and responses, **both together and independently*** | Only one IdP configuration was observed. The **ability to sign a Response alone** was not verified |
+| **IIP-MD07** | *MUST have the ability to consume … any number of signing keys* + *MUST attempt to use each signing key … until … verified* (**MUST appears twice**) | Combined into one obligation |
+| **IIP-SP08 / IIP-IDP19** | *MUST support decryption* + *MUST be configurable with at least two decryption keys* + *MUST attempt to use each decryption key* (**MUST appears three times**) | Combined into one obligation. **IIP-SP16 was already decomposed into 3 obligations; the identical structure was inconsistent** |
 
-### 反映結果
+### Results Applied
 
-| # | P | 指摘 | 対応 |
+| # | P | Finding | Action |
 |---|---|---|---|
-| 1 | P1 | `specReconcile` が義務と原文の句を対応付けられない | 節境界の規則（次の要件アンカー直前まで）と正規化規則を明文化。**義務ごとに `source_clause`（正規化済み節内の文字オフセット範囲 + digest）** を追加し、語の検査を**句単位**で行う。節全体で検査すると同じ節の別義務での誤用を見逃す → [04 G1](04-requirement-coverage.md), [05 §5](05-test-definition-format.md) |
-| 2 | P1 | IIP-G01 に原文にない上限警告 | **Advisory の仕組みを新設**。`affects_verdict: false` をスキーマで固定し、Verdict・coverage・conformance のいずれにも影響させない。CI 規則 24b / 不変条件 9g で強制 → [04 §Advisory](04-requirement-coverage.md), [06 §1](06-results-and-publication.md), [09 D-14](09-open-decisions.md) |
-| 3 | P1 | IIP-G02 の試験範囲が不足 | 255/256 の境界・非 ASCII・結合文字・サロゲートペア・改行/タブの variant を追加。対象を**型が `xs:string` であることが明確なフィールド**（`@ProviderName` / `@Name` / `@FriendlyName`）に限定。切り詰めは元値との一致で確認 → [04](04-requirement-coverage.md) |
-| 4 | P1 | IIP-SSO02 の SP 試験が片方しか検証しない | Suite メタデータの `SingleSignOnService` を Redirect のみ / POST のみにした **2 構成で SP に発行させる** → [04](04-requirement-coverage.md) |
-| 5 | P1 | IIP-SSO04 の IdP 試験に検出力がない | IdP 側でも **(a) Assertion のみ (b) Response のみ (c) 両方**の 3 構成を生成できることを確認。`WantAssertionsSigned` では Response 単独署名を検証できない → [04](04-requirement-coverage.md) |
-| 6 | P1 | IIP-MD07 が 2 つの MUST に分解されていない | `.a`（任意個数の鍵を消費）/ `.b`（成功まで各鍵を試す）に分解 → [04](04-requirement-coverage.md) |
-| 7 | P1 | IIP-SP08 / IIP-IDP19 も MUST ×3 | 両者を `.a` 復号 / `.b` 2 鍵以上設定可能 / `.c` 各鍵を順に試す に分解。IIP-SP16 と構造を揃えた → [04](04-requirement-coverage.md) |
-| 8 | P2 | MD06.c の観測条件が TLS 利用を証明しない | 観測材料を **`https:` の SOAP エンドポイント**または**実際の TLS 上の SOAP 通信**に限定。「SOAP エンドポイントがある」だけでは TRUE にしない → [04](04-requirement-coverage.md) |
-| 9 | P2 | `specReconcile` がリリースの構造的ゲートになっていない | `release` / `publish` / `dockerPush` が `:specReconcile` に **`dependsOn`** し、**その実行で生成されたレポートのみ**を受け付ける（定期ジョブの結果を流用しない）。CI 規則 29 → [04 G1](04-requirement-coverage.md), [05 §5](05-test-definition-format.md) |
+| 1 | P1 | `specReconcile` cannot map obligations to phrases in the original text | Documented section-boundary rules (up to immediately before the next requirement anchor) and normalization rules. Added **`source_clause` per obligation (normalized section character-offset range + digest)**, and inspect words **at phrase level**. Section-level inspection can miss misuse under another obligation in the same section → [04 G1](04-requirement-coverage.md), [05 §5](05-test-definition-format.md) |
+| 2 | P1 | IIP-G01 contains an upper-limit warning absent from the original text | **Introduced an Advisory mechanism.** Fix `affects_verdict: false` in the schema and prevent it from affecting Verdict, coverage, or conformance. Enforce through CI rule 24b / invariant 9g → [04 §Advisory](04-requirement-coverage.md), [06 §1](06-results-and-publication.md), [09 D-14](09-open-decisions.md) |
+| 3 | P1 | IIP-G02’s test scope is insufficient | Added variants for the 255/256 boundary, non-ASCII, combining characters, supplementary-plane characters, and newline/tab. Limit the target to **fields explicitly typed as `xs:string`** (`@ProviderName` / `@Name` / `@FriendlyName`). Verify truncation by comparing with the original value → [04](04-requirement-coverage.md) |
+| 4 | P1 | The SP test for IIP-SSO02 verifies only one binding | Make the SP issue messages under **2 configurations** in which the Suite metadata `SingleSignOnService` has Redirect only / POST only → [04](04-requirement-coverage.md) |
+| 5 | P1 | The IdP test for IIP-SSO04 has no detection power | Confirm that the IdP side can generate **3 configurations**: (a) Assertion only (b) Response only (c) both. `WantAssertionsSigned` cannot verify Response-only signing → [04](04-requirement-coverage.md) |
+| 6 | P1 | IIP-MD07 is not decomposed into 2 MUSTs | Decomposed into `.a` (consume any number of keys) / `.b` (try each key until success) → [04](04-requirement-coverage.md) |
+| 7 | P1 | IIP-SP08 / IIP-IDP19 also contain 3 MUSTs | Decomposed both into `.a` decryption / `.b` configurable with at least 2 keys / `.c` try each key in sequence. Aligned the structure with IIP-SP16 → [04](04-requirement-coverage.md) |
+| 8 | P2 | MD06.c observation conditions do not prove TLS use | Limit evidence to an **`https:` SOAP endpoint** or **actual SOAP communication over TLS**. The mere existence of a SOAP endpoint is not TRUE → [04](04-requirement-coverage.md) |
+| 9 | P2 | `specReconcile` is not a structural release gate | Make `release` / `publish` / `dockerPush` **`dependsOn`** `:specReconcile` and accept **only the report generated by that execution** (do not reuse results from scheduled jobs). CI rule 29 → [04 G1](04-requirement-coverage.md), [05 §5](05-test-definition-format.md) |
 
-### 累計の誤読率
+### Cumulative Misreading Rate
 
-| 回 | 照合数 | 誤り |
+| Round | Cross-checked | Errors |
 |---|---|---|
 | R1 | 9 | 5 |
 | R2 | 8 | 6 |
@@ -435,61 +425,60 @@ R6 で新設したはずの「過剰も誤り」というレビュー観点が�
 | R6 | 5 | 5 |
 | R7 | 2 | 2 |
 | R8 | 6 | 6 |
-| **累計** | **39** | **33** |
+| **Cumulative** | **39** | **33** |
 
-### 新しく分かったこと
+### Newly Learned
 
-**同じ構造の要件で分解の粒度が揃っていない**という類型が加わった。
-IIP-SP16 は 3 義務に分解済みなのに、**構造が同一の IIP-SP08 / IIP-IDP19 は 1 義務**だった。
-G1 のチェックリストに追加する:
+A new category was added: **the decomposition granularity is inconsistent among requirements with the same structure**.
+IIP-SP16 was decomposed into 3 obligations, while **structurally identical IIP-SP08 / IIP-IDP19 remained one obligation**.
+Add the following to the G1 checklist:
 
-> 同じ言い回し（*configurable with at least two … keys* / *attempt to use each … until*）を
-> 持つ要件どうしで、**分解の粒度が揃っているか**を横断的に確認する。
+> For requirements with the same wording (*configurable with at least two … keys* / *attempt to use each … until*),
+> conduct a cross-cutting check of **whether the decomposition granularity is consistent**.
 
-**Advisory の新設**により、「実務的に伝えたいが原文に根拠がない」観測の逃げ場ができた。
-R5・R7・R8 で指摘された過剰（MD04.c の 90 日 / ALG05 の CBC 既定 / G01 の上限）は
-すべてこの類型であり、判定から外して advisory に移した。
-今後「これは伝えたい」と思ったときは、**まず原文に根拠があるかを確認し、
-なければ Verdict ではなく advisory にする**。
+The **new Advisory mechanism** provides an outlet for observations that are useful to communicate operationally but have no basis in the original text.
+All excesses identified in R5, R7, and R8 (90 days for MD04.c / CBC default for ALG05 / upper limit for G01)
+were of this type and were moved out of judgment into advisories.
+When you think “this should be communicated,” **first check whether it has a basis in the original text; if not, make it an advisory rather than a Verdict**.
 
-### この修正で変わった前提
+### Assumptions Changed by This Correction
 
-- **語の検査は句単位**。節単位では同じ節の別義務での誤用を見逃す
-- **原文に根拠のない観測は advisory**。`affects_verdict: false` をスキーマで固定する
-- **リリースは `:specReconcile` に構造的に依存する**。運用規約に頼らない
-- **同じ言い回しの要件は分解の粒度を揃える**
+- **Inspect words at phrase level.** Section-level inspection can miss misuse under another obligation in the same section
+- **Observations without a basis in the original text are advisories.** Fix `affects_verdict: false` in the schema
+- **Release structurally depends on `:specReconcile`.** Do not rely on operational conventions
+- **Requirements with the same wording have consistent decomposition granularity**
 
 ---
 
-## R9 — 2026-08-25 能力欠如の判定と検出力のレビュー
+## R9 — 2026-08-25 Review of Judging Missing Capabilities and Detection Power
 
-**結論**: 指摘 7 件すべて妥当だった。原文照合した 4 件（SSO03 / ALG04 / IDP06 / SP07）は
-**4 件とも不足があった**。累計の誤読率は **37/43**。
+**Conclusion**: All 7 findings were valid. The 4 cross-checked requirements (SSO03 / ALG04 / IDP06 / SP07)
+**all had omissions**. The cumulative misreading rate was **37/43**.
 
-### 原文照合の結果（R9）
+### Results of Cross-Checking the Original Text (R9)
 
-| 要件 | 原文 | 修正前の欠落 |
+| Requirement | Original text | Missing content before correction |
 |---|---|---|
-| **IIP-SSO03** | *HTTP-POST binding for authentication **and error** responses* | エラー応答が欠落 |
-| **IIP-ALG04** | **2 つの URI**（AES128-GCM / AES256-GCM）を列挙 | 単一の「GCM で送る」ケース。**片方だけ対応する実装が PASS する** |
-| **IIP-IDP06** | + *authentication mechanisms … **MUST have access to the ForceAuthn indicator** so that their behavior may be influenced by its value* | 2 つ目の MUST が欠落 |
-| **IIP-SP07** | *MUST support the **acceptance or rejection** of assertions based on … `<saml:AuthnContext>`* | 拒否ケースのみ。**全 Assertion を拒否する実装も PASS する** |
+| **IIP-SSO03** | *HTTP-POST binding for authentication **and error** responses* | Error responses were missing |
+| **IIP-ALG04** | Lists **2 URIs** (AES128-GCM / AES256-GCM) | A single “send with GCM” case. **An implementation supporting only one could PASS** |
+| **IIP-IDP06** | + *authentication mechanisms … **MUST have access to the ForceAuthn indicator** so that their behavior may be influenced by its value* | The second MUST was missing |
+| **IIP-SP07** | *MUST support the **acceptance or rejection** of assertions based on … `<saml:AuthnContext>`* | Only a rejection case. **An implementation rejecting all Assertions could PASS** |
 
-### 反映結果
+### Results Applied
 
-| # | P | 指摘 | 対応 |
+| # | P | Finding | Action |
 |---|---|---|---|
-| 1 | P1 | 「製品に能力がない」と「検証者が設定できない」の混同が再発 | ★ **共通判定手順を [03 §4](03-test-model.md) に新設**。`CONFIG` の全ケースが通る 3 分岐（能力なし → **`FAIL(capability_absent)`** / 権限・環境 → `NOT_VERIFIED(target_config_unavailable)` / 判別不能 → **`NOT_VERIFIED(capability_undetermined)`**（新設 reason））。質問文は Runner が共通に出す。CI 規則 20b（`CapabilityBranchTest`）と 20c、不変条件 8b で強制。**個別要件に書き分けていたため取りこぼした**ので、6 箇所を共通手順への参照に統一 → [04](04-requirement-coverage.md) |
-| 2 | P1 | IIP-G02 の改行・タブと文字数の扱いが未定義 | **(1)** 属性値中のリテラル TAB/LF/CR は [XML 属性値正規化](https://www.w3.org/TR/xml/#AVNormalize)で空白になるため、**XML ソース文字列との一致を要求すると適合実装を誤判定する**。リテラル版と**文字参照版**（`&#x9;` 等）を別ケースに **(2)** 「サロゲートペア」は UTF-16 の表現であって文字種ではない。**補助平面のコードポイント**を含める／**孤立サロゲートを生成しない**／長さは **Unicode コードポイント数**、と定義し直した → [04](04-requirement-coverage.md) |
-| 3 | P1 | IIP-SSO03 のエラー応答が未テスト | `.a` 認証応答 / `.b` エラー応答 に分解。SP 側は「エラー Response を成功扱いしないこと」、IdP 側は IIP-IDP05 と対で検証 → [04](04-requirement-coverage.md) |
-| 4 | P1 | IIP-ALG04 が 2 アルゴリズムを個別検証していない | `.a` AES128-GCM / `.b` AES256-GCM に分解。送信側・受信側の両方向 → [04](04-requirement-coverage.md) |
-| 5 | P1 | IIP-IDP06 の 2 つ目の MUST が未分解 | `.b`（認証機構が `ForceAuthn` にアクセスでき動作を変える）を追加。**省略 / `false` / `true` の 3 対照**を `AuthnInstant` の比較で部分自動判定 → [04](04-requirement-coverage.md) |
-| 6 | P1 | IIP-SP07 が拒否ケースだけで検出力がない | **同一設定下で受理・拒否を対にする**。一致 ClassRef の受理と不一致 ClassRef の拒否の**両方が成立して初めて PASS** → [04](04-requirement-coverage.md) |
-| 7 | P2 | `source_clause` のオフセット規約が不完全 | **0-based / end-exclusive / Unicode コードポイント単位 / 空範囲禁止 / digest は切り出し文字列の UTF-8 バイト列の SHA-256** と固定。範囲・単位の制約はオフライン（CI 規則 6c-0）、digest の一致は `:specReconcile` で検証 → [04 G1](04-requirement-coverage.md), [05 §5](05-test-definition-format.md) |
+| 1 | P1 | The confusion between “the product lacks the capability” and “the verifier cannot configure it” recurred | ★ **Introduced a common judgment procedure in [03 §4](03-test-model.md)**. All `CONFIG` cases follow 3 branches: no capability → **`FAIL(capability_absent)`** / permission or environment → `NOT_VERIFIED(target_config_unavailable)` / cannot determine → **`NOT_VERIFIED(capability_undetermined)`** (new reason). Runner asks the question uniformly. Enforce with CI rules 20b (`CapabilityBranchTest`) and 20c, and invariant 8b. **Because this had been written separately in individual requirements and omissions resulted,** unified 6 locations to references to the common procedure → [04](04-requirement-coverage.md) |
+| 2 | P1 | Handling of newlines/tabs and character counts in IIP-G02 is undefined | **(1)** Literal TAB/LF/CR in attribute values become whitespace through [XML attribute-value normalization](https://www.w3.org/TR/xml/#AVNormalize), so **requiring equality with the XML source string would misjudge a conformant implementation**. Make literal and **character-reference versions** (`&#x9;`, etc.) separate cases. **(2)** A “surrogate pair” is a UTF-16 representation, not a character category. Redefined this to include **supplementary-plane code points**, **never generate lone surrogates**, and count length as **Unicode code points** → [04](04-requirement-coverage.md) |
+| 3 | P1 | Error responses in IIP-SSO03 are untested | Decomposed into `.a` authentication response / `.b` error response. On the SP side, verify “do not treat an error Response as successful”; on the IdP side, verify together with IIP-IDP05 → [04](04-requirement-coverage.md) |
+| 4 | P1 | IIP-ALG04 does not individually verify the 2 algorithms | Decomposed into `.a` AES128-GCM / `.b` AES256-GCM. Both directions: sender and receiver → [04](04-requirement-coverage.md) |
+| 5 | P1 | The second MUST in IIP-IDP06 is not decomposed | Added `.b` (authentication mechanisms can access `ForceAuthn` and change behavior). Partially automate judgment using **3 controls**—omitted / `false` / `true`—by comparing `AuthnInstant` → [04](04-requirement-coverage.md) |
+| 6 | P1 | IIP-SP07 has no detection power because it only has a rejection case | Pair acceptance and rejection **under the same configuration**. PASS only when both acceptance of a matching ClassRef and rejection of a non-matching ClassRef succeed → [04](04-requirement-coverage.md) |
+| 7 | P2 | The `source_clause` offset convention is incomplete | Fix as **0-based / end-exclusive / Unicode code-point units / empty ranges prohibited / digest is SHA-256 of the UTF-8 byte sequence of the extracted string**. Range/unit constraints are checked offline (CI rule 6c-0); digest matching is checked by `:specReconcile` → [04 G1](04-requirement-coverage.md), [05 §5](05-test-definition-format.md) |
 
-### 累計の誤読率
+### Cumulative Misreading Rate
 
-| 回 | 照合数 | 誤り |
+| Round | Cross-checked | Errors |
 |---|---|---|
 | R1 | 9 | 5 |
 | R2 | 8 | 6 |
@@ -499,66 +488,66 @@ R5・R7・R8 で指摘された過剰（MD04.c の 90 日 / ALG05 の CBC 既定
 | R7 | 2 | 2 |
 | R8 | 6 | 6 |
 | R9 | 4 | 4 |
-| **累計** | **43** | **37** |
+| **Cumulative** | **43** | **37** |
 
-### 新しく分かったこと
+### Newly Learned
 
-**「検出力のないケース」が繰り返し出ている。**
+**Cases without detection power have appeared repeatedly.**
 
-| 回 | 要件 | 何が起きていたか |
+| Round | Requirement | What happened |
 |---|---|---|
-| R5 | IIP-SSO07 | 「エラーも無視も可」— どちらでも PASS |
-| R8 | IIP-SSO02 / SSO04 | 片方の構成しか見ない — 片方だけ対応でも PASS |
-| R9 | IIP-ALG04 | 片方のアルゴリズムしか試さない |
-| R9 | IIP-SP07 | 拒否だけ — 全部拒否する実装も PASS |
+| R5 | IIP-SSO07 | “Either an error or ignored” — PASS in either case |
+| R8 | IIP-SSO02 / SSO04 | Only one configuration was examined — support for only one could PASS |
+| R9 | IIP-ALG04 | Only one of the algorithms was tested |
+| R9 | IIP-SP07 | Rejection only — an implementation rejecting everything could PASS |
 
-共通するのは **「対照（negative control）がない」**こと。
-G1 のチェックリストに追加する:
+The common issue is **the absence of a control (negative control)**.
+Add the following to the G1 checklist:
 
-> 各ケースについて、**「この期待値を満たすが義務は満たしていない実装」が存在しないか**を
-> 考える。存在するなら対照ケースが要る。
-> - 列挙された選択肢は**すべて**個別に試す（ALG04 / ALG06 / MD05 / SSO02）
-> - 「受理または拒否」の義務は**受理と拒否の両方**を対にする（SP07）
-> - 「A または B でよい」ケースは verdict を付けない（SSO07）
+> For each case, consider **whether an implementation can satisfy the expected result while failing the obligation**.
+> If one can, a control case is required.
+> - Test **all** enumerated choices individually (ALG04 / ALG06 / MD05 / SSO02)
+> - For an obligation of “acceptance or rejection,” pair **both acceptance and rejection** (SP07)
+> - Do not assign a verdict to cases where “A or B is acceptable” (SSO07)
 
-**さらに、判定分岐を要件ごとに書き分けると必ず取りこぼす。**
-R9 の指摘 1 は R7 で IDP04 と MD04.c にだけ入れた分岐が、
-他の 6 要件に展開されていなかったもの。
-**判定に関わる規則は要件表ではなく [03](03-test-model.md) に置き、要件表からは参照する。**
+**Furthermore, writing judgment branches separately for each requirement inevitably causes omissions.**
+R9 Finding 1 was a branch inserted in R7 only for IDP04 and MD04.c,
+which had not been expanded to the other 6 requirements.
+**Place rules affecting judgment in [03](03-test-model.md), not in the requirements table, and reference them from the requirements table.**
 
-### この修正で変わった前提
+### Assumptions Changed by This Correction
 
-- **能力の欠如は FAIL**。`NOT_VERIFIED` は「製品は適合しているかもしれないが証拠がない」場合に限る
-- **判定規則は要件表に書かない**。共通手順に置き、CI で全ケースが通ることを保証する
-- **対照のないケースは作らない**。「満たすが適合していない実装」が作れるなら検出力がない
-- **XML の正規化を前提に期待値を決める**。ソース文字列との一致は誤判定を生む
+- **Missing capability is FAIL.** `NOT_VERIFIED` is limited to cases where “the product may be conformant, but there is no evidence”
+- **Do not write judgment rules in the requirements table.** Put them in the common procedure and guarantee through CI that all cases follow it
+- **Do not create cases without controls.** If an implementation can be made that “satisfies but is non-conformant,” the case has no detection power
+- **Determine expected results assuming XML normalization.** Requiring equality with the source string causes false judgments
 
 ---
 
-## R10 — 2026-08-25 共通化した判定規則の回帰レビュー
+## R10 — 2026-08-25 Regression Review of the Commonized Judgment Rules
 
-**結論**: 指摘 8 件すべて妥当だった。原文照合した 4 件（EXT01 / SP05 / IDP18 / G02）は
-**4 件とも不足**。累計の誤読率は **41/47**。
+**Conclusion**: All 8 findings were valid. The 4 cross-checked requirements (EXT01 / SP05 / IDP18 / G02)
+**all had omissions**. The cumulative misreading rate was **41/47**.
 
-**R9 で共通化した判定手順そのものが、R2 で潰した誤りを再発させていた。**
-これが本レビューで最も重い所見である。
+**The judgment procedure commonized in R9 itself reproduced an error eliminated in R2.**
+This is the most serious finding in this review.
 
-### 反映結果
+### Results Applied
 
-| # | P | 指摘 | 対応 |
+| # | P | Finding | Action |
 |---|---|---|---|
-| 1 | P1 | `capability_absent → FAIL` の共通規則が判定モデルを破っている | ★ **共通手順を `outcome` ベースに書き直した**。ケースは `outcome: violated` + `reason_code: capability_absent` を返し、**Verdict への変換は Evaluator が `obligation.level` を見て行う**（MUST→FAIL / **SHOULD→WARNING** / MAY→NOT_SUPPORTED）。加えて `configuration_failure_semantics`（`normative_capability` \| `test_precondition`）を必須フィールドに追加 — `CONFIG` は実行方式であって「設定能力が規範要件か」を表さない。IIP-ALG05.b のような条件付き義務は、**適用性の評価がケース実行より先**であることも明記（CBC 非対応なら `NOT_APPLICABLE`。FAIL でも WARNING でもない） → [03 §4](03-test-model.md), [05 §2.3, §5](05-test-definition-format.md), [06 §1.2](06-results-and-publication.md) |
-| 2 | P1 | 共通判定への移行が未完了（IDP04・D-14 に旧 2 分岐、IDP19 に参照なし） | 3 箇所を共通手順への参照に統一。IDP19 の testability を `B/C` に修正 |
-| 3 | P1 | IDP06 の対照ケースが適合実装を落とす | SAML Core が禁じるのは **`true` のときに既存コンテキストに依拠すること**だけ。`false`／省略時の自主的な再認証は**禁止されていない**。→ Verdict の対象を「`true` のときに新規認証が行われた証拠」に限定し、`false`／省略時の挙動は advisory `force_authn.reauth_when_not_requested` に |
-| 4 | P1 | EXT01 に `xsd:anyAttribute` の試験がない | `.c`（`xsd:anyAttribute` を持つ要素への未定義属性）を追加。`<samlp:Extensions>` / `<md:Extensions>` / `<saml:Advice>` を個別 variant に。**判定対象は「障害を起こさないこと」のみ**（無視は許されるので、内容が反映されないことを FAIL にしない） |
-| 5 | P1 | SP05 に同一リソース URL の対照がない | 原文は *MUST NOT be a restriction … requiring **distinct resource URLs** for each IdP*。→ **同一の保護リソース `R`** に対して IdP A / IdP B の両方から到達できることを対にする。第 2 IdP を登録するだけでは不適合実装も PASS する |
-| 6 | P1 | IDP18 が未分解・テスト欄が空 | *for logout requests **and** responses* に従い `.a` LogoutRequest / `.b` LogoutResponse に分解。生成方向と消費方向の両方を見る |
-| 7 | P2 | G02 に XML 構文上特別な文字がない | `<` `&` `"` `'` `>` を文字参照・エンティティ参照で渡し、解析後の値として保持されるケースを追加 |
-| 8 | P2 | `source_clause` の節長をオフライン検証できない | 原文をリポジトリに置かない設計なので節長を知りようがない。オフライン（規則 6c-0）は `0 ≤ start < end` と非空のみ、**`end ≤ 節長` は `:specReconcile`（6c-1）へ移動** |
+| 1 | P1 | The common rule `capability_absent → FAIL` violates the judgment model | ★ **Rewrote the common procedure on an `outcome` basis.** Cases return `outcome: violated` + `reason_code: capability_absent`, and **Evaluator converts it to a Verdict by consulting `obligation.level`** (MUST→FAIL / **SHOULD→WARNING** / MAY→NOT_SUPPORTED). Also added mandatory `configuration_failure_semantics` (`normative_capability` \| `test_precondition`) — `CONFIG` is an execution method and does not indicate whether configuration capability is a normative requirement. Explicitly state that for conditional obligations such as IIP-ALG05.b, **applicability is evaluated before case execution** (if CBC is unsupported, `NOT_APPLICABLE`; neither FAIL nor WARNING) → [03 §4](03-test-model.md), [05 §2.3, §5](05-test-definition-format.md), [06 §1.2](06-results-and-publication.md) |
+| 2 | P1 | Migration to the common judgment procedure is incomplete (old 2-branch logic remains in IDP04 and D-14; IDP19 has no reference) | Unified the 3 locations as references to the common procedure. Corrected IDP19 testability to `B/C` |
+| 3 | P1 | The control case for IDP06 fails a conformant implementation | SAML Core prohibits only **relying on an existing context when `true`**. Voluntary reauthentication when `false`/omitted is **not prohibited**. → Limit the Verdict target to “evidence that new authentication occurs when `true`”; make behavior when `false`/omitted advisory `force_authn.reauth_when_not_requested` |
+| 4 | P1 | EXT01 has no test for `xsd:anyAttribute` | Added `.c` (undefined attribute on elements with `xsd:anyAttribute`). Make `<samlp:Extensions>` / `<md:Extensions>` / `<saml:Advice>` separate variants. **The only judgment target is “does not cause a failure”** (ignoring is permitted, so do not FAIL because the content is not reflected) |
+| 5 | P1 | SP05 has no same-resource-URL control | The original text says *MUST NOT be a restriction … requiring **distinct resource URLs** for each IdP*. → Pair the requirement that both IdP A and IdP B can reach **the same protected resource `R`**. Merely registering a second IdP allows a non-conformant implementation to PASS |
+| 6 | P1 | IDP18 is undecomposed and its test field is empty | Following *for logout requests **and** responses*, decompose into `.a` LogoutRequest / `.b` LogoutResponse. Examine both generation and consumption directions |
+| 7 | P2 | G02 has no XML-syntax-special characters | Add cases passing `<` `&` `"` `'` `>` as character references and entity references and verifying that they are retained as values after parsing |
+| 8 | P2 | Section length in `source_clause` cannot be checked offline | Since the original text is not in the repository, section length cannot be known. Offline (rule 6c-0), check only `0 ≤ start < end` and non-empty; **move `end ≤ section length` to `:specReconcile` (6c-1)** |
 
-### 累計の誤読率
+### Cumulative Misreading Rate
 
-| 回 | 照合数 | 誤り |
+| Round | Cross-checked | Errors |
 |---|---|---|
 | R1 | 9 | 5 |
 | R2 | 8 | 6 |
@@ -569,1348 +558,1293 @@ R9 の指摘 1 は R7 で IDP04 と MD04.c にだけ入れた分岐が、
 | R8 | 6 | 6 |
 | R9 | 4 | 4 |
 | R10 | 4 | 4 |
-| **累計** | **47** | **41** |
+| **Cumulative** | **47** | **41** |
 
-### ★ 最も重い所見: 共通化そのものが回帰を生んだ
+### ★ Most Serious Finding: Commonization Itself Caused a Regression
 
-R9 の指摘 1 は「判定分岐を要件ごとに書くと取りこぼす」だった。
-その対策として共通手順を作ったが、**その共通手順が
-「ケースは Verdict を返さない」という R2 で確立した設計を破っていた**。
-結果、SHOULD 義務を FAIL にする経路が**全 `CONFIG` ケースに一斉に**開いた。
+R9 Finding 1 was that “writing judgment branches separately for each requirement causes omissions.”
+As a countermeasure, a common procedure was created, but **that common procedure violated the design established in R2: “cases do not return Verdicts.”**
+As a result, a path that made SHOULD obligations FAIL was opened **simultaneously for all `CONFIG` cases**.
 
-個別の誤りより影響範囲が広い。**共通化するときは、既存の不変条件を壊していないかを
-必ず確認する**。G1 のチェックリストに追加する:
+Its impact range is broader than that of an individual error. **When commonizing, always verify that existing invariants have not been broken.**
+Add the following to the G1 checklist:
 
-> 判定に関わる規則を追加・共通化するときは、
-> [03 §4 の判定語彙](03-test-model.md) と [05 §2.3 の変換表](05-test-definition-format.md) を
-> 経由しているかを確認する。**Verdict を直接生成する経路を作らない。**
+> When adding or commonizing rules affecting judgment,
+> verify that they pass through [03 §4’s judgment vocabulary](03-test-model.md) and [05 §2.3’s conversion table](05-test-definition-format.md).
+> **Do not create a path that directly generates a Verdict.**
 
-### 修正回数について
+### Number of Corrections
 
-R1 から R10 まで 10 回のレビューで、要件表の記述は延べ 80 箇所以上修正した。
-原因は明確で、**私が原文を 1 節ずつ読まずに要件表を書き進めたこと**である。
-IIP の要約（初回に取得した 1 行サマリ）を根拠にしたため、
-「文の後半に隠れた 2 つ目の MUST」「条件付き」「適用除外」「列挙」を
-系統的に落とした。**照合した 47 件のうち 41 件が誤っている**。
+Across the 10 reviews from R1 through R10, the requirements-table wording was corrected in more than 80 locations in total.
+The cause is clear: **I proceeded with writing the requirements table without reading the original text clause by clause**.
+Because I relied on the IIP summary (the one-line summary retrieved initially), I systematically omitted
+“the second MUST hidden in the second half of the sentence,” “conditional,” “applicability exclusions,” and “enumerations.”
+**Of the 47 cross-checked items, 41 were wrong.**
 
-この状態の要件表を土台に実装を始めれば、
-仕様準拠の実装を FAIL と表示するツールになる。
-[設計ゲート G1](04-requirement-coverage.md) —
-**原文を 1 節ずつ読み切って `coverage.yaml` を起こし、作成者以外が原文を直接読んで承認する** —
-を通すまで実装に入らない方針を維持する。
-現在の要件表は G1 の**入力メモ**であって、成果物ではない。
+If implementation begins on the basis of a requirements table in this state,
+the result will be a tool that displays conformant implementations as FAIL.
+Maintain the policy of not beginning implementation until passing [Design Gate G1](04-requirement-coverage.md) —
+**create `coverage.yaml` by reading the original text clause by clause, and have someone other than the author read the original text directly and approve it** —
+.
 
-### この修正で変わった前提
+The current requirements table is a **G1 input memo**, not a deliverable.
 
-- **共通化しても Evaluator を経由する**。Verdict を直接生成する経路を作らない
-- **`CONFIG` は実行方式であって規範性を表さない**。`configuration_failure_semantics` で明示する
-- **適用性の評価はケース実行より先**。条件が偽の義務が判定手順に入ってはならない
-- **「禁止されていないこと」を FAIL にしない**（IDP06 の `false`／省略時の再認証）
-- **オフラインで検証できない制約をオフライン規則に書かない**
+### Assumptions changed by this revision
+
+- **Even after commonization, processing goes through `Evaluator`**. No path directly generates a Verdict.
+- **`CONFIG` is an execution method and does not express normativity**. This is made explicit with `configuration_failure_semantics`.
+- **Applicability is evaluated before case execution**. An obligation whose condition is false must not enter the determination procedure.
+- **Do not mark “not prohibited” as FAIL** (`false` / reauthentication when omitted in IDP06).
+- **Do not write constraints that cannot be verified offline into offline rules**.
 
 ---
 
-## G1a — 2026-08-25 設計ゲート G1 の作成フェーズ
+## G1a — 2026-08-25 G1 design gate creation phase
 
-**状態: `PENDING_REVIEW`**（作成者は `reviewer` / `approved_at` を埋めていない）
+**Status: `PENDING_REVIEW`** (the author has not filled in `reviewer` / `approved_at`)
 
-### やり方を変えた点
+### What was changed in the approach
 
-R1〜R10 の誤りは **私が原文を読まず、初回に取得した 1 行サマリを根拠に要件表を書き進めた**ことが原因だった。
-今回は経路そのものを変えた。
+The errors in R1–R10 were caused by **my proceeding to write the requirements table based on a one-line summary obtained initially, without reading the original text**.
+This time, I changed the process itself.
 
-| 従来 | G1a |
+| Previous | G1a |
 |---|---|
-| 要約サービス経由で仕様を読む | **HTML を `curl` で取得し、自分でテキスト化して全文を読む** |
-| 要件表（Markdown）に直接書く | **義務単位の構造化データ**に分解し、Markdown は生成物にする |
-| 判定レベルを記憶と要約から決める | **原文の句を特定し、オフセットとダイジェストで固定する** |
-| 規範/非規範を区別していなかった | **`<em>` = 非規範**（Notation の規定）を機械的に分離する |
+| Read the specification through a summarization service | **Retrieve the HTML with `curl`, convert it to text myself, and read the entire text** |
+| Write directly into the requirements table (Markdown) | **Decompose into structured data at the obligation level, and make Markdown a generated artifact** |
+| Determine determination levels from memory and summaries | **Identify the original-text phrase and fix it with an offset and digest** |
+| Did not distinguish normative/non-normative text | **Mechanically separate `<em>` = non-normative** (as specified by Notation) |
 
-### 原文から新たに判明した重要事実
+### Important facts newly discovered from the original text
 
-Notation 節に決定的な規則がある。
+The Notation section contains a decisive rule.
 
 > *All information within these requirements should be considered normative unless it is set in italic type.*
 
-これに従って `<em>` スパン **26 件**を非規範として除外した結果、
-**過去のレビューで私が追加した義務のうち複数が非規範テキスト由来**だったことが分かった。
+Following this rule, after excluding **26** `<em>` spans as non-normative,
+it became clear that **several of the obligations I added in previous reviews originated from non-normative text**.
 
-| 要件 | 過去に追加した義務 | 実際 |
+| Requirement | Obligation added in the past | Actual status |
 |---|---|---|
-| **IIP-SP04** | `.b` *discovery mechanisms SHOULD use SAML metadata…*（R8 で追加） | **非規範（イタリック）** → 削除。SP04 の規範義務は 1 つだけ |
-| **IIP-MD06** | `.b` `.c` trust store に関する義務（R6 で追加、R7 で条件化） | **非規範（イタリック）** → 削除。MD06 の規範義務は MDIOP 準拠・任意数ピア・自己完結性の 3 つ |
-| **IIP-ALG05** | `.b` *Implementations supporting them SHOULD warn on use.*（R8 で追加） | **規範**（イタリックではない） → 維持 |
-| **IIP-IDP06** | `false`／省略時の期待値（R9 で追加、R10 で撤回） | 該当箇所は**非規範** → 撤回が正しかった |
+| **IIP-SP04** | `.b` *discovery mechanisms SHOULD use SAML metadata…* (added in R8) | **Non-normative (italic)** → deleted. SP04 has only 1 normative obligation |
+| **IIP-MD06** | `.b` `.c` obligations concerning the trust store (added in R6, conditioned in R7) | **Non-normative (italic)** → deleted. MD06 has 3 normative obligations: MDIOP compliance, any number of peers, and self-containment |
+| **IIP-ALG05** | `.b` *Implementations supporting them SHOULD warn on use.* (added in R8) | **Normative** (not italic) → retained |
+| **IIP-IDP06** | Expected value when `false` / omitted (added in R9, withdrawn in R10) | The relevant passage is **non-normative** → the withdrawal was correct |
 
-また **IIP-G02** に、これまで一度も捉えていなかった条件付きの前提があった。
+There was also a conditional premise in **IIP-G02** that had never previously been captured.
 
 > *When specific constraints are absent in the SAML standards or profile documents, …*
 
-**SAML が長さ・文字種を制約していないフィールドにのみ適用される**という限定であり、
-テスト対象フィールドの選定条件になる。`applicability_note` として記録した。
+This is a limitation meaning that it **applies only to fields for which SAML does not constrain length or character types**, and therefore becomes a condition for selecting fields to test. It was recorded as `applicability_note`.
 
-### 成果物
+### Deliverables
 
-| ファイル | 内容 |
+| File | Content |
 |---|---|
-| `tests/specs.yaml` | 仕様カタログ 22 件。IETF ドラフト（SAML-EC / MDQ / SAML-MDQ）は**版を固定** |
-| `tests/coverage.yaml` | **69 要件 → 127 義務**。判定レベルの唯一の出典 |
-| `tests/predicates.yaml` | 条件述語 8 件（CLAIM 2 / CAPABILITY 5 / CLASSIFICATION 1） |
-| `build/spec-reconcile-report.json` | 13 検査すべて PASS |
-| `docs/04-requirement-coverage.md` | `coverage.yaml` からの生成物（1,687 行） |
-| `tools/g1_build.py` | ビルダー。authoring 入力（原文の句を含む）は gitignore |
-| `tools/ci-stages.md` | `g1Check` / `specReconcile` / `releaseCheck` の分離 |
+| `tests/specs.yaml` | 22-specification catalog. IETF drafts (SAML-EC / MDQ / SAML-MDQ) have their **versions fixed** |
+| `tests/coverage.yaml` | **69 requirements → 127 obligations**. The sole source for determination levels |
+| `tests/predicates.yaml` | 8 conditional predicates (CLAIM 2 / CAPABILITY 5 / CLASSIFICATION 1) |
+| `build/spec-reconcile-report.json` | All 13 checks PASS |
+| `docs/04-requirement-coverage.md` | Generated from `coverage.yaml` (1,687 lines) |
+| `tools/g1_build.py` | Builder. Authoring inputs (including original-text phrases) are gitignored |
+| `tools/ci-stages.md` | Separation of `g1Check` / `specReconcile` / `releaseCheck` |
 
-### 内訳
+### Breakdown
 
-```
-義務 127
+```text
+127 obligations
   MUST_CLASS (MUST / MUST NOT / REQUIRED)  111
   SHOULD_CLASS (SHOULD / RECOMMENDED)       10
   MAY_CLASS (MAY / OPTIONAL)                 6
-  条件付き                                   14
-IdP プロファイル  96 義務（Core 72 / Full 24）
-SP  プロファイル  94 義務（Core 74 / Full 20）
+  Conditional                                14
+IdP profile  96 obligations (Core 72 / Full 24)
+SP  profile  94 obligations (Core 74 / Full 20)
 Testability  AUTOMATED 8 / BROWSER 53 / ATTESTED 10 / CONFIG 55 / NOT_OBSERVABLE 1
-非規範スパン 26
+Non-normative spans 26
 ```
 
-`NOT_OBSERVABLE` は **IIP-SP12.a のみ**。過去に `N` としていた IIP-G02 と IIP-IDP21 は、
-原文を読み直した結果いずれも試験可能（G02 は受信側の義務、IDP21 は生成方式の設定可能性を申告で確認）と分かった。
+`NOT_OBSERVABLE` applies **only to IIP-SP12.a**. IIP-G02 and IIP-IDP21, which had previously been classified as `N`, were both found to be testable after rereading the original text (G02 is an obligation on the receiving side, and IDP21 can be confirmed by declaring the configurability of the generation method).
 
-### `:specReconcile` が自分の誤りを検出した
+### `:specReconcile` detected my own error
 
-SR-08（除外述語を持つ義務の要件節に除外文が実在するか）が、
-**私が `not_token_translation_proxy` を IIP-IDP14 / IDP15 / IDP16 にも付けていた**ことを検出した。
-除外文 *This requirement does not apply to token translation Proxies.* は
-**IIP-IDP13 の節にのみ**存在し、IDP14〜16 は無条件の MUST である。
-これは R10 の指摘 1 とまったく同じ誤りで、**人手のレビューではなく検査が捕まえた**。
-修正後 13/13 PASS。
+SR-08 (whether an exclusion sentence actually exists in the requirement section of an obligation with an exclusion predicate) detected that **I had also attached `not_token_translation_proxy` to IIP-IDP14 / IDP15 / IDP16**.
+The exclusion sentence *This requirement does not apply to token translation Proxies.* exists **only in the IIP-IDP13 section**, and IDP14–16 are unconditional MUSTs.
+This was exactly the same error as finding 1 in R10, and **the check caught it rather than a manual review**.
+After correction, 13/13 PASS.
 
-### 未解決事項（G1b で確定する）
+### Unresolved items (to be finalized in G1b)
 
-参照先仕様の該当節を読まないと義務の完全な列挙が決まらないものが 4 件ある。
-`coverage.yaml` に `open_question_ja` として記録した。
+There are 4 items for which the complete enumeration of obligations cannot be determined without reading the relevant sections of the referenced specifications.
+They were recorded in `coverage.yaml` as `open_question_ja`.
 
-| 義務 | 未解決 |
+| Obligation | Unresolved item |
 |---|---|
-| `IIP-SSO06.a` | [SAML2Prof] §4.1.6 の MUST/MAY メタデータ要素の完全な列挙 |
-| `IIP-SSO07.b` | [SAML2Core] が一意の結果を規定する要素の一覧（verdict 対象にできる要素） |
-| `IIP-SP17.a` / `IIP-IDP20.a` | [SAML2Prof] §4.4.5 の要素の完全な列挙 |
+| `IIP-SSO06.a` | Complete enumeration of MUST/MAY metadata elements in [SAML2Prof] §4.1.6 |
+| `IIP-SSO07.b` | List of elements for which [SAML2Core] specifies a unique result (elements that can be verdict targets) |
+| `IIP-SP17.a` / `IIP-IDP20.a` | Complete enumeration of elements in [SAML2Prof] §4.4.5 |
 
-### レビュアーへの依頼
+### Request to the reviewer
 
-**原文と `tests/coverage.yaml` を直接照合**してください。この Markdown の要約ではなく、
-`source_clause` のオフセットが指す原文の句と義務の対応を見てください。
-確認は双方向でお願いします。
+Please **directly compare the original text with `tests/coverage.yaml`**. Rather than relying on this Markdown summary, inspect the correspondence between the phrases indicated by the `source_clause` offsets and the obligations.
+Please verify in both directions.
 
-- 順方向: 原文の規範内容が**すべて**義務に分解されているか（不足）
-- 逆方向: 各義務が**すべて**原文に根拠を持つか（過剰）— R7 / R10 で私が繰り返した誤り
+- Forward: whether **all** normative content in the original text has been decomposed into obligations (undercoverage)
+- Reverse: whether **every** obligation has a basis in the original text (overcoverage) — the error I repeatedly made in R7 / R10
 
-指摘は `docs/04` ではなく **`tests/coverage.yaml` 側**を直します（`docs/04` は生成物です）。
-「1 回で終わる」とは想定していません。
+Corrections should be made on the **`tests/coverage.yaml` side**, not in `docs/04` (`docs/04` is generated).
+We do not assume this will be finished in one pass.
 
 ---
 
-## G1a-R1 — 2026-08-25 G1 作成フェーズへの「Changes requested」
+## G1a-R1 — 2026-08-25 “Changes requested” for the G1 creation phase
 
-**結論**: 指摘 9 件すべて妥当。うち 2 件は原文を再確認した結果、
-**レビュアーの列挙自体が不完全**だったため、原文どおりに拡張した。
-累計の誤読率は **41/49**。
+**Conclusion**: All 9 findings were valid. For 2 of them, rereading the original text showed that **the reviewer’s enumeration itself was incomplete**, so it was expanded according to the original text.
+The cumulative misreading rate is **41/49**.
 
-### 最も重い所見: 「13/13 PASS」が自己検証だった
+### Most serious finding: “13/13 PASS” was self-validation
 
-`g1_build.py` が**生成と検証を同時に行っていた**ため、SR-01 は取得した本文の
-ダイジェストをその場で `specs.yaml` に書いており、**原文が変わっても必ず PASS** した。
-`find_clause()` も最初の一致しか返さず、複数一致を検査していなかった。
+Because `g1_build.py` **performed generation and validation simultaneously**, SR-01 wrote the digest of the retrieved text into `specs.yaml` on the spot, so it would **always PASS even if the original text changed**.
+`find_clause()` also returned only the first match and did not check for multiple matches.
 
-→ **`tools/g1_validate.py` を独立させた**。コミット済みの成果物を読み込んで照合するだけで、
-一切の値を書き戻さない。分離した直後、validator が
+→ **`tools/g1_validate.py` was separated out**. It only loads and compares committed artifacts, and never writes values back. Immediately after separation, the validator detected that
 
-> `IIP-EXT01.b` と `IIP-EXT01.c` が**同じ文字列**（`but MUST NOT result in software failures`）を
-> 指しており、`.c` は誤った出現位置を参照していた
+> `IIP-EXT01.b` and `IIP-EXT01.c` pointed to the **same string** (`but MUST NOT result in software failures`), and `.c` referenced the wrong occurrence position.
 
-ことを検出した。**生成と検証が同じコードだった間は気づけなかった実バグ**である。
-句を一意なものに直し、複数一致は既定でエラー（`occurrence=` の明示を要求）にした。
+This was a **real bug that could not be noticed while generation and validation used the same code**.
+The phrases were changed to unique ones, and multiple matches now error by default (explicit `occurrence=` is required).
 
-### 反映結果
+### Result of incorporation
 
-| # | 指摘 | 対応 |
+| # | Finding | Response |
 |---|---|---|
-| 1 | 検証が独立していない / SR-01・09・13 が実質固定値 / 複数一致を見ない | `g1_validate.py` を新設（32 検査）。SR-01 は**取得値と記録値の比較**に、SR-09 は `predicates.yaml` の実検査に、SR-13 は句単位の語検査に変更。SR-11/SR-12 で出現回数と曖昧さを検出 |
-| 2 | 規範内容の未分解 4 件 | **MD03.e**（鍵は X.509 に格納してもよい・MAY）、**SP02.c**（complex content は OPTIONAL）、**IDP13 を .a/.b/.c/.d に分割**（ECP MUST / Full conformance OPTIONAL / Bearer MUST / channel bindings MUST）、**EXT01.b1・c1**（無視してよいという MAY を MUST_NOT から分離）を追加。**127 → 133 義務**、MAY_CLASS **6 → 11** |
-| 3 | 未解決 4 件が残っており G1 未完了 | **4 件すべて解消**（下記）。SR-30 を「未解決が残っていれば FAIL」に変更し、記録されていれば PASS という以前の甘い判定をやめた |
-| 4 | review スキーマが設計文書と不一致 | `authored_by` と `review.{source_spec, spec_version, source_selector, source_section_digest}` を追加。SR-25 / SR-26 で検査。docs/05 の規則 6b・6c も実体に合わせた |
-| 5 | `configuration_failure_semantics` に暗黙の既定値 | 自動補完を**撤去**し、`CONFIG` の全 56 義務を明示分類（`normative_capability` 36 / `test_precondition` 20）。未指定は builder が assert で落ちる。SR-19 でも検査 |
-| 6 | outbound 暗号化の適用性が誤検出 | 観測を**方向付き**に変更。`target_emitted: saml:EncryptedAssertion` 等のみを証拠とし、`md:KeyDescriptor[@use='encryption']`（受信側の証拠）を除外。他の述語も `target_emitted` / `target_consumed` / `target_accepted` に統一 |
-| 7 | 再生成性が成立していない | 絶対パスを撤去。**`g1_docgen.py`（coverage.yaml → docs/04、ネットワーク・authoring 入力とも不要）**を分離し、`--check` で一致を検証できるようにした。別 checkout で再生成・検証が完結する |
-| 8 | `source_clause` が単一範囲 | **`source_clauses[]`（複数範囲）**に変更。共有 lead-in と個別 item を別範囲で持てる。`occurrences` も記録 |
-| 9 | ALG07 の参照文書が specs にない | **RFC7457** と **BetterCrypto** を追加。BetterCrypto は版のない生きた文書なので `referenced-unversioned` とし「判定の根拠には使わない」と明記。SAML2Prof / SAML2Core / Errata 05 の実測ダイジェストも記録 |
+| 1 | Validation was not independent / SR-01, SR-09, and SR-13 were effectively fixed values / multiple matches were not checked | Created `g1_validate.py` (32 checks). Changed SR-01 to **compare retrieved and recorded values**, SR-09 to perform an actual inspection of `predicates.yaml`, and SR-13 to perform phrase-level word checks. SR-11/SR-12 detect occurrence counts and ambiguity |
+| 2 | 4 cases of normative content not being decomposed | Added **MD03.e** (keys MAY be stored in X.509), **SP02.c** (complex content is OPTIONAL), split **IDP13 into .a/.b/.c/.d** (ECP MUST / Full conformance OPTIONAL / Bearer MUST / channel bindings MUST), and added **EXT01.b1/c1** (separated the MAY permitting disregard from MUST_NOT). **127 → 133 obligations**, MAY_CLASS **6 → 11** |
+| 3 | 4 unresolved items remained, leaving G1 incomplete | **All 4 items resolved** (below). Changed SR-30 to “FAIL if any unresolved item remains,” removing the previous lenient behavior where recording an unresolved item resulted in PASS |
+| 4 | Review schema differed from the design documents | Added `authored_by` and `review.{source_spec, spec_version, source_selector, source_section_digest}`. Added checks SR-25 / SR-26. Updated rules 6b and 6c in docs/05 to match the actual implementation |
+| 5 | `configuration_failure_semantics` had an implicit default | **Removed automatic completion** and explicitly classified all 56 `CONFIG` obligations (`normative_capability` 36 / `test_precondition` 20). Unspecified values now fail by builder assertion. Also checked by SR-19 |
+| 6 | Applicability of outbound encryption was falsely detected | Changed observation to be **directional**. Only evidence such as `target_emitted: saml:EncryptedAssertion` is accepted; `md:KeyDescriptor[@use='encryption']` (evidence on the receiving side) is excluded. Other predicates were also standardized to `target_emitted` / `target_consumed` / `target_accepted` |
+| 7 | Re-generatability was not established | Removed absolute paths. Separated **`g1_docgen.py` (coverage.yaml → docs/04, requiring neither network nor authoring input)**, and made it possible to verify matches with `--check`. Regeneration and validation complete successfully in a separate checkout |
+| 8 | `source_clause` was a single range | Changed to **`source_clauses[]` (multiple ranges)**. Shared lead-ins and individual items can be held as separate ranges. `occurrences` are also recorded |
+| 9 | The reference document for ALG07 was absent from specs | Added **RFC7457** and **BetterCrypto**. BetterCrypto is a living document without a version, so it is marked `referenced-unversioned` and explicitly stated as “not used as a basis for determination.” Measured digests for SAML2Prof / SAML2Core / Errata 05 were also recorded |
 
-### 未解決 4 件の解消（原文を直接読んだ）
+### Resolution of the 4 unresolved items (by directly reading the original text)
 
-| 義務 | 解消内容 |
+| Obligation | Resolution |
 |---|---|
-| **IIP-SSO06.a** | [SAML2Prof] §4.1.6 を PDF から読んで列挙。**レビュアーの 4 系統は不完全**で、実際は `WantAuthnRequestsSigned` / `AuthnRequestsSigned` / `KeyDescriptor use=signing` / `use=encryption` に加え、**`WantAssertionsSigned`（MAY）**、**`ArtifactResolutionService`（条件付き MUST）**、**`NameIDFormat` / `AttributeProfile` / `saml:Attribute`（MAY）**、**`AttributeConsumingService` と `@index` / `@isDefault`（MAY）** がある。Errata 05 **E58** で `sign`→`signing`、`encrypt`→`encryption` を確認 |
-| **IIP-SP17.a / IIP-IDP20.a** | §4.4.5 は **`md:SingleLogoutService`** と、**識別子を暗号化する場合の `md:KeyDescriptor use=encryption`** の 2 件のみ。レビュアーの指摘どおり |
-| **IIP-SSO07.b** | [SAML2Core] §3.4.1 / §3.4.1.4 を読んで**判定規則を確定**。`<saml:Subject>` は *the resulting assertions' `<saml:Subject>` **MUST strongly match*** ／ 認識できなければ ***MUST return** a `<Response>` with an error `<Status>`* で**一意** → verdict 対象。`<saml:Conditions>` は *The responder **MAY** modify or supplement* で一意でない → 情報記録のみ。無効な `AssertionConsumerServiceIndex` は ***MAY** return an error `<Response>` or it **MAY** use the default location* と**二択が明示**されている → 情報記録のみ |
+| **IIP-SSO06.a** | Read [SAML2Prof] §4.1.6 from the PDF and enumerated the elements. **The reviewer’s 4 categories were incomplete**: in addition to `WantAuthnRequestsSigned` / `AuthnRequestsSigned` / `KeyDescriptor use=signing` / `use=encryption`, there are **`WantAssertionsSigned` (MAY)**, **`ArtifactResolutionService` (conditional MUST)**, **`NameIDFormat` / `AttributeProfile` / `saml:Attribute` (MAY)**, and **`AttributeConsumingService` with `@index` / `@isDefault` (MAY)**. Confirmed `sign`→`signing` and `encrypt`→`encryption` in Errata 05 **E58** |
+| **IIP-SP17.a / IIP-IDP20.a** | §4.4.5 contains only 2 items: **`md:SingleLogoutService`** and **`md:KeyDescriptor use=encryption` when identifiers are encrypted**. As the reviewer indicated |
+| **IIP-SSO07.b** | Read [SAML2Core] §3.4.1 / §3.4.1.4 and **finalized the determination rules**. `<saml:Subject>` says *the resulting assertions' `<saml:Subject>` **MUST strongly match*** / if it cannot be recognized, ***MUST return** a `<Response>` with an error `<Status>`*, making it **unique** → verdict target. `<saml:Conditions>` says *The responder **MAY** modify or supplement*, which is not unique → information recording only. An invalid `AssertionConsumerServiceIndex` explicitly provides **two choices**: ***MAY** return an error `<Response>` or it **MAY** use the default location* → information recording only |
 
-### 現在の数値
+### Current figures
 
-```
-要件 69 / 義務 133
-  MUST_CLASS 112 / SHOULD_CLASS 10 / MAY_CLASS 11 / 条件付き 16
-IdP 101 義務 / SP 98 義務
-specReconcile  31/32 PASS  ブロッキング 0
-  残り 1 = SR-31「全 obligation が APPROVED」（作成フェーズなので当然 FAIL）
+```text
+Requirements 69 / obligations 133
+  MUST_CLASS 112 / SHOULD_CLASS 10 / MAY_CLASS 11 / Conditional 16
+IdP 101 obligations / SP 98 obligations
+specReconcile  31/32 PASS  blocking 0
+  Remaining 1 = SR-31 “all obligations APPROVED” (creation phase, therefore expected FAIL)
 open question  0
 ```
 
-### 役割分担についての所見
+### Finding on division of responsibilities
 
-「レビュアーと書く人を逆にすべきか」という問いへの答えは **部分的に yes、ただし単純な交換ではない**。
-記録が示しているのは、私の失敗が**散文からの初回抽出**に集中し、
-**機械化した工程では質が変わる**ことである（G1a で SR-08 が、G1a-R1 で SR-12 が、
-いずれも私自身の誤りを検出した）。逆にレビュアーの指摘は毎回**意味判断**で正確である。
+The answer to “Should the reviewer and the writer be reversed?” is **partly yes, but not a simple exchange**.
+The record shows that my failures were concentrated in **the initial extraction from prose**, while **the quality changes in mechanized steps** (SR-08 in G1a and SR-12 in G1a-R1 both detected my own errors). Conversely, the reviewer’s findings are consistently **accurate on questions of meaning**.
 
-したがって適切な分担は「交換」ではなく **工程による分割**:
+Therefore, the appropriate division is not an “exchange” but a **division by process**:
 
-- 私: 機械化できる部分（抽出・オフセット・ダイジェスト・validator・生成物・CI 規則）
-- レビュアー: 意味判断（句と義務の対応、規範/非規範、過不足）
+- Me: the parts that can be mechanized (extraction, offsets, digests, validator, generated artifacts, CI rules)
+- Reviewer: meaning judgments (correspondence between phrases and obligations, normative/non-normative status, undercoverage/overcoverage)
 
-今回の指摘 1（validator の独立化）はまさにこの分割を強化するものだった。
-ただし **G1a-R1 で 2 件はレビュアーの列挙も不完全だった**（§4.1.6 の要素、
-`configuration_failure_semantics` の分類方針）ので、意味判断側も一次資料に当たる前提は残る。
+Finding 1 in this review (independence of the validator) precisely strengthened this division.
+However, **in G1a-R1, the reviewer’s enumeration was also incomplete in 2 cases** (the elements in §4.1.6 and the classification policy for `configuration_failure_semantics`), so the assumption that the meaning-judgment side also consults primary materials remains.
 
-### 再提出
+### Resubmission
 
-全 133 義務を `PENDING_REVIEW` のまま再提出する。
-`reviewer` / `approved_at` は引き続き未設定。指摘は `tests/coverage.yaml` 側を直す。
+Resubmit all 133 obligations with `PENDING_REVIEW` unchanged.
+`reviewer` / `approved_at` remain unset. Findings are corrected on the `tests/coverage.yaml` side.
 
 ---
 
-## G1a-R2 — 2026-08-26 承認ゲートと参照仕様検証のレビュー
+## G1a-R2 — 2026-08-26 Review of the approval gate and referenced-specification verification
 
-**結論**: 指摘 8 件すべて妥当。修正の過程で、**私が入れたはずの承認ゲート SR-36 が
-無言で挿入に失敗しており、実際には存在しなかった**ことが判明した。
+**Conclusion**: All 8 findings were valid. During the corrections, it was discovered that **approval gate SR-36, which I thought I had added, had silently failed to be inserted and in fact did not exist**.
 
-### 承認ゲートは実在しなかった（指摘 1）
+### The approval gate did not exist (Finding 1)
 
-SR-31 は `state` しか見ておらず、`state: APPROVED` に一括置換するだけで通った。
-SR-36 を追加したつもりだったが、置換対象が一致せず**コードに入っていなかった**
-（`grep -c "SR-36" → 0`）。「ゲートがあるように見えて何もしない」典型である。
+SR-31 checked only `state`, and passed if all values were replaced with `state: APPROVED`. I thought I had added SR-36, but the replacement target did not match and it **was not present in the code** (`grep -c "SR-36" → 0`). This is a typical case where “the gate appears to exist but does nothing.”
 
-明示的に追加したうえで、**3 つの偽装パターンで実地試験**した。
+After explicitly adding it, I **tested it in practice with 3 forgery patterns**.
 
-| 偽装 | 結果 |
+| Forgery | Result |
 |---|---|
-| `state: APPROVED` に一括置換（reviewer / approved_at は null） | ✅ **BLOCK**（SR-36: reviewer 未設定 / approved_at 未設定） |
-| reviewer / approved_at も埋めるが `reviewer == authored_by` | ✅ **BLOCK**（SR-26 と SR-36） |
-| 別人を reviewer にしたうえで承認時の節ダイジェストを改竄 | ✅ **BLOCK**（SR-36: 現在値と不一致） |
+| Replace all values with `state: APPROVED` (`reviewer` / `approved_at` are null) | ✅ **BLOCK** (SR-36: `reviewer` unset / `approved_at` unset) |
+| Fill in `reviewer` / `approved_at`, but `reviewer == authored_by` | ✅ **BLOCK** (SR-26 and SR-36) |
+| Set a different person as reviewer, then tamper with the section digest at approval time | ✅ **BLOCK** (SR-36: mismatch with current value) |
 
-`g1.complete` の判定式も
-`blocking failure 0 AND open question 0 AND 全 APPROVED` に修正した
-（従来は blocking failure を見ておらず、構造欠陥があっても `ready_for_approval: true` になりえた）。
+The `g1.complete` expression was also corrected to
+`blocking failure 0 AND open question 0 AND all APPROVED`
+(previously it did not inspect blocking failures, so `ready_for_approval: true` could have become true despite structural defects).
 
-### 反映結果
+### Result of incorporation
 
-| # | 指摘 | 対応 |
+| # | Finding | Response |
 |---|---|---|
-| 1 | 承認ゲートを `state` だけで通過できる / `g1_ready` が blocking を見ない | **SR-36 を実装**（reviewer・approved_at・reviewer≠author・spec/version/selector/節digest の現在値一致）。`g1.complete` を 3 条件の積に。**偽装 3 パターンで実地試験済み** |
-| 2 | 参照仕様の digest が検証対象外 | **SR-32〜SR-35 を追加**。使用する全参照仕様（**18 件を実測して固定**）を validator が取得し digest を照合。さらに **`reference_evidence`**（spec / locator / 節digest）を義務に持たせ、**参照節を再抽出して digest を照合**する。共有モジュール `tools/g1_extract.py` に正規化・節切り出しを一元化し、生成側と検証側が同じ文字列に到達することを保証した |
-| 3 | `source_clauses[]` が実質未実装（全 133 件が 1 範囲） | 複数範囲を実装。**25 義務が複数範囲**になった。共有 lead-in（`Implementations MUST support … the following:` など）と個別 item を別範囲で保持する。MD04 / MD05 / MD06.c / MD12 / SSO05 / ALG01〜06 / ALG08 が該当 |
-| 4 | `open question = 0` が正しくない（SSO06.a に確認事項が残存） | **§4.1.6 を再読**し、RFC2119 キーワードを伴わない `md:SingleSignOnService` / `md:AssertionConsumerService` を**対象外**と明記（IIP-SSO06 の条件 (a) は「MUST/MAY と示された要素」）。`@index` / `@isDefault` も個別に MAY とはされていないため `md:AttributeConsumingService` に畳んだ |
-| 5 | SSO07.b が閉じていない | **SAML2Core を横断調査**した。原文冒頭 *"Unless specifically called out by subsequent requirements in this profile"* により、他の IIP 要件が扱う要素（NameIDPolicy→IDP10 / RequestedAuthnContext→IDP08 / ForceAuthn→IDP06 / IsPassive→IDP07 / ACS 属性→IDP12 / ACSIndex→IDP04.b / Extensions・Advice→EXT01）は**対象外**。残るのは `<saml:Subject>` / `<saml:Conditions>` / `<Scoping>`系 / `ProviderName` / `Consent` で、**一意の処理規則を持つのは `<saml:Subject>` だけ**であることを §3.4.1 / §3.4.1.4 / §3.4.1.2 の引用つきで示した |
-| 6 | クリーン環境で動かない / flow mapping の未引用 `sha256:` | **`tools/requirements.txt`**（PyYAML 6.0.2 / pdfminer.six 20240706）と repo-local `.venv` の手順を追加。YAML エミッタを**保守的な引用**に変更し、flow mapping 内の未引用 `sha256:` は **0 件**になった |
-| 7 | docs/01 が 127 義務のまま | 133 に修正。README / ci-stages の数値も更新 |
-| 8 | コミット済みでない | 未対応。**[CLAUDE.md の恒久ルール](../CLAUDE.md)により、コミットは利用者の明示指示があるまで実施しない**。レビュー対象を固定するためのコミットが必要なら指示をいただきたい |
+| 1 | The approval gate could be passed by checking only `state` / `g1_ready` did not inspect blocking failures | **Implemented SR-36** (reviewer, approved_at, reviewer≠author, and current-value matching for spec/version/selector/section digest). Made `g1.complete` the conjunction of 3 conditions. **Practically tested with 3 forgery patterns** |
+| 2 | Reference-specification digests were not subject to validation | **Added SR-32–SR-35**. The validator retrieves all referenced specifications used (**18 measured and fixed**) and compares their digests. It also makes obligations carry **`reference_evidence`** (spec / locator / section digest), re-extracts the referenced section, and compares the digest. Centralized normalization and section extraction in the shared module `tools/g1_extract.py`, guaranteeing that generation and validation reach the same string |
+| 3 | `source_clauses[]` was effectively unimplemented (all 133 items had 1 range) | Implemented multiple ranges. **25 obligations now have multiple ranges**. Shared lead-ins (`Implementations MUST support … the following:` etc.) and individual items are retained as separate ranges. Applies to MD04 / MD05 / MD06.c / MD12 / SSO05 / ALG01–06 / ALG08 |
+| 4 | `open question = 0` was incorrect (SSO06.a still had confirmation items) | **Reread §4.1.6** and explicitly excluded `md:SingleSignOnService` / `md:AssertionConsumerService` without RFC2119 keywords (**condition (a) of IIP-SSO06 is “elements indicated with MUST/MAY”**). `@index` / `@isDefault` are also not individually stated as MAY, so they were folded into `md:AttributeConsumingService` |
+| 5 | SSO07.b was not closed | **Conducted a cross-section investigation of SAML2Core**. Because of the opening text *“Unless specifically called out by subsequent requirements in this profile”*, elements handled by other IIP requirements (NameIDPolicy→IDP10 / RequestedAuthnContext→IDP08 / ForceAuthn→IDP06 / IsPassive→IDP07 / ACS attributes→IDP12 / ACSIndex→IDP04.b / Extensions / Advice→EXT01) are **out of scope**. The remaining elements are `<saml:Subject>` / `<saml:Conditions>` / `<Scoping>`-related elements / `ProviderName` / `Consent`, and with quotations from §3.4.1 / §3.4.1.4 / §3.4.1.2, it was shown that **only `<saml:Subject>` has a unique processing rule** |
+| 6 | It did not work in a clean environment / unquoted `sha256:` in flow mappings | Added **`tools/requirements.txt`** (PyYAML 6.0.2 / pdfminer.six 20240706) and instructions for a repo-local `.venv`. Changed the YAML emitter to **conservative quoting**; the number of unquoted `sha256:` values inside flow mappings is now **0** |
+| 7 | docs/01 still said 127 obligations | Corrected it to 133. Updated the figures in README / ci-stages as well |
+| 8 | It was not committed | Not addressed. **The permanent rule in [CLAUDE.md](../CLAUDE.md) says not to commit until the user explicitly instructs it**. If a commit is needed to fix the review target, please instruct me |
 
-### 参照仕様の固定（18 件）
+### Fixing the referenced specifications (18 items)
 
-`specs.yaml` の全参照仕様に実測ダイジェストを記録し、validator が毎回取得して照合する。
+Measured digests were recorded for all referenced specifications in `specs.yaml`, and the validator retrieves and compares them every time.
 
-```
+```text
 SAML2Core SAML2Prof SAML2Meta SAML2Errata SAML2MD-xsd SAML2-xsd SAML2MDIOP
 SAML2MetaAlgSup SAML2ECP MetaUi MetaAttr SAML2ASLO MDQ SAML-MDQ IdPDisco
 SAML-EC RFC2617 RFC4051 RFC7457 XMLSig XMLEnc
 ```
 
-BetterCrypto は版のない生きた文書なので `referenced-unversioned` とし、
-**判定の根拠には使わない**ことを明記（SR-32 の対象外）。
+BetterCrypto is a living document without a version, so it is marked `referenced-unversioned`, with an explicit statement that it is **not used as a basis for determination** (outside the scope of SR-32).
 
-### 現在の状態
+### Current status
 
-```
-要件 69 / 義務 133（うち 25 が複数範囲の source_clauses）
-参照根拠つき義務 10 / 固定した参照仕様 21
-specReconcile  36/37 PASS  ブロッキング 0
-  残り 1 = SR-31「全 obligation が APPROVED」— 作成フェーズなので FAIL のまま
+```text
+Requirements 69 / obligations 133 (25 of them have multiple source_clauses ranges)
+Obligations with reference evidence 10 / fixed referenced specifications 21
+specReconcile  36/37 PASS  blocking 0
+  Remaining 1 = SR-31 “all obligations APPROVED” — FAIL remains because this is the creation phase
 open question  0
-g1.complete    false（未承認のため。判定式 = blocking 0 AND open 0 AND 全 APPROVED）
+g1.complete    false (because it is unapproved. Expression = blocking 0 AND open 0 AND all APPROVED)
 ```
 
-全 133 義務を `PENDING_REVIEW` のまま再提出する。
+Resubmit all 133 obligations with `PENDING_REVIEW` unchanged.
 
 ---
 
-## G1a-R3 — 2026-08-26 承認の固定・集合検査・取得セマンティクスのレビュー
+## G1a-R3 — 2026-08-26 Review of approval fixation, set validation, and retrieval semantics
 
-**結論**: 指摘 4 件すべて妥当。3 件の再現手順はいずれも私の環境で再現し、修正後にブロックされることを実地確認した。
-加えて修正の過程で、**pin していた 4 仕様の digest が再取得で再現しない**（動的ページ）ことが判明した。
+**Conclusion**: All 4 findings were valid. All 3 reproduction procedures were reproduced in my environment, and I practically confirmed that they were blocked after correction. In addition, during the corrections, it was discovered that **the digests of 4 pinned specifications could not be reproduced on retrieval** (they were dynamic pages).
 
-### 反映結果
+### Result of incorporation
 
-| # | 指摘 | 対応 | 実地試験 |
+| # | Finding | Response | Practical test |
 |---|---|---|---|
-| 1 | 承認後に義務内容を改変できる | **`obligation_digest`** を新設。判定に影響する 16 フィールド（level / roles / condition / testability / source_clauses / required_variants / controls / reference_evidence など）を正規化 JSON 化して SHA-256。`review.obligation_digest` に保存し、**SR-25c**（承認前でも改変を検出）と **SR-36**（承認根拠）の両方で現在値と照合 | 全承認後に `IIP-G01.a` の `level` を MUST→OPTIONAL に改変 → **BLOCK**（SR-25c / SR-36） |
-| 2 | 69 要件の「集合」を検査していない | **SR-02b**（coverage の要件 ID 集合 == 原文ラベル集合の完全一致）、**SR-03b**（要件 ID の一意性）、**SR-03c**（obligation key が親要件 ID + `.` で始まる）、**SR-03d**（suffix が `[a-z][0-9]?`）を追加 | `IIP-G02` を削除し `IIP-G01` を重複させ key を `IIP-G01.z` に → **8 件が BLOCK** |
-| 3 | network モードでも新規取得していない | `fetch()` に **`mode`** を導入。**既定 `network` は必ず再取得**、`offline` はキャッシュのみ、`cache-first` は起票専用。validator の既定を `network` に | 全 URL を到達不能に変更して network 実行 → **BLOCK**（SR-00 / SR-33 / SR-34） |
-| 4 | reference_evidence の完全性が手書き集合依存 / 取得対象が説明と不一致 | `DERIVED` のハードコードを撤去し、義務側の **`reference_derivation: true/false`** から導出（**SR-35 / 35b / 35c**）。取得対象を「使用中の仕様」から**カタログ全 22 仕様**に拡大し、`SAML2Bind` の digest も実測して固定（**SR-32 / 32b**） | `IIP-SP06.b` の `reference_evidence` を削除 → **BLOCK**（SR-35b / SR-25c） |
+| 1 | Obligation content could be changed after approval | Created **`obligation_digest`**. Normalized the 16 fields affecting determination (level / roles / condition / testability / source_clauses / required_variants / controls / reference_evidence, etc.) as JSON and calculated SHA-256. Saved it in `review.obligation_digest`, and compare it with the current value in both **SR-25c** (detects changes even before approval) and **SR-36** (approval basis) | After all approvals, changed `IIP-G01.a` `level` from MUST→OPTIONAL → **BLOCK** (SR-25c / SR-36) |
+| 2 | The “set” of 69 requirements was not validated | Added **SR-02b** (exact match between the coverage requirement-ID set and the original-label set), **SR-03b** (requirement-ID uniqueness), **SR-03c** (obligation key starts with its parent requirement ID + `.`), and **SR-03d** (suffix matches `[a-z][0-9]?`) | Deleted `IIP-G02`, duplicated `IIP-G01`, and changed a key to `IIP-G01.z` → **8 BLOCKs** |
+| 3 | Network mode did not perform new retrieval | Introduced **`mode`** to `fetch()`. The default `network` mode **always retrieves again**, `offline` uses only the cache, and `cache-first` is for authoring only. Changed the validator default to `network` | Made all URLs unreachable and ran in network mode → **BLOCK** (SR-00 / SR-33 / SR-34) |
+| 4 | Completeness of `reference_evidence` depended on a hand-written set / retrieval targets differed from the description | Removed the hardcoded `DERIVED` and derive it from obligation-side **`reference_derivation: true/false`** (**SR-35 / 35b / 35c**). Expanded retrieval targets from “specifications in use” to **all 22 specifications in the catalog**, measured and fixed the `SAML2Bind` digest as well (**SR-32 / 32b**) | Deleted `reference_evidence` from `IIP-SP06.b` → **BLOCK** (SR-35b / SR-25c) |
 
-### 追加で判明: pin した digest が再現しない仕様が 4 件あった
+### Newly discovered: 4 pinned specifications had non-reproducible digests
 
-指摘 3 を直して強制再取得にした結果、**同じ URL を 2 回取得してもバイト列が一致しない**仕様が出た。
+After fixing finding 3 to force re-retrieval, specifications were found where **the byte sequences differed even when the same URL was retrieved twice**.
 
-| 仕様 | 旧 URL | 問題 | 対応 |
+| Specification | Old URL | Problem | Response |
 |---|---|---|---|
-| MDQ / SAML-MDQ / SAML-EC | `tools.ietf.org/html/draft-…` | 動的レンダリングで毎回異なる | **`www.ietf.org/archive/id/draft-….txt`**（不変アーカイブ）へ |
-| SAML2Errata | `…/errata05/os/saml-v2.0-errata05-os.html` | 同上 | **同 os の PDF** へ |
+| MDQ / SAML-MDQ / SAML-EC | `tools.ietf.org/html/draft-…` | Different each time due to dynamic rendering | Changed to **`www.ietf.org/archive/id/draft-….txt`** (immutable archive) |
+| SAML2Errata | `…/errata05/os/saml-v2.0-errata05-os.html` | Same | Changed to **the PDF for the same os** |
 
-digest が再現しない参照は、**SR-33 を恒常的に落とすか、無効化されるかのどちらか**にしかならない。
-`G1_VERIFY_STABILITY=1 python3 tools/g1_author.py` を追加し、
-**pin する全仕様を 2 回取得して一致することを起票時に検証**するようにした
-（不安定な URL は pin できない）。現在は **全 22 仕様が `stability: all pinned sources reproducible`**。
+A reference whose digest cannot be reproduced can only **make SR-33 fail permanently or be disabled**.
+Added `G1_VERIFY_STABILITY=1 python3 tools/g1_author.py`, so that **all specifications to be pinned are retrieved twice and checked for equality at authoring time** (unstable URLs cannot be pinned). Currently, **all 22 specifications have `stability: all pinned sources reproducible`**.
 
-### 現在の状態
+### Current status
 
-```
-要件 69 / 義務 133（うち 25 が複数範囲の source_clauses）
-参照根拠つき義務 10 / 固定した参照仕様 22（全て再取得で再現）
-specReconcile  45/46 PASS  ブロッキング 0（network モード）
-  残り 1 = SR-31「全 obligation が APPROVED」— 作成フェーズなので FAIL のまま
+```text
+Requirements 69 / obligations 133 (25 of them have multiple source_clauses ranges)
+Obligations with reference evidence 10 / fixed referenced specifications 22 (all reproducible on re-retrieval)
+specReconcile  45/46 PASS  blocking 0 (network mode)
+  Remaining 1 = SR-31 “all obligations APPROVED” — FAIL remains because this is the creation phase
 open question  0
-g1.complete    false（判定式 = blocking 0 AND open 0 AND 全 APPROVED）
+g1.complete    false (expression = blocking 0 AND open 0 AND all APPROVED)
 ```
 
-承認ゲートが塞いだ攻撃（累計 6 パターン、すべて実地試験済み）:
+Attacks blocked by the approval gate (6 patterns in total, all practically tested):
 
-1. `state: APPROVED` に一括置換（reviewer / approved_at 未設定）
-2. reviewer / approved_at を埋めるが `reviewer == authored_by`
-3. 承認時の**節** digest を改竄
-4. **承認後に義務の level / 要約を改変**
-5. 要件の重複・欠落・key の付け替え
-6. **reference_evidence の削除**
+1. Replace all values with `state: APPROVED` (`reviewer` / `approved_at` unset)
+2. Fill in `reviewer` / `approved_at` but `reviewer == authored_by`
+3. Tamper with the **section** digest at approval time
+4. **Change the obligation’s level / summary after approval**
+5. Duplicate/omit requirements or alter keys
+6. **Delete `reference_evidence`**
 
-全 133 義務を `PENDING_REVIEW` のまま再提出する。
+Resubmit all 133 obligations with `PENDING_REVIEW` unchanged.
 
 ---
 
-## G1a-R4 — 2026-08-26 承認の外部拘束・digest 範囲のレビュー
+## G1a-R4 — 2026-08-26 Review of external binding of approval and digest scope
 
-**結論**: 指摘 5 件すべて妥当。4 件の再現手順は私の環境でも再現し、修正後にブロックされることを確認した。
+**Conclusion**: All 5 findings were valid. All 4 reproduction procedures were reproduced in my environment, and I confirmed that they were blocked after correction.
 
-### 最も本質的な指摘 1: YAML 内の承認は書込者自身に対しては無力
+### Most fundamental finding 1: Approval inside YAML is powerless against the writer
 
-`obligation_digest` は**事故による改変**を検出するが、**digest を計算し直せる者**は
-承認情報も digest も自分で書ける。実際、`authored_by` を削除し
-`reviewer: fabricated-reviewer` / `approved_at: not-a-date` を入れて digest を再計算すると
-`46/46 PASS / complete=true` になった。
+`obligation_digest` detects **accidental changes**, but anyone who **can recalculate the digest** can write both the approval information and the digest themselves. In fact, deleting `authored_by`, adding `reviewer: fabricated-reviewer` / `approved_at: not-a-date`, and recalculating the digest resulted in `46/46 PASS / complete=true`.
 
-→ **承認の根拠を VCS 側に移した**（**SR-38**）。`APPROVED` が 1 件でもあれば
-`coverage.yaml` に `approval: {commit, method, reviewers, evidence_url}` を要求し、
-validator が git に対して **HEAD の一致 / `tests/` `tools/` が clean / ファイルが管理下にある**
-ことを確認する。併せて **SR-25d**（`authored_by` 必須）と **SR-37**（`approved_at` の ISO-8601 検証）を追加。
+→ **Moved the approval basis to the VCS side** (**SR-38**). If even one item is `APPROVED`, `coverage.yaml` now requires `approval: {commit, method, reviewers, evidence_url}`, and the validator verifies against git that **HEAD matches / `tests/` and `tools/` are clean / the files are tracked**. Also added **SR-25d** (`authored_by` required) and **SR-37** (ISO-8601 validation of `approved_at`).
 
-**現在 `git HEAD` が存在しないため、SR-38 は APPROVED を一切許可しない。**
-これは正しい振る舞いであり、同時に「G1b の開始には承認対象を固定する commit が要る」という
-指摘への回答でもある。
+**Because `git HEAD` currently does not exist, SR-38 permits no APPROVED items at all.**
+This is correct behavior, and at the same time answers the finding that “a commit fixing the approval target is required to begin G1b.”
 
-### 反映結果
+### Result of incorporation
 
-| # | 指摘 | 対応 | 実地試験 |
+| # | Finding | Response | Practical test |
 |---|---|---|---|
-| 1 | 承認情報を自己発行できる | **SR-38**（承認を commit に拘束）+ **SR-25d**（authored_by 必須）+ **SR-37**（approved_at の形式） | authored_by 削除 + 架空 reviewer + 不正 approved_at + digest 再計算 → **3 件 BLOCK** |
-| 2 | predicates.yaml が承認対象外 | 義務の正規形に**参照する述語の定義そのもの**を埋め込む（述語名だけでは observed を書き換えても digest が変わらない）。加えて **`catalog_digest`**（specs.yaml + predicates.yaml 全体）を coverage.yaml に刻み **SR-25a** で照合 | `supports_outbound_encryption.observed` を受信側証拠に改変 → **BLOCK**（SR-25a / SR-25c） |
-| 3 | reference_derivation の生成が循環 | 生成側の推測を撤去し、**authoring 入力での明示を必須**に（未指定・矛盾は生成時に SystemExit）。さらに **`false` にも理由（`reference_derivation_note`）を必須**にして「黙って false にする」を有償化（**SR-35d**） | 根拠を削除し false に + digest 再計算 → **BLOCK**（SR-35d） |
-| 4 | 日本語成果物が digest 対象外 | **列挙方式をやめ、`review` 以外の全フィールド**を digest 対象に。フィールドを増やしても取りこぼさない | 承認後に `summary_ja` を誤った実装指示に差し替え → **BLOCK**（SR-25c / SR-36 / SR-38） |
-| 5 | stability キャッシュが残る | `_p`（publisher）ではなく **2 回目の `fetch()` が返す path** を削除。`__stab` 残存 **0 件** | 確認済み |
+| 1 | Approval information could be self-issued | **SR-38** (bind approval to a commit) + **SR-25d** (`authored_by` required) + **SR-37** (format of `approved_at`) | Delete `authored_by` + fictional reviewer + invalid `approved_at` + recalculate digest → **3 BLOCKs** |
+| 2 | `predicates.yaml` was outside the approval target | Embed **the definitions of the referenced predicates themselves** in the normalized obligation form (if only the predicate name is included, changing `observed` does not change the digest). In addition, record **`catalog_digest`** (the entire `specs.yaml` + `predicates.yaml`) in `coverage.yaml` and compare it with SR-25a | Change `supports_outbound_encryption.observed` to receiving-side evidence → **BLOCK** (SR-25a / SR-25c) |
+| 3 | Generation of `reference_derivation` was circular | Removed inference on the generation side and **made explicit authoring input mandatory** (unspecified or contradictory values cause SystemExit during generation). Also require a reason (`reference_derivation_note`) even for **`false`**, making “silently set it to false” costly (**SR-35d**) | Delete the evidence, set it to false, and recalculate the digest → **BLOCK** (SR-35d) |
+| 4 | Japanese artifacts were outside the digest target | **Abandoned enumeration and include all fields other than `review`** in the digest target. Adding fields will not cause omissions | Replace `summary_ja` after approval with incorrect implementation instructions → **BLOCK** (SR-25c / SR-36 / SR-38) |
+| 5 | The stability cache remained | Delete the path returned by the **second `fetch()`**, rather than `_p` (publisher). **0 remaining `__stab` entries** | Confirmed |
 
-### digest の範囲を「列挙」から「除外」に変えた理由
+### Why the digest scope changed from “enumeration” to “exclusion”
 
-指摘 4 の根本は、`JUDGMENT_FIELDS` を**列挙**していたことにある。
-列挙方式は新しいフィールドを足すたびに取りこぼす（実際 `summary_ja` / `notes_ja` /
-`applicability_note_ja` が漏れ、`docs/04` に出る日本語を承認後に書き換えられた）。
+The root cause of finding 4 was that `JUDGMENT_FIELDS` was **enumerated**.
+Enumeration omits fields whenever new ones are added (in fact, `summary_ja` / `notes_ja` / `applicability_note_ja` were omitted, allowing the Japanese text in `docs/04` to be changed after approval).
 
-**`review` 以外の全フィールド**を対象にすることで、今後フィールドを増やしても自動的に保護される。
+By including **all fields other than `review`**, newly added fields will be automatically protected in the future.
 
-### 現在の状態
+### Current status
 
-```
-要件 69 / 義務 133（うち 25 が複数範囲）／ 参照根拠つき 10 ／ 固定した参照仕様 22
-specReconcile  50/51 PASS  ブロッキング 0（network / offline とも）
-  残り 1 = SR-31「全 obligation が APPROVED」— 作成フェーズなので FAIL のまま
-open question 0 ／ catalog_digest 記録済み ／ __stab 残存 0
+```text
+Requirements 69 / obligations 133 (25 of them have multiple ranges) / 10 with reference evidence / 22 fixed referenced specifications
+specReconcile  50/51 PASS  blocking 0 (network / offline both)
+  Remaining 1 = SR-31 “all obligations APPROVED” — FAIL remains because this is the creation phase
+open question 0 / catalog_digest recorded / 0 remaining __stab
 g1.complete    false
 ```
 
-承認ゲートが塞いだ攻撃は累計 10 パターン（すべて実地試験済み）:
+Attacks blocked by the approval gate: **10 patterns in total** (all practically tested):
 
-1. `state: APPROVED` に一括置換 / 2. 自己承認 / 3. 節 digest 改竄 /
-4. 承認後の level 改変 / 5. 要件の重複・欠落 / 6. 根拠の削除 /
-7. **authored_by 削除 + 架空 reviewer + 不正日付 + digest 再計算** /
-8. **predicates.yaml の observed 改変** / 9. **reference_derivation の黙った false 化** /
-10. **承認後の日本語説明の差し替え**
+1. Replace all values with `state: APPROVED` / 2. Self-approval / 3. Tamper with section digest /
+4. Change level after approval / 5. Duplicate/omit requirements / 6. Delete evidence /
+7. **Delete `authored_by` + fictional reviewer + invalid date + recalculate digest** /
+8. **Change `observed` in `predicates.yaml`** / 9. **Silently set `reference_derivation` to false** /
+10. **Replace the Japanese explanation after approval**
 
-### 次に必要なこと
+### Next required action
 
-**承認対象を固定する commit** が要る。SR-38 は `git HEAD` がない限り APPROVED を許可しない。
-コミットは [CLAUDE.md の恒久ルール](../CLAUDE.md)により利用者の明示指示があるまで行わない。
+A **commit fixing the approval target** is required. SR-38 does not permit APPROVED while `git HEAD` is absent.
+The commit must not be made until the user explicitly instructs it, under the permanent rule in [CLAUDE.md](../CLAUDE.md).
 
 ---
 
-## G1a-R5 — 2026-08-26 承認プロトコルの再設計
+## G1a-R5 — 2026-08-26 Redesign of the approval protocol
 
-**結論**: 指摘 4 件すべて妥当。指摘 1 は**私が入れた SR-38 の設計欠陥**（承認記録が承認対象の
-中にある自己参照 + 前方一致による迂回）であり、承認の仕組みを作り直した。
-**実 git リポジトリで正常系と改竄 8 パターンを実地試験**した。
+**Conclusion**: All 4 findings were valid. Finding 1 was **a design flaw in SR-38 that I introduced** (a self-reference in which the approval record was inside the approval target, plus a bypass through prefix matching), so the approval mechanism was rebuilt.
+**The normal path and 8 tampering patterns were practically tested in an actual git repository.**
 
-### 指摘 1: SR-38 は正常手順では到達不能、短縮 SHA では迂回可能
+### Finding 1: SR-38 was unreachable through the normal procedure and bypassable with a short SHA
 
-私の設計は `approval.commit` を `coverage.yaml` の中に置いていた。
-記録を追記した時点で対象 commit が変わるため、**正直な手順では決して一致しない**。
-一方 `head.startswith(commit[:7])` だったため、1 文字の値と amend で通ってしまった。
+My design placed `approval.commit` inside `coverage.yaml`.
+Because the target commit changes when the record is appended, **it can never match through an honest procedure**.
+On the other hand, because it used `head.startswith(commit[:7])`, it could be passed with a one-character value and an amend.
 
-**再設計**:
+**Redesign**:
 
+```text
+commit C : tests/{coverage,specs,predicates}.yaml   ← approval target (all PENDING_REVIEW)
+commit A : tests/approvals/g1.yaml                  ← approval record. Outside C; signature required
 ```
-commit C : tests/{coverage,specs,predicates}.yaml   ← 承認対象（全て PENDING_REVIEW）
-commit A : tests/approvals/g1.yaml                  ← 承認記録。C の外・署名必須
-```
 
-- `target_commit` は **40 桁完全一致**（`git rev-parse --verify <sha>^{commit}` の出力と厳密比較）
-- 承認対象の内容は **`git show C:tests/*.yaml`** から読み、digest を照合
-- 各義務の `obligation_digest` も**対象 commit の内容から再計算**して照合
-- `evidence.ref` は**廃止**。自分を含む commit の SHA を記録に書くのは自己参照であり、
-  署名し直すたびに SHA が変わる。署名済み commit は `git log -1 -- <path>` で一意に特定できる
+- `target_commit` is an **exact 40-digit match** (strict comparison with the output of `git rev-parse --verify <sha>^{commit}`)
+- Read the approval-target contents from **`git show C:tests/*.yaml`** and compare the digests
+- Recalculate and compare each obligation’s `obligation_digest` **from the target commit’s contents**
+- `evidence.ref` was **abolished**. Recording the SHA of a commit including oneself is a self-reference, and the SHA changes every time it is re-signed. The signed commit is uniquely identified with `git log -1 -- <path>`
 
-### 指摘 2: 外部承認を実際には検証していない → 署名を必須にした
+### Finding 2: External approval was not actually verified → signatures made mandatory
 
-`method` / `reviewers` / `evidence_url` の非空検査は自己申告に過ぎなかった。
-**`git verify-commit` による署名検証を必須**にし、さらに実地試験の途中で見つけた穴も塞いだ。
+Non-empty checks for `method` / `reviewers` / `evidence_url` were only self-declarations.
+Made signature verification using **`git verify-commit` mandatory**, and also closed a gap found during practical testing.
 
-> 署名済み commit を指したまま**作業ツリーの承認記録だけ書き換える**と通過した。
-> → **正本を「署名済み commit の中身」に変更**（`git show <C_sig>:tests/approvals/g1.yaml`）。
-> 作業ツリーが署名済み内容と異なれば BLOCK。
+> It passed when **only the approval record in the working tree was changed** while still pointing to the signed commit.
+> → **Changed the canonical source to the contents of the signed commit** (`git show <C_sig>:tests/approvals/g1.yaml`).
+> If the working tree differs from the signed contents, BLOCK.
 
-**限界は明示した**: validator が保証できるのは「署名鍵の保持者が承認した」までであり、
-その鍵が実在のレビュアーのものかは `allowedSignersFile` / CODEOWNERS など
-リポジトリ運用側の設定に委ねられる。validator はそれ以上を主張しない。
+**The limitation is stated explicitly**: the validator can guarantee only that “the holder of the signing key approved”; whether that key belongs to the actual reviewer is left to repository-side settings such as `allowedSignersFile` / CODEOWNERS. The validator makes no stronger claim.
 
-### 指摘 3・4
+### Findings 3 and 4
 
-- **SR-37**: `str(v)[:10]` をやめ、**文字列全体を `fromisoformat` で解析し、タイムゾーン必須**に。
-  `2026-08-26garbage` は BLOCK
-- **SR-39** を新設し、完了式に `coverage.g1_state == "APPROVED"` を追加
+- **SR-37**: Stopped using `str(v)[:10]`; parse the **entire string with `fromisoformat` and require a timezone**. `2026-08-26garbage` is BLOCK
+- Created **SR-39**, adding `coverage.g1_state == "APPROVED"` to the completion expression
 
-### 実地試験（実 git リポジトリ）
+### Practical test (actual git repository)
 
-正常系 —— 対象 commit C を作り、承認記録を **別 commit A** に SSH 署名付きで追加:
+Normal path — create target commit C, then add the approval record in **a separate commit A** with an SSH signature:
 
-```
+```text
 50/50 PASS  blocking 0  complete = true
 ```
 
-改竄 —— 承認済み状態から:
+Tampering — from the approved state:
 
-| # | 改竄 | 結果 |
+| # | Tampering | Result |
 |---|---|---|
-| A | coverage の `level` を改変 | **BLOCK**（SR-25c） |
-| B | `g1_state` を PENDING_REVIEW に戻す | **BLOCK**（SR-39） |
-| C | 作業ツリーの承認記録を改変 | **BLOCK**（SR-38: 署名済み内容と不一致） |
-| D | `predicates.yaml` を改変 | **BLOCK**（SR-25a / SR-25c ほか 3 件） |
-| E | 承認記録を書き換えて**署名なしで amend** | **BLOCK**（署名検証失敗） |
-| F | `target_commit` を別 commit にすり替え | **BLOCK** |
-| G | reviewer を `authored_by` と同一に | **BLOCK** |
-| H | `approved_at` を `2026-08-26garbage` に | **BLOCK** |
+| A | Change `level` in coverage | **BLOCK** (SR-25c) |
+| B | Revert `g1_state` to PENDING_REVIEW | **BLOCK** (SR-39) |
+| C | Change the approval record in the working tree | **BLOCK** (SR-38: differs from signed contents) |
+| D | Change `predicates.yaml` | **BLOCK** (SR-25a / SR-25c and 3 others) |
+| E | Rewrite the approval record and **amend without a signature** | **BLOCK** (signature verification failure) |
+| F | Substitute a different commit for `target_commit` | **BLOCK** |
+| G | Make reviewer identical to `authored_by` | **BLOCK** |
+| H | Set `approved_at` to `2026-08-26garbage` | **BLOCK** |
 
-### 現在の状態
+### Current status
 
+```text
+Requirements 69 / obligations 133 / referenced specifications 22 / 10 with reference evidence
+specReconcile  49/50 PASS  blocking 0 (network / offline both)
+  Remaining 1 = SR-31 “all obligations approved” — no approval record yet
+open question 0 / g1.complete = false
 ```
-要件 69 / 義務 133 ／ 参照仕様 22 ／ 参照根拠つき 10
-specReconcile  49/50 PASS  ブロッキング 0（network / offline とも）
-  残り 1 = SR-31「全 obligation が承認済み」— 承認記録がまだ無い
-open question 0 ／ g1.complete = false
-```
 
-累計で塞いだ攻撃は **18 パターン**（すべて実地試験済み）。
+The cumulative number of blocked attacks is **18 patterns** (all practically tested).
 
-### 次に必要なこと
+### Next required action
 
-G1b を開始するには、**承認対象を固定する commit C** が要る。
-署名済みの承認 commit A は、レビュアーが C を確認したうえで作成する。
-コミットは CLAUDE.md の恒久ルールにより利用者の明示指示があるまで行わない。
+To begin G1b, **target commit C**, which fixes the approval target, is required.
+The signed approval commit A is created after the reviewer verifies C.
+Under the permanent rule in CLAUDE.md, the commit must not be made until the user explicitly instructs it.
 
 ---
 
-## G1a-R6 — 2026-08-26 承認後の成果物保護
+## G1a-R6 — 2026-08-26 Protection of deliverables after approval
 
-**結論**: 指摘 3 件すべて妥当。指摘 1 は承認プロトコルの実効性を無にする穴だった。
-実 git の clone で正常系と改変 5 パターンを実地試験した。
+**Conclusion**: All 3 findings were valid. Finding 1 was a gap that nullified the effectiveness of the approval protocol.
+The normal path and 5 modification patterns were practically tested in a clone of the actual git repository.
 
-### 指摘 1: 署名済み A の後に成果物を改変できた
+### Finding 1: Deliverables could be modified after signed A
 
-SR-38 が署名済み commit と比較していたのは **`tests/approvals/g1.yaml` だけ**で、
-`coverage.yaml` などの現在値は見ていなかった。
-`git log -1 -- tests/approvals/g1.yaml` は改変後も署名済み A を返すため、
-**A の後に coverage を書き換えて `obligation_digest` を再計算すれば通った**
-（未コミットでも、未署名 commit にしても `50/50 PASS`）。
+SR-38 compared only **`tests/approvals/g1.yaml`** with the signed commit and did not inspect the current values of `coverage.yaml`, etc.
+Because `git log -1 -- tests/approvals/g1.yaml` still returned signed A after modification, **rewriting coverage after A and recalculating `obligation_digest` passed** (both when uncommitted and when made an unsigned commit: `50/50 PASS`).
 
-**修正**: 署名済み A を特定したあと、**保護対象ファイルの現在値を A の tree と
-バイト比較**する。
+**Correction**: After identifying signed A, **byte-compare the current values of the protected files with A’s tree**.
 
-```
+```text
 tests/coverage.yaml   tests/specs.yaml      tests/predicates.yaml
 tests/approvals/g1.yaml   tools/g1_validate.py   tools/g1_extract.py
 ```
 
-加えて **`tests/` 配下のファイル集合**が A と一致することも確認する（追加・削除の検出）。
-**validator 自身を保護対象に含めた**のは、検査器を弱める改変を検出するためである。
+Also verify that the **file set under `tests/`** matches A (detect additions and deletions).
+**The validator itself was included among the protected targets** to detect modifications that weaken the checker.
 
-### 実地試験（clone した実リポジトリ）
+### Practical test (cloned actual git repository)
 
-正常系: 対象 commit C → SSH 署名付き承認 commit A → **50/50 PASS / complete=true**
+Normal path: target commit C → SSH-signed approval commit A → **50/50 PASS / complete=true**
 
-| 改変 | 結果 |
+| Modification | Result |
 |---|---|
-| A の後に coverage の `level` を改変 + digest 再計算（未コミット） | **BLOCK** |
-| さらに未署名 commit B にして tree を clean に | **BLOCK**（clean でも検出） |
-| `PROTECTED_PATHS` を空にして validator を無効化 | ⚠ **この試験は誤りだった**（G1a-R7 で訂正） |
-| `tests/` にファイルを追加 | **BLOCK**（ファイル集合の不一致） |
-| `evidence.reviewers` を空に | **BLOCK**（承認記録の改変として検出） |
+| Change coverage `level` after A + recalculate digest (uncommitted) | **BLOCK** |
+| Then make it unsigned commit B and clean the tree | **BLOCK** (detected even when clean) |
+| Empty `PROTECTED_PATHS` | ⚠ **This test was incorrect** (corrected in G1a-R7) |
+| Add a file under `tests/` | **BLOCK** (file-set mismatch) |
+| Empty `evidence.reviewers` | **BLOCK** (detected as approval-record modification) |
 
-### 指摘 2・3
+### Findings 2 and 3
 
-- **SR-38**: `evidence.kind` / 非空の `reviewers` / `evidence_url` を**必須化**。
-  `reviewers` が空なら reviewer 照合を素通りしていた
-- **レポート**: `g1_approval` を新設し、`target_commit` / `approval_commit` /
-  **署名者と鍵 fingerprint**（`%GS|%GK|%GT`）/ `artifact_digests` /
-  保護対象ファイルの digest / reviewers / 承認義務数を記録
+- **SR-38**: Made `evidence.kind` / non-empty `reviewers` / `evidence_url` **mandatory**. If `reviewers` was empty, reviewer matching was bypassed
+- **Report**: Created `g1_approval` and recorded `target_commit` / `approval_commit` / **signer and key fingerprint** (`%GS|%GK|%GT`) / `artifact_digests` / protected-file digests / reviewers / approval-obligation count
 
-### 限界の明示
+### Explicit limitations
 
-`tools/ci-stages.md` に、validator が**保証できること／できないこと**を表で書いた。
+In `tools/ci-stages.md`, documented in a table what the validator **can and cannot guarantee**.
 
-| 保証できる | 保証できない |
+| Can guarantee | Cannot guarantee |
 |---|---|
-| 署名鍵の保持者が承認記録に署名した | その鍵が実在のレビュアーのものか（`allowedSignersFile` / CODEOWNERS 依存） |
-| 承認後に保護対象が変わっていない | **改変された validator を実行した場合**の結果（自己検査の原理的限界。CI では承認済み commit から checkout した validator を使う） |
-| レビュアーが原文を読んだと記録したこと | レビュアーが実際に原文を読んだこと |
+| The holder of the signing key signed the approval record | Whether that key belongs to the actual reviewer (`allowedSignersFile` / CODEOWNERS dependent) |
+| Protected targets have not changed after approval | **The result when a modified validator is executed** (a fundamental limitation of self-checking; CI uses the validator checked out from the approved commit) |
+| That it was recorded that the reviewer read the original text | That the reviewer actually read the original text |
 
-累計で塞いだ攻撃は **23 パターン**。
+The cumulative number of blocked attacks is **23 patterns**.
 
 ---
 
-## G1a-R7 — 2026-08-26 信頼された実行入口と signed-tag
+## G1a-R7 — 2026-08-26 Trusted execution entry point and signed tag
 
-**結論**: 指摘 2 件とも妥当。加えて **R6 の私の試験報告が誤っていた**ので訂正する。
+**Conclusion**: Both findings were valid. In addition, **my test report in R6 was incorrect**, so this is a correction.
 
-### 訂正: R6 の「`PROTECTED_PATHS` を空にして BLOCK」は誤り
+### Correction: R6’s “empty `PROTECTED_PATHS` → BLOCK” was incorrect
 
-私が実行した置換は
+The replacement I executed was
 
 ```python
 s.replace('PROTECTED_PATHS=(', 'PROTECTED_PATHS=() or (')
 ```
 
-で、`() or ('tests/...', ...)` は **非空タプルを返す**（`()` は falsy）。
-つまり `PROTECTED_PATHS` は空になっておらず、観測した BLOCK は
-**ファイルを編集したこと自体**が保護対象比較に引っかかったものだった。
-検査が生き残ったからではない。
+and `() or ('tests/...', ...)` **returns a non-empty tuple** (`()` is falsy).
+Therefore, `PROTECTED_PATHS` was not empty, and the observed BLOCK was triggered by **the fact that the file had been edited** being caught by protected-target comparison.
+It was not because the checker survived.
 
-レビュアーが正しく空にしたところ `50/50 PASS` になった。
-**validator の自己保護は実効的ではない**というご指摘が正しい。
+When the reviewer actually emptied it, the result was `50/50 PASS`.
+**The finding that validator self-protection is not effective is correct.**
 
-### 指摘 1: 信頼された実行入口を作った
+### Finding 1: Created a trusted execution entry point
 
-自己検査には原理的限界がある（改変された validator は自分の改変を報告しない）。
-`tools/g1_trusted_verify.py` を新設し、**現在の checkout の validator を実行しない**構成にした。
+Self-checking has a fundamental limitation (a modified validator will not report its own modification).
+Created `tools/g1_trusted_verify.py` with a design that **does not execute the validator from the current checkout**.
 
-1. 承認記録を最後に変更した commit A を git から特定
-2. A の署名を検証（`signed-commit` / `signed-tag`）
-3. **A の tree から** validator 一式を隔離ディレクトリへ取り出す
-4. `python -I` で実行し、検査対象は `G1_REPO_ROOT` で渡す
+1. Identify from git the commit A that last changed the approval record
+2. Verify A’s signature (`signed-commit` / `signed-tag`)
+3. Extract the complete validator set **from A’s tree** into an isolated directory
+4. Execute with `python -I`, passing the inspection target as `G1_REPO_ROOT`
 
-**shadow import も塞いだ**。ランナーは冒頭で自分のディレクトリを `sys.path` から外し、
-validator は `tools/` を `sys.path` に載せず `g1_extract` を明示パスで `importlib` 読み込みする。
-併せて **SR-40**（`tools/` に未追跡 `.py` がない）と
-**`tools/` のファイル集合の一致**（commit された shim の検出）を追加した。
+**Shadow import was also blocked**. The runner removes its own directory from `sys.path` at startup, and the validator does not add `tools/` to `sys.path`; instead, it explicitly loads `g1_extract` by path using `importlib`. In addition, added **SR-40** (no untracked `.py` files in `tools/`) and **matching of the `tools/` file set** (detecting committed shims).
 
-### 指摘 2: signed-tag を実際に検証するようにした
+### Finding 2: Made signed tags actually verifiable
 
-`signed-tag` を受理しながら `git verify-commit` しか実行していなかった。
-`evidence.tag` を必須にし、**`git verify-tag` + tag が承認 commit を指すこと**を確認する。
+Although `signed-tag` was accepted, only `git verify-commit` was executed.
+Made `evidence.tag` mandatory, and verify **`git verify-tag` plus that the tag points to the approval commit**.
 
-### 実地試験（クリーンな clone、SSH 署名）
+### Practical test (clean clone, SSH signatures)
 
-| # | 状況 | 結果 |
+| # | Situation | Result |
 |---|---|---|
-| 0 | 正常系（signed-commit） | **51/51 PASS** / exit 0 |
-| 1 | `PROTECTED_PATHS` を**本当に**空にした validator | 直接実行では素通り → **trusted runner で BLOCK**（SR-38: coverage と validator の両方が承認時と不一致） |
-| 2 | 未追跡 `tools/yaml.py` で shadow import | **shim が実行されず** BLOCK（SR-40 + ファイル集合） |
-| 3 | shim を **commit** して clean にする | **BLOCK**（`tools/` のファイル集合が不一致） |
-| 4 | tag を作らず `kind: signed-tag` | **exit 2**（`evidence.tag` 必須） |
-| 5 | tag が別 commit を指す | **exit 2** |
-| 6 | 正しい署名 tag が承認 commit を指す | **51/51 PASS** / exit 0 |
+| 0 | Normal path (`signed-commit`) | **51/51 PASS** / exit 0 |
+| 1 | Validator with `PROTECTED_PATHS` **truly** emptied | Passed through direct execution → **BLOCK in the trusted runner** (SR-38: both coverage and validator differ from approval time) |
+| 2 | Shadow import with untracked `tools/yaml.py` | **BLOCK** without executing the shim (SR-40 + file set) |
+| 3 | Commit the shim and make the tree clean | **BLOCK** (the `tools/` file set differs) |
+| 4 | `kind: signed-tag` without creating a tag | **exit 2** (`evidence.tag` required) |
+| 5 | Tag points to a different commit | **exit 2** |
+| 6 | Correct signed tag points to the approval commit | **51/51 PASS** / exit 0 |
 
-### 訂正: ワーキングツリーの「clean」報告
+### Correction: Report of a “clean” working tree
 
-前回「working tree: 0 件の変更」と報告したが、その後 validator を実行したため
-`build/spec-reconcile-report.json` が変更状態になっていた（`run_id` / `executed_at` が毎回変わる）。
-承認対象外のファイルなので承認はブロックしないが、**報告としては不正確だった**。
+Previously I reported “working tree: 0 changes,” but because the validator was run afterward, `build/spec-reconcile-report.json` had become modified (`run_id` / `executed_at` change every time).
+It is outside the approval target, so it does not block approval, but **the report was inaccurate**.
 
-### 限界（変わらず明示する）
+### Limitations (still stated explicitly)
 
-| 保証できる | 保証できない |
+| Can guarantee | Cannot guarantee |
 |---|---|
-| 署名鍵の保持者が承認記録に署名した | その鍵が実在のレビュアーのものか |
-| 承認後に保護対象ファイルが変わっていない | **ランナー自身**が改変された場合（CI では承認済み commit から取り出したランナーを使う） |
-| レビュアーが原文を読んだと記録したこと | レビュアーが実際に読んだこと |
+| The holder of the signing key signed the approval record | Whether that key belongs to the actual reviewer |
+| Protected-target files have not changed after approval | **If the runner itself is modified** (CI uses the runner extracted from the approved commit) |
+| That it was recorded that the reviewer read the original text | That the reviewer actually read it |
 
-累計で塞いだ攻撃は **29 パターン**。
+The cumulative number of blocked attacks is **29 patterns**.
 
 ---
 
-## G1a-R8 — 2026-08-26 検査器の取得元と runner の隔離
+## G1a-R8 — 2026-08-26 Isolation of the checker’s source and the runner
 
-**結論**: 指摘 4 件すべて妥当。指摘 1 は「**承認者が検査器を定義できる**」という
-承認モデルの根本的な穴だった。
+**Conclusion**: All 4 findings were valid. Finding 1 was a fundamental gap in the approval model: **“the approver can define the checker.”**
 
-### 指摘 1: 承認 commit A が validator を差し替えられた
+### Finding 1: Approval commit A could replace the validator
 
-trusted runner は validator を **A の tree** から取り出していた。
-A の署名者が承認記録と一緒に validator を弱体化すれば、
-その弱体化版が「信頼された validator」として実行される。
-実際、A に「即座に `51/51 PASS` を出して終了する validator」を含めて署名すると
-`exit 0` になった。
+The trusted runner extracted the validator from **A’s tree**.
+If the signer of A weakened the validator together with the approval record, that weakened version would be executed as the “trusted validator.”
+In fact, signing A with a validator that immediately output `51/51 PASS` and exited resulted in `exit 0`.
 
-**修正**:
+**Correction**:
 
-- validator の取得元を **`G1_VALIDATOR_COMMIT`（CI が外部から固定）> C（対象 commit）** に変更。
-  **A からは取らない**
-- **A が C の子孫**であることを要求（`git merge-base --is-ancestor`）
-- **`C..A` の変更を `tests/approvals/g1.yaml` だけ**に制限
-- その結果 **承認時に `coverage.yaml` を編集しない**設計になった。
-  完了状態は承認記録から導出する（`g1.state` は導出値、`g1.authored_state` が記載値）
+- Changed the validator source to **`G1_VALIDATOR_COMMIT` (fixed externally by CI) > C (target commit)**.
+  **Do not take it from A**
+- Require **A to be a descendant of C** (`git merge-base --is-ancestor`)
 
-### 指摘 2: runner 自身が PYTHONPATH で shadow import された
+- Restrict changes in `C..A` to **`tests/approvals/g1.yaml` only**
+- As a result, the design now **does not edit `coverage.yaml` during approval**.
+  The completion state is derived from the approval record (`g1.state` is a derived value; `g1.authored_state` is the recorded value).
 
-`sys.path[0]` の削除だけでは `PYTHONPATH` 由来のパスが残る。
-**runner が隔離モードでなければ自分自身を `python -I` で起動し直す**ようにした
-（サードパーティを一切 import する前に実行する）。
+### Finding 2: The runner itself was shadow-imported via PYTHONPATH
 
-### 指摘 3・補足
+Removing only `sys.path[0]` left paths originating from `PYTHONPATH`.
+The runner was changed so that **if it is not in isolated mode, it relaunches itself with `python -I`**
+(before importing any third-party package).
 
-- コミット済みレポートが `blocking_failures: 1`（コミット前の未追跡ファイル）を
-  記録していた。コード commit 後にレポートを生成し直して同じ commit に amend する運用にした
-- **signed-tag の署名者情報**を記録するようにした。
-  tag object ID / tagged commit / tagger / `git verify-tag --raw` の出力。
-  従来は commit の `%GS/%GK/%GT` しか取らず、unsigned commit + signed tag では空だった
+### Finding 3 / Supplement
 
-### 実地試験（クリーンな clone、SSH 署名）
+- The committed report recorded `blocking_failures: 1` (an untracked file before commit). The process was changed to regenerate the report after committing the code and amend it into the same commit.
+- **Signed-tag signer information** is now recorded:
+  tag object ID / tagged commit / tagger / output of `git verify-tag --raw`.
+  Previously, only the commit’s `%GS/%GK/%GT` were collected, leaving these fields empty for an unsigned commit + signed tag.
 
-| # | 状況 | 結果 |
+### Field tests (clean clone, SSH signatures)
+
+| # | Situation | Result |
 |---|---|---|
-| 0 | 正常系（coverage を編集しない） | **51/51 PASS** / exit 0 |
-| 1 | A に**即時 PASS する validator** を含めて署名 | **exit 2**（`C..A` の変更が承認記録だけでない） |
-| 2 | `PYTHONPATH=.` + 未追跡 `yaml.py` | **shim 実行 0 回** / 51/51 PASS |
-| 3 | A に承認記録 + coverage 改変を両方入れて署名 | **exit 2** |
-| 4 | 別枝の `C'` を `target_commit` に指定 | **exit 2**（A が C の子孫でない） |
+| 0 | Normal path (without editing coverage) | **51/51 PASS** / exit 0 |
+| 1 | Signed with a validator in A that **passes immediately** | **exit 2** (`C..A` contains changes other than approval-record changes) |
+| 2 | `PYTHONPATH=.` + untracked `yaml.py` | **0 shim executions** / 51/51 PASS |
+| 3 | Signed with both an approval record and a coverage modification in A | **exit 2** |
+| 4 | A different branch’s `C'` specified as `target_commit` | **exit 2** (A is not a descendant of C) |
 
-### 限界（更新）
+### Limitations (updated)
 
-| 保証できる | 保証できない |
+| Can be guaranteed | Cannot be guaranteed |
 |---|---|
-| 署名鍵の保持者が承認記録に署名した | その鍵が実在のレビュアーのものか |
-| `C..A` が承認記録の追加だけであること | **C 自体**を署名者が作った場合（CI で `G1_VALIDATOR_COMMIT` を外部固定して緩和） |
-| 承認後に保護対象ファイルが変わっていない | **runner 自身**が改変された場合（CI は固定した commit / hash から runner を取得すること） |
+| The holder of the signing key signed the approval record | Whether that key belongs to a real reviewer |
+| `C..A` contains only additions to the approval record | If **C itself** was created by the signer (mitigated by externally pinning `G1_VALIDATOR_COMMIT` in CI) |
+| Protected files have not changed after approval | If the **runner itself** was modified (CI must obtain the runner from a pinned commit / hash) |
 
-累計で塞いだ攻撃は **34 パターン**。
+The cumulative number of attacks blocked is **34 patterns**.
 
 ---
 
-## G1a-R9 — 2026-08-26 trust anchor の固定とランナーの外部化
+## G1a-R9 — 2026-08-26 Fixing the trust anchor and externalizing the runner
 
-**結論**: 指摘 2 件とも妥当。加えて runner の docstring / 実行時メッセージに
-旧仕様（「A から validator を取り出す」）が残っていた点も訂正した。
+**Conclusion**: Both findings were valid. In addition, the obsolete specification (“extract the validator from A”) remained in the runner’s docstring / runtime messages, and this was corrected.
 
-### 指摘 1: `G1_VALIDATOR_COMMIT` が可変 ref を受理していた
+### Finding 1: `G1_VALIDATOR_COMMIT` accepted mutable refs
 
-存在確認しかしていなかったため `HEAD` / `main` が通り、
-署名済み A の後に弱体化した validator を未署名 B として置き
-`G1_VALIDATOR_COMMIT=HEAD` で実行すると `51/51 PASS / exit 0` になった。
+Because only existence was checked, `HEAD` / `main` were accepted.
+Placing a weakened validator as unsigned B after signed A and running with
+`G1_VALIDATOR_COMMIT=HEAD` resulted in `51/51 PASS / exit 0`.
 
-**修正**: **40 桁完全 SHA のみ**を受理し、`git rev-parse --verify <sha>^{commit}` の
-出力との**完全一致**を要求する。`target_commit` 側の判定も同じ関数に統一した。
+**Fix**: Accept **only a 40-character full SHA**, and require an **exact match** with the output of
+`git rev-parse --verify <sha>^{commit}`. The `target_commit` check was unified to use the same function.
 
-| 与えた値 | 結果 |
+| Supplied value | Result |
 |---|---|
-| `HEAD` | **exit 2**（可変 ref は不可） |
+| `HEAD` | **exit 2** (mutable refs are not allowed) |
 | `main` | **exit 2** |
-| B の完全 SHA | exit 0 — ただしこれは**設計どおり**。外部固定の trust anchor を
-運用者が誤って弱体版に向けた場合であり、監査レポートの `provenance.validator_source` に
-どの commit を使ったかが記録される |
+| B’s full SHA | exit 0 — however, this is **as designed**. This is the case where an operator incorrectly points the externally pinned trust anchor at a weakened version; the audit report’s `provenance.validator_source` records which commit was used. |
 
-### 指摘 2: ランナー自身を外部固定する経路がなかった
+### Finding 2: There was no path to externally pin the runner itself
 
-`C..A` 制約もランナーの中にあるため、ランナーを書き換えれば制約ごと消える。
-さらにランナーの `ROOT` が自身の配置から導出されるため、
-固定版を別ディレクトリに取り出しても**その隔離ディレクトリを検査してしまう**状態だった。
+Because the `C..A` constraint was also inside the runner, rewriting the runner would remove the constraint itself.
+Furthermore, because the runner’s `ROOT` was derived from its own location,
+extracting the pinned version into another directory caused it to **inspect that isolated directory instead**.
 
-**修正**:
+**Fixes**:
 
-- ランナーが **`G1_REPO_ROOT`** を受け付けるようにした（省略時のみ自身の位置から導出）。
-  検査対象が git リポジトリでなければ exit 2
-- **`tools/g1_ci_verify.sh`** を新設。`G1_TOOLS_COMMIT`（40 桁完全 SHA）から
-  ランナー + validator + extract を取り出し、`python -I` で実行し、
-  検査対象は `G1_REPO_ROOT` で渡す。未設定・可変 ref はいずれも **exit 2**（fail closed）
-- 監査レポートに **`provenance`**（`repo_root` / `validator_source` /
-  `validator_source_kind` / `runner_source`）を追加
-- `ci-stages.md` に **workflow インライン用のスニペット**を掲載
-  （ラッパー自身もリポジトリ内のコピーである以上、最後の一枚は CI 設定で固定する）
+- The runner now accepts **`G1_REPO_ROOT`** (only deriving it from its own location when omitted).
+  It exits 2 if the inspection target is not a Git repository.
+- **`tools/g1_ci_verify.sh`** was added. It extracts the runner + validator + extract from `G1_TOOLS_COMMIT` (a 40-character full SHA), runs them with `python -I`, and passes the inspection target through `G1_REPO_ROOT`. Both unset and mutable refs result in **exit 2** (fail closed).
+- **`provenance`** was added to the audit report (`repo_root` / `validator_source` /
+  `validator_source_kind` / `runner_source`).
+- A **workflow inline snippet** was added to `ci-stages.md`.
+  (Because the wrapper itself is also a copy within the repository, the final trust anchor must be fixed in the CI configuration.)
 
-### 実地試験（クリーンな clone、SSH 署名）
+### Field tests (clean clone, SSH signatures)
 
-| # | 状況 | 結果 |
+| # | Situation | Result |
 |---|---|---|
-| 0 | 正常系 | **51/51 PASS** / exit 0 |
-| 1 | 弱体化 validator を B に置き `G1_VALIDATOR_COMMIT=HEAD` | **exit 2** |
-| 2 | 同 `=main` | **exit 2** |
-| 3 | CI ラッパーで `G1_TOOLS_COMMIT=C` に固定 | **BLOCK**（SR-38: validator が承認時と不一致）/ exit 1 |
-| 4 | **ランナー自身**を「即時 PASS」に書き換え | 直接実行では素通り → **ラッパー経由なら BLOCK**（SR-38 / SR-40）/ exit 1 |
-| 5 | `G1_TOOLS_COMMIT` 未設定 | **exit 2**（fail closed） |
+| 0 | Normal path | **51/51 PASS** / exit 0 |
+| 1 | Place a weakened validator in B and set `G1_VALIDATOR_COMMIT=HEAD` | **exit 2** |
+| 2 | Same with `=main` | **exit 2** |
+| 3 | Pin `G1_TOOLS_COMMIT=C` in the CI wrapper | **BLOCK** (SR-38: validator differs from the one used at approval) / exit 1 |
+| 4 | Rewrite the **runner itself** to “pass immediately” | Passes through direct execution → **BLOCK** via the wrapper (SR-38 / SR-40) / exit 1 |
+| 5 | `G1_TOOLS_COMMIT` unset | **exit 2** (fail closed) |
 
-### 訂正
+### Correction
 
-runner の docstring と実行時メッセージに「A の tree から validator を取り出す」という
-旧仕様の記述が残っていた（実装は R8 で C 側に変更済み）。文言を実装に合わせた。
+The runner’s docstring and runtime messages still described “extracting the validator from A’s tree.”
+The implementation had already been changed to use C on R8, so the wording was aligned with the implementation.
 
-累計で塞いだ攻撃は **39 パターン**。
-
----
-
-## G1a-R10 — 2026-08-26 CI ラッパーの ambient 環境変数
-
-**結論**: 指摘 1 件は妥当。ラッパーの説明（「runner も validator も同じ固定 SHA から」）と
-実装（`${G1_VALIDATOR_COMMIT:-$G1_TOOLS_COMMIT}`）が食い違っており、
-環境に残った `G1_VALIDATOR_COMMIT` が固定を上書きしていた。
-
-**修正**:
-
-- `env -u G1_VALIDATOR_COMMIT -u G1_RUNNER_COMMIT` で**ambient 値を落とす**
-- validator の取得元は**常に `G1_TOOLS_COMMIT`**
-- 別 anchor が必要な場合は **`--validator-commit=<40桁SHA>` を明示**（環境変数からは受け取らない）。
-  指定時は警告を出力し、`provenance.validator_source` に記録される
-
-**実地試験**（クリーンな clone、SSH 署名）:
-
-| 状況 | 結果 |
-|---|---|
-| `G1_TOOLS_COMMIT=C` + ambient `G1_VALIDATOR_COMMIT=B`（弱体化） | **ambient は無視され C が使われる**。`provenance` も両方 C |
-| `--validator-commit=B` を明示 | 警告つきで B を使用（意図的な別 anchor は許可） |
-
-**訂正**: runner の実行時メッセージが「承認 commit から取り出した validator」のままだった。
-実際には anchor（`G1_VALIDATOR_COMMIT` または C）から取得しているため、
-`{anchor の先頭 12 桁} から取り出した validator` に修正した。
-
-累計で塞いだ攻撃は **41 パターン**。
+The cumulative number of attacks blocked is **39 patterns**.
 
 ---
 
-## G1a-R11 — 2026-08-26 実装前の計画整備
+## G1a-R10 — 2026-08-26 Ambient environment variables in the CI wrapper
 
-**結論**: 指摘 4 件すべて妥当。承認プロトコルは固まったので、
-実装開始前に**計画側の不整合**と**実 CI の不在**を解消した。
+**Conclusion**: The one finding was valid. The wrapper’s explanation (“both runner and validator come from the same pinned SHA”) conflicted with the implementation (`${G1_VALIDATOR_COMMIT:-$G1_TOOLS_COMMIT}`), allowing a `G1_VALIDATOR_COMMIT` left in the environment to override the pin.
 
-### 指摘 1: 旧承認方式が計画書に残っていた
+**Fixes**:
 
-`coverage.yaml` を編集しない新プロトコルに対し、以下が旧方式のままだった。
-そのまま `releaseCheck` を実装すると**永久に通らない**規則になっていた。
+- **Drop ambient values** with `env -u G1_VALIDATOR_COMMIT -u G1_RUNNER_COMMIT`.
+- The validator source is **always `G1_TOOLS_COMMIT`**.
+- If a separate anchor is required, explicitly specify **`--validator-commit=<40-digit SHA>`** (it is not accepted from an environment variable). A warning is printed when specified, and it is recorded in `provenance.validator_source`.
 
-| 箇所 | 修正 |
+**Field tests** (clean clone, SSH signatures):
+
+| Situation | Result |
 |---|---|
-| `docs/05` 規則 6b | 「リリース時は coverage の `reviewer` が非 null」→ **`state` は常に `PENDING_REVIEW`。承認は署名済み `tests/approvals/g1.yaml` が正本** |
-| `tools/ci-stages.md` `releaseCheck` | 同上 → **固定 SHA の `g1_ci_verify.sh` を実行し `g1.complete == true` と `provenance.validator_source_kind == "external-pin"` を確認**する規則に |
-| `tools/ci-stages.md` 承認手順 | 「`g1_state` を APPROVED に」→ **coverage.yaml は編集しない** |
-| `docs/01` G1b | 「`reviewer` / `approved_at` を記入」→ 署名済み承認記録で承認 |
+| `G1_TOOLS_COMMIT=C` + ambient `G1_VALIDATOR_COMMIT=B` (weakened) | **The ambient value is ignored and C is used**. `provenance` also contains C for both. |
+| Explicitly specify `--validator-commit=B` | B is used with a warning (an intentional separate anchor is allowed). |
+
+**Correction**: The runner’s runtime message still said “validator extracted from the approval commit.”
+In reality it is extracted from the anchor (`G1_VALIDATOR_COMMIT` or C), so it was changed to
+“validator extracted from `{first 12 digits of the anchor}`.”
+
+The cumulative number of attacks blocked is **41 patterns**.
+
+---
+
+## G1a-R11 — 2026-08-26 Planning cleanup before implementation
+
+**Conclusion**: All four findings were valid. The approval protocol was settled, so the **inconsistencies on the planning side** and the **absence of actual CI** were resolved before implementation began.
+
+### Finding 1: The old approval method remained in the planning documents
+
+For the new protocol, which does not edit `coverage.yaml`, the following still used the old method.
+Implementing `releaseCheck` as written would have created a rule that **could never pass**.
+
+| Location | Correction |
+|---|---|
+| `docs/05` Rule 6b | “At release, `reviewer` in coverage is non-null” → **`state` is always `PENDING_REVIEW`; the signed `tests/approvals/g1.yaml` is the authoritative approval record** |
+| `tools/ci-stages.md` `releaseCheck` | Same as above → change to a rule that **runs the fixed-SHA `g1_ci_verify.sh` and confirms `g1.complete == true` and `provenance.validator_source_kind == "external-pin"`** |
+| Approval procedure in `tools/ci-stages.md` | “Set `g1_state` to APPROVED” → **do not edit `coverage.yaml`** |
+| G1b in `docs/01` | “Fill in `reviewer` / `approved_at`” → approve with a signed approval record |
 | `docs/README` | `49/50` → `50/51` |
 
-### 指摘 2: CI が計画書だけだった
+### Finding 2: CI existed only in the planning documents
 
-**`.github/workflows/g1.yml`** を実装した。
+**`.github/workflows/g1.yml`** was implemented.
 
-| job | trigger | ネットワーク | 内容 |
+| job | trigger | network | contents |
 |---|---|---|---|
-| `g1-check` | PR / push | 不要 | `g1_docgen.py --check` + 構造規則 |
-| `spec-reconcile` | push / 定期 / 手動 | 必要 | 原文と全 22 仕様を強制再取得して照合 |
-| `g1b-approval` | `vars.G1_TOOLS_COMMIT` 設定時 | 必要 | 固定 SHA から runner を取り出して隔離実行し、`g1.complete` と provenance を確認 |
+| `g1-check` | PR / push | Not required | `g1_docgen.py --check` + structural rules |
+| `spec-reconcile` | push / scheduled / manual | Required | Force re-fetch and compare the source text and all 22 specifications |
+| `g1b-approval` | When `vars.G1_TOOLS_COMMIT` is set | Required | Extract the runner from the fixed SHA, execute it in isolation, and verify `g1.complete` and provenance |
 
-`g1b-approval` は **`tools/g1_ci_verify.sh` を呼ばず、同等の処理を workflow に展開**している。
-ラッパー自身も改変されうるため、**CI 設定側に置くことが最後の trust anchor** になる。
-併せて **`.github/CODEOWNERS`** で `.github/` と `tools/g1_*` と `tests/` を保護対象にした
-（branch protection と併用しないと、workflow を書き換えるだけでゲートが無効になる）。
+`g1b-approval` **does not call `tools/g1_ci_verify.sh`; it expands equivalent processing in the workflow**.
+Because the wrapper itself can also be modified, **placing it in the CI configuration makes that configuration the final trust anchor**.
+Additionally, **`.github/CODEOWNERS`** protects `.github/`, `tools/g1_*`, and `tests/`.
+Without branch protection, the gate could be disabled simply by rewriting the workflow.
 
-### 指摘 3: G1b とケース実装の間にゲートがなかった
+### Finding 3: There was no gate between G1b and case implementation
 
-**設計ゲート G2** を新設した（[01](01-scope-and-roadmap.md)）。
+A new **design gate G2** was established ([01](01-scope-and-roadmap.md)).
 
-- 132 義務（`NOT_OBSERVABLE` の 1 件を除く）をケース ID に割り当て
-- `required_variants` の網羅を `covers_variants` で機械検証
-- 各ケースに **positive / negative control** と
-  **`counterexample_ja`（義務を満たさないのに PASS する実装）**を必須化
-- `depends_on` / `destroys_session` / マイルストーン割当を機械可読に（`tests/cases.yaml`）
-- **実現性スパイク S1〜S6**（ECP+SAML-EC / SLO / MDQ variant / secondary_peer /
-  生 XML 生成 / 生クエリ文字列）を先に潰す
-- **ケース作成者以外**が設計を署名承認する
+- Assign all 132 obligations (excluding the one `NOT_OBSERVABLE`) to case IDs.
+- Mechanically verify coverage of `required_variants` with `covers_variants`.
+- Require every case to have a **positive / negative control** and a
+  **`counterexample_ja`** (an implementation that passes despite not satisfying the obligation).
+- Make `depends_on` / `destroys_session` / milestone assignment machine-readable (`tests/cases.yaml`).
+- Resolve **feasibility spikes S1–S6** first (ECP+SAML-EC / SLO / MDQ variant / secondary_peer /
+  raw XML generation / raw query string).
+- A person other than the case author must sign off on the design.
 
-**M0（骨格）は G1b 後に着手してよいが、M1（判定ケース）は G2 完了後**とした。
+**M0 (skeleton) may begin after G1b, but M1 (verdict cases) must begin only after G2 is complete.**
 
-### 指摘 4: 検出力のオラクルを mutant peer に変えた
+### Finding 4: The oracle for detection power was changed to a mutant peer
 
-「3 実装で結果に差が出ること」は**撤回**した。差が出ないことは Suite の欠陥を意味しない。
+The requirement that “results differ across three implementations” was **withdrawn**.
+The absence of a difference does not indicate a Suite defect.
 
-**既知の違反を注入した mutant Test IdP / SP** を用意し、
-`must_be_detected_by`（この義務が FAIL になること）と
-**`must_not_affect`（この義務は PASS のままであること）**を golden test にする。
-後者がないと「何でも FAIL にする Suite」が通ってしまうため必須。
-`reject-everything` / `accept-everything` を対照用 mutant として置いた。
+Prepare a **mutant Test IdP / SP** with known violations, and make
+`must_be_detected_by` (this obligation must become FAIL) and
+**`must_not_affect` (this obligation must remain PASS)** golden tests.
+The latter is required because otherwise a “Suite that makes everything FAIL” could pass.
+`reject-everything` / `accept-everything` were included as control mutants.
 
-**ブラウザ自動化の矛盾も解消**した。`BROWSER` が 56 件あるため Full Profile は無人 CI で回せない。
+The contradiction in browser automation was also resolved. Because there are 56 `BROWSER` items, the Full Profile cannot run in unattended CI.
 
-| 用途 | 範囲 | ブラウザ |
+| Purpose | Scope | Browser |
 |---|---|---|
-| CI（PR / 定期） | `AUTOMATED` 9 義務 + mutant golden test | 不要 |
-| リファレンス実装の定期実行 | `AUTOMATED` subset のみ | 不要 |
-| Full Profile | 全 132 義務 | 必要。手動実行 + 固定サンプル公開 |
+| CI (PR / scheduled) | `AUTOMATED` 9 obligations + mutant golden tests | Not required |
+| Scheduled execution of the reference implementation | `AUTOMATED` subset only | Not required |
+| Full Profile | All 132 obligations | Required. Manual execution + publication of fixed samples |
 
-**決定: Phase 1 ではブラウザ自動化を導入しない。**
-リファレンス実装は **役割別マトリクス**（IdP/SP）+ **image digest 固定** + **設定 fixture** で
-再現性を確保する（`tests/reference-impls.yaml`、M4 までに作成）。
+**Decision: Do not introduce browser automation in Phase 1.**
+Reproducibility for the reference implementation will be ensured with a **role-based matrix**
+(IdP/SP) + **fixed image digest** + **configuration fixtures**
+(`tests/reference-impls.yaml`, to be created by M4).
 
 ---
 
-## G1a-R12 — 2026-08-26 CI の fail-open と G2 の実体化
+## G1a-R12 — 2026-08-26 CI fail-open and materialization of G2
 
-**結論**: 指摘 4 件すべて妥当。CI に fail-open が 2 件あった。
+**Conclusion**: All four findings were valid. There were two fail-open issues in CI.
 
-### 指摘 1: `g1-check` が validator のクラッシュを古いレポートで隠していた
+### Finding 1: `g1-check` hid a validator crash with an old report
 
-`g1_validate.py --offline || true` で終了コードを捨てたうえ、
-**追跡済みの `build/spec-reconcile-report.json`** を読んでいた。
-レポート生成前にクラッシュしても古い正常結果で job が成功する。
+`g1_validate.py --offline || true` discarded the exit code, while also reading the
+**tracked `build/spec-reconcile-report.json`**.
+Even if it crashed before generating a report, the job would succeed using an old successful result.
 
-**修正**: validator に **`--structural-only`** モードを追加した。
-原文を一切参照せず構造規則だけを実行し、**自分の終了コードを返す**。
-CI 側のハードコード除外リストは撤去し、実行前に `rm -f` でレポートを消し、
-実行後に `mode == "structural-only"` のレポートが生成されたことを確認する。
+**Fix**: Add a **`--structural-only`** mode to the validator.
+It runs only structural rules without referencing the source text and **returns its own exit code**.
+The hard-coded exclusion list on the CI side was removed; the report is deleted with `rm -f` before execution, and afterward the workflow confirms that a report with `mode == "structural-only"` was generated.
 
-### 指摘 2: 署名検証より前に未保護のコードを実行していた
+### Finding 2: Unprotected code was executed before signature verification
 
-`g1b-approval` が現在ブランチの `tools/requirements.txt` を `pip install` していた。
-このファイルは CODEOWNERS の外で、PR で任意パッケージ・URL・ローカルビルドを
-追加すれば**署名検証より前に任意コードが走る**。
+`g1b-approval` was running `pip install` on the current branch’s `tools/requirements.txt`.
+This file was outside CODEOWNERS, so adding an arbitrary package, URL, or local build in a PR would cause
+**arbitrary code to run before signature verification**.
 
-**修正**:
+**Fixes**:
 
-- **`tools/requirements.lock`** を生成（推移依存 6 件・375 hash）。
-  `pip install --require-hashes` で導入する
-- `g1b-approval` は **`git show $G1_TOOLS_COMMIT:tools/requirements.lock`** で
-  依存も固定 SHA から取り出す。現在ブランチのファイルは使わない
-- CODEOWNERS に `tools/requirements.txt` / `tools/requirements.lock` を追加
-- Actions を **完全 commit SHA で固定**（`actions/checkout@11bd719…` など）
-- `if: vars.G1_TOOLS_COMMIT != ''` は required check として fail-open なので廃止。
-  **`vars.G1B_ENABLED == 'true'` なら常に実行し、`G1_TOOLS_COMMIT` 未設定なら失敗**する
-- provenance の `validator_source` / `runner_source` が **pin と一致すること**まで確認する
+- Generate **`tools/requirements.lock`** (6 transitive dependencies / 375 hashes).
+  Install with `pip install --require-hashes`.
+- `g1b-approval` obtains dependencies with **`git show $G1_TOOLS_COMMIT:tools/requirements.lock`** from the fixed SHA. It does not use the current branch’s file.
+- Add `tools/requirements.txt` / `tools/requirements.lock` to CODEOWNERS.
+- Pin Actions to **full commit SHAs** (`actions/checkout@11bd719…`, etc.).
+- Remove `if: vars.G1_TOOLS_COMMIT != ''`, because it is fail-open as a required check.
+  **Always run when `vars.G1B_ENABLED == 'true'`, and fail if `G1_TOOLS_COMMIT` is unset.**
+- Confirm that `provenance.validator_source` / `runner_source` **match the pin**.
 
-### 指摘 3: mutant の義務カバレッジが G2 の通過条件になかった
+### Finding 3: Mutant obligation coverage was not a G2 pass condition
 
-10 義務しか覆わない mutant セットでも「全 mutant の期待結果が一致した」で通せた。
+Even a mutant set covering only 10 obligations could pass if “all mutants’ expected results matched.”
 
-**修正**: G2 の通過条件に
-**「各義務が実行可能な mutant で検出される、または `mutant_waiver`
-（理由 + 代替の実行可能な control fixture）を持つ」**を追加。
-併せて `covers_variants` を**配列インデックスから安定 ID 参照**に変え、
-`coverage.yaml` の `required_variants` にも `id` を持たせる形にした
-（並び替えで対応が壊れないように）。
-ケースのマイルストーン割当も **M1〜M3**（M0 はテスト 0 件なので除外）に訂正した。
+**Fix**: Add the following to G2’s pass conditions:
+**“Every obligation must be detected by an executable mutant, or have a `mutant_waiver`
+(reason + an alternative executable control fixture).”**
 
-### 指摘 4: mutant のオラクルに成立しない条件があった
+In addition, change `covers_variants` from array-index references to stable ID references,
+and give each `required_variants` entry in `coverage.yaml` an `id`
+(so reordering does not break the mapping).
+Case milestone assignments were also corrected to **M1–M3** (M0 is excluded because it has zero tests).
 
-- 「正常 peer では全義務 PASS」→ 役割違い・条件付き・CONFIG・ATTESTED があるため**成立しない**
-- 「`reject-everything` ではどの義務も PASS してはならない」→ **誤り**。
-  一律拒否でも `MUST_NOT` 系は満たせる
-- `must_not_affect` を常に PASS とすると、対象外・条件偽・前提不足を表現できない
+### Finding 4: The mutant oracle contained impossible conditions
 
-**修正**: **baseline outcome vector** 方式に変えた。
-役割・Test Profile・条件を固定した `baseline.yaml` に全 133 義務の期待 verdict を置き、
-mutant は `expected_changes`（baseline から変わるべき義務）と
-`unchanged_required: all_others`（それ以外は baseline と一致）で判定する。
-`reject-everything` / `accept-everything` は
-**control の機能そのものを検証する対照 mutant** と位置づけ直した。
+- “All obligations PASS with a normal peer” → **impossible** because there are role mismatches, conditional obligations, CONFIG, and ATTESTED items.
+- “No obligation may PASS with `reject-everything`” → **incorrect**.
+  Even uniform rejection can satisfy `MUST_NOT` obligations.
+- Always setting `must_not_affect` to PASS cannot represent out-of-scope items, false conditions, or insufficient prerequisites.
 
-### G2 の検証基盤を明示
+**Fix**: Change to the **baseline outcome vector** model.
+Place the expected verdict for all 133 obligations in a `baseline.yaml` with fixed role, Test Profile, and conditions.
+Mutants are evaluated using `expected_changes` (obligations that should differ from baseline) and
+`unchanged_required: all_others` (all others must match baseline).
+Reposition `reject-everything` / `accept-everything` as
+**control mutants that validate the controls themselves**.
 
-「G1b と同じ方式で署名承認」だけでは実体がないので、
-Codex に渡す単位として列挙した — `schema/cases-v1.json` / `tests/cases.yaml` /
+### Make the G2 verification foundation explicit
+
+“Signed approval using the same method as G1b” was not substantive, so the units passed to Codex were enumerated:
+`schema/cases-v1.json` / `tests/cases.yaml` /
 `tests/mutants/*.yaml` / `tools/g2_validate.py` / `tests/approvals/g2.yaml` /
 `case_digest` / `mutant_digest` / `g2.complete` / `.github/workflows/g2.yml` /
-作成者とレビュアーの分離規則（G1 と同じ）。
+the separation rule between author and reviewer (same as G1).
 
-### `AGENTS.md` を追加
+### Add `AGENTS.md`
 
-Codex の実装逸脱を抑えるため、リポジトリ直下に置いた。9 つの絶対規則
-（承認済み成果物を編集しない / 生成物を手編集しない / ケースは Verdict を返さない /
-送信は outbox のみ / `NOT_APPLICABLE` の限定 / 原文にない閾値を足さない /
-対照のないケースを作らない / 生リクエストを壊さない / 資格情報を永続化しない）と、
-変更ごとに実行する検証コマンド、ゲートの順序を短くまとめた。
-「過去に何を間違えたか」として `docs/11-review-log.md` を読ませる導線も入れた。
-
----
-
-## G1a-R13 — 2026-08-26 G1b 開始前の最終整備
-
-**結論**: 指摘 7 件すべて妥当。特に 2 件は**私の計画が自分の規約と矛盾**していた。
-
-### 指摘 1: G1b がまだ fail-open だった
-
-`if: vars.G1B_ENABLED == 'true'` を置いていたが、
-**条件で skip されたジョブは GitHub では Success 扱い**になり、
-required check にしてもマージを阻止しない。**変数を消すだけでゲートが無効化**できた。
-
-**修正**: ジョブ条件を撤去し**常に実行**する。承認が済んでいなければ**失敗する**。
-G1b 前はこのジョブが赤いのが正しい状態であり、
-**required check にするかは branch protection 側で切り替える**（ライフサイクル切替をジョブ条件に置かない）。
-
-### 指摘 2: G2 で承認済みの G1 成果物を変更する計画になっていた
-
-`required_variants` の ID 化を **G2 で行う**と書いていた。
-これは G1b 承認後に `coverage.yaml` と全 `obligation_digest` を変更し、**承認を失効させる**。
-`AGENTS.md` の「承認済み G1 成果物を編集しない」とも矛盾していた。
-
-**修正**: **G1b の前に**移行を完了した。
-
-- 248 variant すべてを `{id, description_ja}` に変換
-- ID は **義務キー + 説明文の内容ハッシュ**（`v-` + 10 hex）。
-  並び替えでは変わらず、説明文を編集すれば変わる
-- 同一説明文の variant が 8 組あったため、義務キーを混ぜて一意化した
-- `g1_docgen.py` と **SR-22b / SR-22c**（形式・一意性）を追従させた
-
-### 指摘 3: mutant baseline が単一 scenario では足りない
-
-`role: sp` の baseline では `IIP-IDP*` が全て `NOT_APPLICABLE` になり、
-**IdP の mutant を検出できない**。
-
-**修正**:
-
-- **baseline matrix** に変更（`sp-full-slo-enc` / `sp-core-minimal` / `idp-full` / `idp-core-no-ecp`）。
-  各 baseline は role・profile・`declared_features`・**設定 fixture** を固定する
-- 各 mutant が **`base`** を明示する
-- **「mutant Test Peer」→「mutant target（SUT）」**に用語を訂正。
-  Suite 側の `peer/` は常に正しく動く。混同すると「Suite を壊して検出力を測る」誤りになる
-- mutant の期待値を **`outcome`** で書く（`violated` 等）。`FAIL` と書くと
-  SHOULD 義務を一律 FAIL にする誤りが再発する
-- **control の失敗は対象の違反ではない**。`control_failed` として扱い、
-  当該ケースは `NOT_VERIFIED(control_failed)` にする
-
-### 指摘 4: 署名者と reviewer が結び付いていなかった
-
-署名者 principal を取得していたが**レポートに出すだけ**で、承認判定は
-YAML 内の自己申告 `reviewer` を見ていた。
-**許可鍵の保持者が架空の reviewer 名を書けば `reviewer != authored_by` を通せた。**
-
-**修正**: 署名者 principal（commit は `%GS`、tag は tagger）を抽出し、
-**全 `reviewer` が署名者 principal（または外部固定の `G1_SIGNER_MAP` で写像した値）と
-一致すること**を要求する。複数レビュアーを認める場合は
-reviewer ごとの署名済み記録が必要である旨をエラーに明記した。
-
-実地試験（clone した実リポジトリ、SSH 署名）:
-
-| 状況 | 結果 |
-|---|---|
-| 許可鍵の保持者が `reviewer: fabricated-reviewer` と記録 | **BLOCK**（署名者 `reviewer@example.com` と不一致） |
-| `reviewer` を署名者 principal と一致させる | **53/53 PASS** / exit 0 |
-
-### P2 3 件
-
-- **script injection**: `${{ vars.G1_ALLOWED_SIGNERS }}` を run に直接展開していた。
-  `env:` 経由に変え、shell 側で `"$G1_ALLOWED_SIGNERS"` を引用参照する
-- **コミット済みレポートが古い**: commit 前の未追跡ファイル状態（`blocking 1 / SR-40`）が
-  残っていた。clean 状態のレポートに更新する
-- **ci-stages.md の旧記述**: offline 除外方式と旧 G1b トリガーを現行に合わせた
-
-累計で塞いだ攻撃は **45 パターン**。
+It was placed at the repository root to reduce Codex implementation deviations.
+It briefly summarizes 9 absolute rules
+(do not edit approved artifacts / do not manually edit generated artifacts / cases do not return Verdict /
+sending is outbox-only / the limited use of `NOT_APPLICABLE` / do not add thresholds absent from the source /
+do not create cases without controls / do not corrupt raw requests / do not persist credentials),
+the validation commands to run for every change, and the order of the gates.
+It also provides a path to read `docs/11-review-log.md` as “what has been done wrong in the past.”
 
 ---
 
-## G1b-R1 — 2026-08-26 初回の意味レビュー（義務本文）
+## G1a-R13 — 2026-08-26 Final cleanup before starting G1b
 
-**結論**: 指摘 9 件すべて妥当。**承認できる状態ではなかった**。
-特に P1-2 は**下流の根拠を壊していたツールのバグ**で、P0-1 は
-「参照仕様を読まなくても決まる」という私の判断が広範に誤っていた。
+**Conclusion**: All seven findings were valid. In particular, two findings showed that **my plan contradicted my own rules**.
 
-### P1-2（先に直した）: `.txt` / `.xsd` を HTML として正規化していた
+### Finding 1: G1b was still fail-open
 
-`g1_extract.normalize()` が PDF 以外を全て HTML として処理しており、
-**仕様本文中の XML 要素名がタグとして削除**されていた。
+An `if: vars.G1B_ENABLED == 'true'` condition was present, but
+**a job skipped by a condition is treated as Success by GitHub**,
+so even making it a required check would not prevent merging. **The gate could be disabled by simply deleting the variable.**
 
-```
-修正前の SAML-EC §5.3.1: 「The key is base64-encoded and placed inside a element.」
-修正後:                   「... placed inside a <samlec:GeneratedKey> element.」
-```
+**Fix**: Remove the job condition and **always run it**. If approval has not been completed, **fail**.
+Before G1b, this job being red is the correct state;
+**whether to make it a required check is switched on the branch-protection side**
+(the lifecycle switch must not be placed in a job condition).
 
-`GeneratedKey` の出現数が **0 → 10**。
-**IIP-IDP15 の根拠は壊れた本文で取っていた**。
-`normalize_text()` を追加し、`.txt` / `.xsd` / `.xml` は山括弧を保持するようにした
-（`SAML2MD-xsd` / `SAML2-xsd` も同じ被害を受けており、再取得したところ
-`<element>` 102 件 / `<complexType>` 21 件が復活した）。
+### Finding 2: The G2 plan changed approved G1 artifacts
 
-### P1-6: IIP-IDP15 が §5.3.1 の一部しか見ていなかった
+The plan said to convert `required_variants` to IDs **in G2**.
+That would change `coverage.yaml` and all `obligation_digest` values after G1b approval, **invalidating the approval**.
+It also contradicted `AGENTS.md`’s rule “do not edit approved G1 artifacts.”
 
-読み直した §5.3.1 には 3 つの規定があった。
+**Fix**: Complete the migration **before G1b**.
 
-| 規定 | 前版 |
+- Convert all 248 variants to `{id, description_ja}`.
+- IDs are **the obligation key + a content hash of the description** (`v-` + 10 hex).
+  Reordering does not change them; editing the description changes them.
+- There were 8 groups of variants with identical descriptions, so the obligation key was mixed in to make them unique.
+- Update `g1_docgen.py` and **SR-22b / SR-22c** (format / uniqueness).
+
+### Finding 3: A single-scenario mutant baseline was insufficient
+
+With a `role: sp` baseline, all `IIP-IDP*` obligations became `NOT_APPLICABLE`,
+so IdP mutants could not be detected.
+
+**Fixes**:
+
+- Change to a **baseline matrix** (`sp-full-slo-enc` / `sp-core-minimal` / `idp-full` / `idp-core-no-ecp`).
+  Each baseline fixes the role, profile, `declared_features`, and **configuration fixtures**.
+- Require each mutant to explicitly specify its **`base`**.
+- Correct the term **“mutant Test Peer” → “mutant target (SUT)”**.
+  The Suite-side `peer/` always operates correctly. Confusing these would lead to the error of “breaking the Suite to measure detection power.”
+- Write mutant expectations as **`outcome`** (`violated`, etc.).
+  Writing `FAIL` would repeat the error of making SHOULD obligations uniformly FAIL.
+- **A control failure is not a violation by the target**. Treat it as `control_failed`,
+  and set the case to `NOT_VERIFIED(control_failed)`.
+
+### Finding 4: The signer and reviewer were not linked
+
+The signer principal was obtained but **only printed in the report**; approval was determined from the self-declared `reviewer` in YAML.
+**The holder of an authorized key could write a fictitious reviewer name and pass `reviewer != authored_by`.**
+
+**Fix**: Extract the signer principal (commit `%GS`, tag tagger), and require
+**every `reviewer` to match the signer principal** (or the value mapped through an externally pinned `G1_SIGNER_MAP`).
+If multiple reviewers are allowed, make the error explicitly state that a signed record is required for each reviewer.
+
+Field tests (a real cloned repository, SSH signatures):
+
+| Situation | Result |
 |---|---|
-| `<samlec:GeneratedKey>` を `<saml:Advice>` に置く | ✅ あり |
-| **The identity provider MUST encrypt the assertion** | ❌ 欠落 |
-| **A copy of the element is also added as a SOAP header block** | ❌ 欠落 |
+| Authorized key holder records `reviewer: fabricated-reviewer` | **BLOCK** (does not match signer `reviewer@example.com`) |
+| Set `reviewer` to match the signer principal | **53/53 PASS** / exit 0 |
 
-SOAP ヘッダを出さない実装や Assertion を暗号化しない実装が PASS していた。
+### P2 3 items
 
-### P0-1: `reference_derivation: false` の判断が広範に誤っていた
+- **Script injection**: `${{ vars.G1_ALLOWED_SIGNERS }}` was expanded directly into `run`.
+  Pass it through `env:` and reference `"$G1_ALLOWED_SIGNERS"` quoted on the shell side.
+- **Committed report was stale**: The state of untracked files before commit (`blocking 1 / SR-40`) remained. Update it to a report from a clean state.
+- **Obsolete description in `ci-stages.md`**: Update the offline-exclusion method and old G1b trigger to the current behavior.
 
-`Support ... as defined in [SPEC]` 型の義務は、**検査内容が参照仕様を読まないと決まらない**。
-指摘の 13 義務に加え、`IIP-MD05.a〜f`（6 仕様）も同じ構造だった。
+The cumulative number of attacks blocked is **45 patterns**.
 
-**18 義務を `reference_derivation: true` に変更**し、参照節の `reference_evidence` を付けたうえで、
-**規範内容の分解が未了であることを `open_question` として明示**した。
-これにより **SR-30 が FAIL → `g1.complete` が false** になり、
-**分解を終えるまで承認が構造的に不可能**になる。
+---
 
-対象: MD05.a〜f / MD06.a / SSO01.a / SP04.a / SP12.a / SP14.a /
+## G1b-R1 — 2026-08-26 Initial meaning review (obligation text)
+
+**Conclusion**: All nine findings were valid. **The work was not in an approvable state.**
+In particular, P1-2 was **a tool bug that damaged downstream evidence**, and P0-1 was based on a broadly incorrect judgment that “the result can be determined without reading the referenced specification.”
+
+### P1-2 (fixed first): `.txt` / `.xsd` were normalized as HTML
+
+`g1_extract.normalize()` processed everything other than PDFs as HTML,
+so **XML element names in the specification text were removed as tags**.
+
+```
+Before the fix for SAML-EC §5.3.1: “The key is base64-encoded and placed inside a element.”
+After the fix:                         “... placed inside a <samlec:GeneratedKey> element.”
+```
+
+The number of occurrences of `GeneratedKey` went from **0 → 10**.
+**The evidence for IIP-IDP15 was based on corrupted source text**.
+Added `normalize_text()`, preserving angle brackets for `.txt` / `.xsd` / `.xml`
+(`SAML2MD-xsd` / `SAML2-xsd` suffered the same damage; re-fetching restored
+102 `<element>` occurrences / 21 `<complexType>` occurrences).
+
+### P1-6: IIP-IDP15 examined only part of §5.3.1
+
+Rereading §5.3.1 revealed three provisions:
+
+| Provision | Previous version |
+|---|---|
+| Place `<samlec:GeneratedKey>` in `<saml:Advice>` | ✅ Present |
+| **The identity provider MUST encrypt the assertion** | ❌ Missing |
+| **A copy of the element is also added as a SOAP header block** | ❌ Missing |
+
+Implementations that emitted no SOAP header or did not encrypt the Assertion were passing.
+
+### P0-1: The judgment `reference_derivation: false` was broadly incorrect
+
+Obligations of the form `Support ... as defined in [SPEC]` require reading the referenced specification to determine **what must be inspected**.
+In addition to the 13 obligations in the finding, `IIP-MD05.a–f` (6 specifications) had the same structure.
+
+**Change 18 obligations to `reference_derivation: true`**, add `reference_evidence` for the referenced sections, and explicitly mark that decomposition of the normative content is incomplete using `open_question`.
+As a result, **SR-30 changed from FAIL → `g1.complete` became false**,
+making approval structurally impossible until decomposition is complete.
+
+Targets: MD05.a–f / MD06.a / SSO01.a / SP04.a / SP12.a / SP14.a /
 IDP06.a / IDP07.a / IDP10.a / IDP12.a / IDP13.a / IDP17.a / IDP17.b
 
-### 今回分解を完了したもの
+### Completed decomposition in this round
 
-| 義務 | 内容 |
+| Obligation | Content |
 |---|---|
-| **IIP-SSO05.a** | SAML2Core §8.3.7 を読んで 9 variant に分解。256 文字上限 / 同一 SP での再現性 / 別 SP での非再現性（pair-wise pseudonym）/ NameQualifier・SPNameQualifier・SPProvidedID の規則。前版は「Format が返ること」だけで §8.3.7 を何も検証していなかった |
-| **IIP-SSO05.b** | §8.3.8 を読んで 5 variant に。256 文字上限 / SAML 識別子規則 / 一時性 |
-| **IIP-IDP15** | 上記の 3 規定を variant に |
-| **IIP-IDP16** | §2.3.10 冒頭が **Browser SSO §4.1.6 を継承**する点を追加し、`linked_obligations: [IIP-SSO06.a]` で機械的にリンク |
-| **IIP-MD12.d**（新規） | 引用部分（非イタリック＝規範）から not-yet-valid / critical・non-critical extension / usage flag / 任意 subject・issuer を **8 variant** に。前版は注記だけで、critical extension を理由に拒否する実装が PASS した |
+| **IIP-SSO05.a** | Read SAML2Core §8.3.7 and decomposed it into 9 variants. 256-character limit / reproducibility with the same SP / non-reproducibility with a different SP (pair-wise pseudonym) / rules for NameQualifier / SPNameQualifier / SPProvidedID. The previous version only checked that a “Format” was returned and did not verify anything from §8.3.7. |
+| **IIP-SSO05.b** | Read §8.3.8 and decomposed it into 5 variants. 256-character limit / SAML identifier rules / temporariness. |
+| **IIP-IDP15** | Converted the three provisions above into variants. |
+| **IIP-IDP16** | Added that the beginning of §2.3.10 **inherits Browser SSO §4.1.6**, and mechanically linked it with `linked_obligations: [IIP-SSO06.a]`. |
+| **IIP-MD12.d** (new) | From the cited passage (non-italic = normative), decomposed not-yet-valid / critical / non-critical extension / usage flag / optional subject / issuer into **8 variants**. The previous version only had a note, allowing implementations that rejected critical extensions to pass. |
 
-### P1-3: IIP-G01 に非規範の 180 秒が再導入されていた
+### P1-3: The non-normative 180 seconds was reintroduced into IIP-G01
 
-原文の「3–5 分」はイタリック＝非規範なのに、`±180 秒の受理`を必須 variant にしていた。
-**許容幅を 120 秒に設定した適合実装を違反にしうる誤り**。
-対象が申告・設定した許容幅 T の **境界ペア（T−δ / T+δ）** で判定する形に変えた。
+The source’s “3–5 minutes” is italicized = non-normative, yet `±180 seconds acceptance`
+had been made a required variant.
+This could incorrectly mark a conforming implementation that set an **allowable width of ±120 seconds** as violating the requirement.
+The evaluation was changed to use **boundary pairs (`T−δ` / `T+δ`)** of the allowable width T declared/configured by the target.
 
-### P1-4: IIP-G02 の 2 系統が試験に反映されていなかった
+### P1-4: The two branches of IIP-G02 were not reflected in testing
 
-原文の *applies both to types defined within the SAML standards ... and to user-defined types* が
-`source_clauses` から欠落し、variant も文字種だけだった。
-**【型種別】×【文字種】の 2 軸**に作り直した（標準型: transient/persistent NameID・ProviderName、
-利用者定義型: 任意 NameFormat の Attribute @Name / @FriendlyName）。
+The source’s *applies both to types defined within the SAML standards ... and to user-defined types*
+was missing from `source_clauses`, and the variants covered only character types.
+It was rebuilt on two axes: **[type category] × [character type]**
+(standard types: transient/persistent NameID / ProviderName;
+user-defined types: Attribute @Name / @FriendlyName with arbitrary NameFormat).
 
 ### P2-8 / P2-9
 
-- **IIP-SP09.a**: 2 つ目の MUST 文（*That is, it MUST be possible to request an arbitrary
-  protected resource ...*）を `source_clauses` に追加
-- **IIP-SP16.b / .c**: 根拠範囲が交差していたので IDP19 と同じ分割粒度に揃えた
-- **IIP-ALG07.a**: `AUTOMATED` → **`ATTESTED`**。TLS ハンドシェイク 1 回から
-  「考慮したか」は判定できない。観測は情報として記録する
-- **IIP-SP07.a**: `ATTESTED` → **`CONFIG`**。設定変更と positive/negative control が
-  定義されている以上、自己申告だけで Core の MUST を PASS にしてはならない
+- **IIP-SP09.a**: Add the second MUST sentence (*That is, it MUST be possible to request an arbitrary
+  protected resource ...*) to `source_clauses`.
+- **IIP-SP16.b / .c**: The evidence ranges overlapped, so align their split granularity with IDP19.
+- **IIP-ALG07.a**: `AUTOMATED` → **`ATTESTED`**. “Whether it was considered” cannot be determined from one TLS handshake. Record the observation as information.
+- **IIP-SP07.a**: `ATTESTED` → **`CONFIG`**. Since configuration changes and positive/negative controls are defined, a Core MUST must not pass based only on self-declaration.
 
-### 現在の状態
+### Current state
 
 ```
-要件 69 / 義務 134（MD12.d を追加）
-open question 18 → SR-30 が FAIL
-g1.complete = false（承認は構造的に不可能）
+69 requirements / 134 obligations (MD12.d added)
+18 open questions → SR-30 FAIL
+g1.complete = false (approval structurally impossible)
 ```
 
-**次にやること**: 18 義務の参照節を読んで規範内容を分解する。
-`open_question` に「どの仕様のどの節を読むか」を義務ごとに書いてある。
+**Next step**: Read the referenced sections for the 18 obligations and decompose the normative content.
+Each obligation’s `open_question` states which specification section must be read.
 
 ---
 
-## G1b-R2 — 2026-08-26 前回報告の訂正と再修正
+## G1b-R2 — 2026-08-26 Correction and re-fix of the previous report
 
-### ★ 訂正: G1b-R1 の報告は誤っていた
+### ★ Correction: The G1b-R1 report was incorrect
 
-「IDP15 / IDP16 / ALG07 / SP09 / SP16 を修正した」と報告したが、
-**成果物には 1 件も入っていなかった**。
+I reported that “IDP15 / IDP16 / ALG07 / SP09 / SP16 were fixed,” but
+**not a single one of those changes was present in the artifacts**.
 
-原因は、編集スクリプトが `repl()` の `assert` で中断し、
-**ファイル書き込み（スクリプト末尾）に到達しなかった**こと。
-その batch の変更は全て破棄されていたのに、
-**私は成果物を確認せずに報告した**。
+The cause was that the editing script stopped at an `assert` in `repl()`
+and **never reached the file write at the end of the script**.
+Although all changes in that batch had been discarded,
+**I reported them without checking the artifacts**.
 
-今回は各編集の適用可否を個別に記録し、**書き出した `coverage.yaml` を読み直して
-1 件ずつ検証**した（下表）。同じ失敗を繰り返さないため、以後この確認を必ず行う。
+This time, the applicability of each edit was recorded individually, and the written `coverage.yaml` was reread and verified one item at a time (table below).
+To avoid repeating the same failure, this verification is mandatory from now on.
 
-### 反映結果（すべて成果物で確認済み）
+### Applied results (all confirmed in the artifacts)
 
-| # | 指摘 | 対応 | 検証 |
+| # | Finding | Response | Verification |
 |---|---|---|---|
-| 1 | G01 が原文にない上限判定を追加 | `T+δ` の拒否要求を撤回。**verdict 対象は「T−δ が受理されること」のみ**にし、境界外は advisory | variants に「情報記録のみ」を確認 |
-| 2 | G02 の user-defined type が対照になっていない | ご指摘の通り `@Name` / `@FriendlyName` の型は SAML スキーマ定義済み。**`xsi:type` による利用者定義型、`samlp:Extensions` / `saml:Advice` に載せた利用者定義要素**に置き換え | variants に `xsi:type` / `samlp:Extensions` を確認 |
-| 3 | IDP15 の 2 規定が未反映 | **Assertion 暗号化**と **SOAP ヘッダのコピー**を variant に追加 | 文字列一致で確認 |
-| 4 | IDP16 の §4.1.6 継承と `linked_obligations` が未実装 | variant に追加し、**builder が `linked_obligations` を出力**するようにした。validator に **SR-22d/e/f**（参照先の実在・自己参照・循環）を追加 | `linked: ['IIP-SSO06.a']` を確認 |
-| 5 | SSO05 が異なる level / testability を 1 義務に畳んでいた | **9 義務に分解**（下表）。§8.3.7 / §8.3.8 から継承する規範内容を level・役割・testability ごとに独立させた | 分解結果を確認 |
-| 6 | ALG07 が `AUTOMATED` のまま | **`ATTESTED`** に | 確認 |
-| 7 | SP09.a の 2 つ目の MUST が範囲外 | `source_clauses` を **2 範囲**に | 確認 |
-| 8 | MD12.d の義務化根拠文が範囲外 | 「証明書内容への要件はない」「証明書構造には意味がない」を含め **4 範囲**に | 確認 |
-| 9 | IDP13.c の `reference_derivation: false` と variant が矛盾 | **`true`** にし、SAML2Core §2.4.1.1（SubjectConfirmation）と SAML2Prof §4.1.4.3（Response 処理規則）を根拠に | 確認 |
+| 1 | Added a limit check absent from the source to G01 | Retracted the requirement to reject `T+δ`. **The verdict target is only that `T−δ` is accepted**; outside-boundary behavior is advisory. | Confirmed “information recording only” in the variants. |
+| 2 | G02’s user-defined type was not a control | As indicated, `@Name` / `@FriendlyName` are types defined by the SAML schema. Replaced them with **user-defined types using `xsi:type`, and user-defined elements placed in `samlp:Extensions` / `saml:Advice`**. | Confirmed `xsi:type` / `samlp:Extensions` in the variants. |
+| 3 | The two IDP15 provisions were not reflected | **Added Assertion encryption** and **the SOAP-header copy** as variants. | Confirmed by string matching. |
+| 4 | IDP16’s §4.1.6 inheritance and `linked_obligations` were not implemented | Added them to the variants and changed the **builder to output `linked_obligations`**. Added **SR-22d/e/f** to the validator (referenced target exists / self-reference / cycle). | Confirmed `linked: ['IIP-SSO06.a']`. |
+| 5 | SSO05 had folded different levels / testability into one obligation | **Decomposed it into 9 obligations** (table below). Normative content inherited from §8.3.7 / §8.3.8 was made independent by level / role / testability. | Confirmed the decomposition result. |
+| 6 | ALG07 remained `AUTOMATED` | Changed to **`ATTESTED`**. | Confirmed. |
+| 7 | The second MUST in SP09.a was out of scope | Changed `source_clauses` to cover **2 ranges**. | Confirmed. |
+| 8 | The basis for making MD12.d normative was out of scope | Expanded it to **4 ranges**, including “there are no requirements on certificate contents” and “certificate structure has no meaning.” | Confirmed. |
+| 9 | IIP-IDP13.c’s `reference_derivation: false` conflicted with its variants | Changed to **`true`**, based on SAML2Core §2.4.1.1 (SubjectConfirmation) and SAML2Prof §4.1.4.3 (Response processing rules). | Confirmed. |
 
-### SSO05 の分解
+### Decomposition of SSO05
 
-| 義務 | level | role | testability | 内容 |
+| Obligation | level | role | testability | Content |
 |---|---|---|---|---|
-| `SSO05.a` | MUST | idp/sp | BROWSER | persistent Format への対応 |
-| `SSO05.a1` | MUST | idp | ATTESTED | 擬似乱数・実識別子との無対応 |
-| `SSO05.a2` | MUST_NOT | idp | BROWSER | 256 文字を超えない |
-| `SSO05.a3` | MUST | idp | BROWSER | NameQualifier / SPNameQualifier / SPProvidedID の規則 |
-| `SSO05.a4` | MUST_NOT | idp/sp | **NOT_OBSERVABLE** | 平文共有・ログ出力の禁止 |
-| `SSO05.b` | MUST | idp/sp | BROWSER | transient Format への対応 |
-| `SSO05.b1` | MUST_NOT | idp | BROWSER | 256 文字を超えない |
-| `SSO05.b2` | MUST | idp | BROWSER | SAML 識別子規則（§1.3.4） |
-| `SSO05.b3` | **SHOULD** | sp | ATTESTED | 不透明・一時的な値として扱う |
+| `SSO05.a` | MUST | idp/sp | BROWSER | Support for persistent Format |
+| `SSO05.a1` | MUST | idp | ATTESTED | No correspondence with pseudorandom values or real identifiers |
+| `SSO05.a2` | MUST_NOT | idp | BROWSER | Must not exceed 256 characters |
+| `SSO05.a3` | MUST | idp | BROWSER | Rules for NameQualifier / SPNameQualifier / SPProvidedID |
+| `SSO05.a4` | MUST_NOT | idp/sp | **NOT_OBSERVABLE** | Prohibition on sharing or logging plaintext |
+| `SSO05.b` | MUST | idp/sp | BROWSER | Support for transient Format |
+| `SSO05.b1` | MUST_NOT | idp | BROWSER | Must not exceed 256 characters |
+| `SSO05.b2` | MUST | idp | BROWSER | SAML identifier rules (§1.3.4) |
+| `SSO05.b3` | **SHOULD** | sp | ATTESTED | Treat as an opaque, temporary value |
 
-ご指摘の通り、`SHOULD` を親 MUST の注記に書いても Evaluator は WARNING に変換できない。
-`NOT_OBSERVABLE` 内容も BROWSER 義務の注記に埋めていた。両方とも独立義務にした。
+As noted, writing a `SHOULD` in a note on the parent MUST does not allow Evaluator to convert it to WARNING.
+The `NOT_OBSERVABLE` content had also been embedded in a note on a BROWSER obligation.
+Both were made independent obligations.
 
-### 現在の状態
+### Current state
 
 ```
-要件 69 / 義務 141（SSO05 の分解で 134 → 141）
+69 requirements / 141 obligations (134 → 141 through SSO05 decomposition)
 level        MUST 102 / MUST_NOT 13 / REQUIRED 4 / SHOULD 7 / RECOMMENDED 4 / MAY 5 / OPTIONAL 6
 testability  BROWSER 60 / CONFIG 58 / ATTESTED 13 / AUTOMATED 8 / NOT_OBSERVABLE 2
-検査 56 件（SR-22d/e/f を追加）
-open question 18 → SR-30 が FAIL、g1.complete = false
+56 checks (SR-22d/e/f added)
+18 open questions → SR-30 FAIL, g1.complete = false
 ```
 
-**次**: 18 義務の参照節の分解。ご提案の順序に従い
-**SAML2Core / Profile 共通規則 → ECP / SLO / Discovery → MD05・MD06 メタデータ群**の
-3 段階に分けて進める。
+**Next**: Decompose the referenced sections for the 18 obligations. Following the proposed order,
+proceed in three stages:
+**common SAML2Core / Profile rules → ECP / SLO / Discovery → MD05 / MD06 metadata group**.
 
 ---
 
-## G1b-R3 — 2026-08-26 母数の生成化・§8.3.7 の補完・リンクの意味定義
+## G1b-R3 — 2026-08-26 Generated denominator / completion of §8.3.7 / definition of link semantics
 
-前回の 9 件は成果物に入っていることを確認いただいたうえで、新たに 4 件の指摘。
+After confirming that the previous nine changes were present in the artifacts, four new findings were raised.
 
-| # | 指摘 | 対応 | 検証 |
+| # | Finding | Response | Verification |
 |---|---|---|---|
-| 1 | **G2 の母数が 133 / 132 のまま**。4 ファイルに直書きされており、義務を足すたびに取り残される | 数値を **`<!--g1:KEY--><!--/g1-->` マーカー**にし、`g1_docgen.py` が `coverage.yaml` から差し込む方式へ。さらに **SR-41** で「マーカー外の直書き」を検出して FAIL にする | マーカー値を手で書き換え → `docgen --check` が exit 1。直書きを追加 → SR-41 FAIL。健全時は PASS |
-| 2 | **SSO05.a3 に §8.3.7 の必須ケースが不足**（SPProvidedID の正方向・再発行時の NameQualifier 維持） | 条件・testability が違うため variant ではなく**独立義務 3 件**に分離: `a5`（SPProvidedID 正方向・条件付き）/ `a6`（再発行時に元の生成者を指す）/ `a7`（再発行時に省略しない）。加えて §8.3.7 の未分解 MUST NOT を `a8` に | 4 義務が `coverage.yaml` に存在することを確認 |
-| 3 | **G02 の user-defined variant は「切り詰めなし」を確認できない** | `.a`（**受理**）と `.b`（SP の**非切り詰め**・読み戻し経路が前提）/ `.c`（IdP の非切り詰め・原則 ATTESTED）に分離。旧 `@Name` / `@FriendlyName` の記述も更新 | 3 義務と `configuration_failure_semantics: test_precondition` を確認 |
-| 4 | **`linked_obligations` の実行上の意味が未定義** | `docs/03 §リンクの意味` に **L1〜L6** を定義。スキーマを `{obligation, kind, note_ja}` に変更し、**SR-22g-shape / SR-22g / SR-22h / SR-22i** を追加。`docs/04` に「参照取り込み」「被参照」を両方向で出力 | 未知 kind / 実在しない参照 / 自己参照 / 循環 / NOT_OBSERVABLE 参照 / 旧形式の 6 パターンで対応する検査が FAIL することを確認 |
+| 1 | **G2’s denominator remained 133 / 132**. It was hard-coded in four files and would be left behind whenever obligations were added. | Change the numbers to **`<!--g1:KEY--><!--/g1-->` markers** and have `g1_docgen.py` insert them from `coverage.yaml`. Additionally, detect “hard-coded values outside markers” with **SR-41** and make it FAIL. | Manually changing a marker value → `docgen --check` exits 1. Adding a hard-coded value → SR-41 FAIL. Healthy state → PASS. |
+| 2 | **SSO05.a3 lacked required cases from §8.3.7** (the positive direction of SPProvidedID and retaining NameQualifier during reissuance). | Because the conditions and testability differ, split them from variants into **3 independent obligations**: `a5` (SPProvidedID positive direction / conditional) / `a6` (points to the original generator during reissuance) / `a7` (not omitted during reissuance). Also add the undecomposed MUST NOT from §8.3.7 as `a8`. | Confirmed that the 4 obligations exist in `coverage.yaml`. |
+| 3 | **G02’s user-defined variants could not verify “without truncation.”** | Split into `.a` (**acceptance**) and `.b` (SP **non-truncation**, assuming a readback path) / `.c` (IdP non-truncation, in principle ATTESTED). Also update the old `@Name` / `@FriendlyName` descriptions. | Confirmed 3 obligations and `configuration_failure_semantics: test_precondition`. |
+| 4 | **The operational meaning of `linked_obligations` was undefined.** | Define **L1–L6** under `docs/03 §Link semantics`. Change the schema to `{obligation, kind, note_ja}`, and add **SR-22g-shape / SR-22g / SR-22h / SR-22i**. Output “references imported” and “referenced by” in both directions in `docs/04`. | Confirmed that the corresponding checks FAIL for six patterns: unknown kind / nonexistent reference / self-reference / cycle / `NOT_OBSERVABLE` reference / old format. |
 
-### 1 の再発防止の形
+### Form for preventing recurrence of item 1
 
-母数は本文に書けない。`g1_docgen.py` が `coverage.yaml` から差し込む。
+The denominator cannot be written in the body. `g1_docgen.py` inserts it from `coverage.yaml`.
 
 ```markdown
-`coverage.yaml` の <!--g1:obligations-->147<!--/g1--> 義務のうち、
-`NOT_OBSERVABLE`（<!--g1:not_observable_keys-->`IIP-SSO05.a4` / `IIP-SP12.a`<!--/g1-->）を除く
-**<!--g1:case_target-->145<!--/g1--> 義務**。
+Of the <!--g1:obligations-->147<!--/g1--> obligations in `coverage.yaml`,
+excluding `NOT_OBSERVABLE`
+(<!--g1:not_observable_keys-->`IIP-SSO05.a4` / `IIP-SP12.a`<!--/g1-->),
+**<!--g1:case_target-->145<!--/g1--> obligations**.
 ```
 
-説明のための架空の数（「10 義務しか覆わない mutant セット」等）は
-行に `<!--g1-literal-->` を置いて明示的に逃がす。逃がし忘れは SR-41 が FAIL にする。
+Fictional numbers for explanatory purposes (such as “a mutant set covering only 10 obligations”)
+are explicitly exempted by placing `<!--g1-literal-->` on the line.
+Forgetting to exempt one causes SR-41 to FAIL.
 
-### 2 の分解（SAML2Core §8.3.7）
+### 2. Decomposition (SAML2Core §8.3.7)
 
-原文の分岐を variant ではなく義務に分けた理由は、**条件と testability が違う**ため。
-`a3`（無条件・BROWSER）に混ぜると、§3.6 非対応の対象で `a3` 全体が判定不能になる。
+The reason for splitting the source branches into obligations rather than variants is that **their conditions and testability differ**.
+If mixed into `a3` (unconditional / BROWSER), the entire `a3` becomes indeterminate for targets that do not support §3.6.
 
-| 義務 | level | testability | 条件 | 内容 |
+| Obligation | level | testability | condition | Content |
 |---|---|---|---|---|
-| `SSO05.a5` | MUST | BROWSER | `supports_name_identifier_management` | 代替識別子が設定済みなら SPProvidedID に**最新の値** |
-| `SSO05.a6` | MUST | CONFIG | `reissues_foreign_persistent_identifier` | 再発行時、NameQualifier は**元の生成者**を指し続ける |
-| `SSO05.a7` | MUST_NOT | CONFIG | 同上 | 再発行時、NameQualifier を**省略しない** |
-| `SSO05.a8` | MUST_NOT | ATTESTED | — | persistent Format に**永続だが不透明でない値**を載せない |
+| `SSO05.a5` | MUST | BROWSER | `supports_name_identifier_management` | If an alternative identifier is configured, SPProvidedID contains the **latest value** |
+| `SSO05.a6` | MUST | CONFIG | `reissues_foreign_persistent_identifier` | During reissuance, NameQualifier continues to point to the **original generator** |
+| `SSO05.a7` | MUST_NOT | CONFIG | Same as above | During reissuance, NameQualifier is **not omitted** |
+| `SSO05.a8` | MUST_NOT | ATTESTED | — | Do not place a **persistent but non-opaque value** in persistent Format |
 
-述語 2 件（`supports_name_identifier_management` / `reissues_foreign_persistent_identifier`）を
-`predicates.yaml` に追加。いずれも **CAPABILITY_BASED で観測は方向付き**。
+Added two predicates (`supports_name_identifier_management` / `reissues_foreign_persistent_identifier`) to
+`predicates.yaml`. Both are **CAPABILITY_BASED, with directional observation**.
 
-> `a6` / `a7` の原文は "Note that ..." で始まるが MUST / MUST NOT を含むため規範として扱う。
-> 同段落末尾の "Finally, note that ..." は RFC2119 キーワードを持たないので義務を起こさない。
+> The source for `a6` / `a7` begins with “Note that ...”, but contains MUST / MUST NOT, so it is treated as normative.
+> The “Finally, note that ...” at the end of the same paragraph does not contain an RFC2119 keyword, so it does not create an obligation.
 
-**途中で見つけた自分の誤り**: `a5` の variant に
-「`<samlp:Terminate>` で解除すると SPProvidedID が省略される」と書いていたが、
-§3.6.3 の `<Terminate>` は「識別子の利用終了」であって SPProvidedID の解除ではない。
-`secondary_peer` との pair-wise 分離に差し替え、誤解を控え書きとして残した。
+**My own error found during the process**: The `a5` variant said
+“when termination is performed with `<samlp:Terminate>`, SPProvidedID is omitted,”
+but §3.6.3 `<Terminate>` means “ending use of the identifier,” not removing SPProvidedID.
+It was replaced with pair-wise separation with `secondary_peer`, and the misunderstanding was retained as a correction note.
 
-### 3 の分離（IIP-G02）
+### 3. Separation (IIP-G02)
 
-`<samlp:Extensions>` / `<saml:Advice>` の未知内容は**無視してよい**ので、
-成功応答は「受理した」「無視した」「切り詰めた」を区別しない。
+Unknown content in `<samlp:Extensions>` / `<saml:Advice>` **may be ignored**,
+so a successful response does not distinguish among “accepted,” “ignored,” and “truncated.”
 
-| 義務 | role | testability | 判定するもの | 証拠 |
+| Obligation | role | testability | What is judged | Evidence |
 |---|---|---|---|---|
-| `G02.a` | idp/sp | BROWSER | **エラーにならないこと** | トランスクリプト |
-| `G02.b` | sp | CONFIG（`test_precondition`） | **切り詰めないこと** | 対象の読み戻し面と送信値をコードポイント列で比較。経路がなければ `not_verified(no_readback_path)` |
-| `G02.c` | idp | ATTESTED | 同上 | `<NewID>`（`type="string"`）→ `SPProvidedID` の往復があれば自動照合、なければ申告 |
+| `G02.a` | idp/sp | BROWSER | **No error occurs** | Transcript |
+| `G02.b` | sp | CONFIG (`test_precondition`) | **No truncation** | Compare the target’s readback surface and transmitted value as code-point sequences. If no path exists, `not_verified(no_readback_path)`. |
+| `G02.c` | idp | ATTESTED | Same as above | If a round trip from `<NewID>` (`type="string"`) to `SPProvidedID` exists, compare automatically; otherwise declaration. |
 
-### 4 のリンクの意味
+### 4. Link semantics
 
-`kind: inherit_variants` = 「リンク先の `required_variants` も覆え」。
-**推移的に展開**するが、**role / level / condition / testability は継承しない**。
-展開して覆っても**リンク先義務の網羅にはならない**（二重計上しない）。
-`covers_variants` は `<義務キー>#<variant ID>` で修飾する。全文は `docs/03`。
+`kind: inherit_variants` = “also cover the linked obligation’s `required_variants`.”
+**Expand transitively**, but **do not inherit role / level / condition / testability**.
+Even after expanding and covering them, **this does not count as coverage of the linked obligation itself** (do not double-count).
+Qualify `covers_variants` as `<obligation key>#<variant ID>`. The complete text is in `docs/03`.
 
-### 検査器のバグ（自分で見つけた）
+### Validator bug (found by myself)
 
-リンク展開 `_expand()` が実在しないキーで `KeyError` を投げ、**検査器ごと落ちていた**。
-落ちるとレポートが生成されず、SR-22d の指摘そのものが出ない。
-参照先が無ければ空集合を返すよう修正し、負のテストで確認した。
+Link expansion `_expand()` raised `KeyError` for a nonexistent key, causing **the validator itself to crash**.
+When it crashed, no report was generated, so the SR-22d finding itself was not emitted.
+Fixed it to return an empty set when the reference target is absent and confirmed it with a negative test.
 
-### その他
+### Other
 
-`build/spec-reconcile-report.json` を **Git 管理から外す**方針にした（`.gitignore` を更新）。
-実行のたびに `run_id` / `executed_at` / tools のコミット状態で内容が変わるため、
-コミットに含めると必ず古い結果が残る。正本は CI の artifact。
+Decided to **remove `build/spec-reconcile-report.json` from Git tracking** (updated `.gitignore`).
+Its contents change on every execution because of `run_id` / `executed_at` / the tools’ commit state;
+including it in a commit would necessarily leave a stale result. The authoritative copy is the CI artifact.
 
-### 現在の状態
+### Current state
 
 ```
-要件 69 / 義務 147（141 → 147: G02 +2 / SSO05 +4）
-variant 299
+69 requirements / 147 obligations (141 → 147: G02 +2 / SSO05 +4)
+299 variants
 level        MUST 106 / MUST_NOT 15 / REQUIRED 4 / SHOULD 7 / RECOMMENDED 4 / MAY 5 / OPTIONAL 6
 testability  BROWSER 61 / CONFIG 61 / ATTESTED 15 / AUTOMATED 8 / NOT_OBSERVABLE 2
-述語 10 / 検査 61 件（SR-22g-shape / SR-22g / SR-22h / SR-22i / SR-41 を追加）
-open question 18 → SR-30 が FAIL、g1.complete = false
+10 predicates / 61 checks (SR-22g-shape / SR-22g / SR-22h / SR-22i / SR-41 added)
+18 open questions → SR-30 FAIL, g1.complete = false
 ```
 
-**次**: 18 義務の参照節の分解。第 1 段階は
-`IIP-SSO01.a` / `IIP-SP12.a` / `IIP-IDP06.a` / `IIP-IDP07.a` / `IIP-IDP10.a` / `IIP-IDP12.a`。
-`IIP-SP04.a`（Discovery）と `IIP-SP14.a` / `IIP-IDP17.a` / `IIP-IDP17.b`（SLO）は第 2 段階へ。
+**Next**: Decompose the referenced sections for the 18 obligations. The first stage is
+`IIP-SSO01.a` / `IIP-SP12.a` / `IIP-IDP06.a` / `IIP-IDP07.a` / `IIP-IDP10.a` / `IIP-IDP12.a`.
+`IIP-SP04.a` (Discovery) and `IIP-SP14.a` / `IIP-IDP17.a` / `IIP-IDP17.b` (SLO) move to the second stage.
 
 ---
 
-## G1b-R4 — 2026-08-26 参照節の分解 第 1 段階（SAML2Core / SAML2Prof 共通規則）
+## G1b-R4 — 2026-08-26 Decomposition of Reference Sections, Stage 1 (SAML2Core / SAML2Prof Common Rules)
 
-open question 18 件のうち、SAML2Core / SAML2Prof に依存する 6 件を分解した。
+Of the 18 open questions, 6 dependent on SAML2Core / SAML2Prof were decomposed.
 
-| 要件 | 参照節 | 前 | 後 |
+| Requirement | Reference section | Before | After |
 |---|---|---|---|
-| `IIP-SSO01` | SAML2Prof §4.1（errata 反映） | 1 | **36** |
-| `IIP-SP12` | SAML2Core §8.3.7 | 1（NOT_OBSERVABLE） | **2** |
+| `IIP-SSO01` | SAML2Prof §4.1 (errata applied) | 1 | **36** |
+| `IIP-SP12` | SAML2Core §8.3.7 | 1(NOT_OBSERVABLE) | **2** |
 | `IIP-IDP06` | SAML2Core §3.4.1 ForceAuthn | 2 | **3** |
-| `IIP-IDP07` | SAML2Core §3.4.1 IsPassive | 1 | 1（内容を全面改訂） |
+| `IIP-IDP07` | SAML2Core §3.4.1 IsPassive | 1 | 1(content comprehensively revised) |
 | `IIP-IDP10` | SAML2Core §3.4.1.1 NameIDPolicy | 1 | **4** |
-| `IIP-IDP12` | SAML2Core §3.4.1 ACS 属性 | 1 | **4** |
+| `IIP-IDP12` | SAML2Core §3.4.1 ACS attribute | 1 | **4** |
 
-### ★ errata の適用範囲を決めた
+### ★ Determined the scope of errata application
 
-IIP は `[SAML2Errata]` を**選択的に**取り込む。明記があるのは
-`IIP-MD05` / `IIP-SSO01` / `IIP-SP14` / `IIP-IDP17` と、個別 erratum を名指しする箇所（E92 / E62）だけで、
-`[SAML2Core]` の参照エントリは OS 版 PDF を指し「as updated by errata」を伴わない。
+IIP incorporates `[SAML2Errata]` **selectively**. Explicitly identified are
+`IIP-MD05` / `IIP-SSO01` / `IIP-SP14` / `IIP-IDP17`, as well as locations that name individual errata (E92 / E62).
+The `[SAML2Core]` reference entry points to the OS version PDF and does not include “as updated by errata.”
 
-**決定**: errata は IIP が取り込みを明記した箇所だけで規範として扱い、
-それ以外では **advisory として記録し判定に使わない**。
+**Decision**: Errata are treated as normative only where IIP explicitly states that they are incorporated;
+elsewhere they are **recorded as advisory and not used for determinations**.
 
-| 適用した | 適用しなかった |
+| Applied | Not applied |
 |---|---|
-| `IIP-SSO01`（SAML2Prof §4.1）に **E17 / E26 / E52** | `IIP-IDP10` に **E14 / E15**（`[SAML2Core]` は errata 取り込みの明記がない） |
-| | **E90**（RelayState サニタイズ。`[SAMLBind]` への追記であって SAML2Prof の改訂ではない） |
+| **E17 / E26 / E52** to `IIP-SSO01`(SAML2Prof §4.1) | **E14 / E15** to `IIP-IDP10`(`[SAML2Core]` does not explicitly incorporate errata) |
+| | **E90**(RelayState sanitization. This is an addition to `[SAMLBind]`, not a revision of SAML2Prof) |
 
-E26 は §4.1.4.2 / §4.1.4.3 / §4.1.4.5 を実質的に書き換えており、改訂前の文で義務を起こすと
-**適合実装を FAIL にする**。特に次の 3 点は改訂前後で判定が変わる。
+E26 effectively rewrites §4.1.4.2 / §4.1.4.3 / §4.1.4.5, and raising obligations from the pre-revision text would
+**FAIL conforming implementations**. In particular, the following three points change the determination before and after the revision.
 
-| | 改訂前 | E26 適用後 |
+| | Before revision | After applying E26 |
 |---|---|---|
-| bearer 確認 | AuthnStatement を含む assertion の**少なくとも 1 つ** | 本 profile で消費される assertion は**すべて** |
-| AudienceRestriction | bearer 確認を持つ assertion**（集合として）** | **各** bearer assertion |
-| POST 時の署名 | 「enclosed assertion(s) MUST be signed」 | **各 assertion が署名で保護**されること。**Response 署名でもよい**と明記 |
+| bearer verification | **At least one** of the assertions containing an AuthnStatement | **All** assertions consumed by this profile |
+| AudienceRestriction | The assertion **(as a set)** having bearer verification | **Each** bearer assertion |
+| Signature during POST | “enclosed assertion(s) MUST be signed” | **Each assertion must be protected by a signature. It is explicitly stated that a Response signature is also acceptable** |
 
-3 つ目は特に重要で、改訂前の文から「Assertion に署名がある」ケースだけを書くと、
-**Response 署名のみの適合実装を FAIL にする**。
+The third point is particularly important: writing only cases in which “the Assertion has a signature,” based on the pre-revision text, would
+**FAIL a conforming implementation using only a Response signature**.
 
-### `IIP-SSO01` の 36 義務
+### The 36 obligations of `IIP-SSO01`
 
-| 出典 | 義務 | 役割 |
+| Source | Obligation | Role |
 |---|---|---|
-| 包括（往復が成立する） | `.a` | idp/sp |
-| §4.1.4.1 AuthnRequest Usage | `.b`〜`.e` | sp 2 / idp 2 |
-| §4.1.4.2 Response Usage（E17 / E26 / E52） | `.f`〜`.m`（12 件） | idp |
-| §4.1.4.3 Response 処理規則（E26） | `.n`〜`.t`（9 件） | sp |
-| §4.1.4.4 Artifact（条件付き） | `.u` / `.u1` | idp/sp |
-| §4.1.4.5 POST（E26） | `.v` / `.w` | idp 1 / sp 1 |
-| §4.1.2 / §4.1.5 | `.x`〜`.y2` | idp 3 / sp 1 |
+| Comprehensive (the round trip succeeds) | `.a` | idp/sp |
+| §4.1.4.1 AuthnRequest Usage | `.b`–`.e` | sp 2 / idp 2 |
+| §4.1.4.2 Response Usage (E17 / E26 / E52) | `.f`–`.m`(12 items) | idp |
+| §4.1.4.3 Response processing rules (E26) | `.n`–`.t`(9 items) | sp |
+| §4.1.4.4 Artifact (conditional) | `.u` / `.u1` | idp/sp |
+| §4.1.4.5 POST (E26) | `.v` / `.w` | idp 1 / sp 1 |
+| §4.1.2 / §4.1.5 | `.x`–`.y2` | idp 3 / sp 1 |
 
-**この分解で埋まった穴**: SP 側の応答処理規則（署名検証 / Recipient 照合 / NotOnOrAfter /
-InResponseTo 照合 / replay 防止）は SAML の中核的な検査だが、
-**IIP の他のどの要件にも入っておらず、カタログから丸ごと落ちていた**。
+**Gap filled by this decomposition**: SP-side response processing rules (signature verification / Recipient matching / NotOnOrAfter /
+InResponseTo matching / replay prevention) are core SAML checks, but
+**were included in none of the other IIP requirements and had been omitted wholesale from the catalog**.
 
-重複は作っていない。§4.1.6（メタデータ）は `IIP-SSO06` が同じ節を直接扱う。
-§4.1.3.5 の「エラーでも `<Response>` を返すべき」は `IIP-IDP05` が MUST として持つ。
-ACS の検証義務は `IIP-IDP12.b` に置き、`IIP-SSO01` からは参照だけにした。
+No duplication was created. §4.1.6 (metadata) is directly handled by `IIP-SSO06`, which addresses the same section.
+The statement in §4.1.3.5 that “an error should also return a `<Response>`” is held as a MUST by `IIP-IDP05`.
+The ACS verification obligation was placed in `IIP-IDP12.b`, and made a reference only from `IIP-SSO01`.
 
-### `IIP-SP12` — NOT_OBSERVABLE を撤回
+### `IIP-SP12` — Withdrawal of NOT_OBSERVABLE
 
-前版は「追加の意味づけを *要求するか* は設定面の性質でプロトコル面に現れない」として
-`NOT_OBSERVABLE` にしていた。これは誤り。**§8.3.7 は persistent 識別子の値空間を規定している**ので、
-「その範囲の任意の値を受理するか」は外部から観測できる。
+The previous version classified this as `NOT_OBSERVABLE`, stating that whether to *require* additional semantics
+is a property of configuration and does not appear at the protocol level. This was incorrect. **§8.3.7 specifies the value space of persistent identifiers**,
+so whether arbitrary values within that range are accepted is externally observable.
 
-- `.a` **MUST_NOT / sp / BROWSER** — §8.3.7 に適合する値を内容を理由に拒否しない（長さ境界・文字種・区切りの有無を変えた 7 variant）
-- `.b` MUST_NOT / sp / ATTESTED — 設定・配備文書の上でも要求しない（観測できない残り）
+- `.a` **MUST_NOT / sp / BROWSER** — Do not reject a value conforming to §8.3.7 because of its content (7 variants changing length boundaries, character types, and the presence or absence of delimiters)
+- `.b` MUST_NOT / sp / ATTESTED — Do not require it even in configuration or deployment documentation (the remaining non-observable case)
 
-`NOT_OBSERVABLE` は 2 件 → **1 件**（`IIP-SSO05.a4` のみ）。
+`NOT_OBSERVABLE` decreased from 2 to **1**(only `IIP-SSO05.a4`).
 
-### 原文を読んで直した誤り
+### Errors corrected by reading the original text
 
-| 箇所 | 前版 | 原文 |
+| Location | Previous version | Original text |
 |---|---|---|
-| `IIP-IDP07` | 「セッションなし + IsPassive=true → **NoPassive エラー**」を必須 variant にしていた | 二次 status code は §3.4.1.4 で **MAY**。NoPassive が返らないことを FAIL にしてはならない。判定は「可視の画面が出ない」ことまで |
-| `IIP-IDP10` | 「AllowCreate=true / false」を対応 variant にするだけ | AllowCreate に IdP への MUST は**ない**。E14 は「requester **tries to** constrain」と明示的に緩和している。「false なら絶対に作らない」を期待すると適合実装を FAIL にする |
-| `IIP-IDP12` | 「メタデータにない ACS URL → **拒否される**」 | 無効 index の扱いは **MAY error or MAY default**（`.d`）。ACS URL の検証義務（`.b`）とは別の規則 |
-| `IIP-IDP06` | ForceAuthn の 1 義務のみ | IsPassive 併用時の **MUST NOT** が未分解だった（`.c`） |
+| `IIP-IDP07` | Made “no session + IsPassive=true → **NoPassive error**” a mandatory variant | The secondary status code is **MAY** under §3.4.1.4. The absence of NoPassive must not cause FAIL. The determination extends only to “no visible screen is displayed.” |
+| `IIP-IDP10` | Merely made “AllowCreate=true / false” corresponding variants | There is **no MUST on the IdP** regarding AllowCreate. E14 explicitly relaxes this to “the requester **tries to** constrain.” Expecting “never create if false” would FAIL a conforming implementation. |
+| `IIP-IDP12` | “ACS URL not in metadata → **must be rejected**” | Handling an invalid index is **MAY error or MAY default** (`.d`). This is a separate rule from the ACS URL verification obligation (`.b`). |
+| `IIP-IDP06` | Only one obligation for ForceAuthn | The **MUST NOT** when IsPassive is used together had not been decomposed (`.c`). |
 
-### 追加した述語（いずれも CAPABILITY_BASED・観測は方向付き）
+### Added predicates (all CAPABILITY_BASED; observation is directional)
 
 `supports_slo_idp` / `supports_artifact_binding` / `supports_encrypted_nameid`
 
-### 現在の状態
+### Current state
 
 ```
-要件 69 / 義務 190（147 → 190）/ variant 444 / 述語 13 / 検査 61
+69 requirements / 190 obligations(147 → 190)/ 444 variants / 13 predicates / 61 checks
 level        MUST 134 / MUST_NOT 24 / SHOULD 11 / SHOULD_NOT 1 / REQUIRED 4 / RECOMMENDED 4 / MAY 6 / OPTIONAL 6
 testability  BROWSER 100 / CONFIG 63 / ATTESTED 18 / AUTOMATED 8 / NOT_OBSERVABLE 1
 open question 18 → 12
 ```
 
-**次（第 2 段階: ECP / SLO / Discovery）**: `IIP-SP04`（IdPDisco）/ `IIP-SP14`・`IIP-IDP17.a`（SAML2Prof §4.4）/
-`IIP-IDP17.b`（SAML2ASLO）/ `IIP-IDP13.a`（SAML2ECP）。
-**第 3 段階**: `IIP-MD05.a`〜`.f` と `IIP-MD06.a` のメタデータ群。
+**Next (Stage 2: ECP / SLO / Discovery)**: `IIP-SP04` (IdPDisco) / `IIP-SP14` / `IIP-IDP17.a` (SAML2Prof §4.4) /
+`IIP-IDP17.b` (SAML2ASLO) / `IIP-IDP13.a` (SAML2ECP).
+**Stage 3**: the metadata group consisting of `IIP-MD05.a`–`.f` and `IIP-MD06.a`.
 
 ---
 
-## G1b-R5 — 2026-08-27 第 1 段階の再修正（指摘 5 件）
+## G1b-R5 — 2026-08-27 Re-correction of Stage 1 (5 Findings)
 
-第 1 段階は完了扱いにできない、という判断は妥当だった。5 件とも原文で確認し、修正した。
+The judgment that Stage 1 could not be treated as complete was valid. All five items were verified against the original text and corrected.
 
-| # | 指摘 | 事実確認 | 対応 |
+| # | Finding | Fact verification | Action |
 |---|---|---|---|
-| 1 | E90 の扱いが事実と異なる | **その通り**。E90 は `[SAMLBind]` だけでなく **`[SAMLProf]` §4.1.5 にも追記**し、さらに**新 §4.1.6「Use of Relay State」を挿入**する | `.aa`（SP は unsolicited 受理を無効化できるべき / SHOULD）と `.ab`（RelayState 由来 URL scheme を https / http に限る / SHOULD）を追加。「advisory のみ」という記述を削除 |
-| 2 | SSO01 が規範句を取りこぼしている | **その通り**。§4.1.3.1 の RelayState SHOULD と §4.1.3.4 の MUST が欠落。`.a` の unsolicited 必須 variant も誤り（§4.1.5 の開始は **MAY**） | `.ac` / `.ae` を追加。`.a` から unsolicited variant を削除し `.z`（MAY）に。`.y` / `.y1` を条件付きに。`.ad`（TLS RECOMMENDED）も追加 |
-| 3 | IDP10.d が errata 方針と矛盾 | **その通り**。§3.4.1.1 の MUST は「理解不能・受理不能ならエラー」までで、**「受理したなら従う」は含まない** | 根拠を **§3.4.1.4**「assertions that meet the specifications defined by the request」に置き直した。E15 は advisory のまま |
-| 4 | IDP12.a の Redirect variant が誤り | **その通り**。`<Response>` に HTTP-Redirect を使うことは §4.1.2 で禁止（`IIP-SSO01.x`）。適合 IdP を落とす | binding 切り替えの比較を **POST と Artifact** に変更。Redirect 指定に対しては「Redirect では返さない」だけを判定 |
-| 5 | SP12.a が原文より強い | **その通り**。原文は「NameID に追加の意味・構造を**要求してはならない**」で、未知の主体・未プロビジョニング等**構造以外の理由による拒否は禁じていない** | 義務文を原文に戻し、testability を **CONFIG / `test_precondition`** に。自動プロビジョニングをテスト前提とし、拒否理由を特定できなければ **NOT_VERIFIED** |
+| 1 | Handling of E90 differed from the facts | **Correct**. E90 adds text not only to `[SAMLBind]` but also to **`[SAMLProf]` §4.1.5**, and additionally **inserts a new §4.1.6, “Use of Relay State”** | Added `.aa` (SPs SHOULD have a means of disabling unsolicited acceptance) and `.ab` (the URL scheme derived from RelayState SHOULD be limited to https / http). Removed the statement “advisory only.” |
+| 2 | SSO01 omitted normative clauses | **Correct**. The RelayState SHOULD in §4.1.3.1 and the MUST in §4.1.3.4 were missing. The mandatory unsolicited variant of `.a` was also incorrect (`§4.1.5` begins with **MAY**) | Added `.ac` / `.ae`. Removed the unsolicited variant from `.a` and changed it to `.z` (MAY). Made `.y` / `.y1` conditional. Also added `.ad` (TLS RECOMMENDED). |
+| 3 | IDP10.d contradicted the errata policy | **Correct**. The MUST in §3.4.1.1 extends only to an error when the request is incomprehensible or unacceptable; it **does not include “if accepted, comply with it.”** | Rebased it on **§3.4.1.4**, “assertions that meet the specifications defined by the request.” E15 remains advisory. |
+| 4 | The Redirect variant of IDP12.a was incorrect | **Correct**. Using HTTP-Redirect for `<Response>` is prohibited by §4.1.2 (`IIP-SSO01.x`). It would exclude a conforming IdP. | Changed the binding-switching comparison to **POST and Artifact**. For a Redirect specification, determine only that the response is not returned via Redirect. |
+| 5 | SP12.a was stronger than the original text | **Correct**. The original says that additional meaning or structure must **not be required** of the NameID; it does not prohibit rejection for reasons unrelated to structure, such as an unknown subject or lack of provisioning. | Restored the obligation text to the original and changed testability to **CONFIG / `test_precondition`**. Assumed automatic provisioning as a test precondition; if the reason for rejection cannot be identified, use **NOT_VERIFIED**. |
 
-### 1 の詳細 — E90 が `[SAMLProf]` に追記する内容
+### Detail of 1 — What E90 adds to `[SAMLProf]`
 
 ```
 Add text to [SAMLProf] Section 4.1.5., before line 617:
@@ -1923,845 +1857,890 @@ Add text to [SAMLProf] before line 617, after previous addition:
   and protection against unencoded executable content must be applied.
 ```
 
-`IIP-SSO01` は `[SAML2Prof]` を「as updated by `[SAML2Errata]`」で取り込むので、**この 2 つは規範として適用される**。
-一方、同じ E90 の `[SAMLBind]` 側の `MUST`（URL スキームのサニタイズ）は
-IIP が `[SAML2Bind]` を errata 込みで参照していないため判定に使わない。
-`protection against unencoded executable content must be applied` は**小文字の must** で、
-SAML2Prof §1.2 Notation が RFC2119 キーワードを大文字と定めているため規範キーワードではない（advisory 記録）。
+`IIP-SSO01` incorporates `[SAML2Prof]` “as updated by `[SAML2Errata]`,” so **these two are applied normatively**.
+On the other hand, the `MUST` on the `[SAMLBind]` side of the same E90 (sanitization of the URL scheme)
+is not used for determination because IIP does not reference `[SAML2Bind]` with errata incorporated.
+`protection against unencoded executable content must be applied` uses lowercase **must**,
+and SAML2Prof §1.2 Notation defines RFC2119 keywords as uppercase, so it is not a normative keyword (recorded as advisory).
 
-> ★ **節番号の衝突**: E90 は errata 反映版に新 §4.1.6 を挿入するため、
-> 「SAML2Prof §4.1.6」が OS 版（Use of Metadata）と errata 反映版（Use of Relay State）で別物を指す。
-> `IIP-SSO06` は節名も併記して OS 版を指しているので曖昧さはない。この点を `.a` の notes に記録した。
+> ★ **Section-number collision**: E90 inserts a new §4.1.6 into the errata-applied version, so
+> “SAML2Prof §4.1.6” refers to different things in the OS version (Use of Metadata) and the errata-applied version (Use of Relay State).
+> `IIP-SSO06` also gives the section name and therefore points unambiguously to the OS version. This point was recorded in the notes for `.a`.
 
-### 2 の詳細 — §4.1 の全 RFC2119 句を機械的に洗い直した
+### Detail of 2 — Mechanical re-examination of all RFC2119 clauses in §4.1
 
-正規表現で §4.1 の RFC2119 句を全件抽出し（68 文）、1 件ずつ義務に対応づけた。
-**対応表は `IIP-SSO01.a` の `notes_ja` に全文を置いた**（`docs/04` から読める）。
+All RFC2119 clauses in §4.1 were extracted by regular expression (68 sentences), and each was mapped to an obligation.
+**The complete mapping table is in `notes_ja` for `IIP-SSO01.a`** (readable from `docs/04`).
 
-洗い直しで分かったこと:
+The re-examination established the following:
 
-- **`.ac`（§4.1.3.1 RelayState SHOULD）と `.ae`（§4.1.3.4 MUST）が欠落していた** — ご指摘の通り
-- **`.ad`（§4.1.3.3 / §4.1.3.5 の TLS RECOMMENDED）も欠落していた** — 2 か所に同じ句がある
-- 「IdP MUST process the `<AuthnRequest>` as described in `[SAMLCore]`」等の**取り込み句**は
-  包括義務を作らず、中身を分解している既存要件（`IIP-IDP06`〜`IDP12` / `.n`〜`.r1`）を指す形にした
-- ★ **`[SAMLProf]` §4.1.4.1 の「SP が新規識別子の作成を望むなら `AllowCreate="true"` を含めなければならない」は
-  E14 が削除している**。errata 反映版には存在しないので義務を起こさない
+- **`.ac` (§4.1.3.1 RelayState SHOULD) and `.ae` (§4.1.3.4 MUST) were missing** — as pointed out
+- **`.ad` (TLS RECOMMENDED in §4.1.3.3 / §4.1.3.5) was also missing** — the same clause appears in two places
+- Clauses such as “IdP MUST process the `<AuthnRequest>` as described in `[SAMLCore]`” were made to point to existing requirements that decompose the content (`IIP-IDP06`–`IDP12` / `.n`–`.r1`), without creating a comprehensive obligation
+- ★ **The statement in `[SAMLProf]` §4.1.4.1 that “if the SP wishes to create a new identifier, it must include `AllowCreate="true"`” was deleted by E14**. It does not exist in the errata-applied version, so no obligation is raised
 
-`IIP-SSO01.a` の `open_question` は**再度開いた**。閉じる条件は
-「対応表をレビュアーが 1 件ずつ照合し、取りこぼしがないことを確認する」こと。
+The `open_question` for `IIP-SSO01.a` was **reopened**. The condition for closing it is that
+“a reviewer checks the mapping table item by item and confirms that nothing is missing.”
 
-### 3 の詳細 — IDP10.d の根拠の置き直し
+### Detail of 3 — Repositioning the basis for IDP10.d
 
-前版の導出「受理して成功応答を返した以上、その内容に従わない選択肢は残らない」は成立しない。
-§3.4.1.1 の MUST は *acceptable* かどうかの分岐しか定めておらず、
-「受理可能と判断しつつ別の Format を返す」余地が残る。
+The previous derivation—“once it has accepted the request and returned a successful response, there is no remaining option not to follow its contents”—does not hold.
+The MUST in §3.4.1.1 defines only the branch of whether the request is *acceptable*,
+leaving room to determine that it is acceptable while returning a different Format.
 
-正しい根拠は **§3.4.1.4**:
+The correct basis is **§3.4.1.4**:
 
 > The responder MUST ultimately reply to an `<AuthnRequest>` with a `<Response>` message containing
 > one or more assertions **that meet the specifications defined by the request**, or with a `<Response>`
 > message containing a `<Status>` describing the error that occurred.
 
-同節の「the identifier MAY be in a different format **if specified by `<NameIDPolicy>`**」も、
-識別子の形式が `<NameIDPolicy>` によって決まることを前提にしている。
-§3.4.1 が「See Section 3.4.1.4 for general processing rules」と述べるので、
-`IIP-IDP10` の「as defined in `[SAML2Core]`」に含まれる。**E15 は不要になった。**
+The same section states that “the identifier MAY be in a different format **if specified by `<NameIDPolicy>`**,”
+which presupposes that the identifier’s format is determined by `<NameIDPolicy>`.
+Since §3.4.1 says “See Section 3.4.1.4 for general processing rules,”
+this is included in `IIP-IDP10`’s “as defined in `[SAML2Core]`.” **E15 is no longer necessary.**
 
-### 検査器の修正
+### Checker correction
 
-義務キーの suffix が `a`〜`z` を使い切ったため、**SR-03d が `.aa` 以降を BLOCK した**（正しい動作）。
-規則を `[a-z]{1,2}[0-9]?` に緩め、`.abc` / `.A` / `.a12` が FAIL することを負のテストで確認した。
+Because the suffixes of obligation keys had exhausted `a`–`z`, **SR-03d correctly BLOCKed suffixes from `.aa` onward**.
+The rule was relaxed to `[a-z]{1,2}[0-9]?`, and negative tests confirmed that `.abc` / `.A` / `.a12` FAIL.
 
-### 現在の状態
+### Current state
 
 ```
-要件 69 / 義務 196（190 → 196）/ 述語 14 / 検査 61
-network 実行: 58/61 PASS・blocking 1（SR-40 = tools 未コミットのみ）
-SR-33  全 24 仕様を再取得し source_digest 一致
-SR-34  reference_evidence 112 件すべて locator 解決・節ダイジェスト一致
-open question 12 → 13（IIP-SSO01.a を再度開いたため）
+69 requirements / 196 obligations(190 → 196)/ 14 predicates / 61 checks
+network execution: 58/61 PASS / blocking 1(SR-40 = only tools uncommitted)
+SR-33  Re-fetched all 24 specifications and source_digest matched
+SR-34  All 112 reference_evidence entries resolved their locators and matched the section digests
+open question 12 → 13(because IIP-SSO01.a was reopened)
 ```
 
-**未コミット。** 第 1 段階は「完了」ではなく、`IIP-SSO01.a` の対応表照合が残っている。
+**Uncommitted.** Stage 1 is not “complete”; the mapping-table review for `IIP-SSO01.a` remains.
 
 ---
 
-## G1b-R6 — 2026-08-27 第 1 段階の再修正 2（意味レビュー 5 件 + 補足 1 件）
+## G1b-R6 — 2026-08-27 Second Re-correction of Stage 1 (5 Semantic Review Findings + 1 Supplement)
 
-いずれも「原文が要求していないことを義務にしていた」か「原文が要求していることを見落としていた」。
+In every case, an obligation had been created for something the original text did not require, or something required by the original text had been missed.
 
-| # | 指摘 | 原文の確認 | 対応 |
+| # | Finding | Verification of the original text | Action |
 |---|---|---|---|
-| 1 | `SSO01.aa` の無効化手段が**テスト前提扱い** | E90 は「**手段を持つこと**」自体を SHOULD としている | `configuration_failure_semantics` を **`normative_capability`** に。分岐を 3 つに明記。「有効化すると受理される」variant は E90 が要求していないので削除 |
-| 2 | `SSO01.ab` の positive control が**余分な要件**を追加 | E90 は「**URL を導出する場合の**スキーム制限」の SHOULD。http/https を受理・遷移する義務はない | 条件述語 **`derives_url_from_relaystate`** を追加。禁止スキームだけを verdict 対象にし、http/https は Suite 側の control fixture に降格 |
-| 3 | `SSO01.ad` の TLS 義務が**原文より強い**／独自の非本番例外 | 原文は「**このステップの HTTP 交換**」の RECOMMENDED。全エンドポイント HTTPS も非本番免除も導けない | 判定対象を **Transcript に現れた実際の交換**に限定。非本番免除を撤回（HTTP なら violated → WARNING） |
-| 4 | `SSO01.ae` の「画面上の認証なし＝身元未確立」は**成立しない** | 既存セッション・クライアント証明書・Kerberos / 統合認証でも身元は確立できる。ForceAuthn なしなら既存セッション利用も許される | testability を **`CONFIG` / `test_precondition`** に。ambient authentication を排除した構成を前提にし、作れなければ `not_verified(ambient_auth_not_excludable)` |
-| 5 | `IDP12.a` は **ProtocolBinding を無視する実装が PASS** できる | Artifact 非対応なら「POST 指定→POST」「Redirect 指定→Redirect でない」は**常に既定 POST で返す実装でも両方通過** | 原文の 3 属性の**列挙を義務に分割**（`.a` Index / `.e` URL / `.f` ProtocolBinding）。`.f` は**積極的証拠**（binding 切替 or 未対応 binding へのエラー）がなければ `not_verified(no_positive_evidence_for_protocol_binding)` |
-| 補足 | `SSO01.ac` の `unless` を**自己申告だけで通過**させていた | §4.1.3.1 の unless 節は原文が明示する適用除外 | 条件述語 **`relaystate_privacy_required`**（CLASSIFICATION_BASED + `declaration_only_exclusion`）に移した。「RelayState は不透明トークンであるべき」という原文にない variant も削除 |
+| 1 | The disabling mechanism for `SSO01.aa` was treated as a **test precondition** | E90 makes **having the mechanism itself** a SHOULD | Changed `configuration_failure_semantics` to **`normative_capability`**. Explicitly documented three branches. Deleted the variant “when enabled, it is accepted,” because E90 does not require it. |
+| 2 | The positive control for `SSO01.ab` added an **extra requirement** | E90’s SHOULD limits the scheme **when deriving a URL**. It does not require accepting or navigating to http/https. | Added the condition predicate **`derives_url_from_relaystate`**. Only prohibited schemes are verdict targets; http/https were downgraded to Suite-side control fixtures. |
+| 3 | The TLS obligation in `SSO01.ad` was **stronger than the original text** and added an independent non-production exception | The original says HTTP exchanges **in this step** are RECOMMENDED. It does not imply HTTPS for all endpoints or a non-production exemption. | Limited the verdict target to **actual exchanges appearing in the Transcript**. Withdrew the non-production exemption (HTTP → violated → WARNING). |
+| 4 | “No authentication on screen = identity not established” for `.ae` **does not hold** | Identity can be established through an existing session, a client certificate, Kerberos, or integrated authentication. Without ForceAuthn, use of an existing session is also permitted. | Changed testability to **`CONFIG` / `test_precondition`**. Presupposed a configuration excluding ambient authentication; if it cannot be created, use `not_verified(ambient_auth_not_excludable)`. |
+| 5 | An implementation ignoring ProtocolBinding could **PASS** `IDP12.a` | If Artifact is unsupported, “POST specified → POST” and “Redirect specified → not Redirect” can both pass for an implementation that always returns the default POST. | Split the original enumeration of three attributes into separate obligations (`.a` Index / `.e` URL / `.f` ProtocolBinding). `.f` requires **positive evidence**; without a binding switch or an error for an unsupported binding, use `not_verified(no_positive_evidence_for_protocol_binding)`. |
+| Supplement | The `unless` in `SSO01.ac` was allowed to pass based on **self-report alone** | The unless clause in §4.1.3.1 is an explicitly stated exclusion in the original text | Moved it to the condition predicate **`relaystate_privacy_required`**(CLASSIFICATION_BASED + `declaration_only_exclusion`). Deleted the variant “RelayState should be an opaque token,” which is not in the original text. |
 
-### 4 が一番危なかった
+### 4 was the most dangerous
 
-「可視の認証操作がない成功応答＝違反」は、**非対話認証を使う適合 IdP を一律 FAIL にする**判定だった。
-`IIP-G01` で一度直したはずの「原文にない条件を足さない」に戻っていた。
-BROWSER 観測だけで結論できる話ではないので、CONFIG 前提と申告フォールバックに置き換えた。
+The determination “a successful response with no visible authentication operation = violation” would have
+**unconditionally FAILED conforming IdPs using non-interactive authentication**.
+The rule “do not add conditions absent from the original text,” which had supposedly been corrected once in `IIP-G01`, had resurfaced.
+Since this cannot be concluded from BROWSER observation alone, it was replaced with a CONFIG precondition and declaration fallback.
 
-### 5 の分割理由
+### Reason for splitting 5
 
-原文は 3 属性を**列挙**している。属性ごとに検出力の作り方が違い、
-特に `ProtocolBinding` は Artifact 非対応の対象では**合法な値が HTTP-POST しかない**ため
-積極的証明ができないことがある。1 義務にまとめると
-「検証できた属性」と「できなかった属性」を区別できず、`not_verified` を `satisfied` に混ぜてしまう。
+The original text **enumerates** three attributes. The way to create detection power differs by attribute,
+and for `ProtocolBinding` in particular, for a target that does not support Artifact, the only
+**legitimate value is HTTP-POST**, so positive proof may be impossible. If combined into one obligation,
+it is impossible to distinguish “the attribute was verified” from “it could not be verified,” causing `not_verified` to be mixed into `satisfied`.
 
-`.f` が `satisfied` になれるのは次のどちらかが観測できたときだけ:
+`.f` can become `satisfied` only when one of the following is observed:
 
-- **A**: `HTTP-POST` ⇄ `HTTP-Artifact` で返送 binding が切り替わる
-- **B**: 応答に使えない binding を指定 → エラー `<Status>`（`UnsupportedBinding` は MAY なので値は問わない）
+- **A**: The returned binding switches between **`HTTP-POST` ⇄ `HTTP-Artifact`**
+- **B**: Specify a binding that cannot be used for the response → error `<Status>`(the value is not prescribed because `UnsupportedBinding` is MAY)
 
-黙って別 binding にフォールバックした場合は「属性を処理した」証拠にならないので `not_verified`。
+Silently falling back to another binding is not evidence that the attribute was processed, so the result is `not_verified`.
 
-### 検査器の修正 — SR-14 を作り直した
+### Checker correction — Rebuilt SR-14
 
-`SSO01.ac` を CLASSIFICATION_BASED にしたところ、**SR-14 が BLOCK した**（正しい動作）。
-旧 SR-14 は「IIP の要件節に `does not apply` という文字列が含まれるか」しか見ておらず、
+When `SSO01.ac` was changed to CLASSIFICATION_BASED, **SR-14 BLOCKed** (correct behavior).
+The old SR-14 only checked whether the string `does not apply` appeared in the IIP requirement section, and had two defects:
 
-- 除外文が**参照仕様側**にある義務を弾く
-- 無関係な `does not apply` があれば通してしまう
+- It rejected an obligation whose exclusion text was in the **referenced specification**
+- It allowed an unrelated occurrence of `does not apply`
 
-という二重の欠陥があった。**除外文を `exclusion_clause_en` として verbatim で持たせ**、
-IIP 節または参照節に実在することを検証する形に置き換えた。
+It was replaced with a check that stores the exclusion text verbatim as `exclusion_clause_en`
+and verifies that it exists in the IIP section or the reference section.
 
-| 検査 | 内容 |
+| Check | Content |
 |---|---|
-| `SR-14a` | CLASSIFICATION_BASED の義務が `exclusion_clause_en` を持ち、他の義務は持たない（構造検査。ネットワーク不要） |
-| `SR-14` | `exclusion_clause_en` が IIP 節または参照節に **verbatim で実在**する |
+| `SR-14a` | A CLASSIFICATION_BASED obligation has `exclusion_clause_en`, and other obligations do not (structural check; no network required) |
+| `SR-14` | `exclusion_clause_en` **exists verbatim** in the IIP section or the reference section |
 
-負のテスト: 原文にない除外文 → `SR-14` FAIL ／ 除外文を削除 → `SR-14a` FAIL ／ 健全時 → 両方 PASS。
-既存の `IIP-IDP13.a`〜`.d` にも `exclusion_clause_en`（"This requirement does not apply to token translation Proxies."）を追加した。
+Negative tests: an exclusion text absent from the original → `SR-14` FAIL / deleting the exclusion text → `SR-14a` FAIL / healthy state → both PASS.
+Also added `exclusion_clause_en`("This requirement does not apply to token translation Proxies.")to the existing `IIP-IDP13.a`–`.d`.
 
-### 現在の状態
+### Current state
 
 ```
-要件 69 / 義務 198（196 → 198）/ variant 467 / 述語 16 / 検査 62
-network 実行: 59/62 PASS・blocking 1（SR-40 = tools 未コミットのみ）
-SR-33  全 24 仕様を再取得し source_digest 一致
-SR-34  reference_evidence 114 件すべて locator 解決・節ダイジェスト一致
-SR-14 / SR-14a  適用除外文 5 件すべて原文に実在
-open question 13（IIP-SSO01.a の対応表照合が未了）
+69 requirements / 198 obligations(196 → 198)/ 467 variants / 16 predicates / 62 checks
+network execution: 59/62 PASS / blocking 1(SR-40 = only tools uncommitted)
+SR-33  Re-fetched all 24 specifications and source_digest matched
+SR-34  All 114 reference_evidence entries resolved their locators and matched the section digests
+SR-14 / SR-14a  All 5 exclusion texts exist in the original text
+open question 13(the mapping-table review for IIP-SSO01.a is incomplete)
 ```
 
-**第 1 段階は未完了。** `IIP-SSO01.a` の対応表照合が済むまで承認対象 commit にはしない。
+**Stage 1 is incomplete.** Do not make it an approval-target commit until the mapping-table review for `IIP-SSO01.a` is complete.
 
 ---
 
-## G1b-R7 — 2026-08-27 取り込み句の推移的分解（指摘 5 件）
+## G1b-R7 — 2026-08-27 Transitive Decomposition of Incorporation Clauses (5 Findings)
 
-### 1 [P0] 取り込み句が未分解だった
+### 1 [P0] Incorporation clauses had not been decomposed
 
-`IIP-SSO01.a` の前版の対応表は、SAML2Prof の 2 つの取り込み句を
+The previous mapping table for `IIP-SSO01.a` stated the following about the two SAML2Prof incorporation clauses:
 
-> IdP の Core 処理 → IDP06/07/08/10/11/12 で分解済み ／ SP の Core 処理 → .n〜.r1 で分解済み
+> IdP Core processing → decomposed into IDP06/07/08/10/11/12 / SP Core processing → decomposed into .n–.r1
 
-と書いていたが、**これは事実ではなかった**。SAML2Core を洗い直したところ未収録の MUST が多数あった。
-取り込み範囲を明示し、`IIP-SSO01` に **31 義務**を追加した（`.af`〜`.bk`。義務 198 → 230）。
+but **this was not true**. Re-examination of SAML2Core found many unrecorded MUSTs.
+The scope of incorporation was made explicit, and **31 obligations** were added to `IIP-SSO01` (`.af`–`.bk`; obligations 198 → 230).
 
-**【取り込み句 A】IdP MUST process the `<AuthnRequest>` as described in [SAMLCore]**
+**【Incorporation clause A】IdP MUST process the `<AuthnRequest>` as described in [SAMLCore]**
 
-| SAML2Core | 規範句 | 義務 |
+| SAML2Core | Normative clause | Obligation |
 |---|---|---|
-| §3.2.1 | `@ID` の一意性 | `.af` |
-| §3.2.1 / §3.2.2 | 要求 `@ID` と応答 `@InResponseTo` の一致 | `.ap` |
-| §3.2.1 | `@Destination` の照合と**破棄** | `.ag` |
-| §3.2.1 / §3.2.2 | 拡張要素の名前空間修飾 | `.ah` |
-| §3.2.1 | 署名の検証 / 不正時に依拠しない / エラー応答（SHOULD）/ 署名者の評価（SHOULD） | `.ai` `.aj` `.ak` `.al` |
-| §3.2.1 | Consent 付き要求の署名（SHOULD） | `.am` |
-| §3.2.1 | 不正な要求へ応答する場合の `<StatusCode>` | `.an` |
-| §3.4.1.3 | `<GetComplete>` の解決結果（ルートが `<IDPList>` / `<GetComplete>` を含まない） | `.av` |
-| §3.4.1.5.1 | プロキシ規則 14 件 | `.aw`〜`.bj` |
+| §3.2.1 | Uniqueness of `@ID` | `.af` |
+| §3.2.1 / §3.2.2 | Matching request `@ID` and response `@InResponseTo` | `.ap` |
+| §3.2.1 | Matching and **discarding** `@Destination` | `.ag` |
+| §3.2.1 / §3.2.2 | Namespace qualification of extension elements | `.ah` |
+| §3.2.1 | Signature verification / not relying on it when invalid / error response (SHOULD) / evaluation of the signer (SHOULD) | `.ai` `.aj` `.ak` `.al` |
+| §3.2.1 | Signature on a request with Consent (SHOULD) | `.am` |
+| §3.2.1 | `<StatusCode>` when responding to an invalid request | `.an` |
+| §3.4.1.3 | Resolution result of `<GetComplete>` (the root does not contain `<IDPList>` / `<GetComplete>`) | `.av` |
+| §3.4.1.5.1 | 14 proxy rules | `.aw`–`.bj` |
 
-**【取り込み句 B】SP MUST process the `<Response>` and enclosed `<Assertion>` as described in [SAMLCore]**
+**【Incorporation clause B】SP MUST process the `<Response>` and enclosed `<Assertion>` as described in [SAMLCore]**
 
-| SAML2Core | 規範句 | 義務 |
+| SAML2Core | Normative clause | Obligation |
 |---|---|---|
-| §3.2.2 | `@ID` の一意性 | `.ao` |
-| §3.2.2 | `@Destination` の照合と**破棄** | `.aq` |
-| §3.2.2 | 署名不正時に依拠しない / エラーとして扱う（SHOULD）/ 署名者の評価（SHOULD） | `.ar` `.as` `.at` |
-| §3.2.2 | Consent 付き応答の署名（SHOULD） | `.au` |
+| §3.2.2 | Uniqueness of `@ID` | `.ao` |
+| §3.2.2 | Matching and **discarding** `@Destination` | `.aq` |
+| §3.2.2 | Not relying on an invalid signature / treating it as an error (SHOULD) / evaluation of the signer (SHOULD) | `.ar` `.as` `.at` |
+| §3.2.2 | Signature on a response with Consent (SHOULD) | `.au` |
 
-対応表の全文は `IIP-SSO01.a` の `notes_ja` にあり、`docs/04` から読める。
+The complete mapping table is in `notes_ja` for `IIP-SSO01.a`, and can be read from `docs/04`.
 
-**副次的に見つかった穴**: `IIP` には「**IdP が AuthnRequest の署名を検証する**」義務がどこにもなかった（`.ai`）。
-`@Destination` の照合（悪意ある転送への対策）も両方向とも落ちていた（`.ag` / `.aq`）。
+**Secondary gap discovered**: IIP had no obligation anywhere that **the IdP verifies the signature on the AuthnRequest** (`.ai`).
+Matching `@Destination` (a countermeasure against malicious forwarding) had also been omitted in both directions (`.ag` / `.aq`).
 
-**`IIP-SSO07.b` も訂正した。** 前版は `<Scoping>` / `ProxyCount` / `<IDPList>` をまとめて
-「二択なので情報記録のみ」としていたが、§3.4.1.5.1 には明確な MUST NOT / MUST がある。
-`.aw`〜`.bd` に分解し、SSO07.b からは「対象外（取り込まれた Core の規則が扱う）」に変えた。
-ただし**プロキシしない IdP が Scoping を無視することは適合**（ProxyCount=0 は自動的に守られる）ので、
-プロキシ義務はすべて `supports_authnrequest_proxying` を条件にしている。
+**`IIP-SSO07.b` was also corrected.** The previous version grouped `<Scoping>` / `ProxyCount` / `<IDPList>`
+and treated them as “information recording only because there are two choices,” but §3.4.1.5.1 contains clear MUST NOT / MUST clauses.
+They were decomposed into `.aw`–`.bd`, and SSO07.b was changed to “out of scope (handled by the incorporated Core rules).”
+However, **it is conforming for an IdP that does not proxy to ignore Scoping**(`ProxyCount=0` is automatically satisfied),
+so all proxy obligations are conditional on `supports_authnrequest_proxying`.
 
-### 2〜5
+### 2–5
 
-| # | 指摘 | 対応 |
+| # | Finding | Action |
 |---|---|---|
-| 2 | `.y1` の適用条件が**半分欠けて**いた（原文は「If metadata ... is used」との**連言**） | 述語 **`unsolicited_acs_from_metadata`** に連言として畳んだ。ACS をメタデータ以外で決める IdP には適用されない |
-| 3 | `.y2` に MAY の動作が必須 variant として残っていた | 「RelayState 付き → その URL に遷移」を verdict 対象から外し、**`.bk`（MAY / idp）**に分離 |
-| 4 | `.ac` がまだ「露出禁止」へ強められていた | 判定を**三分岐**に: 復元に不要な情報の露出 → `violated` ／ 最小限か判断できない → **`not_verified`** ／ 単に文字列が含まれる → violated にしない |
-| 5 | `.ae` の申告フォールバックが outcome 規則と矛盾 | **申告だけで `satisfied` にしない**。申告は evidence / advisory のみ、outcome は `not_verified` のまま（安全側） |
+| 2 | The applicability condition for `.y1` was **half missing** (the original uses the conjunction “If metadata ... is used”) | Folded it into the predicate **`unsolicited_acs_from_metadata`** as a conjunction. It does not apply to IdPs that determine ACS by means other than metadata. |
+| 3 | A MAY behavior remained as a mandatory variant in `.y2` | Removed “with RelayState → navigate to that URL” from the verdict target and separated it into **`.bk` (MAY / idp)** |
+| 4 | `.ac` had still been strengthened into “disclosure is prohibited” | Made the determination **three-way**: disclosure of information unnecessary for restoration → `violated` / unable to determine whether it is minimal → **`not_verified`** / merely containing a string → do not mark as violated |
+| 5 | The declaration fallback for `.ae` contradicted the outcome rule | **Do not make it `satisfied` based on a declaration alone.** A declaration is evidence / advisory only; the outcome remains `not_verified` (the safe choice). |
 
-### 4 の判定基準
+### Determination criterion for 4
 
-`(1)` の判定には「何が復元に必要か」の基準が要る。preflight で対象の状態保持方式
-（RelayState に何を入れているか）を申告させ、申告と観測が矛盾したら `INCONSISTENT`、
-申告がなければ `(2)` の `not_verified` に落とす。
+Determination of `(1)` requires a criterion for “what is necessary for restoration.”
+The preflight must obtain a declaration of the target’s state-retention method
+(what is placed in RelayState); if the declaration conflicts with observation, use `INCONSISTENT`,
+and if there is no declaration, fall back to `(2)` `not_verified`.
 
-### 現在の状態
+### Current state
 
 ```
-要件 69 / 義務 230（198 → 230）/ variant 550 / 述語 19 / 検査 62
-IIP-SSO01 だけで 74 義務（SAML2Prof 4.1 + 取り込まれた SAML2Core）
-network 実行: 59/62 PASS・blocking 1（SR-40 = tools 未コミットのみ）
-SR-33  全 24 仕様を再取得し source_digest 一致
-SR-34  reference_evidence 148 件すべて locator 解決・節ダイジェスト一致
-open question 13（IIP-SSO01.a の対応表照合が未了）
+69 requirements / 230 obligations(198 → 230)/ 550 variants / 19 predicates / 62 checks
+74 obligations in IIP-SSO01 alone (SAML2Prof 4.1 + incorporated SAML2Core)
+network execution: 59/62 PASS / blocking 1(SR-40 = only tools uncommitted)
+SR-33  Re-fetched all 24 specifications and source_digest matched
+SR-34  All 148 reference_evidence entries resolved their locators and matched the section digests
+open question 13(the mapping-table review for IIP-SSO01.a is incomplete)
 ```
 
-**第 1 段階は未完了。** `IIP-SSO01.a` の `open_question` は、
-直接の §4.1 対応表に加えて**取り込み句 A / B の展開表**の照合も条件に含む。
+**Stage 1 is incomplete.** In addition to the direct §4.1 mapping table,
+the `open_question` for `IIP-SSO01.a` also requires review of the expansion tables for incorporation clauses A / B.
 
 ---
 
-## G1b-R8 — 2026-08-27 Core 取り込みの補完（指摘 7 件）
+## G1b-R8 — 2026-08-27 Completion of Core Incorporation (7 Findings)
 
-### 1 [P0] Core の取り込みがまだ不完全だった
+### 1 [P0] Core incorporation was still incomplete
 
-前回は §3.2.1 / §3.2.2 の一部までしか入っていなかった。**21 義務を追加**（義務 230 → 251）。
+The previous version had incorporated only part of §3.2.1 / §3.2.2. **21 obligations** were added (obligations 230 → 251).
 
-| 出典 | 規範句 | 義務 |
+| Source | Normative clause | Obligation |
 |---|---|---|
-| §1.1 + protocol schema | 必須の `@ID` / `@Version` / `@IssueInstant`、応答の必須 `<Status>` | `.cg` |
-| §1.3.4 | 宣言はちょうど 1 つ | `.cc` |
-| §1.3.4 | 乱数使用時の衝突確率 ≤2^-128 ／ ≤2^-160(SHOULD) ／ PRNG の seed | `.cd` `.ce` `.cf` |
-| §3.2.2.2 | 最上位 `<StatusCode>/@Value` が top-level リストの値 | `.ch` |
-| §2.3.3 | `<Statement>` の `xsi:type` ／ statement のない assertion は `<Subject>` を含む | `.ci` `.cj` |
-| §2.5.1 | `<Condition>` の `xsi:type` ／ `<OneTimeUse>` は 1 つまで ／ `<ProxyRestriction>` は 1 つまで | `.ck` `.cl` `.cm` |
-| §2.5.1.1 | **Invalid / Indeterminate な assertion の拒否** | `.co` |
+| §1.1 + protocol schema | Required `@ID` / `@Version` / `@IssueInstant`, required `<Status>` in a response | `.cg` |
+| §1.3.4 | Exactly one declaration | `.cc` |
+| §1.3.4 | Collision probability ≤2^-128 / ≤2^-160 (SHOULD) when using randomness / PRNG seed | `.cd` `.ce` `.cf` |
+| §3.2.2.2 | Top-level `<StatusCode>/@Value` is a value in the top-level list | `.ch` |
+| §2.3.3 | `xsi:type` on `<Statement>` / an assertion without a statement contains `<Subject>` | `.ci` `.cj` |
+| §2.5.1 | `xsi:type` on `<Condition>` / at most one `<OneTimeUse>` / at most one `<ProxyRestriction>` | `.ck` `.cl` `.cm` |
+| §2.5.1.1 | **Rejection of an assertion that is Invalid / Indeterminate** | `.co` |
 | §2.5.1.2 | `NotBefore` < `NotOnOrAfter` | `.cn` |
-| §2.5.1.4 | 複数 `<AudienceRestriction>` の**独立評価** | `.cp` |
-| §2.5.1.5 | 直ちに使う(SHOULD) ／ 保持しない ／ 保持するなら遵守する | `.cq` `.cr` `.cs` |
-| §2.5.1.6 | 制限違反の発行禁止 ／ `Count=0` ／ `Count` 減算 ／ `<Audience>` の範囲 | `.ct` `.cu` `.cv` `.cw` |
+| §2.5.1.4 | **Independent evaluation** of multiple `<AudienceRestriction>` elements | `.cp` |
+| §2.5.1.5 | Use immediately (SHOULD) / do not retain / comply if retained | `.cq` `.cr` `.cs` |
+| §2.5.1.6 | Prohibition on issuing restriction violations / `Count=0` / decrementing `Count` / scope of `<Audience>` | `.ct` `.cu` `.cv` `.cw` |
 
-**`SAML2P-xsd`（SAML V2.0 Protocol Schema）を仕様カタログに追加した**（仕様 24 → 25）。
-必須属性・必須要素の規範の出所は RFC2119 句ではなく**スキーマ文書**であり、
-SAML2Core §1.1 が「the schema documents take precedence」と述べているため、
-スキーマを根拠として引けるようにした。
+**`SAML2P-xsd` (SAML V2.0 Protocol Schema) was added to the specification catalog** (specifications 24 → 25).
+The normative source of required attributes and required elements is not an RFC2119 clause but the **schema document**,
+and SAML2Core §1.1 states that “the schema documents take precedence,”
+so the schema was made available as a citable basis.
 
-**`.ao` の注記の訂正**: 前版は「`Assertion/@ID` は `IIP-SSO01.w` が扱う」と書いていたが**不正確**だった。
-`.w` は **SP のリプレイ検出**であって、**IdP が §1.3.4 に従って Assertion ID を生成する義務**の代用にはならない。
-`.ao` の対象に `<Assertion>/@ID` を含めた。
+**Correction to the note for `.ao`**: The previous version stated that “`Assertion/@ID` is handled by `IIP-SSO01.w`,” but this was **inaccurate**.
+`.w` is **SP replay detection**, and is not a substitute for **the IdP’s obligation to generate an Assertion ID according to §1.3.4**.
+`<Assertion>/@ID` was included in the target of `.ao`.
 
-### 2 [P1] ID 一意性の分解
+### 2 [P1] Decomposition of ID uniqueness
 
-`.af` / `.ao` は「別オブジェクトへ同じ識別子を割り当てない（negligible probability）」までに限定し、
-**確率・seed は BROWSER / AUTOMATED では証明できない**ので独立義務にして `ATTESTED` へ分けた（`.cd` `.ce` `.cf`）。
-`≤2^-128`(MUST) と `≤2^-160`(SHOULD) を 1 つにまとめると、
-128 ビット実装を FAIL にするか 160 ビット未達を見逃すかのどちらかになる。
+`.af` / `.ao` were limited to “do not assign the same identifier to different objects (negligible probability),”
+and because probability and seed **cannot be proven by BROWSER / AUTOMATED**, they were made independent obligations and separated into `ATTESTED` (`.cd` `.ce` `.cf`).
+Combining `≤2^-128` (MUST) and `≤2^-160` (SHOULD) into one would either FAIL a 128-bit implementation or fail to detect an implementation below 160 bits.
 
-### 3〜7
+### 3–7
 
-| # | 指摘 | 対応 |
+| # | Finding | Action |
 |---|---|---|
-| 3 | `.ai` が**暗号学的検証と署名者評価を混同** | 「メタデータにない鍵 → 受理しない」を削除（それは `.al` の SHOULD）。variant を `<ds:SignatureValue>` 改竄・署名対象改竄・`<ds:Reference>/@URI` 差し替えに。Redirect のクエリ署名は `[SAML2Bind]` 側の別機構なので対象外と明記 |
-| 4 | `.au` が **Assertion 署名を Response 署名として扱っていた** | `<samlp:Response>` 要素そのものの `<ds:Signature>` を判定条件に。assertion だけ署名しても `@Consent` は保護されない |
-| 5 | `.as` が**利用者への画面表示まで要求** | 「セキュリティコンテキストが成立しない」＋「エラーとして扱われている（提示・監査ログ・エラーページのいずれか）」に。UI 表示を必須にしない |
-| 6 | `.av` の role と到達不能時の扱い | role に **idp を追加**（プロキシ IdP も `<GetComplete>` を発行しうる）。到達不能を三分岐に: Suite の egress 制限 → `not_verified` ／ 他ホストへは到達できるのに 404・接続拒否 → **`violated`** ／ 取得できたが形式違反 → `violated` |
-| 7 | 非 SAML 上流だけの規則の条件が広すぎた | 述語 **`proxies_to_non_saml_provider`** を新設し、`.az` `.bh` `.bi` `.bj` に適用。SAML IdP のみへプロキシする対象では NOT_APPLICABLE になる（「空虚に真」で満足扱いにならない） |
+| 3 | `.ai` **confused cryptographic verification with signer evaluation** | Deleted “key not in metadata → do not accept” (that is the SHOULD in `.al`). Changed variants to tampering with `<ds:SignatureValue>`, the signed target, and `<ds:Reference>/@URI`. Explicitly stated that Redirect query signatures are a separate mechanism on the `[SAML2Bind]` side and are out of scope. |
+| 4 | `.au` treated an **Assertion signature as a Response signature** | Made the `<ds:Signature>` on the `<samlp:Response>` element itself the determination condition. Signing only the assertion does not protect `@Consent`. |
+| 5 | `.as` **required display to the user** | Changed it to “the security context is not established” plus “it is treated as an error (one of presentation, an audit log, or an error page).” UI display is not mandatory. |
+| 6 | Role and unreachable handling for `.av` | Added **idp** to the role (a proxy IdP may also issue `<GetComplete>`). Made unreachable handling three-way: Suite egress restriction → `not_verified` / 404 or connection refusal despite reachability to other hosts → **`violated`** / retrieved but format-invalid → `violated` |
+| 7 | The condition for rules applying only to non-SAML upstreams was too broad | Created the predicate **`proxies_to_non_saml_provider`** and applied it to `.az` `.bh` `.bi` `.bj`. A target proxying only to SAML IdPs becomes NOT_APPLICABLE (it is not treated as satisfied merely because the condition is vacuously true). |
 
-### 現在の状態
+### Current state
 
 ```
-要件 69 / 義務 251（230 → 251）/ variant 603 / 仕様 25 / 述語 21 / 検査 62
-IIP-SSO01 だけで 95 義務
+69 requirements / 251 obligations(230 → 251)/ 603 variants / 25 specifications / 21 predicates / 62 checks
+95 obligations in IIP-SSO01 alone
 testability  BROWSER 119 / CONFIG 81 / ATTESTED 30 / AUTOMATED 20 / NOT_OBSERVABLE 1
-network 実行: 59/62 PASS・blocking 1（SR-40 = tools 未コミットのみ）
-SR-33  全 25 仕様を再取得し source_digest 一致
-SR-34  reference_evidence 175 件すべて locator 解決・節ダイジェスト一致
+network execution: 59/62 PASS / blocking 1(SR-40 = only tools uncommitted)
+SR-33  Re-fetched all 25 specifications and source_digest matched
+SR-34  All 175 reference_evidence entries resolved their locators and matched the section digests
 open question 13
 ```
 
-**第 1 段階は未完了。** `IIP-SSO01.a` の対応表（§4.1・取り込み句 A・取り込み句 B）の照合が残っている。
+**Stage 1 is incomplete.** Review of the mapping table for `IIP-SSO01.a` (§4.1, incorporation clause A, and incorporation clause B) remains.
 
 ---
 
-## G1b-R9 — 2026-08-27 取り込み句 B の完成（指摘 6 件）
+## G1b-R9 — 2026-08-27 Completion of Incorporation Clause B (6 Findings)
 
-### 1 [P0] 取り込み句 B が Assertion 全体を覆っていなかった
+### 1 [P0] Incorporation clause B did not cover the entire Assertion
 
-前版は §2.5 Conditions 中心に限定していた。**§2 SAML Assertions 全体**を節ごとに洗い直し、
-**22 義務を追加**（義務 251 → 273）。義務を起こさない節にも**理由を書いた**（対応表は `.a` の `notes_ja`）。
+The previous version was limited mainly to §2.5 Conditions. **All of §2 SAML Assertions** was re-examined section by section,
+and **22 obligations** were added (obligations 251 → 273). Reasons were also written for sections that do not generate obligations (the mapping table is in `.a`’s `notes_ja`).
 
-| 節 | 規範句 | 義務 |
+| Section | Normative clause | Obligation |
 |---|---|---|
-| §2.2.1 / §2.2.2 | `NameQualifier` / `SPNameQualifier` の省略(SHOULD) | `.cy` |
-| §2.2.4 / §2.3.4 / §2.7.3.2 | `@Type` の存在(SHOULD)・値・暗号化内容の型・**ciphertext の一意性**・wrapped key の `Recipient`(SHOULD) | `.dm` `.dn` `.do` `.dp` `.dq` |
-| §2.3.3 | 必須 `@Version` / `@IssueInstant` / `<Issuer>`（生成）／ **受信側の拒否** | `.cg` ／ **`.cx`** |
-| §2.4.1 | `<Subject>` は 2 人以上を識別しない(SHOULD NOT) | `.cz` |
-| §2.4.1.2 | 拡張属性の名前空間 ／ 妥当期間(SHOULD) ／ `NotBefore` < `NotOnOrAfter` ／ `@Address` の表記(SHOULD) | `.da` `.db` `.dc` `.ds` |
-| §2.7.2 | `<Subject>` 必須 ／ 必須 `@AuthnInstant` / `<AuthnContext>` ／ SessionIndex の相関防止・値域・ランダム性 | `.dd` `.cg`/`.cx` `.de` `.df` `.dg` |
-| §2.7.3 / §2.7.3.1 / §2.7.3.1.1 | `<Subject>` 必須 ／ 拡張属性 ／ 値なしは省略 ／ 空値 ／ null 値 | `.dh` `.di` `.dj` `.dk` `.dl` |
+| §2.2.1 / §2.2.2 | Omission of `NameQualifier` / `SPNameQualifier` (SHOULD) | `.cy` |
+| §2.2.4 / §2.3.4 / §2.7.3.2 | Presence (SHOULD) and value of `@Type`, type of encrypted content, **ciphertext uniqueness**, and `Recipient` of the wrapped key (SHOULD) | `.dm` `.dn` `.do` `.dp` `.dq` |
+| §2.3.3 | Required `@Version` / `@IssueInstant` / `<Issuer>` (generation) / **rejection by the receiving side** | `.cg` / **`.cx`** |
+| §2.4.1 | `<Subject>` SHOULD NOT identify more than one principal | `.cz` |
+| §2.4.1.2 | Namespace of extension attributes / valid period (SHOULD) / `NotBefore` < `NotOnOrAfter` / notation of `@Address` (SHOULD) | `.da` `.db` `.dc` `.ds` |
+| §2.7.2 | Required `<Subject>` / required `@AuthnInstant` / `<AuthnContext>` / SessionIndex correlation prevention, value range, and randomness | `.dd` `.cg`/`.cx` `.de` `.df` `.dg` |
+| §2.7.3 / §2.7.3.1 / §2.7.3.1.1 | Required `<Subject>` / extension attributes / omit when there is no value / empty value / null value | `.dh` `.di` `.dj` `.dk` `.dl` |
 
-**義務を起こさない節と理由**（対応表に記録）:
+**Sections that do not generate obligations and reasons** (recorded in the mapping table):
 
-- §2.3.1 / §2.3.2 assertion 参照形式 — 規範句なし。本 profile は assertion を値で運ぶ
-- §2.4.1.3 `KeyInfoConfirmationDataType` — 「確認方式が機構を定義する」は**仕様の書き手への規範**。残りは holder-of-key 固有で、本 profile は bearer（`.j`）。ECP の HoK は `IIP-IDP13`
-- §2.7.3.1 「他の用途は semantics を定義しなければならない」— 同じく仕様の書き手への規範
-- §2.7.4 `<AuthzDecisionStatement>` 以下 — 本 profile は認可決定 statement を使わない。同梱された場合は `IIP-SSO07.b`
+- §2.3.1 / §2.3.2 assertion reference formats — no normative clause. This profile carries assertions by value.
+- §2.4.1.3 `KeyInfoConfirmationDataType` — “the confirmation method defines the mechanism” is **a norm for specification authors**. The remainder is holder-of-key-specific, while this profile is bearer (`.j`). ECP’s HoK is `IIP-IDP13`.
+- §2.7.3.1 “other uses must define semantics” — likewise a norm for specification authors.
+- §2.7.4 `<AuthzDecisionStatement>` and below — this profile does not use authorization decision statements. If included, they are covered by `IIP-SSO07.b`.
 
-`.cg` は前版が **samlp メッセージだけ**を検査していたので、`SAML2-xsd`（assertion schema）も根拠に加え、
-variant を **role ごとに明示**した（SP は AuthnRequest、IdP は Response と Assertion）。
+`.cg` had previously checked **only samlp messages**, so `SAML2-xsd` (the assertion schema) was also added as a basis,
+and variants were **explicitly identified by role** (SP: AuthnRequest; IdP: Response and Assertion).
 
-### 2〜6
+### 2–6
 
-| # | 指摘 | 対応 |
+| # | Finding | Action |
 |---|---|---|
-| 2 | `.cc` が**別の規則**を見ていた | 「1 オブジェクトの宣言はちょうど 1 つ」に戻し、同一文書内の重複宣言・整形式・スキーマ制約として検査。オブジェクト間の重複は `.af` / `.ao` の variant に移した |
-| 3 | `.n` に `.ai` と同じ**署名者評価の混同**が残っていた | 「メタデータにない鍵 → 拒否」を削除（それは `.at` の SHOULD）。variant を `<ds:SignatureValue>` 改竄・署名対象改竄・`<ds:Reference>/@URI` 差し替えに |
-| 4 | 非 SAML 上流の**観測条件が成立しない** | ご指摘のとおり「`AuthenticatingAuthority` が SAML メタデータで解決できない」は**未登録・未取得の SAML IdP でも成立**する。述語を **`CLASSIFICATION_BASED` + `declaration_only_exclusion`** に変更（観測材料なし・理由付き申告でのみ偽）。`.az` / `.bh` の「空虚に真」variant も削除 |
-| 5 | `.cw` が原文より強く、一部を見落としていた | 「発行自体の禁止」を撤回し、原文の 2 要件に: **要件 1** 元の `<Audience>` を 1 つ以上含む ／ **要件 2** 元になかった `<Audience>` を含まない |
-| 6 | Proxy IdP が生成する AuthnRequest の ID 規則が対象外 | `.af`（SP・無条件）と **`.dr`**（Proxy IdP・`supports_authnrequest_proxying` 条件付き）に分割。`.cg` の variant も role を明示 |
+| 2 | `.cc` was looking at **a different rule** | Restored “a declaration for one object is exactly one.” Checked it as duplicate declarations within the same document, well-formedness, and a schema constraint. Duplicates between objects were moved to variants of `.af` / `.ao`. |
+| 3 | `.n` still contained the same **confusion of signer evaluation** as `.ai` | Deleted “key not in metadata → reject” (that is the SHOULD in `.at`). Changed variants to tampering with `<ds:SignatureValue>`, the signed target, and `<ds:Reference>/@URI`. |
+| 4 | The **observation condition for a non-SAML upstream** did not hold | As pointed out, “`AuthenticatingAuthority` cannot be resolved in SAML metadata” also holds for an unregistered or unobtained SAML IdP. Changed the predicate to **`CLASSIFICATION_BASED` + `declaration_only_exclusion`** (false only with a declaration supported by no observation material and accompanied by a reason). Also deleted the “vacuously true” variants of `.az` / `.bh`. |
+| 5 | `.cw` was stronger than the original and missed part of it | Withdrew “prohibition of issuance itself” and used the original two requirements: **Requirement 1**: include at least one original `<Audience>` / **Requirement 2**: do not include an `<Audience>` that was not in the original. |
+| 6 | The ID rule for AuthnRequests generated by a proxy IdP was out of scope | Split it into `.af` (SP, unconditional) and **`.dr`** (proxy IdP, conditional on `supports_authnrequest_proxying`). Also explicitly identified roles for `.cg` variants. |
 
-### 4 が示したこと
+### What 4 demonstrated
 
-観測材料は「その事象が条件を含意するか」で選ばなければならない。
-`<AuthenticatingAuthority>` の未解決は**上流が非 SAML であること**を含意しない。
-このままだと本来 N/A の義務が適用されるか、申告との `INCONSISTENT` が出る。
-`declaration_only_exclusion` に変えたことで、除外は結果の最上位に現れる。
+Observation material must be selected according to whether **the event implies the condition**.
+An unresolved `<AuthenticatingAuthority>` does **not** imply that the upstream is non-SAML.
+In the previous form, an obligation that should have been N/A could apply, or an `INCONSISTENT` result with a declaration could occur.
+Changing it to `declaration_only_exclusion` causes the exclusion to appear at the top level of the result.
 
-### 現在の状態
+### Current state
 
 ```
-要件 69 / 義務 273（251 → 273）/ variant 659 / 仕様 25 / 述語 21 / 検査 62
-IIP-SSO01 だけで 117 義務
+69 requirements / 273 obligations(251 → 273)/ 659 variants / 25 specifications / 21 predicates / 62 checks
+117 obligations in IIP-SSO01 alone
 level        MUST 181 / MUST_NOT 34 / SHOULD 32 / SHOULD_NOT 3 / REQUIRED 4 / RECOMMENDED 5 / MAY 8 / OPTIONAL 6
 testability  BROWSER 120 / CONFIG 82 / AUTOMATED 37 / ATTESTED 33 / NOT_OBSERVABLE 1
-network 実行: 59/62 PASS・blocking 1（SR-40 = tools 未コミットのみ）
-SR-33  全 25 仕様を再取得し source_digest 一致
-SR-34  reference_evidence 209 件すべて locator 解決・節ダイジェスト一致
+network execution: 59/62 PASS / blocking 1(SR-40 = only tools uncommitted)
+SR-33  Re-fetched all 25 specifications and source_digest matched
+SR-34  All 209 reference_evidence entries resolved their locators and matched the section digests
 open question 13
 ```
 
-**第 1 段階は未完了。** `IIP-SSO01.a` の 3 つの対応表の照合が残っている。
+**Stage 1 is incomplete.** Review of the three mapping tables for `IIP-SSO01.a` remains.
 
 ---
 
-## G1b-R10 — 2026-08-27 取り込み句 B の精度（指摘 7 件）
+## G1b-R10 — 2026-08-27 Precision of Incorporation Clause B (7 Findings)
 
-義務 273 → 279。今回はすべて「原文の読み違い」か「レベル・適用範囲の取り違え」。
+Obligations 273 → 279. This time, every item was a misreading of the original text or a confusion of level or scope of applicability.
 
-| # | 指摘 | 原文の確認 | 対応 |
+| # | Finding | Verification of the original text | Action |
 |---|---|---|---|
-| 1 | **`SessionNotOnOrAfter` の Core MUST が欠落** | §2.7.2「Specifies a time instant at which the session ... **MUST** be considered ended」 | `.dt`（MUST / sp）を新設。`.t`（SAML2Prof 4.1.4.3 の SHOULD）とはレベルも行為も違う |
-| 2 | `<AttributeValue>` の RECOMMENDED が欠落 | §2.7.3.1「If an attribute contains more than one discrete value, it is **RECOMMENDED** that each value appear in its own `<AttributeValue>`」 | `.du`（RECOMMENDED / idp）を新設 |
-| 3 | `.cg` の role 別 variant は**機械的に分離されていない** | variant に role フィールドはない | **4 義務に分割**: `.cg`（SP の AuthnRequest）/ `.dv`（IdP の Response）/ `.dw`（IdP の Assertion）/ `.dx`（Proxy IdP の AuthnRequest・条件付き） |
-| 4 | SessionIndex の判定が**原文の許す方式を不適合にする** | §2.7.2 は 2 方式を RECOMMENDED: (a) 小さい正整数・繰り返し定数、(b) 囲む assertion の @ID。**`.df` / `.dg` は (a) の内部規則** | `.de` を「同値か」ではなく「**相関できるか**」で判定。`.df` / `.dg` を述語 `uses_small_integer_sessionindex` で条件付きに。方式選択そのものを `.dy`（RECOMMENDED）に |
-| 5 | `.cz` が**意味上の複数主体を検査していない** | §2.4.1「A `<Subject>` element SHOULD NOT identify more than one principal」 | `<SubjectConfirmation>` 内の識別子・複数 `<SubjectConfirmation>`・属性との食い違いを variant に追加 |
-| 6 | `.db` が**開始側を見ていない** | §2.4.1.2 の SHOULD は一般の `<SubjectConfirmationData>` が対象 | **上限・下限の両端**を検査。非 bearer では `@NotBefore` ≥ `<Conditions>/@NotBefore` も見る |
-| 7 | 暗号化義務の範囲に**過不足** | §2.2.4 の許容型は `NameIDType` **または `AssertionType`**、およびそれらの派生型。ciphertext 一意性の MUST は **`<EncryptedID>` にのみ**置かれている | `.do` に `AssertionType` を追加（「an entire assertion can be encrypted into this element」）。`.dp` を `<EncryptedID>` に限定し、条件付きに |
+| 1 | **The Core MUST for `SessionNotOnOrAfter` was missing** | §2.7.2: “Specifies a time instant at which the session ... **MUST** be considered ended” | Created `.dt` (MUST / sp). Its level and action differ from `.t` (SHOULD in SAML2Prof 4.1.4.3). |
+| 2 | The RECOMMENDED clause for `<AttributeValue>` was missing | §2.7.3.1: “If an attribute contains more than one discrete value, it is **RECOMMENDED** that each value appear in its own `<AttributeValue>`” | Created `.du` (RECOMMENDED / idp). |
+| 3 | The role-specific variants of `.cg` were **not mechanically separated** | Variants have no role field | **Split into 4 obligations**: `.cg` (SP AuthnRequest) / `.dv` (IdP Response) / `.dw` (IdP Assertion) / `.dx` (proxy IdP AuthnRequest, conditional) |
+| 4 | The SessionIndex determination **made a method permitted by the original nonconforming** | §2.7.2 RECOMMENDS two methods: (a) a small positive integer and repeated constant, (b) the enclosing assertion’s @ID. **`.df` / `.dg` are internal rules of (a)** | Determine `.de` by “**whether it can be correlated**,” not by “whether it is equal.” Make `.df` / `.dg` conditional on the predicate `uses_small_integer_sessionindex`. Make the choice of method itself `.dy` (RECOMMENDED). |
+| 5 | `.cz` **did not examine multiple principals semantically** | §2.4.1: “A `<Subject>` element SHOULD NOT identify more than one principal” | Added as variants identifiers within `<SubjectConfirmation>`, multiple `<SubjectConfirmation>` elements, and inconsistencies with attributes. |
+| 6 | `.db` **did not examine the starting side** | The SHOULD in §2.4.1.2 applies to general `<SubjectConfirmationData>` | Examine **both endpoints**, upper and lower. For non-bearer, also examine `@NotBefore` ≥ `<Conditions>/@NotBefore`. |
+| 7 | The scope of the encryption obligation was **both overbroad and incomplete** | Permitted types in §2.2.4 are `NameIDType` **or `AssertionType`**, and their derived types. The MUST for ciphertext uniqueness is placed **only on `<EncryptedID>`** | Added `AssertionType` to `.do` (“an entire assertion can be encrypted into this element”). Limited `.dp` to `<EncryptedID>` and made it conditional. |
 
-### 1 が示した区別
+### Distinction demonstrated by 1
 
-`.dt`（Core / MUST）と `.t`（Prof / SHOULD）は同じ属性を扱うが行為が違う。
+`.dt` (Core / MUST) and `.t` (Prof / SHOULD) concern the same attribute but different actions.
 
-- **Core**: `SessionNotOnOrAfter` の時点で、その **SAML セッションは終了したものとして扱う**（MUST）
-- **Prof**: SP 自身の**セキュリティコンテキストを破棄する**ことが望ましい（SHOULD）
+- **Core**: At the time of `SessionNotOnOrAfter`, **the SAML session is to be treated as ended** (MUST)
+- **Prof**: It is desirable for the SP to **discard its own security context** (SHOULD)
 
-SP が自分のアプリセッションを独自ポリシーで継続すること自体は Core の MUST に違反しない。
-違反になるのは「当該 assertion を根拠に IdP セッションが継続中だと扱う」こと。
+Continuing the application session under the SP’s independent policy does not itself violate the Core MUST.
+The violation is treating the IdP session as still active on the basis of that assertion.
 
-### 4 が示したこと
+### What 4 demonstrated
 
-原文が**複数の実現方式**を示している場合、その一方の内部規則を全体に課してはならない。
-`.df`（値域の濃度）と `.dg`（ランダム選択）は方式 (a) の中に書かれた SHOULD であり、
-方式 (b)（assertion の @ID を使う）を採る実装には適用されない。
-また `.de` は「別 SP で値が異なるか」ではなく「主体を相関できるか」で判定する。
-方式 (a) は**多数の主体で同じ値を共有させて相関を防ぐ**方式なので、同値であること自体は違反ではない。
+When the original text presents **multiple implementation methods**, the internal rule of one method must not be imposed on all methods.
+`.df` (value density) and `.dg` (random selection) are SHOULDs written within method (a), and do not apply to an implementation using method (b) (the assertion’s @ID).
+Also, `.de` is determined by “whether the principal can be correlated,” not by “whether the value differs at another SP.”
+Method (a) is a method that **prevents correlation by having many principals share the same value**, so equality itself is not a violation.
 
-### 3 が示したこと
+### What 3 demonstrated
 
-義務に `roles: [idp, sp]` を持たせ、variant の説明文で「SP が送る」「IdP が送る」と書き分けても、
-**variant に role フィールドはない**ので G2 では片方の role が他方の variant まで覆う必要があるように見える。
-生成側の義務は role ごとに分けるのが安全。
+Even if an obligation has `roles: [idp, sp]` and its variant descriptions distinguish “sent by the SP” from “sent by the IdP,”
+**variants have no role field**, so in G2 it appears that one role must also cover the other role’s variants.
+Separating generated-side obligations by role is safer.
 
-### 現在の状態
+### Current state
 
 ```
-要件 69 / 義務 279（273 → 279）/ variant 684 / 仕様 25 / 述語 22 / 検査 62
-IIP-SSO01 だけで 123 義務
+69 requirements / 279 obligations(273 → 279)/ 684 variants / 25 specifications / 22 predicates / 62 checks
+123 obligations in IIP-SSO01 alone
 testability  BROWSER 120 / CONFIG 83 / AUTOMATED 40 / ATTESTED 35 / NOT_OBSERVABLE 1
-network 実行: 59/62 PASS・blocking 1（SR-40 = tools 未コミットのみ）
-SR-33  全 25 仕様を再取得し source_digest 一致
-SR-34  reference_evidence 216 件すべて locator 解決・節ダイジェスト一致
+network execution: 59/62 PASS / blocking 1(SR-40 = only tools uncommitted)
+SR-33  Re-fetched all 25 specifications and source_digest matched
+SR-34  All 216 reference_evidence entries resolved their locators and matched the section digests
 open question 13
 ```
 
-**第 1 段階は未完了。** `IIP-SSO01.a` の 3 つの対応表の照合が残っている。
+**Stage 1 is incomplete.** Review of the three mapping tables for `IIP-SSO01.a` remains.
 
 ---
 
-## G1b-R11 — 2026-08-27 §1.3 / §4 / §5 / §6 の取り込み（指摘 4 件）
+## G1b-R11 — 2026-08-27 Incorporation of §1.3 / §4 / §5 / §6 (4 Findings)
 
-義務 279 → **309**。P0 が 3 系統、判定過剰が 1 件。
+Obligations 279 → **309**. There were three P0 lines of issue and one case of over-determination.
 
-### 1 [P0] Core §1.3 の共通データ型規則
+### 1 [P0] Common data-type rules in Core §1.3
 
-`§1.3.4`（ID）しか取り込んでいなかった。`§1.3.1`〜`§1.3.3` を分解（**10 義務**）。
+Only `§1.3.4` (ID) had been incorporated. `§1.3.1`–`§1.3.3` were decomposed (**10 obligations**).
 
-| 節 | 規範句 | 義務 |
+| Section | Normative clause | Obligation |
 |---|---|---|
-| §1.3.1 | 空白以外を 1 文字以上 ／ **完全バイナリ比較** ／ 大文字小文字無視・空白正規化・ロケール変換に依拠しない ／ 異なる符号化は NFC ／ 外部データ比較で XML 正規化を考慮 ／ ソート順に依拠しない | `.dz` `.ea` **`.eb`** `.ec` `.ed` `.ee` |
-| §1.3.2 | 空白以外を 1 文字以上 かつ **絶対 URI** | `.ef` |
-| §1.3.3 | タイムゾーンなし UTC ／ ミリ秒より細かい分解能に依拠しない ／ **うるう秒を生成しない** | `.eg` `.eh` `.ei` |
+| §1.3.1 | At least one non-whitespace character / **complete binary comparison** / do not rely on case insensitivity, whitespace normalization, or locale conversion / different encodings are NFC / account for XML normalization when comparing external data / do not rely on sort order | `.dz` `.ea` **`.eb`** `.ec` `.ed` `.ee` |
+| §1.3.2 | At least one non-whitespace character and **absolute URI** | `.ef` |
+| §1.3.3 | UTC without a time zone / do not rely on finer-than-millisecond resolution / **do not generate leap seconds** | `.eg` `.eh` `.ei` |
 
-いずれもスキーマ検証では検出できない（`xs:anyURI` は相対 URI を、`xs:dateTime` はオフセット付きと秒 60 を通す）。
-`.eb`（大文字小文字を同一視しない）はアカウント乗っ取りに直結するので mutant SUT の候補にした。
+None of these can be detected through schema validation (`xs:anyURI` permits relative URIs, while `xs:dateTime` permits offsets and second 60).
+`.eb` (not treating uppercase and lowercase as identical) was made a candidate for a mutant SUT because it directly leads to account takeover.
 
-### 2 [P0] Core §4 のバージョン処理規則（**8 義務**）
+### 2 [P0] Core §4 version-processing rules (**8 obligations**)
 
-`@Version="2.0"` を送ることと SP が V1.1 を拒否することしか見ていなかった。
-IdP の**要求受信処理**と**応答生成**を分けて義務化した。
+Only sending `@Version="2.0"` and having the SP reject V1.1 had been examined.
+The IdP’s **request-receiving processing** and **response generation** were made separate obligations.
 
-`.ej`（未対応版の assertion を発行しない）／ `.ek`（未対応 major を処理しない）／
-`.el`（扱えない応答版に対応する要求を出さない）／ `.em`（未対応 major の要求を拒否）／
-`.en`（要求より高い応答版を出さない）／ `.eo`（要求より低い major を出さない。ただし VersionMismatch 報告は例外）／
-`.ep`（非互換時の最上位 `VersionMismatch`）／ `.eq`（V1 assertion を V2 応答に含めない）
+`.ej` (do not issue assertions of an unsupported version) / `.ek` (do not process an unsupported major) /
+`.el` (do not issue a request corresponding to an unsupported response version) / `.em` (reject a request with an unsupported major) /
+`.en` (do not issue a response version higher than the request) / `.eo` (do not issue a lower major than the request, except for reporting VersionMismatch) /
+`.ep` (top-level `VersionMismatch` for incompatibility) / `.eq` (do not include a V1 assertion in a V2 response)
 
-§4.2（名前空間の版）・§4.3（拡張の扱い）は仕様の書き手と将来版への規範なので義務を起こさない旨を記録した。
+The fact that §4.2 (namespace versions) and §4.3 (handling extensions) are rules for specification authors and future versions,
+and therefore do not generate obligations, was recorded.
 
-### 3 [P0] Core §5 の署名 profile と §6 の署名・暗号化順序（**12 義務**）
+### 3 [P0] Core §5 signature profile and §6 signature/encryption order (**12 obligations**)
 
-**ここが一番効く。** XML Signature Wrapping と「復号後の署名を検証しない」実装への直接の検出になる。
+**This has the greatest impact.** It directly detects XML Signature Wrapping and implementations that “do not verify signatures after decryption.”
 
-| 義務 | 内容 |
+| Obligation | Content |
 |---|---|
-| `.er` | XML 署名は **enveloped** |
-| `.eu` | 署名対象ルート要素に `@ID` を与える |
-| **`.ev`** | 署名は**単一の `<ds:Reference>`** を含み、署名対象ルートの `@ID` への same-document reference（`#foo`） |
-| `.ew` / `.ex` | Exclusive C14N を使う(SHOULD) ／ 許可外 transform を含めない(SHOULD NOT) |
-| **`.ey`** | **許可外 transform を含む署名を拒否しないなら、SAML メッセージのどの内容も署名対象から除外されていないことを保証する** |
-| `.es` / `.et` | 発行元以外から得る assertion ／ 発信者以外から届くメッセージの署名(SHOULD) |
-| `.ez` | 暗号データは**同じ位置**で平文を置き換える |
-| **`.fa`** | **署名検証と復号を、署名・暗号化と逆順に行う** |
-| **`.fb`** | assertion は**署名してから暗号化** |
-| **`.fc`** | 識別子・属性は**暗号化してから外側を署名** |
+| `.er` | XML signatures are **enveloped** |
+| `.eu` | Give the signed target root element an `@ID` |
+| **`.ev`** | The signature contains **a single `<ds:Reference>`**, a same-document reference (`#foo`) to the signed target root’s `@ID` |
+| `.ew` / `.ex` | Use Exclusive C14N (SHOULD) / do not include disallowed transforms (SHOULD NOT) |
+| **`.ey`** | **If signatures containing disallowed transforms are not rejected, guarantee that no content of the SAML message is excluded from the signed target** |
+| `.es` / `.et` | Signature of assertions obtained from anyone other than the issuer / messages received from anyone other than the sender (SHOULD) |
+| `.ez` | Replace encrypted data with plaintext **at the same location** |
+| **`.fa`** | **Perform signature verification and decryption in the reverse order of signing and encryption** |
+| **`.fb`** | **Sign the assertion before encrypting it** |
+| **`.fc`** | **Encrypt identifiers and attributes, then sign the outer layer** |
 
-`.fb` と `.fc` は**順序が逆**である点に注意（取り違えるとどちらかの適合実装を FAIL にする）。
-`.fa` の検出力の要は「内側だけ壊す」「外側だけ壊す」の 2 ケースを対にすること。
-片方だけでは「どちらかは検証している」ことしか分からない。
+Note that `.fb` and `.fc` have **opposite** orders; confusing them would FAIL one of the conforming implementations.
+The key to detection power for `.fa` is pairing two cases: “break only the inner layer” and “break only the outer layer.”
+With only one case, it is possible to determine only that “one of the two is being verified.”
 
-`<ds:KeyInfo>` は MAY で省略可。§5.3 の署名継承は小文字 should の記述なので advisory に記録した。
+`<ds:KeyInfo>` is MAY and may be omitted. Signature inheritance in §5.3 is described using lowercase should, so it was recorded as advisory.
 
-### 4 [P1] `.dt` の variant が Core MUST より強かった
+### 4 [P1] The variants of `.dt` were stronger than the Core MUST
 
-「期限後の SLO で当該セッションを対象として扱わない」「保護リソースアクセス時に IdP へ問い合わせ直すか終了する」は
-**原文から導けない**。期限後の SLO を冪等に処理することは禁止されていないし、
-後者は実質的に `.t`（SHOULD）を MUST に引き上げてしまう。**補助証拠に降格**し、
-verdict は「内部的に SAML セッションを終了扱いにしている」という申告・状態証拠に限定した。
+“Do not treat the session as the target of SLO after expiration” and “re-contact the IdP or terminate when accessing a protected resource”
+**cannot be derived from the original text**. Processing post-expiration SLO idempotently is not prohibited,
+and the latter effectively raises `.t` (SHOULD) to MUST. They were **downgraded to supporting evidence**,
+and the verdict was limited to declaration and state evidence that “the SAML session is internally treated as ended.”
 
-### 現在の状態
+### Current state
 
 ```
-要件 69 / 義務 309（279 → 309）/ variant 759 / 仕様 25 / 述語 22 / 検査 62
-IIP-SSO01 だけで 153 義務
+69 requirements / 309 obligations(279 → 309)/ 759 variants / 25 specifications / 22 predicates / 62 checks
+153 obligations in IIP-SSO01 alone
 level        MUST 201 / MUST_NOT 43 / SHOULD 35 / SHOULD_NOT 5 / REQUIRED 4 / RECOMMENDED 7 / MAY 8 / OPTIONAL 6
 testability  BROWSER 130 / CONFIG 83 / AUTOMATED 55 / ATTESTED 40 / NOT_OBSERVABLE 1
-network 実行: 60/62 PASS・**blocking 0**
-SR-33  全 25 仕様を再取得し source_digest 一致
-SR-34  reference_evidence 247 件すべて locator 解決・節ダイジェスト一致
-残る FAIL は SR-30（open question 13）と SR-31（未承認 309）＝ G1 の完了条件のみ
+network execution: 60/62 PASS / **blocking 0**
+SR-33  Re-fetched all 25 specifications and source_digest matched
+SR-34  All 247 reference_evidence entries resolved their locators and matched the section digests
+The remaining FAILs are SR-30 (open question 13) and SR-31 (309 unapproved) = only the G1 completion conditions
 ```
 
-**第 1 段階は未完了。** `IIP-SSO01.a` の対応表の照合が残っている。
+**Stage 1 is incomplete.** Review of the mapping table for `IIP-SSO01.a` remains.
 
 ---
 
-## G1b-R12 — 2026-08-27 新設義務の精度（指摘 7 件）
+## G1b-R12 — 2026-08-27 Precision of Newly Established Obligations (7 Findings)
 
-義務 309 → **316**。P0 が 3 件、P1 が 4 件。
+Obligations 309 → **316**. There were 3 P0 findings and 4 P1 findings.
 
-### 1 [P0] `.eo` の例外条件が原文より広かった
+### 1 [P0] The exception condition for `.eo` was broader than the original text
 
-§4.1.3.2 の except 節は**二次コード `RequestVersionTooHigh` の報告に限定**されている。
-前版は同節の別の箇条（最上位コードの規定＝`.ep`）から `VersionMismatch` を取ってきており、
-`RequestVersionTooLow` / `RequestVersionDeprecated` でも低い major の応答を許してしまっていた。
-`basis_ja` の引用も原文と一致していなかった。両方を直した。
+The except clause in §4.1.3.2 is **limited to reporting the secondary code `RequestVersionTooHigh`**.
+The previous version took `VersionMismatch` from another clause in the same section (the top-level code rule = `.ep`),
+and consequently allowed a response with a lower major for `RequestVersionTooLow` / `RequestVersionDeprecated`.
+The quotation in `basis_ja` also did not match the original text. Both were corrected.
 
-### 2 [P0] §6 の義務に適用条件がなかった
+### 2 [P0] The §6 obligations had no applicability conditions
 
-§6 の規則はすべて「その種類の暗号化を行う場合」が前提。
-とくに `.ez` は全 IdP に `<EncryptedID>` と `<EncryptedAttribute>` を要求していたが、
-**IIP-IDP09.b は識別子・属性の暗号化を OPTIONAL** としている。
-暗号化する要素の種類ごとに義務を分けた。
+All §6 rules presuppose “when performing that type of encryption.”
+In particular, `.ez` had required all IdPs to provide `<EncryptedID>` and `<EncryptedAttribute>`,
+but **IIP-IDP09.b makes identifier and attribute encryption OPTIONAL**.
 
-| 義務 | 対象 | 条件 |
+Separated obligations by the type of element to be encrypted.
+
+| Obligation | Target | Condition |
 |---|---|---|
-| `.ez` | `<Assertion>` の位置 | なし（IIP-IDP09.a により対応必須。CONFIG 前提） |
-| `.fd` | `<EncryptedID>` の位置 | `supports_encrypted_nameid` |
-| `.fe` | `<EncryptedAttribute>` の位置 | `supports_encrypted_attribute` |
-| `.fb` | assertion は署名 → 暗号化 | なし（CONFIG 前提） |
-| `.fc` | 識別子は暗号化 → 外側署名 | `supports_encrypted_nameid` |
-| `.ff` | 属性は暗号化 → 外側署名 | `supports_encrypted_attribute` |
+| `.ez` | Location of `<Assertion>` | None (required by IIP-IDP09.a; CONFIG prerequisite) |
+| `.fd` | Location of `<EncryptedID>` | `supports_encrypted_nameid` |
+| `.fe` | Location of `<EncryptedAttribute>` | `supports_encrypted_attribute` |
+| `.fb` | Assertion is signed → encrypted | None (CONFIG prerequisite) |
+| `.fc` | Identifier is encrypted → outer signature | `supports_encrypted_nameid` |
+| `.ff` | Attribute is encrypted → outer signature | `supports_encrypted_attribute` |
 
-### 3 [P0] `.fa` のケースでは処理順序を検出できなかった
+### 3 [P0] The processing order could not be detected in the `.fa` cases
 
-ご指摘の counterexample が成立する。
+The pointed-out counterexample is valid.
 
-> **復号 → 外側署名検証**という誤った順序で処理する実装でも、
-> 内側を壊せば拒否し、外側を壊せば拒否するので、**全 required_variants を通過する**。
+> Even an implementation that processes in the incorrect order of **decrypt → verify the outer signature**
+> rejects when the inner part is corrupted and rejects when the outer part is corrupted, so it
+> **passes all `required_variants`**.
 
-個別破壊のケースが証明するのは「両方を検証したこと」までで、**順序ではない**。
-testability を `BROWSER` → **`ATTESTED`** に変更し、
-verdict は内部トレース・ログ・申告・計装に限定した。
-得られない場合は `not_verified(processing_order_not_observable)`。
-2 つの破壊ケースは「両方を検証している」ことの確認として実行するが**補助証拠**に降格した。
+The individual-corruption cases prove only that “both were verified”; they do **not prove the order**.
+Changed `testability` from `BROWSER` to **`ATTESTED`**, and limited the verdict to internal traces, logs,
+declarations, and instrumentation. If these cannot be obtained, use
+`not_verified(processing_order_not_observable)`.
+The two corruption cases are still executed to confirm that “both are being verified,” but were
+downgraded to **supporting evidence**.
 
-### 4 [P1] 落ちていた規範句
+### 4 [P1] Normative sentences that had been silently dropped
 
-無言で落とさず、義務として起こしたうえで判定上の扱いを controls に書いた。
+Rather than silently dropping them, raised them as obligations and documented their treatment for verdict
+purposes in the controls.
 
-| 出典 | 規範句 | 義務 |
+| Source | Normative sentence | Obligation |
 |---|---|---|
-| §4.1.3.1 | 双方が対応する最高版で要求を出す（SHOULD） | `.fg` |
-| §4.1.3.1 | 応答元の能力が不明なら自身の最高版を仮定（SHOULD） | `.fh` |
-| §5.4.1 | RSA-SHA1 の署名・検証に対応（SHOULD） | `.fi` |
+| §4.1.3.1 | Make the request using the highest version supported by both parties (SHOULD) | `.fg` |
+| §4.1.3.1 | If the response source’s capabilities are unknown, assume its highest version (SHOULD) | `.fh` |
+| §5.4.1 | Support signing and verification with RSA-SHA1 (SHOULD) | `.fi` |
 
-`.fi` は SHA-1 が危殆化している一方で **IIP-ALG08.a が「特定アルゴリズムの使用を禁止できる」ことを MUST** としており、
-`rsa-sha1` を禁止する配備は IIP が明示的に認めた設定選択である。
-Evaluator は WARNING を出すが、結果にこの理由を advisory として併記し、
-G2 では `control_waiver_ja` に記録して mutant 検出力の評価から外す、と決めた。
+Although SHA-1 is deprecated, **IIP-ALG08.a makes it a MUST to be able to prohibit the use of specific
+algorithms**, and an deployment that prohibits `rsa-sha1` is therefore a configuration choice explicitly
+permitted by IIP.
+Evaluator issues a WARNING, but the result also records this reason as an advisory, and G2 decided to
+record it in `control_waiver_ja` and exclude it from the evaluation of mutant detection power.
 
-### 5〜7
+### 5–7
 
-| # | 指摘 | 対応 |
+| # | Finding | Response |
 |---|---|---|
-| 5 | `.ec` は「NFD へ正規化する実装は違反」としていた | 原文が求めるのは **NFC + バイナリ比較と同じ結果**であって内部の正規化形式ではない。判定を結果の同値性にした。`.ed` は方向が逆だった（義務は**正規化が起きることを考慮する**こと） |
-| 6 | `.ee` が sorting order と**文書内の並び順**を混同 | 原文が禁じるのは**ロケール等で変わる照合・ソート順への依存**。「先頭値だけを使う」「文書順を入れ替える」を削除し、ソート処理を一切しない実装が満たすことを明記 |
-| 7 | 複数 role を一義務に入れる問題が再発 | `.et` を `.et`（IdP の Response）と **`.fj`**（SP の AuthnRequest）に分割。`.eu` は variant を **role 中立**（「対象が署名した要素のルート」）に書き換えて解決 |
+| 5 | `.ec` treated “an implementation that normalizes to NFD is non-conforming” as the requirement | The source requires **the same result as NFC + binary comparison**, not a particular internal normalization form. Changed the verdict to result equivalence. `.ed` had the direction reversed (the obligation is to **take into account that normalization may occur**) |
+| 6 | `.ee` confused sorting order with the **order of items in the document** | The source prohibits dependence on collation or sorting order that varies by **locale, etc.** Removed “use only the first value” and “reorder the document,” and explicitly stated that an implementation that performs no sorting at all satisfies the requirement |
+| 7 | The problem of putting multiple roles into one obligation recurred | Split `.et` into `.et` (IdP Response) and **`.fj`** (SP AuthnRequest). Resolved `.eu` by rewriting its variant in a **role-neutral** form (“the root of the element signed by the target”) |
 
-**補足への対応**: `.er` / `.eu` / `.ev` / `.ew` / `.ex` に述語 **`target_signs_saml_messages`**（XML 署名を付ける場合）、
-`.ey` に **`accepts_nonstandard_signature_transforms`**（許可外 transform を一律拒否しない場合）を条件として付けた。
-`.ey` の条件は本検査そのものの観測から決まり、**偽なら NOT_APPLICABLE でそれが安全側の挙動**である。
+**Response to the supplementary point**: Added the predicates **`target_signs_saml_messages`** (when applying XML signatures) to `.er` / `.eu` / `.ev` / `.ew` / `.ex`, and **`accepts_nonstandard_signature_transforms`** (when not uniformly rejecting unauthorized transforms) to `.ey`.
+The condition for `.ey` was determined from observation of the inspection itself, and **when false,
+`NOT_APPLICABLE` is the safe behavior**.
 
-### 現在の状態
+### Current status
 
 ```
-要件 69 / 義務 316（309 → 316）/ variant 774 / 仕様 25 / 述語 25 / 検査 62
-IIP-SSO01 だけで 160 義務
+Requirements 69 / obligations 316 (309 → 316) / variants 774 / specifications 25 / predicates 25 / checks 62
+160 obligations in IIP-SSO01 alone
 testability  BROWSER 130 / CONFIG 89 / AUTOMATED 53 / ATTESTED 43 / NOT_OBSERVABLE 1
-network 実行: 59/62 PASS・blocking 1（SR-40 = tools 未コミットのみ）
-SR-33  全 25 仕様を再取得し source_digest 一致
-SR-34  reference_evidence 254 件すべて locator 解決・節ダイジェスト一致
+network execution: 59/62 PASS · blocking 1 (SR-40 = only uncommitted tools)
+SR-33  Re-fetched all 25 specifications and confirmed matching source_digest values
+SR-34  All 254 reference_evidence entries resolved their locators and matched their section digests
 open question 13
 ```
 
-**第 1 段階は未完了。** `IIP-SSO01.a` の対応表の照合が残っており、実装には着手できない。
+**Phase 1 is not complete.** Cross-checking the `IIP-SSO01.a` mapping remains, and implementation cannot begin.
 
 ---
 
-## G1b-R13 — 2026-08-27 適用性モデルの誤用（指摘 6 件）
+## G1b-R13 — 2026-08-27 Misuse of the applicability model (6 findings)
 
-義務数は 316 のまま。今回はすべて**適用性（condition）の使い方**の誤り。
+The obligation count remains 316. This time, all findings concerned **the use of applicability
+(`condition`)**.
 
-### 1 [P0] `.ey` の適用性判定が循環していた
+### 1 [P0] The applicability determination for `.ey` was circular
 
-`accepts_nonstandard_signature_transforms` を「本検査で受理を観測して決める」としていたが、
-**適用性はケース実行より先に評価される**（[docs/03 §条件の評価](03-test-model.md)）。
-観測するためのケースが観測前にスキップされる。
+`accepts_nonstandard_signature_transforms` had been defined as being determined by observing
+acceptance in this inspection, but **applicability is evaluated before case execution**
+([docs/03 §Condition evaluation](03-test-model.md)).
+The case intended to make the observation is skipped before the observation can occur.
 
-さらに、1 種類の transform を拒否した観測だけで条件を偽にすると、
-**別の危険な transform を受理する実装を NOT_APPLICABLE として除外できてしまう**。
+Furthermore, if observing rejection of one type of transform makes the condition false,
+**an implementation that accepts another dangerous transform can be excluded as
+`NOT_APPLICABLE`**.
 
-**条件を外し、各 variant を transform ごとに二択で評価する**形にした。
+Removed the condition and changed the evaluation to a binary assessment for each transform in each
+variant.
 
-| 観測 | outcome |
+| Observation | outcome |
 |---|---|
-| その transform を含む署名を拒否した | `satisfied` |
-| 受理したが、除外された内容が処理に使われていない | `satisfied` |
-| 受理して除外された内容が処理に使われた | `violated` |
-| 受理したが除外の有無を確認できない | `not_verified` |
+| Rejected a signature containing that transform | `satisfied` |
+| Accepted it, but the excluded content was not used in processing | `satisfied` |
+| Accepted it and the excluded content was used | `violated` |
+| Accepted it, but whether anything was excluded cannot be confirmed | `not_verified` |
 
-述語 `accepts_nonstandard_signature_transforms` は削除した。
+Deleted the predicate `accepts_nonstandard_signature_transforms`.
 
-### 4 [P1] `target_signs_saml_messages` は能力述語ではなく実行時条件だった
+### 4 [P1] `target_signs_saml_messages` was a runtime condition, not a capability predicate
 
-Core §5.4 の制約は「署名能力がある製品」ではなく**実際に生成された各 XML 署名**に適用される。
-能力はあるがこの要求では署名しない SP を `declared=true / observed=false` の矛盾として扱うのは誤り。
+The constraint in Core §5.4 applies not to “a product capable of signing,” but to **each XML signature
+actually generated**.
+It was incorrect to treat an SP that has the capability but does not sign for this requirement as a
+`declared=true / observed=false` inconsistency.
 
-`.er` / `.eu` / `.ev` / `.ew` / `.ex` から**条件を外し**、
-**対象が送出した各署名を受動的に検査する**形にした。
-当該 Run で署名が 1 つも観測されなければ `satisfied_with_note`（観測機会なし）とし、
-`NOT_APPLICABLE` にはしない（義務は適用されている）。述語も削除した。
+**Removed the condition** from `.er` / `.eu` / `.ev` / `.ew` / `.ex` and changed the implementation to
+**passively inspect each signature sent by the target**.
+If no signature is observed during the Run, use `satisfied_with_note` (no observation opportunity),
+and do not use `NOT_APPLICABLE` (the obligation remains applicable). Deleted the predicate as well.
 
-### 2 [P1] `.fb` は別々の必須能力から同時利用能力を導出していた
+### 2 [P1] `.fb` derived simultaneous-use capability from separate mandatory capabilities
 
-`IIP-SSO04`（assertion 署名）と `IIP-IDP09.a`（assertion 暗号化）は**それぞれ独立した対応必須要件**であり、
-両方を同一 assertion に同時適用できることまでは導けない。Core §6.2 も順序を定めるだけで組合せ能力は要求していない。
-別々には対応するが同時構成を提供しない実装が**永久に `NOT_VERIFIED`** になっていた。
+`IIP-SSO04` (assertion signing) and `IIP-IDP09.a` (assertion encryption) are **independent mandatory
+requirements**, and it cannot be inferred that both can be applied simultaneously to the same assertion.
+Core §6.2 specifies only the order; it does not require the combined capability.
+An implementation that supports them separately but does not provide the simultaneous configuration had
+become **permanently `NOT_VERIFIED`**.
 
-述語 **`signs_and_encrypts_assertion`** を新設して条件にした。
-観測は Test Plan の構成段階（preflight / `WAITING_CONFIG`）で得るもので、本義務のケースが観測源ではない
-（`.ey` のような循環にならないことを rationale に明記した）。
+Created the predicate **`signs_and_encrypts_assertion`** and used it as the condition.
+The observation is obtained during the Test Plan configuration stage (preflight / `WAITING_CONFIG`);
+the cases for this obligation are not the observation source
+(the rationale explicitly states that this does not become circular like `.ey`).
 
-### 3 [P1] `.fc` / `.ff` が「assertion 署名」だけを要求していた
+### 3 [P1] `.fc` / `.ff` required only “assertion signing”
 
-原文の署名対象は **「the assertion **or message** containing the encrypted element」**。
-暗号化後の `<EncryptedID>` / `<EncryptedAttribute>` を含む `<Response>` 全体を署名する方式も適合する。
-**assertion 署名の経路と `<Response>` 署名の経路の両方**を variant にし、
-両方を提供する対象では両方を検査するようにした。
+The source’s signing target is **“the assertion **or message** containing the encrypted element”**.
+Signing the entire `<Response>` containing the encrypted `<EncryptedID>` / `<EncryptedAttribute>` after
+encryption is also conforming.
+Added both the assertion-signing path and the `<Response>`-signing path as variants, and changed the
+implementation to inspect both when the target provides both.
 
-### 5 [P1] `.fi` の G2 waiver 方針が G2 通過条件と矛盾していた
+### 5 [P1] The G2 waiver policy for `.fi` conflicted with the G2 completion condition
 
-2 点誤っていた。
+Two points were incorrect.
 
-- **`control_waiver_ja` は positive / negative control の片方を免除するもので、mutant 検出力を免除しない。**
-  mutant を使わない場合は `mutant_waiver` と代替の実行可能な control fixture が要る
-- 原文の `support` は**実装能力**であって、現在の設定で有効かどうかではない
+- **`control_waiver_ja` exempts one of the positive / negative controls; it does not exempt mutant detection power.**
+  If mutants are not used, `mutant_waiver` and an alternative executable control fixture are required.
+- The source’s `support` means **implementation capability**, not whether it is enabled by the current configuration.
 
-三分岐に直した。
+Changed this to three branches.
 
-| 状態 | outcome |
+| State | outcome |
 |---|---|
-| 能力あり・ポリシーで無効化（`IIP-ALG08.a` が認めた設定選択） | `satisfied` |
-| 能力なし | `violated` → WARNING |
-| 能力不明 | `not_verified` |
+| Capability exists but is disabled by policy (a configuration choice permitted by `IIP-ALG08.a`) | `satisfied` |
+| Capability does not exist | `violated` → WARNING |
+| Capability is unknown | `not_verified` |
 
-### 6 [P2] 文言
+### 6 [P2] Wording
 
-- `.eo` の `summary_en` を `RequestVersionTooHigh` 限定に（日本語側は R12 で直っていたが英語が残っていた）
-- `.fh` の日本語の主語を修正（「**要求元は**『応答元が要求元の対応する最高版に対応している』と仮定する」）
+- Limited `.eo`’s `summary_en` to `RequestVersionTooHigh` (the Japanese side had already been fixed in R12, but the English remained)
+- Corrected the Japanese subject of `.fh` (“**the requester** assumes that ‘the response source supports the requester’s corresponding highest version’”)
 
-### この回で得た一般則
+### General rule derived from this round
 
-**条件述語の観測源が、その義務自身のケースであってはならない。**
-適用性はケース実行より先に評価されるので循環する。
-観測源は preflight / 構成段階 / 他の義務のケースのいずれかに限る。
-原文が二択（MAY 拒否／受理するなら MUST 保証）を書いている場合は、
-条件にせず **variant ごとの二択評価**にするのが正しい。
+**The observation source for a condition predicate must not be a case belonging to the obligation
+itself.**
+Applicability is evaluated before case execution, so this creates a cycle.
+Observation sources are limited to preflight, the configuration stage, or cases for other obligations.
+When the source presents a binary choice (MAY reject / if accepted, MUST guarantee), the correct
+approach is to use **per-variant binary evaluation**, not a condition.
 
-### 現在の状態
+### Current status
 
 ```
-要件 69 / 義務 316 / variant 779 / 条件付き 59 / 仕様 25 / 述語 24 / 検査 62
-IIP-SSO01 だけで 160 義務
+Requirements 69 / obligations 316 / variants 779 / conditional 59 / specifications 25 / predicates 24 / checks 62
+160 obligations in IIP-SSO01 alone
 testability  BROWSER 130 / CONFIG 89 / AUTOMATED 53 / ATTESTED 43 / NOT_OBSERVABLE 1
-network 実行: 59/62 PASS・blocking 1（SR-40 = tools 未コミットのみ）
-SR-33  全 25 仕様を再取得し source_digest 一致
-SR-34  reference_evidence 254 件すべて locator 解決・節ダイジェスト一致
+network execution: 59/62 PASS · blocking 1 (SR-40 = only uncommitted tools)
+SR-33  Re-fetched all 25 specifications and confirmed matching source_digest values
+SR-34  All 254 reference_evidence entries resolved their locators and matched their section digests
 open question 13
 ```
 
-**第 1 段階は未完了。実装には着手していない。**
+**Phase 1 is not complete. Implementation has not begun.**
 
 ---
 
-## G1b-R14 — 2026-08-27 判定の強さと否定能力の証明（指摘 4 件）
+## G1b-R14 — 2026-08-27 Proving verdict strength and negative capability (4 findings)
 
-義務数は 316 のまま。述語 24 → 22。
+The obligation count remains 316. Predicates decreased from 24 to 22.
 
-### 1 [P0] `.ey` が原文より弱かった
+### 1 [P0] `.ey` was weaker than the source
 
-原文が要求するのは **「no content of the SAML message is excluded from the signature」**であって、
-「除外された内容を処理に使わないこと」ではない。
-前版は「受理したが除外内容が使われていない → satisfied」としており、**署名対象からの除外を許容していた**。
+The source requires **“no content of the SAML message is excluded from the signature”**, not “excluded
+content must not be used in processing.”
+The previous version stated “accepted, but excluded content was not used → satisfied,” thereby
+**permitting content to be excluded from the signature**.
 
-| 観測 | outcome |
+| Observation | outcome |
 |---|---|
-| 拒否した | `satisfied`（原文の MAY 側） |
-| 受理したが署名対象から**内容を何も除外していない** | `satisfied` |
-| **内容を除外した署名を受理した** | **`violated`**（利用の有無に関係なく） |
-| 除外の有無を確認できない | `not_verified` |
+| Rejected it | `satisfied` (the source’s MAY side) |
+| Accepted it, but **excluded no content at all from the signed content** | `satisfied` |
+| **Accepted a signature that excludes content** | **`violated`** (regardless of whether it is used) |
+| Whether anything was excluded cannot be confirmed | `not_verified` |
 
-required_variants はいずれも意図的に内容を除外しているので、受理は違反である。
-対照として「許可外 transform を含むが内容を一切除外していない署名（恒等な XPath）→ 受理してよい」を追加した。
+All `required_variants` intentionally exclude content, so acceptance is a violation.
+As a control, added “contains an unauthorized transform but excludes no content at all (identity XPath)
+→ may be accepted.”
 
-### 2 [P1] 否定的能力を証明できない述語に依存していた
+### 2 [P1] Depended on a predicate that could not prove negative capability
 
-`signs_and_encrypts_assertion` は**肯定的な観測材料しか持てない**。
-`CAPABILITY_BASED` は申告だけの `false` を `UNKNOWN` にする設計なので、
-同時構成を持たない製品は `FALSE` にならず、`.fb` は**永久に `NOT_VERIFIED`** のままだった。
-「preflight で観測する」と呼び替えても否定的能力の証明手段は増えない。
+`signs_and_encrypts_assertion` has **only positive observations**.
+Because `CAPABILITY_BASED` is designed to convert a declaration-only `false` into `UNKNOWN`,
+a product without the simultaneous configuration did not become `FALSE`, leaving `.fb`
+**permanently `NOT_VERIFIED`**.
+Renaming it “observed in preflight” does not provide a means to prove negative capability.
 
-**§6 の義務すべてから条件述語を外し、受動規則にした**（`.ez` / `.fd` / `.fe` / `.fb` / `.fc` / `.ff`、および `.dp`）。
+**Removed the condition predicate from all §6 obligations and made them passive rules**
+(`.ez` / `.fd` / `.fe` / `.fb` / `.fc` / `.ff`, and `.dp`).
 
-> 対象が実際に送出した該当要素ごとに検査し、当該 Run で 1 件も観測されなければ
-> `satisfied_with_note`（観測機会なし）とする。`.er` 等と同じ扱い。
+> Inspect each applicable element actually sent by the target, and if not even one is observed in the Run,
+> use `satisfied_with_note` (no observation opportunity). Treat it the same as `.er`, etc.
 
-述語 `signs_and_encrypts_assertion` と `supports_encrypted_attribute` は未使用になったので削除した
-（未使用・未定義の述語がないことを確認済み）。
+The predicates `signs_and_encrypts_assertion` and `supports_encrypted_attribute` became unused and were
+deleted (confirmed that there are no unused or undefined predicates).
 
-**一般則**: *肯定的な観測材料しか作れない能力を条件述語にしてはならない。*
-`UNKNOWN` に落ちて対象が永久に `not_verified` になる。
-受動規則にして「観測機会なし → `satisfied_with_note`」で扱う。
+**General rule**: *Do not make a capability for which only positive observations can be produced into a
+condition predicate.*
+It falls to `UNKNOWN`, leaving the target permanently `not_verified`.
+Make it a passive rule and handle “no observation opportunity” as `satisfied_with_note`.
 
-### 3 [P1] `.fc` の差し替えテストの説明が逆だった
+### 3 [P1] The explanation of the `.fc` substitution test was reversed
 
-正しくは、**暗号文を差し替えて署名検証が失敗することが「署名が暗号文を覆っている」証拠**である。
-署名が平文時点で計算されていれば、暗号文を差し替えても署名検証は**成功してしまう**（＝違反）。
-前版は逆に書いており、G2 で outcome を反転させる危険があった。
-期待を「差し替え → 検証失敗」に固定した。
+Correctly, **failure of signature verification after substituting the ciphertext is evidence that the
+signature covers the ciphertext**.
+If the signature was calculated over the plaintext before encryption, substituting the ciphertext would
+cause signature verification to **succeed** (i.e., it would be a violation).
+The previous version stated the reverse, risking reversed outcomes in G2.
+Fixed the expected result to “substitution → verification failure.”
 
-### 4 [P2] 署名ゼロ時の扱いが同一義務内で矛盾していた
+### 4 [P2] Handling of zero signatures was inconsistent within the same obligation
 
-`.er` / `.eu` / `.ev` / `.ew` / `.ex` に旧方針（「署名しない対象では `NOT_APPLICABLE`」）が残っていた。
-R13 で採った方針（署名ゼロなら `satisfied_with_note`、`NOT_APPLICABLE` にしない）に統一するため、
-5 件すべてから旧記述を削除した。
+The old policy (“`NOT_APPLICABLE` for a target that does not sign”) remained in `.er` / `.eu` / `.ev` / `.ew` / `.ex`.
+To unify all five with the policy adopted in R13 (zero signatures means `satisfied_with_note`, not
+`NOT_APPLICABLE`), deleted the old description from all five.
 
-### 現在の状態
+### Current status
 
 ```
-要件 69 / 義務 316 / variant 780 / 条件付き 53 / 仕様 25 / 述語 22 / 検査 62
-IIP-SSO01 だけで 160 義務
-network 実行: 59/62 PASS・blocking 1（SR-40 = tools 未コミットのみ）
-SR-33  全 25 仕様を再取得し source_digest 一致
-SR-34  reference_evidence 254 件すべて locator 解決・節ダイジェスト一致
-未使用・未定義の述語なし
+Requirements 69 / obligations 316 / variants 780 / conditional 53 / specifications 25 / predicates 22 / checks 62
+160 obligations in IIP-SSO01 alone
+network execution: 59/62 PASS · blocking 1 (SR-40 = only uncommitted tools)
+SR-33  Re-fetched all 25 specifications and confirmed matching source_digest values
+SR-34  All 254 reference_evidence entries resolved their locators and matched their section digests
+No unused or undefined predicates
 open question 13
 ```
 
-**第 1 段階は未完了。実装には着手していない。**
+**Phase 1 is not complete. Implementation has not begun.**
 
 ---
 
-## G1b-R15 — 2026-08-27 negative ケース・role 分割・二択 variant（指摘 4 件）
+## G1b-R15 — 2026-08-27 Negative cases, role splitting, and binary-choice variants (4 findings)
 
-義務 316 → **317**。
+Obligations 316 → **317**.
 
-### 1 [P1] `.fc` / `.ff` に「暗号化したが外側を署名しない」違反ケースがなかった
+### 1 [P1] `.fc` / `.ff` had no violation case for “encrypted but not externally signed”
 
-全 variant が assertion 署名または `<Response>` 署名を有効にする前提で、
-**`<EncryptedID>` を発行しながらどちらも署名しない実装を violated にできなかった**。
-negative variant を追加した。
+With all variants assuming that either assertion signing or `<Response>` signing is enabled,
+it was impossible to mark as violated an implementation that **issued `<EncryptedID>` but signed
+neither**.
+Added a negative variant.
 
-> `<saml:EncryptedID>` を送出しながら、包含する `<Assertion>` にも `<Response>` にも有効な署名がない → `violated`
+> While sending `<saml:EncryptedID>`, there is no valid signature on either the containing `<Assertion>`
+> or `<Response>` → `violated`
 
-あわせて「観測機会なし → `satisfied_with_note`」の適用範囲を明示した。
+Also clarified the scope of “no observation opportunity → `satisfied_with_note`.”
 
-> `satisfied_with_note` になるのは **`<EncryptedID>` / `<EncryptedAttribute>` 自体が観測されなかった場合だけ**。
-> 暗号化要素を観測したのに包含要素に有効な署名がない場合は観測機会なしではなく **`violated`**。
+> `satisfied_with_note` applies **only when neither `<EncryptedID>` nor `<EncryptedAttribute>` itself
+> was observed**.
+> If an encrypted element was observed but the containing element has no valid signature, this is not
+> “no observation opportunity” but **`violated`**.
 
-### 2 [P1] `.ey` の variant が SP 向けに偏っていた
+### 2 [P1] `.ey` variants were biased toward SPs
 
-`roles: [idp, sp]` なのに主要 variant が `<AttributeStatement>` を除外する**応答**で、
-IdP の AuthnRequest 検証を証明できなかった。role 別に分割した。
+Although `roles: [idp, sp]`, the main variant was a **Response** excluding `<AttributeStatement>`, so it
+could not prove IdP AuthnRequest verification.
+Split it by role.
 
-| 義務 | role | 検証対象 |
+| Obligation | role | Verification target |
 |---|---|---|
-| `.ey` | sp | `<Response>` / `<Assertion>` の内容を除外する transform |
-| **`.fk`** | idp | `<AuthnRequest>` の内容を除外する transform（`@AssertionConsumerServiceURL` / `<NameIDPolicy>` / `<Scoping>`） |
+| `.ey` | sp | Transform excluding content from `<Response>` / `<Assertion>` |
+| **`.fk`** | idp | Transform excluding content from `<AuthnRequest>` (`@AssertionConsumerServiceURL` / `<NameIDPolicy>` / `<Scoping>`) |
 
-ACS URL を署名対象から外す攻撃は、署名済み要求を信頼して応答先を決める実装に直接効く。
+An attack that removes the ACS URL from the signed content directly affects implementations that determine
+the response destination based on the signed request.
 
-### 3 [P1] 恒等 transform は required variant にできない
+### 3 [P1] An identity transform cannot be a required variant
 
-許可外 transform は**内容を除外しなくても拒否してよい**（MAY）。
-したがって恒等 XPath は「拒否 → 適合／受理 → 適合」の**二択**で、検出力がない。
-「A でも B でもよいケースには verdict を付けない」という既定方針にも反していた。
-**required variant から外し、Suite 側 fixture の自己検証**（拒否が transform の存在によるのか
-除外の検出によるのかの確認）に移した。対象の verdict には影響させない。
+An unauthorized transform **may be rejected even if it excludes no content** (MAY).
+Therefore, an identity XPath is a binary choice—“rejection → conforming / acceptance → conforming”—and
+has no detection power.
+It also violated the standing policy that “a case for which either A or B is acceptable must not have a
+verdict.”
+Removed it from `required variant` and moved it to **Suite-side fixture self-validation** (confirming
+whether rejection is due to the transform’s presence or detection of exclusion).
+It does not affect the target’s verdict.
 
-### 4 [P2] `.fc` の説明にまだ技術的な誤りがあった
+### 4 [P2] The `.fc` explanation still contained a technical error
 
-R14 で書いた「平文時点で署名を計算していれば暗号文を差し替えても検証は成功する」は不正確。
-平文に署名してから暗号化すると**署名対象 XML そのものが変わる**ため、
-改竄前の元文書でも署名検証は失敗するのが通常である。正しい control は**組**で固定する。
+The statement in R14 that “if the signature is calculated over the plaintext, verification succeeds
+after substituting the ciphertext” was inaccurate.
+If the plaintext is signed and then encrypted, **the signed XML document itself changes**, so signature
+verification will normally fail even for the original document before tampering.
+The correct control is fixed as a **pair**:
 
-- **(a)** 元の送出文書の署名検証が**成功する**
-- **(b)** 暗号文を差し替えた文書の署名検証が**失敗する**
+- **(a)** Signature verification of the original sent document **succeeds**
+- **(b)** Signature verification of the document with substituted ciphertext **fails**
 
-(a) だけでは署名が別の何かを覆っているだけかもしれず、(b) だけでは (a) が偶然失敗している場合と区別できない。
+(a) alone could mean that the signature covers something else, while (b) alone cannot be distinguished
+from an accidental failure of (a).
 
-### ★ 作業中に自分で見つけた事故
+### ★ An incident discovered during the work
 
-`.ey` を role 別に分割する際、**テキスト範囲の切り出しで `.fi`（RSA-SHA1 SHOULD）を巻き込んで削除していた**。
-義務数が 316 のまま増えていないことに気づいて発覚し、復元した。
-以後、分割・splice の後は**義務数と主要キーの存在を必ず突き合わせる**。
+When splitting `.ey` by role, **the text-range extraction accidentally included and deleted `.fi`
+(RSA-SHA1 SHOULD)**.
+It was discovered because the obligation count had not increased and remained 316, and was restored.
+From then on, after splitting and splicing, **always cross-check the obligation count and the presence of
+key entries**.
 
-### 現在の状態
+### Current status
 
 ```
-要件 69 / 義務 317 / variant 787 / 条件付き 53 / 仕様 25 / 述語 22 / 検査 62
-IIP-SSO01 だけで 161 義務
+Requirements 69 / obligations 317 / variants 787 / conditional 53 / specifications 25 / predicates 22 / checks 62
+161 obligations in IIP-SSO01 alone
 testability  BROWSER 131 / CONFIG 89 / AUTOMATED 53 / ATTESTED 43 / NOT_OBSERVABLE 1
-network 実行: 60/62 PASS・**blocking 0**
-SR-33  全 25 仕様を再取得し source_digest 一致
-SR-34  reference_evidence 255 件すべて locator 解決・節ダイジェスト一致
-残る FAIL は SR-30（open question 13）と SR-31（未承認 317）＝ G1 の完了条件のみ
+network execution: 60/62 PASS · **blocking 0**
+SR-33  Re-fetched all 25 specifications and confirmed matching source_digest values
+SR-34  All 255 reference_evidence entries resolved their locators and matched their section digests
+The remaining FAILs are SR-30 (open question 13) and SR-31 (317 unapproved) = only the G1 completion conditions
 ```
 
-**第 1 段階は未完了。実装には着手していない。**
+**Phase 1 is not complete. Implementation has not begun.**
 
 ---
 
-## G1b-R16 — 2026-08-27 選言を連言にしない・スキップ経路の除去（指摘 3 件）
+## G1b-R16 — 2026-08-27 Do not turn disjunction into conjunction; remove skip paths (3 findings)
 
-義務 317 のまま。variant 787 → 785。
+Obligations remain 317. Variants decreased from 787 to 785.
 
-### 1 [P1] `.fc` / `.ff` が「or」を実質「and」にしていた
+### 1 [P1] `.fc` / `.ff` effectively turned “or” into “and”
 
-原文の署名対象は **「the assertion **or message** containing the encrypted element」**＝選言。
-ところが assertion 署名経路と `<Response>` 署名経路を**別々の required variant** にしていた。
-G2 では required variant を全て覆う必要があるので、
-**`<Response>` 署名だけで適合する製品にも assertion 署名との組合せを要求してしまう**。
-「両方を提供する対象だけ」という条件もスキーマ上は表現できていない。
+The source’s signing target is **“the assertion **or message** containing the encrypted element”**—a
+disjunction.
+However, the assertion-signing path and the `<Response>`-signing path had been made into **separate
+required variants**.
+Because G2 requires all required variants to be covered, this **required a product that conforms using
+only `<Response>` signing to also support assertion signing**.
+The condition “only for targets that provide both” could not be represented in the schema either.
 
-単一の規則に直した。
+Changed this to a single rule.
 
-- 観測した暗号化要素ごとに、包含する `<Assertion>` **または** `<Response>` の**少なくとも一方**に
-  有効な署名があり、その署名が当該暗号化要素を覆っている
-- どちらにもない → `violated`
-- 実際に**両方**に署名が付いていた場合だけ、観測された両方を検査する
+- For each encrypted element observed, at least one of the containing `<Assertion>` **or** `<Response>`
+  has a valid signature, and that signature covers the encrypted element
+- Neither has one → `violated`
+- Only when **both** actually have signatures are both observed signatures inspected
 
-**一般則**: *原文が選言で書いている要件を、経路ごとの required variant に分けてはならない。*
-G2 の網羅条件が連言になり、片方だけで適合する実装を落とす。
+**General rule**: *A requirement written as a disjunction in the source must not be split into
+per-path required variants.*
+The G2 coverage condition becomes a conjunction and rejects implementations that conform using only one
+path.
 
-### 2 [P1] `.fk` に不要なスキップ経路があった
+### 2 [P1] `.fk` had an unnecessary skip path
 
-「未署名 AuthnRequest を受理する構成では観測機会がない」は誤り。
-**対象が署名を必須にしているかどうかと、受信した署名を正しく検証する義務は別**であり、
-Suite は常に署名済み AuthnRequest を送れる。
-この記述を残すと**署名を一切検証せず常に受理する IdP を「観測機会なし」で逃がしてしまう**。
+It was incorrect to state that “when configured to accept unsigned AuthnRequest, there is no observation
+opportunity.”
+**Whether the target requires signatures and whether it correctly verifies a received signature are
+separate matters**, and the Suite can always send a signed AuthnRequest.
+Leaving this description would allow an IdP that never verifies signatures and always accepts them to
+escape as “no observation opportunity.”
 
-Suite は本義務のケースで**必ず署名済み AuthnRequest を送る**。
-Suite SP の鍵を対象に信頼させられない場合（メタデータを登録できない等）に限り
-`not_verified(test_precondition_signing_key_not_trusted)` とする。
+The Suite always sends a **signed AuthnRequest** in this obligation’s case.
+Use `not_verified(test_precondition_signing_key_not_trusted)` only when the Suite SP’s key cannot be
+trusted by the target (for example, metadata cannot be registered).
 
-### 3 [P2] 恒等 transform の「Suite 自己検証」の目的が不正確だった
+### 3 [P2] The purpose of “Suite self-validation” for identity transforms was inaccurate
 
-対象は**許可外 transform の存在だけを理由に拒否しても適合**なので、拒否理由を区別する必要はない。
-Suite 側で確かめるのは次の 2 点だけ。
+Because the target conforms even if it rejects solely due to the presence of an unauthorized transform,
+there is no need to distinguish the reason for rejection.
+The Suite checks only these two points:
 
-- fixture の署名が暗号学的に正しいこと
-- 恒等 transform が内容を除外していないこと
+- The fixture’s signature is cryptographically valid
+- The identity transform excludes no content
 
-対象の拒否理由や受理可否は自己検証の対象にしない、と明記した（`.ey` / `.fk` の両方）。
+Explicitly stated that the target’s reason for rejection and whether it accepts the transform are not
+self-validation targets (for both `.ey` / `.fk`).
 
-### 現在の状態
+### Current status
 
 ```
-要件 69 / 義務 317 / variant 785 / 条件付き 53 / 仕様 25 / 述語 22 / 検査 62
-IIP-SSO01 だけで 161 義務
-network 実行: 60/62 PASS・blocking 0
-SR-33  全 25 仕様を再取得し source_digest 一致
-SR-34  reference_evidence 255 件すべて locator 解決・節ダイジェスト一致
-残る FAIL は SR-30（open question 13）と SR-31（未承認 317）＝ G1 の完了条件のみ
+Requirements 69 / obligations 317 / variants 785 / conditional 53 / specifications 25 / predicates 22 / checks 62
+161 obligations in IIP-SSO01 alone
+network execution: 60/62 PASS · blocking 0
+SR-33  Re-fetched all 25 specifications and confirmed matching source_digest values
+SR-34  All 255 reference_evidence entries resolved their locators and matched their section digests
+The remaining FAILs are SR-30 (open question 13) and SR-31 (317 unapproved) = only the G1 completion conditions
 ```
 
-**第 1 段階は未完了。実装には着手していない。**
+**Phase 1 is not complete. Implementation has not begun.**
 
 ---
 
-## G1b-R17 — 2026-08-27 §6.2 の前置きの復元（レビュアー自身の訂正）
+## G1b-R17 — 2026-08-27 Restoration of the §6.2 preface (correction by the reviewer themself)
 
-前回 R15 / R16 で入れた `.fc` / `.ff` の「暗号化要素があるのに署名がない → `violated`」は、
-**レビュアーの前回指摘に従って入れたものだったが、原文を読み直すと誤りだった**（レビュアーからの訂正）。
-原文 PDF を自分でも再確認した。
+The `.fc` / `.ff` rule added in R15 / R16—“encrypted element exists but is not signed → `violated`”—
+**had been added in accordance with the reviewer’s previous finding, but rereading the source revealed
+that it was incorrect** (a correction from the reviewer).
+The original source PDF was also rechecked independently.
 
 ```
 6.2 Combining Signatures and Encryption
@@ -2772,829 +2751,796 @@ performed first and then the signature calculated over the assertion or message 
 encrypted element.
 ```
 
-**箇条書きには「署名と暗号化を組み合わせる場合」という前置きがある。**
-暗号化要素が存在するだけで包含署名を新たに必須化する規則ではない。
+**The bullet points have the preface “when combining signatures and encryption.”**
+This does not establish a new requirement for a containing signature merely because an encrypted element
+exists.
 
-| 状況 | 正しい扱い |
+| Situation | Correct treatment |
 |---|---|
-| 暗号化要素だけを使い、署名を併用していない | `.fc` / `.ff` の**対象外** |
-| 署名と暗号化を併用し、順序・範囲が正しい | `satisfied` |
-| 署名と暗号化を併用したが、署名が暗号化**前**の平文を覆っている | **`violated`** |
-| 署名が別要件で必須なのに存在しない | `IIP-SSO01.v` / `.es` / `.et` 側で判定 |
+| Uses only encrypted elements and does not combine them with signatures | **Out of scope** for `.fc` / `.ff` |
+| Combines signatures and encryption, with the correct order and scope | `satisfied` |
+| Combines signatures and encryption, but the signature covers the plaintext **before** encryption | **`violated`** |
+| A signature is absent even though it is mandatory under another requirement | Determined on the `IIP-SSO01.v` / `.es` / `.et` side |
 
-撤回したもの:
+Withdrawn:
 
-- 「包含する `<Assertion>` または `<Response>` の少なくとも一方に有効な署名がある」という required variant
-- 「どちらにも署名がない → `violated`」という negative variant
-- 「暗号化要素を観測したのに署名がない場合は観測機会なしではなく `violated`」という control
+- The required variant “at least one of the containing `<Assertion>` or `<Response>` has a valid signature”
+- The negative variant “neither has a signature → `violated`”
+- The control “if an encrypted element was observed but has no signature, this is not an observation opportunity but `violated`”
 
-追加したもの:
+Added:
 
-- `summary` と `basis_ja` に **§6.2 の前置き**を明記
-- 検査対象を「**署名と暗号化が実際に併用された送出物**」に限定
-- 「署名そのものの要否はここで二重に課さない」という control
+- Explicitly stated the **§6.2 preface** in `summary` and `basis_ja`
+- Limited the inspection target to **sent items in which signatures and encryption were actually combined**
+- Added a control stating that “the necessity of the signature itself is not imposed a second time here”
 
-### この回で得た一般則
+### General rule derived from this round
 
-**箇条書きの規範句を取り込むときは、箇条書きの前置き（scope 文）も必ず一緒に読む。**
-前置きを落とすと、条件付きの規則を無条件の義務に変えてしまう。
-`basis_ja` には前置きも含めて引用し、`SR-34` の verbatim 照合が効くようにする。
+**When incorporating normative sentences from bullet points, always read the preface (scope sentence)
+together with the bullet points.**
+Dropping the preface turns a conditional rule into an unconditional obligation.
+Include the preface in `basis_ja` citations so that `SR-34` verbatim comparison is effective.
 
-### 現在の状態
+### Current status
 
 ```
-要件 69 / 義務 317 / variant 787 / 条件付き 53 / 仕様 25 / 述語 22 / 検査 62
-network 実行: 60/62 PASS・blocking 0
-SR-33  全 25 仕様を再取得し source_digest 一致
-SR-34  reference_evidence 255 件すべて locator 解決・節ダイジェスト一致
-残る FAIL は SR-30（open question 13）と SR-31（未承認 317）＝ G1 の完了条件のみ
+Requirements 69 / obligations 317 / variants 787 / conditional 53 / specifications 25 / predicates 22 / checks 62
+network execution: 60/62 PASS · blocking 0
+SR-33  Re-fetched all 25 specifications and confirmed matching source_digest values
+SR-34  All 255 reference_evidence entries resolved their locators and matched their section digests
+The remaining FAILs are SR-30 (open question 13) and SR-31 (317 unapproved) = only the G1 completion conditions
 ```
 
-**第 1 段階は未完了。`IIP-SSO01.a` の open question は開いたまま。実装には着手していない。**
+**Phase 1 is not complete. The `IIP-SSO01.a` open question remains open. Implementation has not begun.**
 
 ---
 
-## G1b-CP1 — 2026-08-27 IIP-SSO01 の三対応表を双方向照合
+## G1b-CP1 — 2026-08-27 Bidirectional cross-check of the three IIP-SSO01 mappings
 
-`IIP-SSO01.a` が取り込む次の 3 範囲を、原文から義務への順方向と、義務から実効原文への逆方向で再照合した。
+Re-cross-checked the following three scopes incorporated by `IIP-SSO01.a`, both forward from the source to
+the obligations and backward from the obligations to the effective source text.
 
-1. SAML2Prof §4.1（SAML2Errata 反映後）
-2. IdP の AuthnRequest 処理に対する SAML2Core 取り込み句
-3. SP の Response / Assertion 処理に対する SAML2Core 取り込み句
+1. SAML2Prof §4.1 (after reflecting SAML2Errata)
+2. SAML2Core incorporation sentences for the IdP’s AuthnRequest processing
+3. SAML2Core incorporation sentences for the SP’s Response / Assertion processing
 
-### Errata の置換を「追記」として扱わない
+### Do not treat Errata replacements as additions
 
-- E43 / E93 が置換した旧 Core §6.2 由来の `.fa / .fb / .fc / .ff` を生成対象から除外
-- E79 が置換した旧 `SessionNotOnOrAfter` MUST（`.dt`）を除外
-- E81 が置換した旧 RSA-SHA1 SHOULD（`.fi`）を除外
-- E65 に従い ProxyCount=0 は top-level `Responder` が MUST、`ProxyCountExceeded` は MAY に訂正
-- E90 / E91 / E93 の Profile / Core 追記を role ごとの義務へ分解
+- Excluded `.fa / .fb / .fc / .ff`, derived from the old Core §6.2, which E43 / E93 replaced, from generation
+- Excluded the old `SessionNotOnOrAfter` MUST (`.dt`), which E79 replaced
+- Excluded the old RSA-SHA1 SHOULD (`.fi`), which E81 replaced
+- Corrected ProxyCount=0 in accordance with E65: top-level `Responder` is MUST, while `ProxyCountExceeded` is MAY
+- Decomposed the Profile / Core additions from E90 / E91 / E93 into role-specific obligations
 
-### 今回見つかった不足・過剰
+### Shortages and excesses found this time
 
-- E45 の AuthnRequest 候補順序 MUST を `.gj` として追加
-- `Comparison=maximum` を「上限以下」だけでなく「上限以下で可能な限り強い」に訂正
-- `AuthnContextDeclRef` を exact / minimum / better / maximum の検査対象に追加
-- strong match の委譲先 `IIP-SSO07.b` に、identifier の内容・属性、暗号化の有無、SubjectConfirmation の互換性を追加
-- E14 の一般的な AllowCreate SHOULD に「特定用途に使わない」適用条件を明示
-- transient 以外で AllowCreate を使う能力を MUST NOT の positive control にしていた過剰を削除
-- proxy IdP が上流の transient assertion を受ける経路を `.gk` として分離
-- `RequestedAuthnContext` / `IsPassive` の二次 StatusCode を MUST にしない（E65 では MAY）
+- Added E45’s MUST for AuthnRequest candidate ordering as `.gj`
+- Corrected `Comparison=maximum` from merely “at or below the upper bound” to “as strong as possible while remaining at or below the upper bound”
+- Added `AuthnContextDeclRef` to the exact / minimum / better / maximum inspection targets
+- Added content and attributes of the identifier, the presence or absence of encryption, and SubjectConfirmation compatibility to the strong-match delegation target `IIP-SSO07.b`
+- Made explicit the applicability condition “not used for a specific purpose” for E14’s general AllowCreate SHOULD
+- Removed the excess that had made the ability to use AllowCreate outside transient a positive control for MUST NOT
+- Separated the path in which a proxy IdP receives an upstream transient assertion as `.gk`
+- Do not make the secondary StatusCodes for `RequestedAuthnContext` / `IsPassive` MUST (E65 makes them MAY)
 
-### スコープ境界
+### Scope boundary
 
-Profile §4.1.4.4 は Artifact Resolution Profile を参照するが、同節が SSO 固有に追加する MUST は
-相互認証・完全性・機密性（`.u`）と intended SP への限定（`.u1`）として分解する。
-Artifact Resolution Profile §5 全体を `IIP-SSO01` に再帰的に二重計上しない。この境界は CP1 の外部レビューで明示的に再確認する。
+Profile §4.1.4.4 references the Artifact Resolution Profile, but the MUSTs that this section adds specifically
+for SSO are decomposed into mutual authentication, integrity, and confidentiality (`.u`), and restriction
+to the intended SP (`.u1`).
+Do not recursively double-count the whole Artifact Resolution Profile §5 under `IIP-SSO01`.
+This boundary will be explicitly reconfirmed in CP1’s external review.
 
-### 現在の状態
+### Current status
 
 ```
-要件 69 / 義務 337 / variant 820 / 述語 24
-IIP-SSO01: 181 義務
-open question: 12（IIP-SSO01.a は閉鎖）
+Requirements 69 / obligations 337 / variants 820 / predicates 24
+IIP-SSO01: 181 obligations
+open question: 12 (IIP-SSO01.a is closed)
 offline: 59/62 PASS
-残る FAIL: SR-30（他要件の open question）、SR-31（未承認）、SR-40（コミット前の tools 差分）
+Remaining FAILs: SR-30 (open questions under other requirements), SR-31 (unapproved), SR-40 (tools diff before commit)
 ```
 
-**これは作成者による CP1 候補であり、G1b 承認ではない。次に別チャットのレビュアーが編集禁止で三対応表だけを確認する。**
+**This is the author’s CP1 candidate, not G1b approval. Next, a reviewer in another chat will confirm only
+the three mappings, without editing.**
 
 ---
 
-## G1b-CP1-R1 — 2026-08-27 外部レビュー指摘の再照合
+## G1b-CP1-R1 — 2026-08-27 Re-cross-check of external review findings
 
-CP1 固定 commit 84c1438ae74572cb3693dfa8c92ca93c9c967743 に対する編集禁止レビューの
-指摘を、SAML2Prof / SAML2Core / Errata 05 の実効原文へ戻って再判定した。
+Re-determined the findings from the edit-prohibited review of fixed commit
+`84c1438ae74572cb3693dfa8c92ca93c9c967743` by returning to the effective source text of
+SAML2Prof / SAML2Core / Errata 05.
 
-### 採用した指摘
+### Findings adopted
 
-- .u1: Profile §4.1.4.4 にない artifact one-time-use を required variant から削除した。
-  one-time-use は Core §3.5.3 の独立規則であり、CP1 の「§3.5 全体は再帰的に取り込まない」
-  という境界と矛盾していた
-- .an: 不正要求に応答する場合の StatusCode/@Value を
-  urn:oasis:names:tc:SAML:2.0:status:Requester に固定した
-- .cp: 同一 AudienceRestriction 内の複数 Audience が OR であることを
-  positive control として追加した。AND 側だけでは「同一条件内も全一致」とする誤実装を検出できなかった
-- .gb: E45 は ordered-set 規則を削除せず条件化しており、AuthnRequest では ordering が
-  significant であることを control に復元した。preference 順と強度順は区別する
-- IIP-SSO01.a notes_ja: 取り込み範囲の短い旧説明を削除し、実際の対応表を正本にした。
-  Core §3.5 Artifact Resolution は Profile §4.1.4.4 が明示する 2 規範句以外を取り込まないと明記した
+- `.u1`: Removed artifact one-time-use from the required variants because it was not present in Profile §4.1.4.4.
+  One-time-use is an independent rule in Core §3.5.3 and conflicted with CP1’s boundary that “§3.5 as a
+  whole is not incorporated recursively.”
+- `.an`: Fixed StatusCode/@Value when responding to an invalid request to
+  `urn:oasis:names:tc:SAML:2.0:status:Requester`.
+- `.cp`: Added as a positive control that multiple Audiences within the same AudienceRestriction are OR.
+  Testing only the AND side could not detect an incorrect implementation that requires all values within
+  the same condition to match.
+- `.gb`: E45 did not delete the ordered-set rule; it conditioned it, so restored in the control that ordering
+  is significant in AuthnRequest. Distinguish preference order from strength order.
+- `IIP-SSO01.a notes_ja`: Deleted the short, outdated explanation of the incorporation scope and made the
+  actual mapping the authoritative source. Explicitly stated that Core §3.5 Artifact Resolution incorporates
+  no normative sentences other than the two expressly identified by Profile §4.1.4.4.
 
-### E14 は指摘の欠落を採用し、actor 分解を訂正した
+### Adopted the missing E14 finding and corrected actor decomposition
 
-レビューは「requests for / assertions issued with × MUST NOT be used /
-SHOULD be ignored の 4 象限」と解釈し、assertion 発行側 IdP の MUST NOT が欠落しているとした。
-しかし AllowCreate は NameIDPolicy、すなわち AuthnRequest にだけ存在する属性である。
+The review interpreted this as four quadrants: “requests for / assertions issued with × MUST NOT be used /
+SHOULD be ignored,” and concluded that the MUST NOT for the assertion-issuing IdP was missing.
+However, AllowCreate is an attribute that exists only in NameIDPolicy, and therefore only in AuthnRequest.
 
-- MUST NOT be used: 属性を送る requester（SP / proxy IdP）の .fn / .fo
-- SHOULD be ignored: 属性を処理する IdP の .fp
+- MUST NOT be used: `.fn` / `.fo` for requesters sending the attribute (SP / proxy IdP)
+- SHOULD be ignored: `.fp` for the IdP processing the attribute
 
-と actor を固定した。以前の .fq / .gk は assertion consumer に存在しない AllowCreate 属性の処理を
-課していたため削除した。単に「2 動詞 × 2 文脈」を機械的に 4 義務へ展開しない。
-requester 側と assertions issued with 側の適用条件の切り分けは CP1-R2 で訂正した。
+Fixed the actor accordingly. The previous `.fq` / `.gk` imposed processing of an AllowCreate attribute
+that does not exist on the assertion consumer, so they were deleted.
+Do not mechanically expand “2 verbs × 2 contexts” into four obligations.
+The separation of applicability conditions on the requester side and the assertions-issued-with side was
+corrected in CP1-R2.
 
-### 一般則
+### General rules
 
-- 根拠句の一部しか basis_ja に持たせたまま、残りを required variant に足してはならない
-- 論理式が AND / OR の両方向を持つ要件は、片方向だけで検出力があると見なさない
-- 規範句の actor は XML 上でその情報を生成・保持・処理できる主体と照合する。
-  存在しない属性を別 role に「無視させる」義務を作らない
-- 取り込み範囲は短い説明文と詳細対応表の二重正本にしない。詳細対応表を唯一の正本にする
+- Do not leave only part of the source sentence in `basis_ja` and add the remainder to required variants
+- For requirements having both directions of a logical expression, AND / OR, do not assume that only one
+  direction has detection power
+- Match the actor in a normative sentence against the entity that can generate, retain, or process that
+  information in XML. Do not create an obligation for another role to “ignore” an attribute that does not exist
+- Do not maintain the incorporation scope as two authoritative sources: a short explanatory sentence and a
+  detailed mapping. Make the detailed mapping the sole authoritative source
 
-### 現在の状態
+### Current status
 
-    要件 69 / 義務 335
-    IIP-SSO01.a の open question は閉鎖を維持
-    残る G1 完了条件: SR-30（他要件 12 件）/ SR-31（未承認 335 件）
-
----
-
-## G1b-CP1-R2 — 2026-08-27 E14 requester 条件の遡及判定を除去
-
-CP1-R1 では .fn / .fo に「Format を省略した要求へ IdP が transient assertion を返した場合、
-対応する AuthnRequest に AllowCreate があれば requester の MUST NOT 違反」という variant を追加した。
-これは誤りだった。
-
-Core §3.4.1.1 は Format が省略または unspecified の場合、IdP が任意の identifier Format を
-返せるとしている。requester は送出時点で結果 Format を決定できない。したがって、
-後から transient が返ったことを理由に SP / proxy IdP を遡及的に FAIL にすると、同じ E14 の
-「特定用途に使わない requester は AllowCreate=true を通常設定する」という .fl / .fm の SHOULD とも衝突する。
-
-修正:
-
-- .fn / .fo の MUST NOT は、requester 自身が NameIDPolicy/@Format=transient を指定した場合に限定
-- Format 省略時に結果 assertion が transient となった文脈は、AllowCreate を読む IdP の .fp で扱う
-- SP / proxy requester が IdP の裁量を予測できなかったことを違反にしない
-
-### 一般則
-
-規範の条件は、義務主体が行為時点で知り得る事実でなければならない。
-相手方が後から選んだ結果で、過去の送出行為を遡及的に違反へ変えない。
+    Requirements 69 / obligations 335
+    The `IIP-SSO01.a` open question remains closed
+    Remaining G1 completion conditions: SR-30 (12 items under other requirements) / SR-31 (335 unapproved)
 
 ---
 
-## G1b-CP1-R3 — 2026-08-27 AllowCreate の一般 SHOULD から transient を除外
+## G1b-CP1-R2 — 2026-08-27 Removal of retrospective determination of the E14 requester condition
 
-CP1-R2 で .fn / .fo の遡及判定を除去した後も、.fl / .fm の一般相互運用性 SHOULD が
-NameIDPolicy/@Format=transient の送出物に AllowCreate=true を要求し、同じ E14 の
-MUST NOT と衝突していた。
+In CP1-R1, added to `.fn` / `.fo` a variant stating that if the IdP returned a transient assertion in
+response to a request omitting Format, and the corresponding AuthnRequest had AllowCreate, this was a
+MUST NOT violation by the requester.
+This was incorrect.
 
-E14 の連続する規範句は次の優先関係になる。
+Core §3.4.1.1 states that when Format is omitted or unspecified, the IdP may return any identifier Format.
+The requester cannot determine the resulting Format at the time of sending.
+Therefore, retrospectively FAILing the SP / proxy IdP merely because a transient was returned later would
+also conflict with `.fl` / `.fm`’s SHOULD that a requester “not using AllowCreate for a specific purpose
+normally configure AllowCreate=true.”
 
-1. AllowCreate を特定用途に使わない requester は、一般に true を設定することが望ましい
-2. ただし transient NameID の要求では AllowCreate を使用してはならない
+Correction:
 
-後者は前者より狭く、かつ強い規則である。修正:
+- Limit the MUST NOT in `.fn` / `.fo` to cases where the requester itself specifies
+  NameIDPolicy/@Format=transient
+- Handle the context where the resulting assertion is transient because Format was omitted in `.fp`, the
+  IdP that reads AllowCreate
+- Do not treat the SP / proxy requester’s inability to predict the IdP’s discretionary result as a violation
 
-- .fl / .fm の summary と required variant を Format != transient に限定
-- Format=transient の送出物は .fn / .fo の MUST NOT だけで判定
-- その Run で non-transient の NameIDPolicy 付き要求が観測されない場合は satisfied_with_note
-- Format は message ごとに変わる実行時 scope なので、製品全体の applicability predicate には混ぜない
+### General rule
 
-### 一般則
-
-同じ段落群の一般 SHOULD と狭い MUST NOT が重なる場合、強い例外を一般規則の
-required variant から明示的に除く。製品分類とメッセージ単位の実行時 scope を混同しない。
-
----
-
-## G1b-CP2a — 2026-08-27 IIP-SP04 / IdP Discovery の SP 向け規範句
-
-IdPDisco PDF の Conformance と section 2 を全文・ページ画像の両方で確認し、
-IIP-SP04 が取り込む **Service Provider 主体**の規範内容を分解した。
-
-- end-to-end の redirect protocol（選択成功 / 選択なし）
-- SP から Discovery Service への HTTP GET
-- 最低限の `single` policy
-- request の `entityID` の存在と URL encoding
-- `return` URL の query と実効 `returnIDParam` の衝突禁止
-- metadata を使わない request の `return` 必須
-- 公開する `idpdisc:DiscoveryResponse` の `Binding` 固定値と schema 構造
-
-### スコープ境界
-
-- Discovery Service 主体の MUST/SHOULD（`isPassive` の UI 制約、SP への返送、metadata 照合、
-  return URL の既存 query の保存等）は対象 SP の義務にしない。Suite fixture の自己検証へ置く
-- `return` / `policy` / `returnIDParam` / `isPassive` の MAY は SP が選べる wire option であり、
-  すべての option を提供する能力へ引き上げない
-- option を実際に使った request には、その経路に付随する MUST/MUST NOT を message 単位で適用する
-- IdPDisco にない query parameter cardinality や redirect status code を独自条件として足さない
-
-### 現在の状態
-
-CP2a の作成者候補は IIP-SP04.a〜.i。open question は IIP-SP04 から除去した。
-次に別チャットのレビュアーが、IdPDisco の SP/DS actor 境界と不足・過剰を編集禁止で確認する。
+The condition of a norm must be a fact that the obligated party could know at the time of acting.
+Do not retrospectively turn a past sending action into a violation based on a result selected later by the
+other party.
 
 ---
 
-## G1b-CP2a-R1 — 2026-08-28 IdP Discovery の条件を message 単位へ訂正
+## G1b-CP1-R3 — 2026-08-27 Excluding transient from the general AllowCreate SHOULD
 
-固定 commit `cfe226b` の外部レビューで 6 件の記述・根拠不足を確認し、すべて原文へ戻って採用した。
+Even after removing the retrospective determination of `.fn` / `.fo` in CP1-R2, `.fl` / `.fm`’s general
+interoperability SHOULD still required AllowCreate=true on transmissions with
+NameIDPolicy/@Format=transient, conflicting with the same E14 MUST NOT.
 
-- `.g`: 「metadata なし構成を作る」ことをテスト前提にせず、各 request について
-  `return がある OR 省略時に実効 default DiscoveryResponse が使える` を評価する受動規則へ変更
-- `.b`: 非大文字の HTTP GET 記述を MUST として取り込む根拠である Conformance 節を evidence に追加
-- `.a`: 分解範囲を `.b〜.i` に訂正。選択結果なしの後の UI・既定 IdP・エラー等は verdict にしない
-- `.i`: `md:IndexedEndpointType` の required 属性を示す SAML2MD-xsd を直接 evidence に追加
-- `.e`: encoding を識別できる entityID を設定できない場合は probe を切り替え、全て不能なら NOT_VERIFIED
-- IIP の metadata 利用 SHOULD がイタリック＝非規範である監査記録を notes に復元
+The consecutive normative sentences in E14 have the following priority relationship:
 
-### `.g` を applicability predicate にしなかった理由
+1. A requester that does not use AllowCreate for a specific purpose should generally set it to true
+2. However, AllowCreate must not be used for a transient NameID request
 
-`if metadata is not used` は製品分類ではなく **request ごとに変わる実行時 scope** である。
-適用性はケース実行より先に評価されるため、これを global predicate にすると循環または誤除外になる。
-次の四分岐をケースの outcome 規則にした。
+The latter is narrower and stronger than the former. Correction:
 
-| 観測 | outcome |
+- Limited `.fl` / `.fm`’s `summary` and required variants to Format != transient
+- Judge transmissions with Format=transient only under `.fn` / `.fo`’s MUST NOT
+- If no request with a non-transient NameIDPolicy is observed during the Run, use `satisfied_with_note`
+- Format is a runtime scope that changes per message, so do not mix it into a product-wide applicability predicate
+
+### General rule
+
+When a general SHOULD and a narrower MUST NOT overlap within the same group of paragraphs, explicitly exclude
+the stronger exception from the general rule’s required variants.
+Do not confuse product classification with message-level runtime scope.
+
+---
+
+## G1b-CP2a — 2026-08-27 SP-side normative sentences for IIP-SP04 / IdP Discovery
+
+Confirmed the entire IdPDisco PDF, both as text and through page images, and decomposed the **Service
+Provider-subject** normative content incorporated by IIP-SP04.
+
+- End-to-end redirect protocol (selection succeeds / no selection)
+- HTTP GET from the SP to the Discovery Service
+- Minimum `single` policy
+- Presence and URL encoding of the request’s `entityID`
+- Prohibition on collision between the `return` URL’s query and the effective `returnIDParam`
+- Mandatory `return` when the request does not use metadata
+- Fixed `Binding` value and schema structure of the publicly exposed `idpdisc:DiscoveryResponse`
+
+### Scope boundary
+
+- Do not make Discovery Service-subject MUST/SHOULDs (the `isPassive` UI constraint, return to the SP,
+  metadata matching, preservation of an existing query in the return URL, etc.) obligations of the target
+  SP. Place them in Suite fixture self-validation.
+- `return` / `policy` / `returnIDParam` / `isPassive` MAYs are wire options that the SP may choose; do
+  not raise them to a capability to provide every option
+- Apply MUST / MUST NOT associated with an option actually used in a request at message scope along that path
+- Do not add query-parameter cardinality or redirect status codes as custom conditions absent from IdPDisco
+
+### Current status
+
+The author’s CP2a candidate consists of IIP-SP04.a–.i. Removed the open question from IIP-SP04.
+Next, another chat’s reviewer will confirm the IdPDisco SP/DS actor boundary and shortages/excesses without
+editing.
+
+---
+
+## G1b-CP2a-R1 — 2026-08-28 Correcting IdP Discovery conditions to message scope
+
+The external review of fixed commit `cfe226b` identified six points involving wording and insufficient
+grounds; all were checked against the source and adopted.
+
+- `.g`: Rather than making “create a no-metadata configuration” a test prerequisite, changed to a passive
+  rule evaluating, for each request, `return exists OR the effective default DiscoveryResponse can be used
+  when omitted`
+- `.b`: Added the Conformance section serving as the evidence for incorporating non-uppercase HTTP GET
+  wording as a MUST
+- `.a`: Corrected the decomposition scope to `.b–.i`. Do not issue verdicts for the UI, default IdP, error,
+  etc. after no selection
+- `.i`: Added SAML2MD-xsd directly as evidence showing the required attributes of `md:IndexedEndpointType`
+- `.e`: If an entityID whose encoding can be identified cannot be configured, switch the probe; if all probes
+  are impossible, use NOT_VERIFIED
+- Restored to the notes the audit record that the IIP metadata-use SHOULD is italicized and therefore
+  non-normative
+
+### Why `.g` Was Not Made an Applicability Predicate
+
+`if metadata is not used` is not a product classification but a **runtime scope that varies by request**.
+Because applicability is evaluated before case execution, making this a global predicate would cause circularity or erroneous exclusion.
+The following four branches were therefore defined as the case outcome rules.
+
+| Observation | outcome |
 |---|---|
-| `return` あり | `satisfied` |
-| `return` なし・実効 default metadata endpoint あり | `satisfied` |
-| どちらもなし | `violated` |
-| metadata との対応を確認不能 | `not_verified(metadata_return_basis_undetermined)` |
+| `return` present | `satisfied` |
+| `return` absent and an effective default metadata endpoint present | `satisfied` |
+| Neither present | `violated` |
+| Correspondence with metadata cannot be confirmed | `not_verified(metadata_return_basis_undetermined)` |
 
-Discovery request 自体が観測できなければ `NOT_VERIFIED(no_discovery_request_observed)` とする。
-`satisfied_with_note` は MUST 義務を WARNING にするため、単なる条件分岐不発の代用にしない。
-
----
-
-## G1b-CP2a-R2 — 2026-08-28 default endpoint と禁止規則の不発時を確定
-
-CP2a-R1 の再確認では指定 6 件はすべて解消していたが、関連する 3 点を追加修正した。
-
-- `.g`: `default DiscoveryResponse` の選択規則を定める SAML2Meta §2.2.3 を evidence に追加。
-  `isDefault=true` の最初、なければ `isDefault=false` でない最初、それもなければ列の最初とする
-- `.f`: `return` がない request しか観測されない場合を `satisfied_with_note` にしない。
-  禁止対象の状態が生じていないことを観測済みなので `satisfied` とする
-- `.e`: encoding probe のフォールバックを、絶対 URI として有効な `#` / `%25` を含む例に変更
-
-### `.f` を NOT_VERIFIED にしなかった理由
-
-`return URL の query に衝突 parameter を含めない` は、観測した request に対する禁止規則である。
-Discovery request が観測され、そのすべてで `return` が省略されているなら、禁止状態が存在しないことは
-観測できている。したがって outcome は空虚充足の `satisfied` である。
-
-- Discovery request あり・`return` あり・衝突なし → `satisfied`
-- Discovery request あり・いずれかに衝突あり → `violated`
-- Discovery request あり・`return` は全件なし → `satisfied`
-- Discovery request 自体がなし → `not_verified(no_discovery_request_observed)`
-
-「optional 経路を使わなかった」と「対象 message を一件も観測していない」を区別する。
-
-### CP2a 外部確認の完了
-
-固定 commit `72e1f3c` を作成者以外が原文と直接照合し、`verification: PASS / findings: none` を確認した。
-CP2a（IIP-SP04 / IdP Discovery）はこの commit で閉じる。
-
-空虚充足の適用境界も明記する。観測済み Discovery request に禁止対象の `return` が 1 件もない場合は、
-MUST NOT の前件が偽であることを観測できているため `satisfied` でよい。一方、対象 message 自体を 1 件も
-観測しておらず、正の wire requirement を確認できない場合は同じ扱いにせず、当該義務の規則に従って
-`NOT_VERIFIED` または `satisfied_with_note` とする。禁止規則の空虚充足を、能力未観測の一般的な免除へ広げない。
+If the Discovery request itself cannot be observed, the result is `NOT_VERIFIED(no_discovery_request_observed)`.
+Because `satisfied_with_note` turns a MUST obligation into a WARNING, it must not be used as a substitute for a conditional branch that was simply not triggered.
 
 ---
 
-## G1b-CP2b-Profile — 2026-08-28 SAML2Prof §4.4 / 基本 Single Logout 直接句
+## G1b-CP2a-R2 — 2026-08-28 Finalization of the Default Endpoint and the Case Where a Prohibition Rule Is Not Triggered
 
-SAML2Prof §4.4 の全ページと SAML2Errata E38 を原文・ページ画像の両方で確認し、
-IIP-SP14 / IIP-IDP17.a が取り込む基本 SLO profile を actor ごとに分解した。
-SAML2Prof の `process ... as defined in [SAMLCore]` が取り込む Core §3.7 は CP2b-Core、
-Asynchronous SLO extension（IIP-IDP17.b）は CP2c、ECP は後続 checkpoint とする。
+The re-review of CP2a-R1 confirmed that all six specified findings had been resolved, but three related points were additionally corrected.
 
-### SP 側の三層
+- `.g`: Added SAML2Meta §2.2.3, which defines the selection rule for the `default DiscoveryResponse`, as evidence.
+  Select the first with `isDefault=true`; if none exists, select the first whose `isDefault` is not `false`; if none exists, select the first in the sequence
+- `.f`: Do not use `satisfied_with_note` when only requests without `return` are observed.
+  Because it has been observed that the prohibited state did not arise, use `satisfied`
+- `.e`: Changed the encoding probe fallback to examples containing `#` / `%25` that are valid as absolute URIs
 
-1. SLO profile への対応能力そのものは IIP-SP14.a の **SHOULD**
-2. 対応を表明した SP の LogoutRequest 発行能力は IIP-SP14.b の条件付き **MUST**
-3. LogoutRequest / LogoutResponse の消費は IIP-SP14.c / .c1 の **OPTIONAL**
+### Why `.f` Was Not Made NOT_VERIFIED
 
-SLO に実際に対応する SP についてだけ、§4.4 の participant requester 規則を .d〜.o に分解した。
-複数 IdP ごとの反復、対応 IdP endpoint、SessionIndex、front-channel 推奨、TLS 推奨、POST / Redirect の署名、
-RelayState privacy、requester 認証・完全性、Issuer、principal identifier の strong match を個別義務にする。
-適用性は `supports_slo_initiation_sp`（対象が LogoutRequest を発行した／発行できる）で判定し、
-受信だけを任意実装した SP を initiator 規則の対象にしない。既存 `supports_slo_sp` の
-`target_consumed: LogoutRequest` を開始 capability の証拠へ流用しない。
+`Do not include a conflicting parameter in the query of the return URL` is a prohibition rule for observed requests.
+If Discovery requests have been observed and `return` is omitted from all of them, the absence of the prohibited state
+has been observed. Therefore, the outcome is `satisfied` by vacuous satisfaction.
 
-§4.4.3.4 の responder MUST は、IIP が受信対応を OPTIONAL と明示しているため無条件の MUST に戻さない。
-要求と応答の消費を 1 つの連言にしないため .c / .c1 に分け、未対応は NOT_SUPPORTED とする。
-ただし「実装しなくてよい」と「実装した wire behavior が Profile の MUST を破ってよい」は別である。
-実際に request を消費する SP には `consumes_slo_requests_sp` を適用し、responder の Core 処理、
-error response、同期 binding の認証、TLS 推奨、POST / Redirect response の署名、Issuer / Format /
-認証・完全性を .p〜.x で元の Profile level のまま判定する。
+- Discovery request present, `return` present, no conflict → `satisfied`
+- Discovery request present, at least one conflict → `violated`
+- Discovery request present, `return` absent from all requests → `satisfied`
+- No Discovery request itself → `not_verified(no_discovery_request_observed)`
 
-### IdP 側の actor 境界
+Distinguish between “the optional path was not used” and “not a single target message was observed.”
 
-IIP-IDP17.a の MUST は、SP-initiated request を受けて対象 session を決定し、元 requester へ
-LogoutResponse を返す基本フローとして分解した。identifier / SessionIndex による session 集合の決定、
-response status、response / request の Issuer・Format・認証・完全性、principal identifier の strong match を
-個別義務にする。
+### Completion of External Verification for CP2a
 
-次は意図的に必須化していない。
+A reviewer other than the author directly compared fixed commit `72e1f3c` against the original text and confirmed `verification: PASS / findings: none`.
+CP2a (IIP-SP04 / IdP Discovery) is closed at this commit.
 
-- §4.4.2 は IdP が profile を step 2 から開始 **can initiate** とする permission であり、
-  IdP-initiated SLO capability を要求しない
-- IIP-IDP17.c は他 participant への propagation を明示的に OPTIONAL とするため、
-  §4.4.3.1 の propagation SHOULD と §4.4.3.2 の steps 3 / 4 を無条件義務にしない
-- §4.4.3.4 の POST / Redirect LogoutResponse 署名 MUST と TLS RECOMMENDED は、
-  IdP の request に応答する session participant の step 4 規則である。IdP が元 SP へ返す step 5 response へ横展開しない
+The applicability boundary of vacuous satisfaction is also stated explicitly. If no prohibited `return` is present in any observed Discovery request,
+`satisfied` is appropriate because it was possible to observe that the antecedent of the MUST NOT was false. By contrast, if not a single target message
+was observed and a positive wire requirement could not be confirmed, it must not be treated the same way; use
+`NOT_VERIFIED` or `satisfied_with_note` according to the rule for the relevant obligation. Do not extend vacuous satisfaction of prohibition rules into a general exemption for unobserved capabilities.
+
+---
+
+## G1b-CP2b-Profile — 2026-08-28 SAML2Prof §4.4 / Direct Clauses of Basic Single Logout
+
+All pages of SAML2Prof §4.4 and SAML2Errata E38 were checked against both the original text and page images,
+and the basic SLO profile incorporated by IIP-SP14 / IIP-IDP17.a was decomposed by actor.
+Core §3.7, incorporated through the SAML2Prof clause `process ... as defined in [SAMLCore]`, is assigned to CP2b-Core;
+the Asynchronous SLO extension (IIP-IDP17.b) is assigned to CP2c; and ECP is assigned to a subsequent checkpoint.
+
+### Three Layers on the SP Side
+
+1. The capability to support the SLO profile itself is a **SHOULD** in IIP-SP14.a
+2. The capability of an SP that declares support to issue a LogoutRequest is a conditional **MUST** in IIP-SP14.b
+3. Consumption of LogoutRequest / LogoutResponse is **OPTIONAL** in IIP-SP14.c / .c1
+
+Only for SPs that actually support SLO, the participant requester rules in §4.4 were decomposed into .d–.o.
+Repetition for multiple IdPs, the endpoint of the corresponding IdP, SessionIndex, front-channel recommendation, TLS recommendation, POST / Redirect signatures,
+RelayState privacy, requester authentication and integrity, Issuer, and strong matching of the principal identifier are made separate obligations.
+Applicability is determined by `supports_slo_initiation_sp` (the target issued or can issue a LogoutRequest),
+so an SP that optionally implements receipt only is not made subject to the initiator rules. The existing `target_consumed: LogoutRequest` in
+`supports_slo_sp` is not reused as evidence of initiation capability.
+
+The responder MUST in §4.4.3.4 is not restored to an unconditional MUST because the IIP explicitly makes support for receipt OPTIONAL.
+To avoid turning consumption of requests and responses into a single conjunction, they are separated into .c / .c1, with unsupported capabilities treated as NOT_SUPPORTED.
+However, “it does not have to be implemented” and “implemented wire behavior may violate a Profile MUST” are different matters.
+For an SP that actually consumes requests, apply `consumes_slo_requests_sp` and evaluate the responder’s Core processing,
+error response, authentication for synchronous bindings, TLS recommendation, POST / Redirect response signatures, Issuer / Format /
+authentication and integrity in .p–.x at their original Profile levels.
+
+### Actor Boundary on the IdP Side
+
+The MUST in IIP-IDP17.a was decomposed as the basic flow in which the IdP receives an SP-initiated request, determines the target session, and returns
+a LogoutResponse to the original requester. Determination of the session set by identifier / SessionIndex,
+response status, Issuer and Format for the response / request, authentication and integrity, and strong matching of the principal identifier are
+made separate obligations.
+
+The following were intentionally not made mandatory.
+
+- §4.4.2 states that the IdP **can initiate** the profile beginning at step 2, which is permission;
+  it does not require IdP-initiated SLO capability
+- Because IIP-IDP17.c explicitly makes propagation to other participants OPTIONAL,
+  the propagation SHOULD in §4.4.3.1 and steps 3 / 4 in §4.4.3.2 are not made unconditional obligations
+- The MUST to sign POST / Redirect LogoutResponses and the TLS RECOMMENDED in §4.4.3.4
+  are step 4 rules for a session participant responding to the IdP’s request. They are not extended laterally to the step 5 response that the IdP returns to the original SP
 
 ### Errata E38
 
-E38 反映後も、session participant は LogoutRequest に少なくとも 1 件の SessionIndex を含める。
-この規則を IIP-SP14.f に置き、AuthnStatement で受けた値と Transcript 上で照合する。
-session authority である IdP は全 applicable session を示すため SessionIndex を省略してよいので、
-IdP 発行 request に SessionIndex を無条件要求しない。
+Even after applying E38, a session participant includes at least one SessionIndex in the LogoutRequest.
+This rule is placed in IIP-SP14.f, and the value is checked in the Transcript against the value received in the AuthnStatement.
+Because the IdP, as the session authority, may omit SessionIndex to indicate all applicable sessions,
+SessionIndex is not required unconditionally in an IdP-issued request.
 
-### 一般則
+### General Rules
 
-- Profile の一般規則を取り込む際、IIP が同じ actor / feature をより具体的に OPTIONAL とした箇所を再び MUST にしない
-- 同じ節の規範句でも actor と step を確認し、participant responder の規則を IdP responder へ横展開しない
-- `can` / `MAY` の開始経路を support capability の必須 variant にしない
-- optional な request / response 消費を 1 義務の required variants にまとめて連言化しない
-- optional capability を選ばなかった場合は派生規則を適用しないが、選んだ実装の wire violation まで OPTIONAL に弱めない
+- When incorporating general Profile rules, do not make a provision into a MUST again where the IIP makes the same actor / feature more specifically OPTIONAL
+- Even for normative clauses in the same section, verify the actor and step, and do not extend participant responder rules laterally to an IdP responder
+- Do not make a `can` / `MAY` initiation path a mandatory variant of support capability
+- Do not combine optional request / response consumption into the required variants of one obligation, thereby turning them into a conjunction
+- Derived rules do not apply when an optional capability was not selected, but wire violations in an implementation that selected it must not be weakened to OPTIONAL
 
-### 未完了の取り込み句
+### Incorporation Clauses Not Yet Completed
 
-SAML2Prof §4.4.3.4 は SP responder に `MUST process ... as defined in [SAMLCore]`、
-§4.4.3.2 は IdP に `processes the request as defined in [SAMLCore]` とする。
-Core §3.7 には session participant の遅着 assertion 処理、session authority の status、
-`All other processing rules ... MUST be observed` から入る共通 request / response 規則が残る。
+SAML2Prof §4.4.3.4 states that the SP responder `MUST process ... as defined in [SAMLCore]`,
+and §4.4.3.2 states that the IdP `processes the request as defined in [SAMLCore]`.
+Core §3.7 still contains processing of late-arriving assertions by a session participant, status handling by the session authority,
+and common request / response rules incorporated through `All other processing rules ... MUST be observed`.
 
-IIP-SP14.p と IIP-IDP17.a に open question と Core §3.7 evidence を置いた。
-CP2b-Profile の外部確認が PASS しても、この 2 件を閉じず、次の CP2b-Core で actor 別に分解する。
-また Core の propagation SHOULD / PartialLogout は IIP-IDP17.c の OPTIONAL 上書きとの優先関係を句ごとに確認する。
-
----
-
-## G1b-CP2b-Profile-R1 — 2026-08-28 optional SLO 経路と binding 方向を分離
-
-固定 commit `a0746fc` の外部レビューで、直接 Profile 句の actor 境界は概ね正しかった一方、
-既存の binding 義務と新しい wire 規則の間に optional capability を再び必須化する経路が 4 件見つかった。
-
-- IdP 発行 LogoutRequest の wire 規則 `.j〜.n` を、SLO endpoint や request 受信能力を含む
-  `supports_slo_idp` から分離し、実際に観測した `target-emitted LogoutRequest` へ受動適用した。
-  発行 request が 0 件なら `satisfied_with_note` とし、任意機能を実装しないことを `NOT_VERIFIED` にしない
-- `.q` から「未知の SessionIndex = non-Success」という独自対応表を削除し、error fixture と status の確定を
-  SAML2Core 3.7 の CP2b-Core へ open question として送った
-- IIP-SP15 を SP の request 送信 / request 受信 / response 送信 / response 受信へ分割し、
-  IIP-SP14 が OPTIONAL とする受信方向は実際の消費を message 単位で評価した
-- IIP-IDP18 を SP-initiated 基本フローの request 受信 / response 送信と、任意の IdP request 発行に付随する
-  request 送信 / response 受信へ分割した
-
-### 一般則
-
-`requests and responses` という binding 要件は、それだけで actor が全送受信方向を実装する能力を要求しない。
-上位 Profile / IIP が optional とした方向は、実装した場合にその binding 規則へ適合する必要があるが、
-binding 義務を使って optional capability 自体を必須へ戻してはならない。
-また optional capability の不在は肯定的観測だけでは証明できないため、これを `CAPABILITY_BASED` 条件へ
-置き換えて永久に `NOT_VERIFIED` にしてもならない。実装した message 方向へ受動適用し、未使用なら
-`satisfied_with_note` とする。
+Open questions and Core §3.7 evidence were added to IIP-SP14.p and IIP-IDP17.a.
+Even if external verification of CP2b-Profile passes, these two items are not to be closed; they are to be decomposed by actor in the next CP2b-Core.
+In addition, the priority relationship between the Core propagation SHOULD / PartialLogout and the OPTIONAL override in IIP-IDP17.c is to be checked clause by clause.
 
 ---
 
-## G1b-CP2b-Profile-R2 — 2026-08-28 Redirect response capability の排他 fixture
+## G1b-CP2b-Profile-R1 — 2026-08-28 Separation of Optional SLO Paths and Binding Directions
 
-R1 の外部再確認では前回 4 件の解消と message 単位の受動規則の妥当性が確認されたが、
-response binding の fixture に 1 件の共通不足が残った。
+The external review of fixed commit `a0746fc` found that the actor boundaries of the direct Profile clauses were generally correct,
+but identified four paths between the existing binding obligations and the new wire rules that made optional capabilities mandatory again.
 
-SAML2Prof 4.4.3.4 / 4.4.3.5 は、asynchronous response に双方が対応する任意の binding を使えるとする。
-Suite peer が Redirect と POST の両方を広告した状態で Redirect response を要求すると、POST を正当に選ぶ適合対象を
-不適合にしてしまう。このため IIP-SP15.c と IIP-IDP18.b の fixture を、Suite peer の SLO response endpoint が
-HTTP-Redirect だけを広告する排他構成に変更した。
+- The wire rules `.j–.n` for IdP-issued LogoutRequests were separated from `supports_slo_idp`,
+  which includes SLO endpoints and request-receipt capability, and were passively applied to actually observed `target-emitted LogoutRequest` messages.
+  If there are zero issued requests, use `satisfied_with_note`; do not classify the choice not to implement an optional feature as `NOT_VERIFIED`
+- Removed the original mapping “unknown SessionIndex = non-Success” from `.q`, and sent finalization of the error fixture and status
+  to CP2b-Core for SAML2Core 3.7 as an open question
+- Split IIP-SP15 into SP request sending / request receiving / response sending / response receiving,
+  and evaluated the receiving direction made OPTIONAL by IIP-SP14 per message actually consumed
+- Split IIP-IDP18 into request receiving / response sending for the basic SP-initiated flow and
+  request sending / response receiving associated with optional issuance of an IdP request
 
-### 一般則
+### General Rules
 
-複数の候補から選択できる capability を positive に検査するときは、対象へ特定候補を強制する前に、
-Suite 側 fixture で他の適合候補を除く。候補を複数提示したまま、対象が選べる `MAY` を失敗条件へ変えない。
-
-### CP2b-Profile 外部確認の完了
-
-固定 commit `1d5fa31` を作成者以外が SAML2Prof 4.4.3.4 / 4.4.3.5 と直接照合し、
-`verification: PASS / findings: none` を確認した。CP2b-Profile（SAML2Prof §4.4 の直接句と Errata E38）は
-この commit で閉じる。
-
-ただし、IIP-SP14.p / .q と IIP-IDP17.a の `open_question_ja` は意図的に残っている。
-Profile の直接句が PASS したことは、`process ... as defined in [SAMLCore]` が取り込む Core §3.7 の
-分解完了を意味しない。次の CP2b-Core で actor 別に解消する。
+A binding requirement phrased as `requests and responses` does not by itself require an actor to implement the capability for every sending and receiving direction.
+A direction made optional by the higher-level Profile / IIP must comply with the binding rule if implemented,
+but the binding obligation must not be used to make the optional capability itself mandatory again.
+Furthermore, because the absence of an optional capability cannot be proved by positive observation alone, it must not be replaced with a
+`CAPABILITY_BASED` condition that leaves it permanently `NOT_VERIFIED`. Apply the rule passively to implemented message directions, and use
+`satisfied_with_note` when they are unused.
 
 ---
 
-## G1b-CP2b-Core — 2026-08-28 SAML2Core §3.7 と underlying request / response rules
+## G1b-CP2b-Profile-R2 — 2026-08-28 Exclusive Fixture for Redirect Response Capability
 
-SAML2Core §3.7、§3.2.1、§3.2.2、§4.1.3、§5.4.4 と protocol schema を原文・ページ画像の両方で確認した。
-CP2b-Profile の open question 3 件を、SLO 固有規則と actor / direction 依存の共通規則に分解した。
+The external re-review of R1 confirmed resolution of the previous four findings and the validity of the passive per-message rules,
+but one common deficiency remained in the response binding fixtures.
 
-### §3.7 固有規則
+SAML2Prof 4.4.3.4 / 4.4.3.5 permit use of any binding supported by both parties for an asynchronous response.
+If the Suite peer advertises both Redirect and POST and then requires a Redirect response, a conforming target that legitimately selects POST
+would be classified as non-conforming. Therefore, the fixtures for IIP-SP15.c and IIP-IDP18.b were changed to an exclusive configuration in which
+the Suite peer’s SLO response endpoint advertises only HTTP-Redirect.
 
-SP が optional な LogoutRequest consumption を実装した場合の participant rules は次へ分けた。
+### General Rule
 
-- IIP-SP14.y: 受信 LogoutRequest の認証（MUST）
-- IIP-SP14.p: identifier / SessionIndex に従う local session の無効化。SessionIndex なしなら principal の全 session（MUST）
-- IIP-SP14.z: 4 条件を満たす後着 assertion にも未失効 logout を適用（MUST）
-- IIP-SP14.q: 処理後の LogoutResponse。SAML-invalid request に応答する場合の Requester は .ai へ分離
+When positively testing a capability that permits selection from multiple candidates, eliminate the other conforming candidates
+in the Suite-side fixture before forcing the target to use a specific candidate. Do not present multiple candidates and then turn a `MAY` choice available to the target into a failure condition.
 
-IdP の session authority rules は次へ分けた。
+### Completion of External Verification for CP2b-Profile
 
-- IIP-IDP17.p: sender authentication（MUST）
-- IIP-IDP17.q: IdP 自身の matching current session を終了（SHOULD）
-- IIP-IDP17.e / .o: 自身の終了成功なら top-level Success、失敗なら top-level error（各 MUST）
-- IIP-IDP17.r: propagation を実装した場合、個別失敗後も全 applicable participant へ試行（SHOULD）
-- IIP-IDP17.s: 実施した propagation が不完全なら second-level PartialLogout（MUST）
-- IIP-IDP17.t / .u: IdP 発行 LogoutRequest の NotOnOrAfter（MUST / SHOULD）
+A reviewer other than the author directly compared fixed commit `1d5fa31` against SAML2Prof 4.4.3.4 / 4.4.3.5
+and confirmed `verification: PASS / findings: none`. CP2b-Profile (the direct clauses of SAML2Prof §4.4 and Errata E38)
+is closed at this commit.
 
-Core §3.7 冒頭の participant が LogoutRequest を送る MUST は、同じ行為を直接要求する IIP-SP14.b で既に判定する。
-LogoutRequest / LogoutResponse の認証・完全性に関する Core SHOULD は、Profile の強い MUST である
-IIP-SP14.k / .x と IIP-IDP17.m / .i が既に覆うため、弱い重複義務を追加しない。
+However, the `open_question_ja` entries in IIP-SP14.p / .q and IIP-IDP17.a intentionally remain.
+The fact that the direct Profile clauses passed does not mean that decomposition of Core §3.7, incorporated by
+`process ... as defined in [SAMLCore]`, has been completed. They are to be resolved by actor in the next CP2b-Core.
+
+---
+
+## G1b-CP2b-Core — 2026-08-28 SAML2Core §3.7 and Underlying Request / Response Rules
+
+SAML2Core §3.7, §3.2.1, §3.2.2, §4.1.3, §5.4.4, and the protocol schema were checked against both the original text and page images.
+The three open questions from CP2b-Profile were decomposed into SLO-specific rules and common rules dependent on actor / direction.
+
+### Rules Specific to §3.7
+
+The participant rules that apply when an SP implements optional LogoutRequest consumption were divided as follows.
+
+- IIP-SP14.y: Authentication of the received LogoutRequest (MUST)
+- IIP-SP14.p: Invalidation of local sessions according to identifier / SessionIndex. If SessionIndex is absent, all sessions for the principal (MUST)
+- IIP-SP14.z: Apply the unexpired logout to late-arriving assertions that satisfy the four conditions (MUST)
+- IIP-SP14.q: LogoutResponse after processing. Requester when responding to a SAML-invalid request is separated into .ai
+
+The IdP session authority rules were divided as follows.
+
+- IIP-IDP17.p: Sender authentication (MUST)
+- IIP-IDP17.q: Terminate the IdP’s own matching current sessions (SHOULD)
+- IIP-IDP17.e / .o: Top-level Success if the IdP’s own termination succeeds, and a top-level error if it fails (each MUST)
+- IIP-IDP17.r: If propagation is implemented, attempt all applicable participants even after an individual failure (SHOULD)
+- IIP-IDP17.s: If performed propagation is incomplete, use second-level PartialLogout (MUST)
+- IIP-IDP17.t / .u: NotOnOrAfter in an IdP-issued LogoutRequest (MUST / SHOULD)
+The participant MUST send a LogoutRequest at the beginning of Core §3.7 is already evaluated by IIP-SP14.b, which directly requires the same action.
+The Core SHOULDs concerning authentication and integrity of LogoutRequest / LogoutResponse are already covered by the stronger Profile MUSTs
+IIP-SP14.k / .x and IIP-IDP17.m / .i, so no weaker duplicate obligations are added.
 
 ### underlying request / response rules
 
-SLO message の actor / direction により期待値が変わる規則を SP14.aa〜.as、IDP17.v〜.am に分解した。
+Rules whose expected values vary according to the actor / direction of the SLO message were decomposed into SP14.aa–.as and IDP17.v–.am.
 
-- emitted message の ID 一意性、schema conformance、LogoutResponse/@InResponseTo
-- consumed message の Destination 照合、XML signature 検証、invalid signature への非依拠と error 処理、signer 評価
-- Consent が同意取得を示す emitted message の署名
-- invalid request に応答する場合の Requester、emitted response の top-level status
-- request / response version の拒否・関係・VersionMismatch・requester 方針
-- 許可外 transform を受理する verifier が message 内容を署名対象から除外しないこと
+- ID uniqueness, schema conformance, and LogoutResponse/@InResponseTo for emitted messages
+- Destination matching, XML signature verification, non-reliance on invalid signatures and error handling, and signer evaluation for consumed messages
+- Signing of emitted messages whose Consent indicates that consent was obtained
+- Requester when responding to an invalid request, and the top-level status of an emitted response
+- Rejection and relationships of request / response versions, VersionMismatch, and requester policy
+- A verifier that accepts unauthorized transforms must not exclude the message content from the signed content
 
-一方、Core の共通データ型、生成側 XML Signature profile、extension namespace は、既存の
-IIP-SSO01.dz / .ea / .eb / .ec / .ed / .ee / .ef / .eg / .eh / .ei / .er / .eu / .ev / .ew / .ex / .ah が
-「全 SAML message」を横断して受動検査する。IdP 発行 response の top-level StatusCode は IIP-SSO01.ch も同様である。
-同じ違反を別の IIP 親の下で二重計上しないため、これらは再作成せず SP14.a / IDP17.a の notes に対応を記録した。
+Meanwhile, the common Core data types, producer-side XML Signature profile, and extension namespace are already passively inspected across
+“all SAML messages” by IIP-SSO01.dz / .ea / .eb / .ec / .ed / .ee / .ef / .eg / .eh / .ei / .er / .eu / .ev / .ew / .ex / .ah.
+IIP-SSO01.ch similarly covers the top-level StatusCode of an IdP-issued response.
+To avoid counting the same violation twice under different IIP parents, these were not recreated; their coverage was instead recorded in the notes for SP14.a / IDP17.a.
 
-### optional capability の境界
+### optional capability boundaries
 
-- IIP-SP14.c / .c1 の request / response consumption は独立して OPTIONAL のままにした。共通 Core 規則は実際に消費した方向へ受動適用し、未実装方向から capability を推測しない
-- IIP-IDP17.c の propagation は OPTIONAL のままにした。IIP-IDP17.r / .s は propagation を実施した Run にだけ適用し、実施しない IdP を WARNING / FAIL にしない
-- IdP-initiated SLO と IdP の LogoutRequest 発行は permission / optional capability のままにした。発行 message が観測されたときだけ生成規則を適用する
-- IIP-SP14.c1 を、Core の requester version 規則から response consumption の必須能力へ戻さない
-- `aslo:Asynchronous` を含む request は base Core の LogoutResponse 義務の実行時 scope 外とし、IIP-IDP17.b の CP2c で判定する
+- Request / response consumption in IIP-SP14.c / .c1 remains independently OPTIONAL. Common Core rules are passively applied to the direction actually consumed, and capability is not inferred from an unimplemented direction
+- Propagation in IIP-IDP17.c remains OPTIONAL. IIP-IDP17.r / .s apply only to Runs in which propagation was performed and do not make an IdP that does not perform it WARNING / FAIL
+- IdP-initiated SLO and issuance of LogoutRequest by an IdP remain a permission / optional capability. Generation rules apply only when an issued message is observed
+- IIP-SP14.c1 is not converted back into a mandatory response-consumption capability through the Core requester-version rule
+- A request containing `aslo:Asynchronous` is outside the runtime scope of the base Core LogoutResponse obligation and is evaluated by CP2c for IIP-IDP17.b
 
-### 現在の状態
+### Current status
 
-義務は 381 から 427。CP2b-Core で 46 義務を追加し、既存 5 義務（SP14.a / .p / .q、IDP17.a / .e）だけを更新した。
-network / offline とも 60/62 PASS、blocking 0。open question は 12 から 9 へ減り、SLO の残りは
-IIP-IDP17.b（Asynchronous SLO）のみである。
+The number of obligations increased from 381 to 427. CP2b-Core added 46 obligations and updated only 5 existing obligations (SP14.a / .p / .q and IDP17.a / .e).
+Both network and offline validation are 60/62 PASS with 0 blocking issues. Open questions decreased from 12 to 9, and the only remaining SLO item is
+IIP-IDP17.b (Asynchronous SLO).
 
-この checkpoint は作成者候補であり未承認。次に固定 commit を別チャットのレビュアーが、
-Core §3.7 の前置き・actor・OPTIONAL override と §3.2 / §4 / §5 の不足・過剰に限定して編集禁止で確認する。
-
----
-
-## G1b-CP2b-Core-A-R1 — 2026-08-28 §3.7 外部レビュー
-
-固定 commit `90d8a31` の外部レビューで 4 findings を受け、3 件を採用、1 件を原文照合の上で不採用とした。
-
-### 採用
-
-- IIP-SP14.q: base Core の response 義務を `aslo:Asynchronous` のない request に限定した。
-  SP の ASLO 対応能力は IIP-SP14 が要求しないが、実装して extension を消費した適合 SP を
-  「LogoutResponse を返さない」という理由で FAIL にしない
-- IIP-SP14.q: 相互参照の誤記 `.ae` → `.ai`、`.ad` → `.af` を訂正した。
-  前者は invalid request に応答する場合の Requester MUST、後者は invalid signature を error として扱う SHOULD
-- IIP-SP14.z: identifier と expiry だけでなく SessionIndex 条件にも negative control を追加した。
-  S1 指定の request 後に同一 principal / S2 の assertion が到着した場合、本 request だけを理由に拒否しない
-
-### 不採用: 上流 session authority への propagation SHOULD の新設
-
-Core §3.7.3.2 は proxy 上流 session authority と下流 session participant を別 bullet にする。一方、
-SAML2Prof §4.4.3.3 は `To propagate the logout` として、IdP が `a session authority or participant` へ
-LogoutRequest を送る step 3 全体を 1 つの propagation と定義している。
-
-IIP-IDP17.c は propagation capability を OPTIONAL とする。ここで IIP の `other session participants` を
-Core の狭い actor 名だけで読み、上流 authority への送信 SHOULD を復活させると、Profile が一括して
-propagation と呼ぶ capability の一部を別経路から必須度 SHOULD に戻す。誤った WARNING を避けるため、
-本カタログでは上流 authority / 下流 participant の両経路を IIP-IDP17.c の OPTIONAL に含める。
-
-この解釈が無言にならないよう、IIP-IDP17.c に SAML2Prof §4.4.3.3 と Core §3.7.3.2 の evidence、
-上流 / 下流それぞれの情報記録 variant、OPTIONAL override の rationale を追加した。
-上流伝播を実装して観測した場合の作法は IIP-IDP17.r / .s と target-emitted request 規則で受動評価する。
+This checkpoint is an author candidate and has not been approved. Next, a reviewer in a separate chat will review the fixed commit without editing it,
+limited to the preamble, actors, and OPTIONAL override of Core §3.7, and omissions / excesses in §3.2 / §4 / §5.
 
 ---
 
-## G1b-CP2b-Core-A-R2 — 2026-08-28 §3.7 外部再レビュー完了
+## G1b-CP2b-Core-A-R1 — 2026-08-28 External review of §3.7
 
-固定 commit `8513aa1` を作成者以外が、前回 findings の対象である IIP-SP14.q / .z と
-IIP-IDP17.c、および SAML2Core §3.7.3.1 / §3.7.3.2、SAML2Prof §4.4.3.2 / §4.4.3.3 に
-限定して再確認した。結果は `verification: PASS / findings: none / scope_violations: none` だった。
+The external review of fixed commit `90d8a31` produced 4 findings; 3 were adopted, and 1 was rejected after comparison with the source text.
 
-再レビューでは次を確認した。
+### Adopted
 
-- IIP-SP14.q は `aslo:Asynchronous` のない request だけを base Core の LogoutResponse 義務の
-  verdict 対象とし、invalid request / invalid signature の参照先も `.ai` / `.af` と一致する
-- IIP-SP14.z の追加対照は、同一 principal、未失効 request、異なる SessionIndex S2 だけを変え、
-  SessionIndex を無視して principal 全体を拒否する実装を検出する
-- IIP-IDP17.c は、SAML2Prof §4.4.3.3 が logout propagation を session authority または participant
-  への送信として一括定義することを根拠に、上流 / 下流の両経路を OPTIONAL に含める
-- `90d8a31` から `8513aa1` までに義務キー、level、roles、condition の変更はなく、変更は
-  IIP-SP14.q / .z / IIP-IDP17.c の variant / control / evidence に限定される
+- IIP-SP14.q: The base Core response obligation was limited to requests without `aslo:Asynchronous`.
+  IIP-SP14 does not require SP capability for ASLO, but a conforming SP that implements and consumes the extension must not
+  FAIL for “not returning a LogoutResponse”
+- IIP-SP14.q: Incorrect cross-references `.ae` → `.ai` and `.ad` → `.af` were corrected.
+  The former is the Requester MUST when responding to an invalid request, and the latter is the SHOULD to treat an invalid signature as an error
+- IIP-SP14.z: A negative control was added for the SessionIndex condition, in addition to identifier and expiry.
+  If an assertion for the same principal / S2 arrives after a request specifying S1, it must not be rejected solely because of this request
 
-これにより CP2b-Core-A（Core §3.7 固有規則）は閉じる。SP14.aa〜.as、IDP17.v〜.am の
-underlying request / response rules は別 checkpoint の CP2b-Core-B で確認する。
+### Rejected: Adding a propagation SHOULD for the upstream session authority
 
----
+Core §3.7.3.2 places a proxy’s upstream session authority and downstream session participant in separate bullets. In contrast,
+SAML2Prof §4.4.3.3 defines all of step 3, in which an IdP sends a LogoutRequest to `a session authority or participant`,
+as a single propagation under `To propagate the logout`.
 
-## G1b-CP2b-Core-B-R1 — 2026-08-28 共通 request / response 規則の外部レビュー
+IIP-IDP17.c makes propagation capability OPTIONAL. If `other session participants` in the IIP were read only as the narrow Core actor name
+and a SHOULD to send to the upstream authority were restored, part of the capability that the Profile collectively calls
+propagation would be returned to SHOULD status through a separate route. To avoid an incorrect WARNING,
+this catalog includes both the upstream authority and downstream participant paths within the OPTIONAL scope of IIP-IDP17.c.
 
-固定 commit `a39c109` を作成者以外が SAML2Core §3.2 / §4.1.3 / §5.4.4 と関連 binding に
-限定して確認し、3 findings を受けた。原文を再確認して3件とも採用した。
-
-### Destination の Optional を受理義務にしない
-
-IIP-SP14.ac / IIP-IDP17.x は、Destination 不一致の破棄 MUST と「正しい Destination」の対照に加えて、
-Destination 省略 message を受理することまで required variant にしていた。しかし Core の
-`Destination [Optional]` は省略時の受理を要求しない。さらに署名付き HTTP-Redirect / HTTP-POST は
-SAML2Bind §3.4.5.2 / §3.5.5.2 により Destination を含める MUST がある。
-
-省略 variant を削除し、省略 message には本義務から verdict を付けないこと、binding と対象ポリシーの
-規則に委ねることを明記した。同じ誤りが IIP-SSO01.ag / .aq にもあったため同時に修正した。
-「属性が Optional」と「受信者が省略 message を受理しなければならない」を同一視しない。
-
-### top-level StatusCode を SLO actor ごとに覆う
-
-IIP-IDP17.a は、IdP 発行 LogoutResponse の top-level StatusCode を IIP-SSO01.ch が横断検査するとしていた。
-しかし `.ch` は Web Browser SSO Profile の Response processing 取り込み句に基づく義務であり、
-SLO の LogoutResponse まで覆う根拠を持たない。SP 側には IIP-SP14.aj がある一方、IdP 側だけ欠落していた。
-
-IIP-IDP17.an（MUST）を追加し、IdP 発行 LogoutResponse の最上位値を Success / Requester /
-Responder / VersionMismatch に限定する。PartialLogout / AuthnFailed 等の二次コードを最上位に置く実装を
-検出する。IIP-IDP17.e / .o / .s は状況別の値、本義務は top-level list 自体を判定する。
-
-### Consent の署名証拠に binding 固有署名を含める
-
-IIP-SP14.ah / IIP-IDP17.ac は、同意取得を示す Consent を含む message の署名証拠を
-`<ds:Signature>` だけに限定していた。HTTP-Redirect は SAML2Bind §3.4.4.1 により XML 署名を
-encoding 前に除去し、SigAlg / Signature のクエリ署名を付ける。適合実装を WARNING にしないため、
-XML 署名または delivery binding が規定する検証可能な message 署名の選言へ直した。
-
-### 再利用確認からの追加修正
-
-レビューの double-counting 確認で、identifier uniqueness 義務の required variant に xs:ID の
-字句規則が混入していることも確認した。字句違反は schema conformance の違反であり、一意性確率の
-違反ではない。同じ欠陥を2義務で violated にしないため、IIP-SSO01.af / .ao / .dr、IIP-SP14.aa、
-IIP-IDP17.v から字句 variant を削除し、それぞれの schema 義務へ責務を固定した。
-
-補足指摘については、Asynchronous request を response error fixture に混ぜないこと、version 非互換には
-一般 Requester ではなく具体的な VersionMismatch を使うこと、同一 major の higher minor は process / reject
-のどちらも許されることを controls に明記した。CP2c の内容を先取りして判定規則は追加していない。
-
-### CP2b-Core-B 外部再レビューの完了
-
-固定 commit `28184f6` を作成者以外が修正対象に限定して再確認し、
-`verification: PASS / findings: none` を確認した。Destination、Consent の署名証拠、IdP LogoutResponse の
-top-level StatusCode、identifier uniqueness と schema の責務分離、補足 controls の全項目で前回の
-counterexample が閉じ、level / roles / condition / testability の回帰もなかった。
-
-これにより CP2b-Core-B を閉じ、CP2b（基本 Single Logout の Profile 直接句、Core §3.7、
-underlying request / response rules）全体を完了とする。残る SLO の open question は
-IIP-IDP17.b の Asynchronous Single Logout Extension だけである。
+To make this interpretation explicit, evidence from SAML2Prof §4.4.3.3 and Core §3.7.3.2,
+information-recording variants for the upstream / downstream paths respectively, and the rationale for the OPTIONAL override were added to IIP-IDP17.c.
+When upstream propagation is implemented and observed, its behavior is passively evaluated by IIP-IDP17.r / .s and the target-emitted request rules.
 
 ---
 
-## G1b-CP2c-Extensions-AUTHOR — 2026-08-28 Async SLO / ECP 原文分解
+## G1b-CP2b-Core-A-R2 — 2026-08-28 External re-review of §3.7 completed
 
-往復回数を抑えるため、残る protocol extension 2 件を 1 checkpoint にまとめた。
-SAML2ASLO §2〜§3 と SAML2ECP §2.3〜§3.1.1 の関連ページを全文・レンダリングの双方で確認し、
-IIP-IDP17.b と IIP-IDP13.a の open question を閉じた。この checkpoint は作成者候補であり未承認。
+A person other than the author re-examined fixed commit `8513aa1`, limited to IIP-SP14.q / .z and
+IIP-IDP17.c, which were the subjects of the previous findings, and SAML2Core §3.7.3.1 / §3.7.3.2 and SAML2Prof §4.4.3.2 / §4.4.3.3.
+The result was `verification: PASS / findings: none / scope_violations: none`.
+
+The re-review confirmed the following.
+
+- IIP-SP14.q places only requests without `aslo:Asynchronous` within the verdict scope of the base Core LogoutResponse obligation,
+  and its references for invalid request / invalid signature also match `.ai` / `.af`
+- The added control for IIP-SP14.z changes only the SessionIndex to a different value S2 while keeping the same principal and an unexpired request,
+  and detects implementations that ignore SessionIndex and reject the entire principal
+- IIP-IDP17.c includes both upstream / downstream paths as OPTIONAL on the basis that SAML2Prof §4.4.3.3 collectively defines logout propagation
+  as sending to a session authority or participant
+- There were no changes to obligation keys, level, roles, or condition between `90d8a31` and `8513aa1`; changes were limited to
+  the variants / controls / evidence of IIP-SP14.q / .z / IIP-IDP17.c
+
+This closes CP2b-Core-A (rules specific to Core §3.7). The underlying request / response rules
+SP14.aa–.as and IDP17.v–.am will be reviewed in the separate CP2b-Core-B checkpoint.
+
+---
+
+## G1b-CP2b-Core-B-R1 — 2026-08-28 External review of common request / response rules
+
+A person other than the author reviewed fixed commit `a39c109`, limited to SAML2Core §3.2 / §4.1.3 / §5.4.4 and related bindings,
+and produced 3 findings. All 3 were adopted after rechecking the source text.
+
+### Do not turn Optional Destination into an acceptance obligation
+
+In addition to the MUST to discard a Destination mismatch and the “correct Destination” control, IIP-SP14.ac / IIP-IDP17.x had made
+acceptance of a message with Destination omitted a required variant. However, Core’s
+`Destination [Optional]` does not require acceptance when it is omitted. Furthermore, signed HTTP-Redirect / HTTP-POST messages
+MUST include Destination under SAML2Bind §3.4.5.2 / §3.5.5.2.
+
+The omission variant was removed, and it was clarified that this obligation assigns no verdict to a message with Destination omitted,
+leaving it to the binding and target policy rules. Because IIP-SSO01.ag / .aq contained the same error, they were corrected at the same time.
+Do not equate “the attribute is Optional” with “the recipient must accept a message that omits it.”
+
+### Cover top-level StatusCode for each SLO actor
+
+IIP-IDP17.a stated that IIP-SSO01.ch inspected the top-level StatusCode of an IdP-issued LogoutResponse across messages.
+However, `.ch` is an obligation based on an incorporation clause for Response processing in the Web Browser SSO Profile and has no basis
+for covering an SLO LogoutResponse. IIP-SP14.aj exists on the SP side, while only the IdP side was missing.
+
+IIP-IDP17.an (MUST) was added to restrict the top-level value of an IdP-issued LogoutResponse to Success / Requester /
+Responder / VersionMismatch. It detects implementations that place a secondary code such as PartialLogout / AuthnFailed at the top level.
+IIP-IDP17.e / .o / .s evaluate context-specific values; this obligation evaluates the top-level list itself.
+
+### Include binding-specific signatures in evidence for signing Consent
+
+IIP-SP14.ah / IIP-IDP17.ac limited signing evidence for a message containing Consent indicating that consent was obtained
+to `<ds:Signature>` only. Under SAML2Bind §3.4.4.1, HTTP-Redirect removes the XML signature before
+encoding and adds a query signature using SigAlg / Signature. To avoid assigning WARNING to a conforming implementation,
+this was corrected to the disjunction of an XML signature or a verifiable message signature prescribed by the delivery binding.
+
+### Additional corrections from reuse review
+
+The review’s double-counting check also confirmed that the required variants of the identifier-uniqueness obligation had incorporated
+the lexical rules for xs:ID. A lexical violation is a schema-conformance violation, not a violation of uniqueness probability.
+To avoid marking the same defect as violated under two obligations, the lexical variants were removed from IIP-SSO01.af / .ao / .dr, IIP-SP14.aa,
+and IIP-IDP17.v, and responsibility was assigned to the respective schema obligations.
+
+The controls were additionally clarified to ensure that an Asynchronous request is not mixed into a response-error fixture,
+that a specific VersionMismatch rather than a generic Requester is used for version incompatibility, and that either process / reject
+is permitted for a higher minor version with the same major version. No evaluation rule was added in advance of CP2c.
+
+### Completion of the CP2b-Core-B external re-review
+
+A person other than the author re-examined fixed commit `28184f6`, limited to the corrected subjects,
+and confirmed `verification: PASS / findings: none`. The previous counterexamples were closed for every item:
+Destination, Consent-signature evidence, the top-level StatusCode of an IdP LogoutResponse, separation of responsibility between identifier uniqueness and schema,
+and the supplementary controls, with no regression in level / roles / condition / testability.
+
+This closes CP2b-Core-B and completes CP2b as a whole: the direct Profile clauses for basic Single Logout, Core §3.7,
+and the underlying request / response rules. The only remaining open question for SLO is
+the Asynchronous Single Logout Extension in IIP-IDP17.b.
+
+---
+
+## G1b-CP2c-Extensions-AUTHOR — 2026-08-28 Source-text decomposition of Async SLO / ECP
+
+To reduce the number of review round trips, the remaining 2 protocol extensions were combined into 1 checkpoint.
+The relevant pages of SAML2ASLO §2–§3 and SAML2ECP §2.3–§3.1.1 were reviewed both as full text and as rendered,
+closing the open questions for IIP-IDP17.b and IIP-IDP13.a. This checkpoint is an author candidate and has not been approved.
 
 ### Asynchronous SLO
 
-IIP-IDP17.b を次へ分解した。
+IIP-IDP17.b was decomposed as follows.
 
-- `.b`: session authority として async LogoutRequest を Core §3.7.3.2 に従って処理する MUST
-- `.b1`: request initiator へ LogoutResponse を返さない MUST_NOT
-- `.b2`: LogoutResponse の代わりに relevant feedback を提供する MUST
-- `.b3`: 対象 IdP が async LogoutRequest を実際に発行した場合の `samlp:Extensions` 内配置 MUST
-- `.b4`: endpoint metadata で extension support を表明してよい MAY
+- `.b`: MUST process an async LogoutRequest as a session authority in accordance with Core §3.7.3.2
+- `.b1`: MUST_NOT return a LogoutResponse to the request initiator
+- `.b2`: MUST provide relevant feedback instead of a LogoutResponse
+- `.b3`: MUST place the extension inside `samlp:Extensions` when the target IdP actually issues an async LogoutRequest
+- `.b4`: MAY declare extension support in endpoint metadata
 
-Core の session 終了自体は SHOULD（IIP-IDP17.q）なので `.b` の MUST に引き上げない。
-また IIP-IDP17.c は LogoutRequest propagation を OPTIONAL とするため、request initiator conformance を根拠に
-IdP へ async request 発行 capability を追加しない。`.b3` は target-emitted message の受動規則である。
+Session termination itself is a SHOULD in Core (IIP-IDP17.q), so it is not elevated to a MUST under `.b`.
+In addition, because IIP-IDP17.c makes LogoutRequest propagation OPTIONAL, async request-issuance capability is not added to the IdP
+on the basis of request-initiator conformance. `.b3` is a passive rule for target-emitted messages.
 
 ### ECP
 
-IIP-IDP13.a の basic ECP capability を、IdP actor の basic exchange と直接の security rules へ分解した。
+The basic ECP capability in IIP-IDP13.a was decomposed into the IdP actor’s basic exchange and direct security rules.
 
-- `.e`: SAML SOAP exchange を完了し Response または SOAP fault を返す MUST
-- `.f`: error を返す場合を除く principal identification MUST
-- `.g`: Response を返す場合の `ecp:Response` header / destination MUST
-- `.h`: signed AuthnRequest を認証した場合の `ecp:RequestAuthenticated` SHOULD
-- `.i`: IdP-origin SOAP header の actor / mustUnderstand MUST
-- `.j`: assertion または Response level の integrity protection MUST（選言を required variants の連言にしない）
-- `.k`: SOAP headers の integrity protection SHOULD
-- `.l`: 中間 HTTP exchange と元 AuthnRequest の secure association MUST
-- `.m` / `.q`: minimal-UI authentication support SHOULD / presentation-oriented authentication SHOULD_NOT
-- `.n`: endpoint probing だけで得た TLS certificate から encryption key を導出しない SHOULD_NOT
-- `.o` / `.p` / `.r`: RelayState、delegation interpretation、中間 HTTP exchange の各 MAY
+- `.e`: MUST complete the SAML SOAP exchange and return a Response or SOAP fault
+- `.f`: MUST identify the principal except when returning an error
+- `.g`: MUST provide the `ecp:Response` header / destination when returning a Response
+- `.h`: SHOULD provide `ecp:RequestAuthenticated` when a signed AuthnRequest has been authenticated
+- `.i`: MUST set actor / mustUnderstand on IdP-originated SOAP headers
+- `.j`: MUST provide integrity protection at the assertion or Response level (do not turn the disjunction into a conjunction of required variants)
+- `.k`: SHOULD provide integrity protection for SOAP headers
+- `.l`: MUST securely associate the intermediate HTTP exchange with the original AuthnRequest
+- `.m` / `.q`: SHOULD support minimal-UI authentication / SHOULD_NOT use presentation-oriented authentication
+- `.n`: SHOULD_NOT derive an encryption key from a TLS certificate obtained solely through endpoint probing
+- `.o` / `.p` / `.r`: MAY handle RelayState, delegation interpretation, and the intermediate HTTP exchange, respectively
 
-IIP は basic ECP support を MUST とする一方、Full conformance を明示的に OPTIONAL とする。
-そのため SAML2ECP §3.1.1 の X.509 proof、TLS Client Authentication、client XML Signature の全 capability、
-および optional HoK feature 固有の規則を basic support の MUST に逆輸入しない。Bearer / channel binding verification は
-IIP-IDP13.c / .d、HTTP Basic は IIP-IDP14、metadata consumption は IIP-IDP16 が別に判定する。
+While the IIP makes basic ECP support a MUST, it explicitly makes Full conformance OPTIONAL.
+Therefore, the complete capabilities for X.509 proof, TLS Client Authentication, and client XML Signature in SAML2ECP §3.1.1,
+as well as rules specific to the optional HoK feature, are not imported back into basic support as MUSTs. Bearer / channel binding verification is
+evaluated separately by IIP-IDP13.c / .d, HTTP Basic by IIP-IDP14, and metadata consumption by IIP-IDP16.
 
-IIP-IDP13 の「All applicable Web Browser SSO requirements ... excepting IIP-SSO02 and IIP-SSO03」は、
-既存 obligation の level を保ったまま ECP plan でも schedule する規則とした。1 個の container MUST にリンクして
-SHOULD / MAY を引き上げたり、同じ target obligation を二重計上したりしない。
+The IIP-IDP13 statement “All applicable Web Browser SSO requirements ... excepting IIP-SSO02 and IIP-SSO03” was treated as a rule
+to schedule the existing obligations in the ECP plan while preserving their levels. They are not linked to a single container MUST
+in a way that elevates SHOULD / MAY or counts the same target obligation twice.
 
-### 検証状態
+### Verification status
 
-義務は 428 から 446。`g1_docgen.py --check` と structural-only は blocking 0、network 再取得は
-60/62 PASS・blocking 0。残る FAIL は SR-30（MD05.a〜.f / MD06.a の open question 7 件）と
-SR-31（446 義務が未承認）のみである。次に固定 commit を別チャットのレビュアーが、
-Async SLO の initiator / authority 分離と ECP の basic / Full conformance 境界に限定して編集禁止で確認する。
-
----
-
-## G1b-CP2c-Extensions-R1 — 2026-08-28 外部レビュー findings
-
-固定 commit `ca498f7` を作成者以外が SAML2ASLO §2〜§3 と SAML2ECP §2.2 / §2.3 / §3.1.1 に
-限定して確認し、5 findings を受けた。原文と既存 Core obligation を再確認して全件採用した。
-
-### invalid signature と ASLO extension の優先関係
-
-署名不正 message の `aslo:Asynchronous` に依拠して response を抑止することは、Core §3.2.1 の
-「invalid signature の request 内容に MUST NOT rely」と矛盾する。IIP-IDP17.b / .b1 / .b2 を、
-署名が有効で sender を認証でき、extension を信頼できる request の実行時 scope に限定した。
-
-署名不正時は IIP-IDP17.y / .z / .aa を適用し、error LogoutResponse または無応答の Core 選択を
-ASLO の MUST_NOT で上書きしない。IIP-IDP17.z / .aa と SP 側の同型 fixture control も恒久文言へ更新した。
-
-### response-bearing SLO obligation の async 除外
-
-IIP-IDP17.s の PartialLogout は LogoutResponse の second-level code を要求するため、response を禁止する
-async request と両立しなかった。`.s` を `aslo:Asynchronous` のない request に限定し、IIP-IDP17.a の
-基本 response flow も同じ scope を明記した。IIP-IDP17.e / .o も pending checkpoint 名ではなく
-IIP-IDP17.b1 への恒久参照へ更新した。
-
-### test opportunity と不適合の分離
-
-- IIP-IDP13.l: 中間 HTTP exchange が 0 回なら secure association 義務は空虚に成立し
-  `satisfied_with_note`。中間 exchange が存在するのに相関を観測できない場合だけ
-  `not_verified(ecp_request_association_not_observable)` とした
-- IIP-IDP17.b2: failure feedback 経路を安全に誘発できない場合は
-  `not_verified(session_termination_failure_not_inducible)` とし、対象の違反にしない。
-  IIP-IDP17.o と同じ test precondition を再利用する
-
-### ECP header の適用範囲
-
-- IIP-IDP13.h: `ecp:RequestAuthenticated` の SHOULD は principal 認証の success / error ではなく、
-  AuthnRequest の digital-signature authentication 成功だけが条件。error samlp:Response も scope に含めた
-- IIP-IDP13.i: IdP-origin `ecp:RelayState` が観測された場合の actor / mustUnderstand 検査を明示した
-- IIP-IDP13.c: Bearer の生成側根拠を SP 消費側 SAML2Prof §4.1.4.3 から IdP 生成側 §4.1.4.2 へ訂正した
-
-level / roles / condition と義務数 446 は維持する。修正版を同じレビュアーチャットで1回だけ再確認する。
-
-### CP2c 外部再レビューの完了
-
-固定 commit `757b89d` を同じレビュアーが前回 F1〜F5 と追加修正に限定して再確認し、
-`verification: PASS / findings: none / scope_violations: none` を確認した。
-
-- 署名不正 request では ASLO extension を信頼せず Core signature-processing を優先する
-- async request と response-bearing PartialLogout / base flow の両立不能がない
-- 中間 HTTP exchange なしと観測不能を区別する
-- failure feedback の誘発不能を target violation にしない
-- `ecp:RequestAuthenticated` が principal 認証の success / error 両 Response を覆う
-- `ecp:RelayState` header 属性と Bearer 生成側 evidence の訂正に回帰がない
-
-全 446 義務の level / roles / condition / testability / level_assignment に意図しない変更はなく、
-前回の counterexample は全て閉じた。これにより CP2c（Async SLO + ECP）を閉じる。
-残る open question は Metadata の IIP-MD05.a〜.f / IIP-MD06.a の7件だけである。
-
-レビュアーの非 finding 補足（ASLO sibling variant 間の trust 文言、response-emitted 規則の
-「返す場合」表現、IIP-IDP17.z の解釈 control）は誤判定経路を持たない。G2 の case definition で
-runtime scope を具体化するときの読み違い防止項目として保持する。
+The number of obligations increased from 428 to 446. `g1_docgen.py --check` and structural-only report 0 blocking issues, while network refetch reports
+60/62 PASS with 0 blocking issues. The only remaining FAIL results are SR-30 (7 open questions in MD05.a–.f / MD06.a) and
+SR-31 (446 obligations are unapproved). Next, a reviewer in a separate chat will review a fixed commit,
+Review without editing, limited to the separation of initiator / authority in Async SLO and the basic / Full conformance boundary in ECP.
 
 ---
 
-## G1b-CP3-Metadata — 2026-08-28 参照仕様 6 件と MDIOP 解釈の一括分解
+## G1b-CP2c-Extensions-R1 — 2026-08-28 External Review Findings
 
-最後の open question 7 件（`IIP-MD05.a`〜`.f` / `IIP-MD06.a`）を、参照仕様の該当ページを
-画像確認し、同じページの抽出 text から RFC 2119 語・前置き・actor を全走査して分解した。
-`SAML2MD-xsd` は XML source を markup を保持したまま全行確認した。
+A reviewer other than the author reviewed pinned commit `ca498f7`, limited to SAML2ASLO §2–§3 and SAML2ECP §2.2 / §2.3 / §3.1.1, and reported 5 findings. The source text and existing Core obligations were rechecked, and all findings were accepted.
 
-### 分解結果
+### Precedence Between an Invalid Signature and the ASLO Extension
 
-| 義務群 | 参照 | 分解後 | 主な判定対象 |
+Suppressing a response based on `aslo:Asynchronous` in a message with an invalid signature conflicts with Core §3.2.1, which states that the contents of a request with an invalid signature MUST NOT be relied upon. IIP-IDP17.b / .b1 / .b2 were limited to the execution-time scope of requests whose signature is valid, whose sender can be authenticated, and whose extension can be trusted.
+
+When a signature is invalid, IIP-IDP17.y / .z / .aa apply, and ASLO’s MUST_NOT does not override the Core choice between returning an error LogoutResponse and returning no response. IIP-IDP17.z / .aa and the corresponding fixture controls on the SP side were also updated to permanent wording.
+
+### Async Exclusion for Response-Bearing SLO Obligations
+
+Because the PartialLogout requirement in IIP-IDP17.s requires a second-level code in a LogoutResponse, it was incompatible with an async request that prohibits a response. `.s` was limited to requests without `aslo:Asynchronous`, and the same scope was explicitly stated for the basic response flow in IIP-IDP17.a. IIP-IDP17.e / .o were also updated from a pending checkpoint name to a permanent reference to IIP-IDP17.b1.
+
+### Separation of Test Opportunity and Nonconformance
+
+- IIP-IDP13.l: If there are 0 intermediate HTTP exchanges, the secure-association obligation is vacuously satisfied and the outcome is `satisfied_with_note`. Only when an intermediate exchange exists but its correlation cannot be observed is the outcome `not_verified(ecp_request_association_not_observable)`
+- IIP-IDP17.b2: If the failure-feedback path cannot be safely induced, the outcome is `not_verified(session_termination_failure_not_inducible)`, rather than treating it as a target violation. The same test precondition as IIP-IDP17.o is reused
+
+### Scope of ECP Headers
+
+- IIP-IDP13.h: The SHOULD for `ecp:RequestAuthenticated` is conditioned only on successful digital-signature authentication of the AuthnRequest, not on success / error in principal authentication. An error samlp:Response is also included in scope
+- IIP-IDP13.i: The actor / mustUnderstand checks to perform when an IdP-originated `ecp:RelayState` is observed were made explicit
+- IIP-IDP13.c: The producer-side basis for Bearer was corrected from the SP-consumer-side SAML2Prof §4.1.4.3 to the IdP-producer-side §4.1.4.2
+
+The level / roles / condition and the obligation count of 446 remain unchanged. The revised version will be rechecked exactly once in the same reviewer conversation.
+
+### Completion of the CP2c External Re-review
+
+The same reviewer rechecked pinned commit `757b89d`, limited to the previous F1–F5 findings and the additional corrections, and confirmed `verification: PASS / findings: none / scope_violations: none`.
+
+- For a request with an invalid signature, the ASLO extension is not trusted, and Core signature processing takes precedence
+- There is no incompatibility between an async request and response-bearing PartialLogout / base flows
+- The absence of an intermediate HTTP exchange is distinguished from an inability to observe it
+- An inability to induce failure feedback is not treated as a target violation
+- `ecp:RequestAuthenticated` covers both success and error Responses from principal authentication
+- There is no regression in the corrections to the `ecp:RelayState` header attributes or the producer-side evidence for Bearer
+
+There were no unintended changes to level / roles / condition / testability / level_assignment across all 446 obligations, and all previous counterexamples were closed. CP2c (Async SLO + ECP) is therefore closed. The only remaining open questions are the 7 Metadata items IIP-MD05.a–.f / IIP-MD06.a.
+
+The reviewer’s non-finding supplemental comments—the trust wording across ASLO sibling variants, the “when returning” phrasing of the response-emitted rule, and the interpretation control for IIP-IDP17.z—do not create a misclassification path. They are retained as items for preventing misinterpretation when the runtime scope is made concrete in the G2 case definitions.
+
+---
+
+## G1b-CP3-Metadata — 2026-08-28 Batch Decomposition of 6 Referenced Specifications and the MDIOP Interpretation
+
+The last 7 open questions (`IIP-MD05.a`–`.f` / `IIP-MD06.a`) were decomposed by visually reviewing the applicable pages of the referenced specifications and scanning all RFC 2119 terms, introductory qualifiers, and actors in the extracted text from those same pages. For `SAML2MD-xsd`, every line of the XML source was reviewed with its markup preserved.
+
+### Decomposition Results
+
+| Obligation group | Reference | After decomposition | Primary assessment targets |
 |---|---|---:|---|
-| `IIP-MD05.a*` | SAML2Meta + Errata | 33 | metadata type semantics、extension namespace、期限/cache、indexed endpoint、KeyDescriptor use、metadata XML signature profile |
-| `IIP-MD05.b` | SAML2MD-xsd | 1（13 variants） | 全 global element family、choice/cardinality、任意要素・属性・extension point |
-| `IIP-MD05.c*` | SAML2MDIOP producer | 15 | current/future/expired/compromised key、1 key per descriptor、KeyValue/X509Certificate 表現 |
-| `IIP-MD05.d*` | MetaAttr | 10 | EntityAttributes scope、assertion profile、独立署名、statement cardinality |
-| `IIP-MD05.e*` | MetaAlgSupport | 12 | algorithm capability 表現、compatibility、preference、intersection、role precedence |
-| `IIP-MD05.f*` | MetaUI | 20 | UIInfo / DiscoHints の全要素、placement、language cardinality、CIDR、URL security、display precedence |
-| `IIP-MD06.a*` | SAML2MDIOP consumer | 12 | acceptance semantics、role-scoped key validity、PKIX/CRL/OCSP 非適用、public-key extraction |
+| `IIP-MD05.a*` | SAML2Meta + Errata | 33 | metadata type semantics, extension namespaces, expiration/cache, indexed endpoints, KeyDescriptor use, metadata XML signature profile |
+| `IIP-MD05.b` | SAML2MD-xsd | 1 (13 variants) | all global element families, choice/cardinality, optional elements and attributes, extension points |
+| `IIP-MD05.c*` | SAML2MDIOP producer | 15 | current/future/expired/compromised keys, 1 key per descriptor, KeyValue/X509Certificate representation |
+| `IIP-MD05.d*` | MetaAttr | 10 | EntityAttributes scope, assertion profile, independent signature, statement cardinality |
+| `IIP-MD05.e*` | MetaAlgSupport | 12 | algorithm capability representation, compatibility, preference, intersection, role precedence |
+| `IIP-MD05.f*` | MetaUI | 20 | all UIInfo / DiscoHints elements, placement, language cardinality, CIDR, URL security, display precedence |
+| `IIP-MD06.a*` | SAML2MDIOP consumer | 12 | acceptance semantics, role-scoped key validity, non-applicability of PKIX/CRL/OCSP, public-key extraction |
 
-`IIP-MD05.g`、`IIP-MD06.b`、`IIP-MD06.c` は既存の直接 IIP 文のまま維持した。
-総義務数は 446 → **542**。open question は 7 → **0**。
+`IIP-MD05.g`, `IIP-MD06.b`, and `IIP-MD06.c` were retained as the existing direct IIP statements. The total obligation count is 446 → **542**. Open questions are 7 → **0**.
 
-### 重複を避けた境界
+### Boundaries That Avoid Duplication
 
-- `IIP-MD05.c*` は **MDIOP に適合する metadata 表現の生成・消費**、`IIP-MD06.a*` は
-  **受理後の runtime interpretation/application**。同じ鍵 fixture を使えても outcome の原因を混同しない
-- HTTP 定期取得・redirect は `IIP-MD02`、metadata signature trust establishment は `IIP-MD03`、
-  期限拒否 capability は `IIP-MD04`。SAML2Meta §4 の任意 DNS/well-known publication mechanism を
-  `IIP-MD05.a` の MUST capability に引き上げない
-- X.509 variation は `IIP-MD12.d` と observation を共有できるが、MD05 は表現の消費、MD06 は
-  runtime key interpretation、MD12 は certificate content を理由に拒否しない能力を判定する
-- MetaAlgSupport の `EntityDescriptor and/or role` は1つの選言 variant とし、配置別 required variant に
-  分けて AND にしない
-- E41 の ResponseLocation fallback は原文の **MAY** を保持し、IIP の broad MUST を理由に MUST へ引き上げない
+- `IIP-MD05.c*` covers **production and consumption of metadata representations conforming to MDIOP**, while `IIP-MD06.a*` covers **runtime interpretation/application after acceptance**. Even when the same key fixture can be used, the causes of the outcomes are not conflated
+- Periodic HTTP retrieval and redirects are covered by `IIP-MD02`, metadata-signature trust establishment by `IIP-MD03`, and the capability to reject expired metadata by `IIP-MD04`. The optional DNS/well-known publication mechanisms in SAML2Meta §4 are not elevated into a MUST capability under `IIP-MD05.a`
+- X.509 variations may share observations with `IIP-MD12.d`, but MD05 assesses consumption of the representation, MD06 assesses runtime key interpretation, and MD12 assesses the capability not to reject based on certificate content
+- MetaAlgSupport’s `EntityDescriptor and/or role` is treated as a single disjunctive variant and is not split into placement-specific required variants combined with AND
+- The E41 ResponseLocation fallback retains the source text’s **MAY** and is not elevated to MUST merely because the IIP statement is broadly worded as a MUST
 
-### 検出力上の注意
+### Detection-Power Considerations
 
-- extension metadata を XML として parse して無視するだけでは PASS にしない。EntityAttributes / algorithm
-  support / UI metadata は read-back、実際の algorithm selection、discovery/login UI のいずれかで利用を確認する
-- publisher 固有の規則は、その optional content を対象が実際に発行した message 単位の runtime scope とする。
-  content が0件なら `satisfied_with_note` であり、発行能力そのものを勝手に MUST にしない
-- `MAY` で両結果が許される fixture（stale metadata の使用、未知 transform の安全な受理/拒否、TLS hostname
-  check 等）は単独 target verdict を付けず、強い義務の分岐材料または control fixture にする
+- Merely parsing extension metadata as XML and ignoring it does not qualify for PASS. Use of EntityAttributes / algorithm support / UI metadata is verified through read-back, actual algorithm selection, or the discovery/login UI
+- Publisher-specific rules use a runtime scope defined per message in which the target actually published that optional content. If there are 0 instances of the content, the outcome is `satisfied_with_note`; the capability to publish it is not arbitrarily made a MUST
+- Fixtures in which both outcomes are permitted by `MAY`—such as use of stale metadata, safe acceptance/rejection of an unknown transform, or TLS hostname checking—are not assigned an independent target verdict; they are used as branching inputs for stronger obligations or as control fixtures
 
-### 機械検証
+### Machine Verification
 
-`g1_author.py` は 69 requirements / 542 obligations / errors 0。
-`g1_docgen.py --check` 一致、structural-only 43/44 PASS・blocking 0、network 再取得は
-61/62 PASS・blocking 0。残る FAIL は SR-31（全 542 obligations が未承認）のみで、SR-30 は解消した。
-本 checkpoint は authoring 完了であり、外部 reviewer の意味確認前なので G1b 承認ではない。
+`g1_author.py` reports 69 requirements / 542 obligations / errors 0.
+`g1_docgen.py --check` matches, structural-only reports 43/44 PASS and blocking 0, and the network refetch reports 61/62 PASS and blocking 0. The only remaining FAIL is SR-31 (all 542 obligations are unapproved), and SR-30 has been resolved. This checkpoint marks completion of authoring; it is not G1b approval because external semantic review has not yet occurred.
 
 ---
 
-## G1b-CP3-Metadata-R1 — 2026-08-28 外部レビュー findings の一括修正
+## G1b-CP3-Metadata-R1 — 2026-08-28 Batch Correction of External Review Findings
 
-固定 commit `c4f1d49` を作成者以外が Metadata 参照仕様 6 件と MDIOP consumer 規則に限定して
-双方向照合し、6 論点を受けた。参照 PDF の前置き・actor・大文字小文字を再確認し、成立する指摘を
-一括で反映した。
+A reviewer other than the author performed a bidirectional comparison of pinned commit `c4f1d49`, limited to the 6 Metadata referenced specifications and the MDIOP consumer rules, and raised 6 issues. The introductory qualifiers, actors, and capitalization in the referenced PDFs were rechecked, and all valid findings were incorporated as a batch.
 
-### 誤った照合対象と actor の訂正
+### Corrections to the Incorrect Comparison Target and Actor
 
-- `IIP-MD05.d4`: EntityAttributes assertion の entity NameID は `NameQualifier` ではなく、
-  **NameID の文字内容**が enclosing `EntityDescriptor/@entityID` と一致する。entity Format では
-  `NameQualifier` 等を要求しない
-- 旧 `IIP-MD05.aa`: 「future SAML specifications ... SHOULD provide alternate identifiers」は
-  将来仕様の仕様著者が主語であり、IdP / SP 実装の obligation ではないため削除した。根拠文は
-  `IIP-MD05.a` の notes に残した
+- `IIP-MD05.d4`: For an EntityAttributes assertion, the entity NameID’s **text content**, not its `NameQualifier`, matches the enclosing `EntityDescriptor/@entityID`. The entity Format does not require `NameQualifier` or similar attributes
+- Former `IIP-MD05.aa`: “future SAML specifications ... SHOULD provide alternate identifiers” has future specification authors as its subject and is therefore not an obligation on IdP / SP implementations, so it was removed. The source statement remains in the notes for `IIP-MD05.a`
 
-### 前件不成立と観測不能の分離
+### Separation of a False Antecedent from Non-observability
 
-`IIP-MD05.a7`（同型 role が 0/1 個）、`.ae`（候補鍵が1本）、`.e3`（symmetric-key
-`KeyDescriptor` なし）、`.e5`（同じ general type が 0/1 algorithm）の各前件が観測可能に偽なら、
-`satisfied_with_note` ではなく空虚充足の `satisfied` とする。同型の placement 規則 `.f1` / `.fc` も、
-optional container が 0 件なら `satisfied` とした。`satisfied_with_note` を条件分岐不発の代用にして
-WARNING を発生させない。
+When the respective antecedents of `IIP-MD05.a7` (0/1 roles of the same type), `.ae` (1 candidate key), `.e3` (no symmetric-key `KeyDescriptor`), and `.e5` (0/1 algorithms of the same general type) are observably false, the outcome is the vacuous-satisfaction result `satisfied`, rather than `satisfied_with_note`. The analogous placement rules `.f1` / `.fc` also produce `satisfied` when there are 0 optional containers. `satisfied_with_note` is not used as a substitute for a conditional branch that did not apply, thereby avoiding a spurious WARNING.
 
-### forward completeness と二重計上
+### Forward Completeness and Double Counting
 
-- `IIP-MD05.ec`: `alg:DigestMethod/@Algorithm` と `alg:SigningMethod/@Algorithm` の必須属性を追加
-- `IIP-MD05.ed`: symmetric key で Symmetric Key Wrap / Key Derivation の `EncryptionMethod` を
-  掲載してよい MAY を追加。publisher に一意 verdict を付けず、consumer acceptance は親 MUST の
-  fixture で確認する
-- `IIP-MD05.fk`: `mdui:Logo/@height` と `@width` の mandatory 属性を追加
-- `IIP-MD05.aw`: `use=signing` / `use=encryption` の明示値だけを判定する。`use` 省略時の両用途は、
-  IIP 本文が同じ規則を直接 MUST とする `IIP-MD11.a` で一度だけ判定する
+- `IIP-MD05.ec`: Added the mandatory `Algorithm` attributes for `alg:DigestMethod/@Algorithm` and `alg:SigningMethod/@Algorithm`
+- `IIP-MD05.ed`: Added the MAY permitting an `EncryptionMethod` for Symmetric Key Wrap / Key Derivation to be listed for a symmetric key. No unique verdict is assigned to the publisher; consumer acceptance is verified by the parent MUST fixture
+- `IIP-MD05.fk`: Added the mandatory `mdui:Logo/@height` and `@width` attributes
+- `IIP-MD05.aw`: Only explicit values of `use=signing` / `use=encryption` are assessed. Dual use when `use` is omitted is assessed exactly once under `IIP-MD11.a`, where the IIP text directly states the same rule as a MUST
 
-### E94 の大文字小文字
+### Capitalization in E94
 
-Errata E94 の置換後本文は caching について `MUST be based` とする一方、取得時刻の保存は
-`consumers must retain` と小文字化している。SAML2Meta の Notation に従い、`IIP-MD05.aq` の
-判定対象を cache expiry が `cacheDuration` に基づくことへ限定し、取得時刻を明示的に保存する
-内部実装方式を MUST にしない。
+The replacement text in Errata E94 states that caching `MUST be based` on a value, while the requirement to retain the retrieval time is lowercased as `consumers must retain`. In accordance with the Notation section of SAML2Meta, the assessment target of `IIP-MD05.aq` was limited to requiring cache expiry to be based on `cacheDuration`; an internal implementation technique that explicitly stores the retrieval time is not made a MUST.
 
-### 採用しなかった指摘部分
+### Portions of Findings Not Accepted
 
-`IIP-MD05.fc` の `sp` role は維持する。IIP-MD05 は IdP / SP 双方へ MetaUi support を要求し、
-SP は IdP metadata の `DiscoHints` を消費する actor になり得るためである。ただし SP 自身へ
-`DiscoHints` の発行を要求しないことを control に明記した。
+The `sp` role for `IIP-MD05.fc` is retained. IIP-MD05 requires MetaUI support from both IdPs and SPs, and an SP can be an actor that consumes `DiscoHints` from IdP metadata. The control nevertheless explicitly states that an SP is not required to publish `DiscoHints` itself.
 
-義務数は 542 → 544。修正版は同じレビュアーチャットで、上記 findings の閉鎖と Metadata 外への
-回帰がないことだけを1回確認する。
+The obligation count is 542 → 544. The revised version will be checked exactly once in the same reviewer conversation, limited to closure of the findings above and the absence of regressions outside Metadata.
 
-### CP3-R1 再レビューの残存 finding
+### Remaining Finding from the CP3-R1 Re-review
 
-固定 commit `0975b57` の再レビューでは、前回6論点中5件が閉鎖したが、E62 の重複解消で
-TLS/SSL 経路を落とした回帰が見つかった。`.aw` から `use` 省略 variant を丸ごと除いた一方、
-委譲先 `IIP-MD11.a` は XML署名と暗号化しか検査しておらず、`use` 省略鍵を TLS/SSL に使えない
-実装が PASS できる状態だった。
+In the re-review of pinned commit `0975b57`, 5 of the previous 6 issues were closed, but a regression that dropped the TLS/SSL path was found in the deduplication of E62. While the omitted-`use` variant had been removed entirely from `.aw`, the delegated `IIP-MD11.a` checked only XML signatures and encryption, allowing an implementation that could not use a key with omitted `use` for TLS/SSL to PASS.
 
-`IIP-MD11.a` に IIP 節内の E62 引用句と Errata E62 の reference evidence を追加し、required variant を
-次の3用途へ揃えた。
+The E62 quotation from within the IIP section and the reference evidence from Errata E62 were added to `IIP-MD11.a`, and the required variants were aligned with the following 3 uses.
 
-- XML署名の検証
-- 当該 role の TLS server / peer authentication
-- encryption key wrapping
+- Verification of XML signatures
+- TLS server / peer authentication for the applicable role
+- Encryption key wrapping
 
-TLS 経路を安全に構成できない場合は target violation へ転嫁せず
-`not_verified(tls_key_usage_path_unavailable)` とする。明示 `use=signing` の fixture で省略時検査を
-代用しない。義務数 544 は維持し、variant は1件増える。
+If the TLS path cannot be safely configured, the outcome is `not_verified(tls_key_usage_path_unavailable)`, rather than shifting the condition into a target violation. A fixture with explicit `use=signing` does not substitute for the omitted-`use` test. The obligation count remains 544, and 1 variant is added.
 
-### CP3 外部再レビューの完了
+### Completion of the CP3 External Re-review
 
-固定 commit `ca54c4b` を同じレビュアーが CP3-R1 の残存 E62 finding と直接的回帰だけに限定して
-再確認し、`verification: PASS / findings: none / scope_violations: none` を確認した。
+The same reviewer rechecked pinned commit `ca54c4b`, limited to the remaining E62 finding from CP3-R1 and direct regressions, and confirmed `verification: PASS / findings: none / scope_violations: none`.
 
-- `IIP-MD11.a` の2 source clauses は IIP 直接 MUST と節内 E62 引用の双方に一致する
-- Errata E62 から XML署名・TLS/SSL・encryption key wrapping の3用途が導出される
-- required variants は3用途を個別に検査し、明示 `use=signing` の fixture で省略時を代用しない
-- TLS 経路を構成できない場合は `not_verified` とし、適合実装へ誤 FAIL を出さない
-- `.aw` は明示 `use`、`MD11.a` は省略 `use` を一度だけ判定する
-- R1 から意味変更された obligation は `.aw` / `MD11.a` の2件だけである
+- The 2 source clauses for `IIP-MD11.a` match both the direct MUST in the IIP and the in-section quotation from E62
+- The 3 uses—XML signatures, TLS/SSL, and encryption key wrapping—are derived from Errata E62
+- The required variants test all 3 uses independently, and a fixture with explicit `use=signing` does not substitute for an omitted `use`
+- If the TLS path cannot be configured, the outcome is `not_verified`, preventing a false FAIL against a conforming implementation
+- `.aw` assesses explicit `use`, while `MD11.a` assesses omitted `use`, exactly once each
+- The only obligations whose meaning changed from R1 are `.aw` / `MD11.a`
 
-これにより CP3（Metadata）を閉じる。CP1（Web Browser SSO）、CP2a（Discovery）、CP2b（SLO）、
-CP2c（Async SLO / ECP）、CP3（Metadata）の限定意味レビューはすべて完了した。次は個別仕様の
-再レビューを繰り返さず、全カタログの境界・重複・level / role / applicability・未解決参照を横断する
-最終監査を1回行い、G1b の署名承認可否を決める。
+CP3 (Metadata) is therefore closed. The scoped semantic reviews of CP1 (Web Browser SSO), CP2a (Discovery), CP2b (SLO), CP2c (Async SLO / ECP), and CP3 (Metadata) are all complete. The next step is not to repeat reviews of individual specifications, but to conduct one final audit across the entire catalog covering boundaries, duplication, level / role / applicability, and unresolved references, and then determine whether G1b can receive signed approval.

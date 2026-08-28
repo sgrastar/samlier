@@ -1,101 +1,99 @@
-# 08. Suite 自身のセキュリティ
+# 08. Security of the Suite Itself
 
-この Suite は本質的に **「任意の URL に任意の HTTP リクエストを送り、任意の XML を生成する道具」**である。
-Hosted 版として公開する以上、Suite 自身が攻撃基盤になりうる点を設計段階で扱う。
-元メモには一切記述がなかった領域。
+This Suite is inherently **“a tool that sends arbitrary HTTP requests to arbitrary URLs and generates arbitrary XML.”**
+Because it will be exposed as a Hosted version, address at the design stage the fact that the Suite itself could become an attack platform.
+This area was entirely absent from the original memo.
 
-## 1. SSRF（最大のリスク）
+## 1. SSRF (The Greatest Risk)
 
-利用者は Test Plan に任意の URL を入れられる。Suite はそこへバックチャネル接続する。
+Users can enter arbitrary URLs in a Test Plan. The Suite makes back-channel connections to them.
 
 ```
-攻撃者 ──▶ Hosted Suite ──▶ http://169.254.169.254/latest/meta-data/  （クラウドメタデータ）
-                       ──▶ http://10.0.0.5:6379/                      （内部 Redis）
-                       ──▶ http://localhost:8080/api/                 （Suite 自身の API）
+Attacker ──▶ Hosted Suite ──▶ http://169.254.169.254/latest/meta-data/  (cloud metadata)
+                       ──▶ http://10.0.0.5:6379/                      (internal Redis)
+                       ──▶ http://localhost:8080/api/                 (the Suite's own API)
 ```
 
-さらに Transcript がレスポンス全文を保持するため、**取得内容がそのまま利用者に見える**。
-典型的なブラインドでない SSRF になる。
+Moreover, because the Transcript retains the full response, **the retrieved content is visible to the user as-is**.
+This is a typical non-blind SSRF.
 
-### 対策
+### Countermeasures
 
-| 対策 | 内容 |
+| Countermeasure | Details |
 |---|---|
-| アウトバウンドの宛先フィルタ | `hosted` モードでは、名前解決後の IP がプライベート / ループバック / リンクローカル / CGNAT / マルチキャスト / IPv6 ULA に該当したら**接続を拒否**する |
-| DNS リバインディング対策 | 名前解決の結果を固定してから接続する（解決済み IP に直接接続し、`Host` ヘッダで指定）。解決とチェックと接続の間に再解決を挟まない |
-| リダイレクト追跡 | 各ホップで同じ検査を行う。最大 3 ホップ |
-| スキーム制限 | `http` / `https` のみ。`file:` `gopher:` `ftp:` `jar:` を拒否 |
-| ポート制限 | `hosted` では 80 / 443 / 8080 / 8443 等の許可リスト |
-| レスポンスサイズ上限 | メタデータ 5 MB、その他 1 MB |
-| タイムアウト | 接続 5 秒 / 全体 30 秒 |
-| Suite 自身の API への到達禁止 | 自分の base URL / 内部ポートを明示的にブロック |
-| self-hosted の既定 | `SAMLIER_OUTBOUND_ALLOW_PRIVATE=true`（社内 IdP をテストするのが主目的なので許可する）。**この差を README で明示** |
+| Outbound destination filtering | In `hosted` mode, **reject the connection** if the IP after name resolution is private / loopback / link-local / CGNAT / multicast / IPv6 ULA |
+| DNS rebinding protection | Pin the result of name resolution before connecting (connect directly to the resolved IP and specify the `Host` header). Do not resolve again between resolution, checking, and connection |
+| Redirect following | Perform the same inspection at each hop. Maximum 3 hops |
+| Scheme restrictions | Only `http` / `https`. Reject `file:` `gopher:` `ftp:` `jar:` |
+| Port restrictions | In `hosted`, use an allowlist such as 80 / 443 / 8080 / 8443 |
+| Response size limits | Metadata 5 MB, other responses 1 MB |
+| Timeouts | Connection 5 seconds / total 30 seconds |
+| Prohibit access to the Suite's own API | Explicitly block its own base URL / internal ports |
+| self-hosted default | `SAMLIER_OUTBOUND_ALLOW_PRIVATE=true` (allow it because testing internal IdPs is a primary purpose). **State this difference explicitly in the README** |
 
-> `hosted` と `selfhosted` で既定を変えることが要点。
-> 社内 IdP をテストできることが self-hosted の存在理由なので、そこでは制限しない。
+> The key point is to use different defaults for `hosted` and `selfhosted`.
+> The reason self-hosted exists is to enable testing internal IdPs, so do not restrict it there.
 
-## 2. XXE / XML 爆弾（自分自身への）
+## 2. XXE / XML Bombs (Against the Suite Itself)
 
-Suite は対象から来た XML をパースする。**攻撃対象は Suite 側でもある**。
+The Suite parses XML received from the Target. **The Suite side is also an attack target.**
 
-- 全ての `DocumentBuilderFactory` / `XMLInputFactory` / `TransformerFactory` で
-  `FEATURE_SECURE_PROCESSING=true`、外部一般エンティティ・外部パラメータエンティティ・DTD を無効化
-- ただし **IIP-G03 のテストでは DTD 入り XML を「生成」する**必要がある。
-  生成経路（`raw/`）とパース経路（`normal/`）で設定を分ける。混同しないようにパッケージを分離する
-- エンティティ展開数・ネスト深さ・要素数の上限を設定（billion laughs）
-- 受信 XML のサイズ上限
-- XSLT Transform を含む署名は**検証時に拒否**する（署名検証における XSLT は攻撃面）
+- For every `DocumentBuilderFactory` / `XMLInputFactory` / `TransformerFactory`, set
+  `FEATURE_SECURE_PROCESSING=true` and disable external general entities, external parameter entities, and DTDs
+- However, **IIP-G03 requires generating XML containing a DTD**.
+  Separate the settings for the generation path (`raw/`) and parsing path (`normal/`). Separate the packages so they cannot be confused
+- Set limits on entity expansion count, nesting depth, and element count (billion laughs)
+- Limit the size of received XML
+- **Reject signatures containing an XSLT Transform during verification** (XSLT in signature verification is an attack surface)
 
-## 3. XML 署名検証の実装上の注意
+## 3. Implementation Notes for XML Signature Verification
 
-Suite は「相手の署名が正しいか」を判定する側でもある。ここを間違えると誤判定を配る。
+The Suite also determines “whether the other party’s signature is correct.” Getting this wrong distributes incorrect determinations.
 
-- `Reference` の URI が **署名対象の要素を実際に指しているか**を必ず確認する（XSW 対策）
-- 許可する Transform を **Enveloped Signature + C14N のみ**に限定する
-- ID 属性の重複を検出する
-- 署名検証は「検証が通った」だけでなく **「何が署名されていたか」** を判定に使う
-- OpenSAML の `SignatureValidator` に任せきりにせず、Transcript に
-  Reference URI / Transform / 使用鍵 / 署名対象要素の XPath を記録する
+- Always verify that the `Reference` URI **actually points to the element covered by the signature** (XSW protection)
+- Limit permitted Transforms to **Enveloped Signature + C14N only**
+- Detect duplicate ID attributes
+- Use not only “verification passed” but also **“what was signed”** in the determination
+- Do not rely entirely on OpenSAML’s `SignatureValidator`; record the Reference URI / Transform / key used / XPath of the signed element in the Transcript
 
-## 4. Test Peer の鍵管理
+## 4. Test Peer Key Management
 
-- Test Plan ごとに鍵ペアを生成する（共有しない）
-- **秘密鍵は `/data` に平文で置かれる**ことを README に明記する。Suite は本番用途ではない
-- 生成鍵は「テスト専用」であることが分かる Subject DN にする
-  （例: `CN=samlier test key (DO NOT TRUST), OU=Test Plan 01K3..., O=samlier`）
-- Hosted 版の鍵は Run 保持期間の経過後に削除する
-- **ECP テスト（IIP-IDP14）の HTTP Basic 資格情報は永続化しない**。
-  実行中のみメモリに保持し、`CaseState` にも Transcript にも書かない。
-  `Authorization` ヘッダは Recorder の入口で不可逆に除去する（[02 §5.2](02-architecture.md)）。
-  `RedactorTest` で「Basic 認証つき ECP 往復の後、`/data` 配下の全バイト列に
-  資格情報が現れないこと」を検証する
-- **既知の固定鍵を配布しない**（配布すると、その鍵を信頼している実装への攻撃に使われる）
+- Generate a key pair for each Test Plan (do not share them)
+- **State explicitly in the README that private keys are stored in plaintext under `/data`**. The Suite is not for production use
+- Use a Subject DN that makes clear that generated keys are “for testing only”
+  (example: `CN=samlier test key (DO NOT TRUST), OU=Test Plan 01K3..., O=samlier`)
+- Delete Hosted-version keys after the Run retention period expires
+- **Do not persist HTTP Basic credentials for the ECP test (IIP-IDP14)**.
+  Keep them in memory only while running, and do not write them to `CaseState` or the Transcript.
+  Irreversibly remove the `Authorization` header at the Recorder entry point ([02 §5.2](02-architecture.md)).
+  Use `RedactorTest` to verify that “after an ECP round trip with Basic authentication, the credentials do not appear in any byte under `/data`”
+- **Do not distribute known fixed keys** (distribution would enable attacks against implementations that trust those keys)
 
-## 5. Open Redirect / 反射型 XSS
+## 5. Open Redirect / Reflected XSS
 
-Suite は SAML メッセージ中の URL にブラウザをリダイレクトする場面がある（SP テストの ACS など）。
+The Suite sometimes redirects the browser to a URL in a SAML message (such as the ACS in an SP test).
 
-- リダイレクト先は **対象メタデータに記載された URL に限定**する
-- 例外的に任意 URL へリダイレクトするテストがある場合は、中間確認ページを挟む
-- Transcript の XML を UI に表示する際、**必ずエスケープする**。
-  対象から来た XML には任意のスクリプトが含まれうる
-- `report.html` は自己完結ファイルとして配布されるため、埋め込む対象由来データのエスケープを特に厳格にする
-### ★ オリジン分離は「検討」ではなく要件
+- Limit redirect destinations **to URLs listed in the Target metadata**
+- If a test exceptionally redirects to an arbitrary URL, insert an intermediate confirmation page
+- When displaying Transcript XML in the UI, **always escape it**.
+  XML from the Target may contain arbitrary scripts
+- Because `report.html` is distributed as a self-contained file, be especially strict about escaping embedded Target-derived data
+### ★ Origin separation is a requirement, not something to “consider”
 
-Test Peer は**不正な Assertion も受け取って観測する**のが仕事であり、検証が意図的に緩い。
-一方 `app` 側には管理トークン（[09 D-09](09-open-decisions.md)）に紐づくセッションがある。
-同一オリジンに置くと、Test Peer に届いた対象由来のコンテンツが管理セッションに触れうる。
+The Test Peer’s job is to **receive and observe even invalid Assertions**, and its validation is intentionally relaxed.
+The `app` side, meanwhile, has sessions tied to administrative tokens ([09 D-09](09-open-decisions.md)).
+If they share an origin, Target-derived content reaching the Test Peer could interact with the administrative session.
 
-| 配備モード | 規範レベル |
+| Deployment mode | Normative level |
 |---|---|
-| **Hosted** | **MUST**。`app.<domain>` と `peer.<domain>` を別オリジンにする。分離できない構成では起動を拒否する |
-| **self-hosted（インターネット公開）** | **SHOULD**。`SAMLIER_PEER_BASE_URL` の設定を強く推奨し、未設定なら起動時に警告する |
-| **self-hosted（閉じたネットワーク）** | **MAY**。同一オリジンでよい（管理トークンも実質意味を持たない） |
+| **Hosted** | **MUST**. Use separate origins for `app.<domain>` and `peer.<domain>`. Reject startup for configurations that cannot separate them |
+| **self-hosted (publicly exposed to the Internet)** | **SHOULD**. Strongly recommend setting `SAMLIER_PEER_BASE_URL`, and issue a startup warning if it is unset |
+| **self-hosted (closed network)** | **MAY**. The same origin is acceptable (the administrative token is effectively meaningless) |
 
-`SAMLIER_MODE=hosted` かつ `SAMLIER_PEER_BASE_URL` が `SAMLIER_PUBLIC_BASE_URL` と
-同一オリジンなら**起動時エラー**にする。
+When `SAMLIER_MODE=hosted` and `SAMLIER_PEER_BASE_URL` has the same origin as
+`SAMLIER_PUBLIC_BASE_URL`, make startup **fail with an error**.
 
-### 管理画面の CSP
+### CSP for the administrative UI
 
 ```
 Content-Security-Policy:
@@ -110,27 +108,27 @@ Content-Security-Policy:
   object-src 'none'
 ```
 
-- `nonce` は **レスポンスごとに新しい 128bit 以上の乱数**を生成する。
-  固定値やビルド時定数にしない（それでは XSS を止められない）
-- `'unsafe-inline'` / `'unsafe-eval'` / `'strict-dynamic'` を使わない
-- 管理画面には外部由来のリソース（画像・スクリプト・iframe・フォント）を一切置かない
-- `peer` オリジンには別の（より緩くてよい）CSP を当てる。共有しない
+- Generate a **new random value of at least 128 bits for each response** for `nonce`.
+  Do not use a fixed value or build-time constant (that would not stop XSS)
+- Do not use `'unsafe-inline'` / `'unsafe-eval'` / `'strict-dynamic'`
+- Do not place any externally sourced resources (images, scripts, iframes, or fonts) in the administrative UI
+- Apply a separate (it may be more permissive) CSP to the `peer` origin. Do not share it
 
-## 6. Hosted 版の悪用防止
+## 6. Abuse Prevention for the Hosted Version
 
-| リスク | 対策 |
+| Risk | Countermeasure |
 |---|---|
-| 他人の IdP / SP へのスキャンや DoS の踏み台 | レート制限、同一ターゲットへの同時 Run 数制限、Test Plan 作成時に「テスト対象を運用する権限があること」の確認チェックボックス |
-| 大量の Test Plan 作成 | IP / アカウント単位の上限 |
-| 公開結果を使った他社製品への風評操作 | 製品名は self-declared であることの明示。**削除要請の窓口を用意する**。Hosted 版の利用規約に記載 |
-| 実ユーザーの個人情報の公開 | [06](06-results-and-publication.md) の既定マスク + 公開前プレビュー |
+| A platform for scanning or DoS attacks against someone else’s IdP / SP | Rate limiting, limiting concurrent Runs against the same Target, and a confirmation checkbox when creating a Test Plan stating that the user has authority to operate the test target |
+| Mass creation of Test Plans | Per-IP / per-account limits |
+| Reputation manipulation of another company’s product using public results | Explicitly state that the product name is self-declared. **Provide a channel for deletion requests**. Include it in the Hosted version’s terms of use |
+| Disclosure of real users’ personal information | Default masking in [06](06-results-and-publication.md) + preview before publication |
 
-## 7. Phase 4 に向けた注意
+## 7. Notes for Phase 4
 
-Phase 4 では「攻撃用の SAML メッセージを生成するツール」になる。
+In Phase 4, the Suite will become “a tool that generates attack SAML messages.”
 
-- 生成した攻撃用メッセージを**そのまま第三者に送れる汎用ツールとして提供しない**
-  （Test Plan で指定した対象にのみ送る）
-- README に「自分が運用権限を持つシステムに対してのみ使うこと」を明記
-- ただし OSS である以上、コードは誰でも改変できる。過度な制限は意味がないので、
-  **利用規約と設計上の既定値**で線を引く
+- **Do not provide generated attack messages as a general-purpose tool that can be sent directly to third parties**
+  (send them only to the Target specified in the Test Plan)
+- State in the README that it must be used only against systems the user has authority to operate
+- However, because it is OSS, anyone can modify the code. Excessive restrictions have little meaning, so
+  **draw the line through the terms of use and design defaults**

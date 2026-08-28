@@ -1,45 +1,42 @@
 # tools/
 
-設計ゲート G1 のツール。**生成・文書化・検証を 3 本に分離**している。
+Tools for the G1 design gate. **Generation, documentation, and validation are separated into three components.**
 
-| スクリプト | 役割 | ネットワーク | authoring 入力 | 再現性 |
+| Script | Role | Network | Authoring input | Reproducibility |
 |---|---|---|---|---|
-| `g1_author.py` | 原文 → `tests/*.yaml` を**生成** | 不要（`build/spec-cache/` を読む） | **必要**（gitignored） | 初回の起票のみ |
-| `g1_docgen.py` | `tests/coverage.yaml` → `docs/04` | **不要** | **不要** | ✅ 別 checkout でも同一出力 |
-| `g1_validate.py` | コミット済み成果物を**独立検証** | 必要（`--offline` でキャッシュ可） | **不要** | ✅ |
+| `g1_author.py` | **Generates** `tests/*.yaml` from source text | Not required (reads `build/spec-cache/`) | **Required** (gitignored) | Initial drafting only |
+| `g1_docgen.py` | `tests/coverage.yaml` → `docs/04` | **Not required** | **Not required** | ✅ Identical output from a separate checkout |
+| `g1_validate.py` | **Independently validates** committed artifacts | Required (`--offline` can use the cache) | **Not required** | ✅ |
 
-依存: `PyYAML`（`g1_docgen.py` / `g1_validate.py`）
+Dependency: `PyYAML` (`g1_docgen.py` / `g1_validate.py`)
 
 ```bash
-python3 tools/g1_docgen.py            # docs/04 を再生成
-python3 tools/g1_docgen.py --check    # 生成物と一致するかだけ確認（CI 用）
-python3 tools/g1_validate.py          # 原文を取得して照合 → build/spec-reconcile-report.json（Git 管理外）
+python3 tools/g1_docgen.py            # Regenerate docs/04
+python3 tools/g1_docgen.py --check    # Only check that it matches the generated artifact (for CI)
+python3 tools/g1_validate.py          # Fetch and reconcile source text → build/spec-reconcile-report.json (not tracked by Git)
 python3 tools/g1_validate.py --offline
 ```
 
-## validator は生成処理から独立している
+## The validator is independent of generation
 
-`g1_validate.py` は **コミット済みの `tests/*.yaml` を読み込んで照合するだけ**で、
-一切の値を書き戻さない。特に:
+`g1_validate.py` **only reads and reconciles committed `tests/*.yaml`**; it writes no values back at all. In particular:
 
-- 原文のダイジェストは**取得したものと `specs.yaml` の記録値を比較**する
-  （生成時にその場で書き込む方式では、原文が変われば記録値も変わってしまい検証にならない）
-- 節・句のダイジェスト、非規範スパン、オフセット範囲を**再計算して**記録値と突き合わせる
-- 句の**出現回数**を数え、複数一致（曖昧な locator）を検出する
-- `predicates.yaml` の `observed` の有無、`configuration_failure_semantics` の明示などを検査する
+- It **compares the source digest with the recorded value in `specs.yaml`**
+  (if the value were written at generation time, a changed source would also change the recorded value and validation would be meaningless).
+- It **recomputes** section and clause digests, non-normative spans, and offset ranges, then compares them with the recorded values.
+- It counts **clause occurrences** and detects multiple matches (ambiguous locators).
+- It checks whether `predicates.yaml` has `observed` and whether `configuration_failure_semantics` is explicit.
 
-> この分離を入れた直後、validator が `IIP-EXT01.b` / `.c` が**同じ文字列を指していた**ことを
-> 検出した。生成と検証が同じコードだった間は気づけなかった欠陥である。
+> Immediately after this separation was introduced, the validator detected that `IIP-EXT01.b` / `.c` **pointed to the same string**.
+> The defect went unnoticed while generation and validation used the same code.
 
-## 再生成性
+## Reproducibility
 
-`docs/04` は `coverage.yaml` **だけ**から生成でき、`g1_docgen.py --check` で一致を検証できる。
-`coverage.yaml` 自体の再生成には authoring 入力（原文の句を含むため配布しない）が要るが、
-**その正しさは `g1_validate.py` が原文と突き合わせて独立に検証する**ので、
-配布物だけで検証は完結する。
+`docs/04` can be generated from **`coverage.yaml` alone**, and `g1_docgen.py --check` can verify that it matches.
+Regenerating `coverage.yaml` itself requires authoring input (not distributed because it contains source-text clauses),
+but **`g1_validate.py` independently verifies its correctness against the source**, so validation is complete using only the distributed files.
 
-## `g1_authoring.py`（gitignored）
+## `g1_authoring.py` (gitignored)
 
-各義務に対応する**原文の句そのもの**を持つ。[docs/09 D-11](../docs/09-open-decisions.md)
-（原文を転載しない）と両立させるため配布しない。`coverage.yaml` にはオフセットと
-ダイジェストだけが残る。
+Contains **the source-text clause itself** corresponding to each obligation. It is not distributed to remain compatible with
+[docs/09 D-11](../docs/09-open-decisions.md) (“do not reproduce source text”). Only offsets and digests remain in `coverage.yaml`.

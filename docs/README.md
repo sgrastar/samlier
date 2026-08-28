@@ -1,111 +1,109 @@
 # Samlier — SAML Conformance Test Suite
 
-**設計ドキュメント** / 作成日: 2026-08-25 / ステータス: Draft（Phase 1 設計中）
+**Design documentation** / Created: 2026-08-25 / Status: Draft (Phase 1 design in progress)
 
-任意の SAML IdP / SP 実装を、公開された仕様上の要求に基づいて誰でも同じ条件で検証できる OSS。
-OIDF Conformance Suite の SAML 版に相当するものを目指す。
+An OSS tool that allows anyone to verify any SAML IdP / SP implementation under the same conditions, based on requirements in published specifications.
+It aims to be the SAML equivalent of the OIDF Conformance Suite.
 
-## 決定済み事項
+## Decided Items
 
-| 項目 | 決定 |
+| Item | Decision |
 |---|---|
-| プロダクト名 | **Samlier**（repo `github.com/sgrastar/samlier` / package `org.samlier.*` / image `samlier/suite`） |
-| ライセンス | **Apache-2.0**（DCO、CLA なし） |
-| v0.1 のスコープ | **Phase 1 完全** — IIP v1.1 全 <!--g1:requirements-->69<!--/g1--> 要件、SLO / ECP を含む |
-| 結果公開の信頼モデル | **Level 0（ローカルエクスポート）+ Level 2（Hosted 実行のみ共有 URL）**。self-hosted 結果のアップロードは不採用 |
-| バックエンド | **Java 21 + Javalin/Jetty + OpenSAML 5 + Apache Santuario + SQLite** |
-| フロントエンド | **React + Vite (TypeScript)**。`report.html` も同じアプリから静的ビルド |
-| Hosted 版の管理アクセス | **Run ごとのシークレット URL**（Phase 1）→ 将来 Authrim による OIDC ログイン |
-| リファレンス実装の結果 | **バージョン固定のサンプルとして公開**。CI では回すが常時公開はしない |
-| ビルド / リポジトリ | **Gradle (Kotlin DSL)** / **単一リポジトリ** |
-| 仕様原文の引用 | **ID + 自作要約 + 原文アンカーへのリンク**。全文転載はしない（Kantara への照会は並行） |
-| 多言語 | **英語のみ**。テスト定義 YAML に `ja` のキーだけ用意し、CI 必須は `en` |
-| 要件カタログ | **`tests/coverage.yaml` を正**とし、`04` の表はそこから生成 |
+| Product name | **Samlier** (repo `github.com/sgrastar/samlier` / package `org.samlier.*` / image `samlier/suite`) |
+| License | **Apache-2.0** (DCO, no CLA) |
+| v0.1 scope | **Complete Phase 1** — all <!--g1:requirements-->69<!--/g1--> IIP v1.1 requirements, including SLO / ECP |
+| Trust model for published results | **Level 0 (local export) + Level 2 (shared URLs only for Hosted Runs)**. Uploading self-hosted results is not adopted |
+| Backend | **Java 21 + Javalin/Jetty + OpenSAML 5 + Apache Santuario + SQLite** |
+| Frontend | **React + Vite (TypeScript)**. `report.html` is also a static build of the same application |
+| Hosted-version administrative access | **Per-Run secret URLs** (Phase 1) → OIDC login through Authrim in the future |
+| Reference implementation results | **Published as version-pinned samples**. Run in CI, but do not publish continuously |
+| Build / repository | **Gradle (Kotlin DSL)** / **single repository** |
+| Quoting specification source text | **ID + original summary + link to the original-text anchor**. Do not reproduce the full text (inquiry to Kantara in parallel) |
+| Languages | **English only**. Provide only `ja` keys in test-definition YAML; `en` is mandatory in CI |
+| Requirements catalog | **`tests/coverage.yaml` is authoritative**; the tables in `04` are generated from it |
 
-**残る未決事項は D-15（Hosted 版の運用: ドメイン・ホスティング先・費用負担）のみ**で、M4 着手前までに決めれば足ります。
-決定の経緯は [09-open-decisions.md](09-open-decisions.md) を参照。
+**The only remaining undecided item is D-15 (Hosted-version operations: domain, hosting provider, and cost responsibility), and it is sufficient to decide it before starting M4.**
+See [09-open-decisions.md](09-open-decisions.md) for the decision history.
 
-## 設計ゲート G1 の状態
+## Status of Design Gate G1
 
-**作成フェーズ完了・レビュー待ち（`PENDING_REVIEW`）**
+**Creation phase complete; awaiting review (`PENDING_REVIEW`)**
 
-| 成果物 | 内容 |
+| Artifact | Contents |
 |---|---|
-| `tests/specs.yaml` | 仕様カタログ（<!--g1:specs-->25<!--/g1--> 仕様。外部ドラフトは版を固定） |
-| `tests/coverage.yaml` | **要件カタログ＝判定レベルの唯一の出典**。<!--g1:requirements-->69<!--/g1--> 要件 → **<!--g1:obligations-->544<!--/g1--> 義務**（うち <!--g1:multi_clause-->129<!--/g1--> は複数範囲の `source_clauses`） |
-| `tests/predicates.yaml` | 条件述語の固定集合（<!--g1:predicates-->26<!--/g1--> 述語） |
-| `build/spec-reconcile-report.json` | 独立 validator の結果（**`totals.blocking_failures == 0`** を満たすこと。承認前は SR-30〈open question 残存〉と SR-31〈未承認〉が FAIL のまま残る＝ G1 の完了条件）。**ビルド生成物なので Git 管理下に置かない**（CI artifact として保存する） |
-| `docs/04-requirement-coverage.md` | `coverage.yaml` からの**生成物**（手編集禁止） |
-| `tools/ci-stages.md` | ゲートごとの CI ステージと trust anchor の所在 |
-| `.github/workflows/g1.yml` | 実体の CI（`g1-check` / `spec-reconcile` / `g1b-approval`） |
-| `.github/CODEOWNERS` | trust anchor になるファイルの保護 |
-| `tools/g1_{author,docgen,validate,extract}.py` | 生成 / 文書化 / **独立検証** / 共有の正規化モジュール |
-| `tools/g1_{trusted_verify.py,ci_verify.sh}` | 承認検証の信頼された実行入口と CI ラッパー |
-| `tools/requirements.txt` | 固定依存（PyYAML 6.0.2 / pdfminer.six 20240706） |
+| `tests/specs.yaml` | Specification catalog (<!--g1:specs-->25<!--/g1--> specifications. Pin the versions of external drafts) |
+| `tests/coverage.yaml` | **The sole source of truth for the requirements catalog and evaluation levels**. <!--g1:requirements-->69<!--/g1--> requirements → **<!--g1:obligations-->544<!--/g1--> obligations** (of which <!--g1:multi_clause-->129<!--/g1--> have multiple `source_clauses` ranges) |
+| `tests/predicates.yaml` | Fixed set of conditional predicates (<!--g1:predicates-->26<!--/g1--> predicates) |
+| `build/spec-reconcile-report.json` | Result of the independent validator (must satisfy **`totals.blocking_failures == 0`**. Before approval, SR-30 “open questions remain” and SR-31 “unapproved” remain FAIL, which is the completion condition for G1). **Do not place it under Git management because it is a build artifact** (save it as a CI artifact) |
+| `docs/04-requirement-coverage.md` | **Generated artifact** from `coverage.yaml` (manual editing prohibited) |
+| `tools/ci-stages.md` | CI stages for each gate and the locations of trust anchors |
+| `.github/workflows/g1.yml` | Actual CI (`g1-check` / `spec-reconcile` / `g1b-approval`) |
+| `.github/CODEOWNERS` | Protection for trust-anchor files |
+| `tools/g1_{author,docgen,validate,extract}.py` | Generation / documentation / **independent validation** / shared normalization modules |
+| `tools/g1_{trusted_verify.py,ci_verify.sh}` | Trusted entry point for approval verification and CI wrapper |
+| `tools/requirements.txt` | Pinned dependencies (PyYAML 6.0.2 / pdfminer.six 20240706) |
 
-作成者は `reviewer` / `approved_at` を埋めていません。
-**承認は `coverage.yaml` に書きません** — 正本は署名済みの `tests/approvals/g1.yaml`
-（承認対象 commit の外）です。
+The author has not filled in `reviewer` / `approved_at`.
+**Approvals are not written to `coverage.yaml`** — the canonical source is the signed `tests/approvals/g1.yaml`
+(outside the approved commit).
 
-## 実装までのゲート
+## Gates Until Implementation
 
 ```
-G1a  カタログ作成        ✅ 完了（PENDING_REVIEW）
+G1a  Catalog creation             ✅ Complete (PENDING_REVIEW)
   ↓
-G1b  義務の意味レビュー   ⏳ 作成者以外が原文と coverage.yaml を照合し、署名済み承認記録を作る
-  ↓                        検証: G1_TOOLS_COMMIT=<SHA> tools/g1_ci_verify.sh
-M0   骨格実装            G1b 後に着手してよい（Test Peer / Transcript / Preflight。テスト 0 件）
+G1b  Review obligation meaning    ⏳ Someone other than the author compares the original text with coverage.yaml and creates a signed approval record
+  ↓                               Verification: G1_TOOLS_COMMIT=<SHA> tools/g1_ci_verify.sh
+M0   Skeleton implementation       May begin after G1b (Test Peer / Transcript / Preflight. 0 tests)
   ↓
-G2   テスト設計          ⏳ <!--g1:case_target-->543<!--/g1--> 義務をケース ID に割り当て、対照ケース・反例・mutant を定義
-  ↓                        検証基盤（schema / g2_validate / approvals/g2.yaml / CI）も含む
-M1〜 判定ケースの実装     ★ G2 完了後
+G2   Test design                  ⏳ Assign <!--g1:case_target-->543<!--/g1--> obligations to case IDs and define control cases, counterexamples, and mutants
+  ↓                               Also include the verification infrastructure (schema / g2_validate / approvals/g2.yaml / CI)
+M1–  Implementation of evaluation cases  ★ After G2 is complete
 ```
 
-実装エージェント（Codex 等）に渡す規約は [`AGENTS.md`](../AGENTS.md)。
+The conventions for implementation agents (such as Codex) are in [`AGENTS.md`](../AGENTS.md).
 
-**G1b と G2 は別のレビュー**です。G1b は「義務が原文と正しく対応しているか」、
-G2 は「ケースに検出力があるか」を見ます。
-過去のレビューで原文照合 49 件中 41 件に誤りが出た領域なので、
-どちらも作成者以外による承認を必須にしています。
+**G1b and G2 are separate reviews.** G1b checks “whether obligations correctly correspond to the original text,”
+while G2 checks “whether cases have detection power.”
+Because this was an area in which 41 of 49 original-text comparisons were incorrect in past reviews,
+approval by someone other than the author is mandatory for both.
 
-検出力の証明は **mutant peer**（既知の違反を注入した Test IdP/SP）で行い、
-リファレンス実装の結果差は使いません（[00 §5](00-concept.md)）。
+Detection power is demonstrated with a **mutant peer** (a Test IdP/SP with known violations injected),
+not by differences in reference-implementation results ([00 §5](00-concept.md)).
 
-## ドキュメント一覧
+## Documents
 
-| # | ドキュメント | 内容 |
+| # | Document | Contents |
 |---|---|---|
-| 00 | [concept.md](00-concept.md) | 何を作るのか / 作らないのか、既存ツールとの差分、成功条件 |
-| 01 | [scope-and-roadmap.md](01-scope-and-roadmap.md) | Phase 1〜5 の定義と各 Phase の完了条件 |
-| 02 | [architecture.md](02-architecture.md) | システム構成、技術スタック、Test Peer 設計 |
-| 03 | [test-model.md](03-test-model.md) | Test Plan / Test Case / 実行モード / 判定語彙 |
-| 04 | [requirement-coverage.md](04-requirement-coverage.md) | Kantara IIP v1.1 全 <!--g1:requirements-->69<!--/g1--> 要件のテスト可能性マッピング |
-| 05 | [test-definition-format.md](05-test-definition-format.md) | テスト定義 YAML のスキーマ |
-| 06 | [results-and-publication.md](06-results-and-publication.md) | 結果フォーマット、共有 URL、信頼モデル |
-| 07 | [deployment-and-networking.md](07-deployment-and-networking.md) | Docker、URL/TLS 要件、Hosted 版 |
-| 08 | [suite-security.md](08-suite-security.md) | Suite 自身のセキュリティ（SSRF 等） |
-| 09 | [open-decisions.md](09-open-decisions.md) | 意思決定ログ（D-01〜D-15） |
-| 10 | [memo-review.md](10-memo-review.md) | 元構想メモのレビュー結果（矛盾・欠落・改良点） |
-| 11 | [review-log.md](11-review-log.md) | 設計レビューの記録と反映結果 |
+| 00 | [concept.md](00-concept.md) | What to build / not build, differences from existing tools, success criteria |
+| 01 | [scope-and-roadmap.md](01-scope-and-roadmap.md) | Definitions of Phases 1–5 and completion conditions for each phase |
+| 02 | [architecture.md](02-architecture.md) | System architecture, technology stack, Test Peer design |
+| 03 | [test-model.md](03-test-model.md) | Test Plan / Test Case / execution modes / evaluation vocabulary |
+| 04 | [requirement-coverage.md](04-requirement-coverage.md) | Testability mapping for all <!--g1:requirements-->69<!--/g1--> Kantara IIP v1.1 requirements |
+| 05 | [test-definition-format.md](05-test-definition-format.md) | Schema for test-definition YAML |
+| 06 | [results-and-publication.md](06-results-and-publication.md) | Result format, shared URLs, trust model |
+| 07 | [deployment-and-networking.md](07-deployment-and-networking.md) | Docker, URL/TLS requirements, Hosted version |
+| 08 | [suite-security.md](08-suite-security.md) | Security of the Suite itself (SSRF, etc.) |
+| 09 | [open-decisions.md](09-open-decisions.md) | Decision log (D-01–D-15) |
+| 10 | [memo-review.md](10-memo-review.md) | Review results for the original concept memo (contradictions, omissions, improvements) |
+| 11 | [review-log.md](11-review-log.md) | Design review records and resulting changes |
 
-## 30 秒サマリ
+## 30-Second Summary
 
-- **対象仕様（Phase 1）**: Kantara Initiative *SAML V2.0 Implementation Profile for Federation Interoperability* **v1.1 (2019-12-18)**
-- **要件数**: Common 31 + SP 17 + IdP 21 = **IdP Profile 52 / SP Profile 48**
-- **やり方**: テスト対象の反対側（Test SP / Test IdP）を Suite が演じるブラックボックステスト
-- **実行形態**: Docker 単一イメージ。Hosted 版も self-hosted 版も同じイメージ
-- **結果**: Requirement ID 単位の PASS/FAIL と、仕様根拠→送受信 XML→判定理由の追跡
-- **公開**: opt-in の共有 URL。ただし「Certified」とは絶対に言わない
+- **Target specification (Phase 1)**: Kantara Initiative *SAML V2.0 Implementation Profile for Federation Interoperability* **v1.1 (2019-12-18)**
+- **Requirement count**: Common 31 + SP 17 + IdP 21 = **IdP Profile 52 / SP Profile 48**
+- **Approach**: Black-box testing in which the Suite plays the opposite side of the test target (Test SP / Test IdP)
+- **Execution**: Single Docker image. The Hosted and self-hosted versions use the same image
+- **Results**: PASS/FAIL by Requirement ID, with traceability from specification basis → sent/received XML → reason for determination
+- **Publication**: Opt-in shared URLs. However, never call the result “Certified”
 
-## 最重要の設計判断（Phase 1）
+## Most Important Design Decisions (Phase 1)
 
-0. **「適用されない」と「検証できなかった」を厳密に分ける**。実行環境の都合で試験できない
-   MUST 義務は `NOT_VERIFIED` であって `NOT_APPLICABLE` ではない。母数に残り、Run は
-   `conformance = INDETERMINATE` / `completeness = INCOMPLETE` になる。Run の判定は**適合性と実行完全性の二軸**で出す。
-   判定レベルは**義務（obligation）単位**で `coverage.yaml` だけが持ち、
-   テスト定義にも実装にも書かせない。→ [03](03-test-model.md), [05](05-test-definition-format.md)
+0. **Strictly distinguish “not applicable” from “could not be verified.”** A MUST obligation that cannot be tested due to the execution environment is `NOT_VERIFIED`, not `NOT_APPLICABLE`. It remains in the denominator, and the Run becomes
+   `conformance = INDETERMINATE` / `completeness = INCOMPLETE`. Run determinations are reported on **two axes: conformance and execution completeness**.
+   Evaluation levels are held only by `coverage.yaml`, **at the obligation level**, and must not be written into test definitions or implementations. → [03](03-test-model.md), [05](05-test-definition-format.md)
 
-1. **Test Plan = 1 つの entityID**。SAML には動的クライアント登録がないため、テストケースごとに entityID を変えると利用者が数十回の手動登録を強いられる。1 Test Plan につき 1 つの「全部入りメタデータ」を発行し、ケース切替は ACS index / RelayState / 事前アーミングで行う。→ [02](02-architecture.md)
-2. **判定は 3 系統**。Automated（バックチャネルのみ）/ Browser-assisted（利用者のブラウザ経由）/ Attested（対象側の挙動を利用者が申告）。SAML のブラックボックステストは「相手が拒否したこと」を機械的に観測できない場合があり、これを設計に組み込まないと結果の数字が意味を持たない。→ [03](03-test-model.md)
-3. **メタデータ系要件はテスト対象側の再設定を要求する**。IIP-MD01〜MD04 などは「対象が Suite のメタデータを取得しに来る」構成でないと検証できない。Test Plan にメタデータ配布方式（manual / HTTP / MDQ）を持たせる。manual の場合これらは
-**`NOT_VERIFIED(plan_configuration)`** になる（`NOT_APPLICABLE` **ではない**）。母数に残り、`conformance = INDETERMINATE` / `completeness = INCOMPLETE` になる。→ [04](04-requirement-coverage.md)
+1. **Test Plan = one entityID**. Because SAML has no dynamic client registration, changing the entityID for each test case would force users to perform dozens of manual registrations. Issue one “all-inclusive metadata” set per Test Plan, and switch cases using the ACS index / RelayState / pre-arming. → [02](02-architecture.md)
+2. **Three evaluation paths**. Automated (back channel only) / Browser-assisted (through the user’s browser) / Attested (the user attests to behavior on the Target side). SAML black-box tests may be unable to mechanically observe “the other party rejected it”; unless this is incorporated into the design, the resulting numbers have no meaning. → [03](03-test-model.md)
+3. **Metadata requirements require reconfiguration on the test-target side**. IIP-MD01–MD04 and similar requirements cannot be verified unless the Target is configured to retrieve the Suite’s metadata. Give the Test Plan a metadata distribution method (manual / HTTP / MDQ). In the manual case, these become
+**`NOT_VERIFIED(plan_configuration)`** (**not** `NOT_APPLICABLE`). They remain in the denominator, and the result becomes `conformance = INDETERMINATE` / `completeness = INCOMPLETE`. → [04](04-requirement-coverage.md)

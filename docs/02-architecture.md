@@ -1,117 +1,118 @@
-# 02. アーキテクチャ
+# 02. Architecture
 
-## 1. 全体構成
+## 1. Overall Structure
 
 ```
 ┌───────────────────────────────────────────────────────────────┐
-│ 利用者のブラウザ                                               │
-│   (a) Suite の Web UI を開いている                             │
-│   (b) 同時に SAML のユーザーエージェントでもある ★             │
+│ User's browser                                                │
+│   (a) Has the Suite Web UI open                               │
+│   (b) Is also the SAML user agent at the same time ★          │
 └──────┬─────────────────────────────┬──────────────────────────┘
        │ REST + SSE                  │ SAML front-channel
        │                             │ (HTTP-Redirect / HTTP-POST)
        ▼                             ▼
 ┌───────────────────────────────────────────────────────────────┐
-│ samlier  (単一 JVM / 単一コンテナ)                            │
+│ samlier  (single JVM / single container)                     │
 │                                                               │
 │  ┌─────────────┐  ┌──────────────┐  ┌──────────────────────┐  │
 │  │ Web API     │  │ Test Runner  │  │ Protocol Endpoints   │  │
-│  │ + UI 配信   │──│ (状態機械)   │──│  /p/{plan}/sp/acs    │  │
-│  │             │  │              │  │  /p/{plan}/sp/slo    │  │
+│  │ + UI        │──│ (state       │──│  /p/{plan}/sp/acs    │  │
+│  │ delivery    │  │ machine)     │  │  /p/{plan}/sp/slo    │  │
 │  └─────────────┘  └──────┬───────┘  │  /p/{plan}/idp/sso   │  │
 │                          │          │  /p/{plan}/idp/slo   │  │
 │  ┌───────────────────────┴───────┐  │  /p/{plan}/metadata  │  │
 │  │ SAML Engine                   │  │  /mdq/{entityID}     │  │
-│  │  ├ OpenSAML 5  (正常系生成/解析) │  └──────────────────────┘  │
-│  │  ├ Santuario   (XML署名/暗号)  │                           │
-│  │  └ Raw DOM/StAX (異常系生成) ★ │  ┌──────────────────────┐  │
-│  └───────────────────────────────┘  │ Transcript Recorder  │  │
-│                                     │ 全 HTTP + 全 SAML    │  │
-│  ┌─────────────┐  ┌──────────────┐  │ メッセージを記録     │  │
-│  │ Test Defs   │  │ Key Store    │  └──────────────────────┘  │
-│  │ (YAML, 埋込)│  │ (plan 毎鍵)  │  ┌──────────────────────┐  │
-│  └─────────────┘  └──────────────┘  │ Store (SQLite)       │  │
+│  │  ├ OpenSAML 5  (normal path)  │  └──────────────────────┘  │
+│  │  ├ Santuario   (XML signature │                           │
+│  │  │               /encryption) │  ┌──────────────────────┐  │
+│  │  └ Raw DOM/StAX (abnormal     │  │ Transcript Recorder  │  │
+│  │                 path) ★       │  │ Records all HTTP +  │  │
+│  └───────────────────────────────┘  │ all SAML messages   │  │
 │                                     └──────────────────────┘  │
+│  ┌─────────────┐  ┌──────────────┐  ┌──────────────────────┐  │
+│  │ Test Defs   │  │ Key Store    │  │ Store (SQLite)       │  │
+│  │ (YAML,      │  │ (keys per    │  └──────────────────────┘  │
+│  │ embedded)   │  │ plan)        │                           │
+│  └─────────────┘  └──────────────┘                           │
 └──────┬────────────────────────────────────────────────────────┘
        │ back-channel (Suite → Target)
-       │  - Target メタデータ / MDQ の取得
+       │  - Retrieval of Target metadata / MDQ
        │  - SOAP SLO, ECP
        ▼
    Target IdP / Target SP
 ```
 
-★ が付いた 2 点が SAML 特有で、設計上最も影響が大きい。
+The two points marked ★ are specific to SAML and have the greatest architectural impact.
 
-- **ブラウザが試験経路の一部**である。Suite は対象に直接ログインできない（利用者の資格情報を預かるべきではない）。
-- **異常系 XML を作るには OpenSAML では足りない**。Phase 4 を見据えて、最初から低レベル XML 生成経路を分離しておく。
+- The **browser is part of the test path**. The Suite cannot log directly into the target (and should not hold the user's credentials).
+- **OpenSAML is insufficient for producing abnormal XML**. With Phase 4 in mind, a low-level XML generation path must be separated from the beginning.
 
-## 2. 技術スタック
+## 2. Technology Stack
 
-| 層 | 選択 | 状態 |
+| Layer | Choice | Status |
 |---|---|---|
-| 言語 / ランタイム | Java 21 (LTS) | 確定 |
-| SAML | OpenSAML 5.x（Java 17+ / Apache-2.0） | 確定 |
-| XML Security | Apache Santuario XML Security for Java | 確定 |
-| 低レベル XML | JDK 標準 DOM / StAX + 文字列テンプレート | 確定 |
-| Web フレームワーク | **Javalin + Jetty** | 確定（生クエリ文字列へのアクセスが必須。§3.5） |
-| DB | SQLite (xerial sqlite-jdbc)、アクセス層を薄く保つ | 暫定確定 |
-| フロントエンド | **React + Vite (TypeScript)** | 確定 |
-| 配布 | Docker（マルチアーキ: amd64 / arm64） | 確定 |
-| ビルド | **Gradle (Kotlin DSL)** | 確定 |
+| Language / runtime | Java 21 (LTS) | Decided |
+| SAML | OpenSAML 5.x (Java 17+ / Apache-2.0) | Decided |
+| XML Security | Apache Santuario XML Security for Java | Decided |
+| Low-level XML | JDK standard DOM / StAX + string templates | Decided |
+| Web framework | **Javalin + Jetty** | Decided (access to the raw query string is required. §3.5) |
+| DB | SQLite (xerial sqlite-jdbc), keep the access layer thin | Provisionally decided |
+| Frontend | **React + Vite (TypeScript)** | Decided |
+| Distribution | Docker (multi-architecture: amd64 / arm64) | Decided |
+| Build | **Gradle (Kotlin DSL)** | Decided |
 
-### OpenSAML に依存しすぎない方針
+### Policy of avoiding excessive dependence on OpenSAML
 
 ```
                  ┌──────────────────────────┐
-   正常系  ──────│ MessageFactory (OpenSAML)│──┐
+   Normal    ────│ MessageFactory (OpenSAML)│──┐
                  └──────────────────────────┘  │   ┌──────────────┐
                                                ├──▶│ Serializer   │──▶ wire
                  ┌──────────────────────────┐  │   │ (DOM → bytes)│
-   異常系  ──────│ RawMessageBuilder        │──┘   └──────────────┘
-   (Phase 4)     │ (DOM 直接操作 / 文字列)   │
+   Abnormal  ────│ RawMessageBuilder        │──┘   └──────────────┘
+   (Phase 4)     │ (direct DOM manipulation / strings) │
                  └──────────────────────────┘
 ```
 
-- 生成の最終段は**必ず DOM または生バイト列**に落とす。OpenSAML のオブジェクトモデルを最終形にしない
-- 受信側も同様: OpenSAML でのパース結果と、生 XML の DOM の**両方**を保持する。
-  （OpenSAML が正規化・無視した情報が判定に必要になることがある。コメント切り詰め攻撃など）
-- 署名は Santuario を直接叩けるようにしておく（OpenSAML の Signer 経由だと不正署名が作れない）
+- The final stage of generation **must always reduce the result to DOM or raw bytes**. Do not use OpenSAML's object model as the final form.
+- The receiving side follows the same rule: retain **both** the result parsed by OpenSAML and the DOM of the raw XML. (Information normalized or ignored by OpenSAML may be needed for the determination, such as comment truncation attacks.)
+- Keep signatures directly callable through Santuario (an invalid signature cannot be created through OpenSAML's Signer path).
 
-> Phase 1 の時点で異常系ビルダーは使わないが、**インターフェースだけは Phase 1 で切る**。
-> あとから差し込むと生成経路が二重化して破綻する。
+> The abnormal-path builder will not be used as of Phase 1, but **the interface must be split out in Phase 1**.
+> Inserting it later would duplicate the generation paths and cause them to fail.
 
-## 3. Test Peer 設計 ★ 本設計の核心
+## 3. Test Peer Design ★ Core of this design
 
-### 問題: SAML には動的クライアント登録がない
+### Problem: SAML has no dynamic client registration
 
-OIDC Conformance Suite はテストごとに新しい issuer / client を発行できる。
-SAML では **対象側に手作業でメタデータを登録してもらう**必要がある。
-テストケースごとに entityID を変えると、利用者は 50〜80 回の登録作業を強いられ、誰も使わない。
+The OIDC Conformance Suite can issue a new issuer / client for each test.
+With SAML, **the target must be asked to register the metadata manually**.
+If the entityID is changed for each test case, users would be forced to perform registration 50–80 times, and no one would use it.
 
-### 解決: 1 Test Plan = 1 entityID = 1 つの「全部入りメタデータ」
+### Solution: 1 Test Plan = 1 entityID = 1 "all-in-one metadata"
 
-Test Plan を作ると、Suite は次を 1 セット発行する。
+When a Test Plan is created, the Suite issues the following as one set.
 
 ```
 entityID : https://<base>/p/{planId}
-metadata : https://<base>/p/{planId}/metadata      (署名付き)
+metadata : https://<base>/p/{planId}/metadata      (signed)
 MDQ      : https://<base>/mdq/{urlencoded-entityID}
 ```
 
-このメタデータには、その Test Plan に含まれる**全テストケースが必要とする全ての要素**を最初から入れておく。
+This metadata contains from the outset **every element required by all test cases** included in the Test Plan.
 
-#### Test SP としてのメタデータ（IdP をテストする場合）
+#### Metadata as the Test SP (when testing an IdP)
 
 ```xml
 <SPSSODescriptor AuthnRequestsSigned="true" WantAssertionsSigned="true" ...>
-  <!-- 複数署名鍵: IIP-MD07 / MD11 のテストに使う -->
-  <KeyDescriptor use="signing">     <!-- 鍵 A: 既定 -->
-  <KeyDescriptor use="signing">     <!-- 鍵 B: ロールオーバー先 -->
-  <KeyDescriptor use="encryption">  <!-- 鍵 C -->
-  <KeyDescriptor use="encryption">  <!-- 鍵 D: 復号ロールオーバー -->
-  <KeyDescriptor>                   <!-- 鍵 E: use 属性なし → IIP-MD11 -->
+  <!-- Multiple signing keys: used for IIP-MD07 / MD11 tests -->
+  <KeyDescriptor use="signing">     <!-- Key A: default -->
+  <KeyDescriptor use="signing">     <!-- Key B: rollover destination -->
+  <KeyDescriptor use="encryption">  <!-- Key C -->
+  <KeyDescriptor use="encryption">  <!-- Key D: decryption rollover -->
+  <KeyDescriptor>                   <!-- Key E: no use attribute → IIP-MD11 -->
 
-  <!-- アルゴリズム宣言: IIP-MD09 / MD10 のテストに使う -->
+  <!-- Algorithm declarations: used for IIP-MD09 / MD10 tests -->
   <alg:DigestMethod Algorithm="...sha256"/>
   <alg:SigningMethod Algorithm="...rsa-sha256"/>
 
@@ -119,24 +120,24 @@ MDQ      : https://<base>/mdq/{urlencoded-entityID}
   <SingleLogoutService Binding="HTTP-POST" .../>
   <SingleLogoutService Binding="SOAP" .../>
 
-  <!-- ACS を index で複数持ち、ケース切替に使う -->
+  <!-- Multiple ACS entries by index, used to switch cases -->
   <AssertionConsumerService index="0" Binding="HTTP-POST"     isDefault="true"/>
   <AssertionConsumerService index="1" Binding="HTTP-Artifact"/>   <!-- Phase 2 -->
   <AssertionConsumerService index="2" Binding="PAOS"/>            <!-- ECP -->
-  <AssertionConsumerService index="3" Binding="HTTP-POST"/>       <!-- 予備 -->
+  <AssertionConsumerService index="3" Binding="HTTP-POST"/>       <!-- Reserve -->
 
-  <!-- IIP-IDP04 の検証に使う -->
+  <!-- Used to verify IIP-IDP04 -->
   <AttributeConsumingService index="0">
     <RequestedAttribute .../>
   </AttributeConsumingService>
 </SPSSODescriptor>
 ```
 
-#### Test IdP としてのメタデータ（SP をテストする場合）
+#### Metadata as the Test IdP (when testing an SP)
 
 ```xml
 <IDPSSODescriptor WantAuthnRequestsSigned="false" ...>
-  <KeyDescriptor use="signing"> × 2      <!-- 鍵ロールオーバーテスト -->
+  <KeyDescriptor use="signing"> × 2      <!-- Key rollover test -->
   <KeyDescriptor use="encryption"> × 1
   <SingleSignOnService Binding="HTTP-Redirect" .../>
   <SingleSignOnService Binding="HTTP-POST" .../>
@@ -146,199 +147,193 @@ MDQ      : https://<base>/mdq/{urlencoded-entityID}
 </IDPSSODescriptor>
 ```
 
-**メタデータに載せない鍵**も Test Plan は保持する（未登録鍵で署名して拒否されるかを見る Phase 4 用）。
+The Test Plan also retains **keys not included in the metadata** (for Phase 4, to check whether a target rejects signatures made with an unregistered key).
 
-### ケース切替のメカニズム
+### Mechanism for switching cases
 
-| 方向 | 誰が始めるか | ケースの特定方法 |
+| Direction | Who initiates | How the case is identified |
 |---|---|---|
-| **IdP テスト** | Suite（Test SP） | Suite が AuthnRequest を作るので自由。`RelayState` にケース ID を入れ、`InResponseTo` で照合。ACS index / Binding も自由に選べる |
-| **SP テスト・レスポンス処理系** | Suite（Test IdP、unsolicited） | Suite が Response を生成し、ブラウザ経由で対象 ACS に POST。ケース ID は Suite 側の状態で保持 |
-| **SP テスト・リクエスト生成系** | 対象 SP | **アーミング方式**。UI で「次に受け取る AuthnRequest をケース N として扱う」と宣言してから、利用者が SP でログインを開始する |
+| **IdP testing** | Suite (Test SP) | The Suite creates the AuthnRequest, so it has freedom. Put the case ID in `RelayState` and match it with `InResponseTo`. The ACS index / Binding can also be selected freely. |
+| **SP testing — response processing** | Suite (Test IdP, unsolicited) | The Suite generates the Response and POSTs it to the target ACS through the browser. The case ID is retained in the Suite's state. |
+| **SP testing — request generation** | Target SP | **Arming method**. After declaring in the UI, “Treat the next AuthnRequest received as case N,” the user starts login at the SP. |
 
-> **アーミング方式が必要な理由**: SP が発行する AuthnRequest の宛先は、SP が Test IdP の
-> メタデータから選んだ `SingleSignOnService` の Location である。ケースごとに URL を変えることはできない。
-> したがって「今どのケースを試験中か」は Suite 側の状態で持つしかない。
-> 同時に複数ケースをアームすることはできない → **SP のリクエスト生成系テストは逐次実行**になる。
+> **Why the arming method is necessary**: The destination of the AuthnRequest issued by the SP is the Location of the `SingleSignOnService` selected by the SP from the Test IdP's
+> metadata. The URL cannot be changed for each case.
+> Therefore, the Suite has no choice but to retain “which case is currently being tested” in its state.
+> Multiple cases cannot be armed at the same time → **SP request-generation tests run sequentially**.
 >
-> 一方、レスポンス処理系（SP が不正な Assertion を拒否するか等）は Suite 起点なので
-> **並列化・自動化が可能**。SP プロファイルのテストの大半はこちらに寄せる。
-> ただし unsolicited（IdP-initiated）SSO を無効にしている SP もあるため、
-> Test Plan に `sp_accepts_unsolicited: yes/no` を持ち、no の場合はアーミング方式にフォールバックする。
+> Response-processing tests (such as whether an SP rejects an invalid Assertion), on the other hand, are initiated by the Suite, so **parallelization and automation are possible**.
+> Most SP profile tests should be placed in this category.
+> However, some SPs disable unsolicited (IdP-initiated) SSO, so the Test Plan has `sp_accepts_unsolicited: yes/no`; when it is no, fall back to the arming method.
 
-### セッションの扱い
+### Handling sessions
 
-- IdP テストでは利用者が対象 IdP にログインする必要がある。**初回だけログインし、以降は IdP 側の SSO セッションで自動的に通す**
-- `ForceAuthn`（IIP-IDP06）のテストだけは再認証が必要になるため、テスト順序で末尾側に寄せる
-- `IsPassive`（IIP-IDP07）はセッションの有無で期待結果が変わるため、直前に「ログイン済みであること」を前提とする
+- In IdP testing, the user must log in to the target IdP. **Log in only once initially, then pass automatically using the IdP-side SSO session.**
+- Only the `ForceAuthn` (IIP-IDP06) test requires reauthentication, so place it toward the end of the test order.
+- Because the expected result for `IsPassive` (IIP-IDP07) changes depending on whether a session exists, assume immediately beforehand that “the user is logged in.”
 
-## 3.5. 生リクエストへのアクセスという必須要件
+## 3.5. Mandatory Requirement for Access to Raw Requests
 
-Web フレームワーク選定を縛る技術的制約なので明記しておく。
+This is stated explicitly because it is a technical constraint on web framework selection.
 
-**HTTP-Redirect バインディングの署名は、URL デコード前のクエリ文字列そのものを対象にする。**
+**The signature of the HTTP-Redirect binding covers the query string itself before URL decoding.**
 
 ```
 SAMLRequest=fZJNT%2BMwEIb%2F...&RelayState=abc&SigAlg=http%3A%2F%2F...
-└──────────────── この生バイト列が署名対象 ────────────────┘
+└──────────────── this raw byte sequence is the signature input ────────────────┘
 ```
 
-パラメータをパースして再構成すると、パーセントエンコーディングの差異
-（`%2F` と `/`、`+` と `%20`、大文字小文字）で署名検証が壊れる。
-同様に HTTP-POST バインディングでも、base64 文字列を再エンコードしてはいけない。
+If parameters are parsed and reconstructed, signature verification breaks due to differences in percent encoding
+(`%2F` and `/`, `+` and `%20`, and letter case).
+Likewise, for the HTTP-POST binding, the base64 string must not be re-encoded.
 
-したがって Suite は次を満たす必要がある。
+Therefore, the Suite must satisfy the following.
 
-- 受信時に**生のクエリ文字列**（`getQueryString()` 相当）と**生のボディバイト列**を取得できること
-- フレームワークやフィルタが URL を正規化・再エンコードしないこと
-- リバースプロキシを挟む場合、プロキシがクエリ文字列を書き換えない設定であること（README に記載）
-- Transcript には**デコード前の生の値とデコード後の値の両方**を残すこと
+- On receipt, it must be able to obtain the **raw query string** (equivalent to `getQueryString()`) and the **raw body bytes**.
+- The framework and filters must not normalize or re-encode the URL.
+- When a reverse proxy is used, it must be configured so that the proxy does not rewrite the query string (document this in the README).
+- The Transcript must retain **both the raw value before decoding and the value after decoding**.
 
-> ここを取り違えると「対象の署名が不正」と誤判定するテストスイートになる。
-> 実装の最初期に、生バイト列を保持する経路をテストで固定する。
+> Misunderstanding this would turn the test suite into one that falsely determines that “the target's signature is invalid.”
+> Fix the path that retains raw bytes in place with a test at the earliest stage of implementation.
 
-## 3.7. ★ ECP（Enhanced Client or Proxy）の役割配置
+## 3.7. ★ Role Placement of ECP (Enhanced Client or Proxy)
 
-IIP-IDP13〜16 は **IdP** に課される MUST 義務なので、Phase 1 で試験するのは
-**対象 IdP の ECP 対応**である。このとき Samlier が演じるのは
-**ECP クライアント + SP** であり、**Test IdP ではない**。
+IIP-IDP13–16 are MUST obligations imposed on the **IdP**, so what is tested in Phase 1 is **the target IdP's ECP support**. In this case, Samlier acts as an **ECP client + SP**, and **not as the Test IdP**.
 
-ECP は「ECP クライアント ↔ SP」「ECP クライアント ↔ IdP」の 2 区間からなる
-（[OASIS ECP Profile v2.0](https://docs.oasis-open.org/security/saml/Post2.0/saml-ecp/v2.0/saml-ecp-v2.0.html)）。
-Samlier は SP 役も兼ねるため、SP との区間は内部で完結できる。
+ECP consists of two segments: “ECP client ↔ SP” and “ECP client ↔ IdP”
+([OASIS ECP Profile v2.0](https://docs.oasis-open.org/security/saml/Post2.0/saml-ecp/v2.0/saml-ecp-v2.0.html)).
+Because Samlier also acts as the SP, the segment with the SP can be completed internally.
 
 ```
 ┌───────────────────────────────────────────────────────────┐
 │ Samlier                                                   │
 │                                                           │
-│  ┌────────────┐  ① AuthnRequest を自分で生成（SP 役）      │
+│  ┌────────────┐  ① Generate AuthnRequest itself (as SP)   │
 │  │ Test SP    │─────────────┐                             │
 │  │ (peer/sp)  │             ▼                             │
 │  └────────────┘   ┌──────────────────┐                    │
 │         ▲         │ ECP Client       │                    │
 │         │         │ (peer/ecp)       │                    │
 │         │         └────────┬─────────┘                    │
-│         │                  │ ② SP 由来の SOAP ヘッダを     │
-│         │                  │    **全て除去**して            │
-│         │                  │    AuthnRequest を SOAP 送信   │
-│         │                  │    + HTTP Basic 認証           │
-│         │                  │    (+ ECP 自身の cb:ChannelBindings) │
-│         │                  ▼                               │
-│         │        ┌────────────────────────┐                │
-│         │        │  Target IdP            │                │
-│         │        │  SOAP SSO endpoint     │                │
-│         │        └───────────┬────────────┘                │
-│         │                    │ ③ SOAP Response             │
-│         │                    │   (ecp:Response, Assertion) │
-│         │                    ▼                             │
-│  ┌──────┴───────────────────────────────┐                  │
-│  │ ④ POST /p/{plan}/sp/paos             │  ⑤ 検証・判定    │
-│  │    PAOS Response Consumer            │                  │
-│  └──────────────────────────────────────┘                  │
+│         │                  │ ② Remove **all** SOAP        │
+│         │                  │    headers originating from │
+│         │                  │    the SP, then send the    │
+│         │                  │    AuthnRequest by SOAP     │
+│         │                  │    + HTTP Basic auth        │
+│         │                  │    (+ ECP's own cb:ChannelBindings) │
+│         │                  ▼                             │
+│         │        ┌────────────────────────┐              │
+│         │        │  Target IdP            │              │
+│         │        │  SOAP SSO endpoint     │              │
+│         │        └───────────┬────────────┘              │
+│         │                    │ ③ SOAP Response           │
+│         │                    │   (ecp:Response, Assertion)│
+│         │                    ▼                           │
+│  ┌──────┴───────────────────────────────┐                │
+│  │ ④ POST /p/{plan}/sp/paos             │  ⑤ Verify/evaluate │
+│  │    PAOS Response Consumer            │                │
+│  └──────────────────────────────────────┘                │
 └───────────────────────────────────────────────────────────┘
 ```
 
-### ★ 区間ごとにヘッダ集合が違う（ECP v2 §2.3.4）
+### ★ The set of headers differs by segment (ECP v2 §2.3.4)
 
 > *Any header blocks received from the service provider **MUST be removed**.*
 
-ECP は SP から受け取った SOAP ヘッダブロックを、IdP に転送する前に**除去する**。
-PAOS は主に **ECP ↔ SP** 区間のものであり、**IdP に PAOS ヘッダを送るのは誤り**。
+ECP **removes** the SOAP header blocks received from the SP before forwarding the request to the IdP.
+PAOS is primarily for the **ECP ↔ SP** segment; **sending PAOS headers to the IdP is incorrect**.
 
-| 区間 | SOAP ヘッダ |
+| Segment | SOAP headers |
 |---|---|
-| SP → ECP | `paos:Request`, `ecp:Request`, `ecp:RelayState`, （SP が付ける）`cb:ChannelBindings` |
-| **ECP → IdP** | **上記は全て除去**。ECP 自身が付ける `cb:ChannelBindings`（client↔SP チャネルを表す）のみ |
-| IdP → ECP | `ecp:Response`, （一致した）`cb:ChannelBindings`, `samlec:*` |
-| ECP → SP | `paos:Response`, `ecp:RelayState`（SP から受け取ったものを戻す） |
+| SP → ECP | `paos:Request`, `ecp:Request`, `ecp:RelayState`, `cb:ChannelBindings` (added by the SP) |
+| **ECP → IdP** | **Remove all of the above**. Only `cb:ChannelBindings` added by ECP itself (representing the client↔SP channel) |
+| IdP → ECP | `ecp:Response`, `cb:ChannelBindings` (matching), `samlec:*` |
+| ECP → SP | `paos:Response`, `ecp:RelayState` (return the one received from the SP) |
 
-Samlier は SP 役も兼ねるため ① は内部で完結するが、
-**②の組み立て時に①のヘッダを引き継がないこと**を実装で強制する
-（`EcpClient` が SP 由来ヘッダを保持しないデータ構造にする）。
+Because Samlier also acts as the SP, ① completes internally, but the implementation must enforce **not carrying over the headers from ① when constructing ②**
+(make `EcpClient` use a data structure that does not retain headers originating from the SP).
 
-設計上の含意:
+Design implications:
 
-- Test SP のメタデータに **`<AssertionConsumerService Binding="urn:oasis:names:tc:SAML:2.0:bindings:PAOS" index="2">`**
-  を必ず含める（IIP-IDP16「ECP 設定をメタデータから取り込む」の検証に必要）
-- `ecp:Response/@AssertionConsumerServiceURL` が **メタデータの PAOS ACS と一致するか**を検証する。
-  一致しない URL を返す IdP は IIP-IDP16 違反であり、Open Redirect の観点でも重要
-- **ブラウザを一切使わない**ため `AUTOMATED` として完全自動化できる。
-  IIP の中で最も自動化しやすい領域
-- **Test IdP 側の ECP エンドポイントは Phase 1 では不要**。
-  IIP に SP 向けの ECP 義務はないため、SP の ECP 対応を試験するのは Phase 2 以降
+- The Test SP metadata must always include **`<AssertionConsumerService Binding="urn:oasis:names:tc:SAML:2.0:bindings:PAOS" index="2">`** (required to verify IIP-IDP16, “importing ECP configuration from metadata”).
+- Verify that `ecp:Response/@AssertionConsumerServiceURL` **matches the PAOS ACS in the metadata**.
+  An IdP that returns a non-matching URL violates IIP-IDP16 and is also important from an Open Redirect perspective.
+- Because **the browser is not used at all**, this can be completely automated as `AUTOMATED`.
+  This is the area most amenable to automation among the IIP tests.
+- **An ECP endpoint on the Test IdP side is unnecessary in Phase 1**.
+  Because the IIP imposes no ECP obligation on SPs, testing SP ECP support begins in Phase 2 or later.
 
-### ★ ECP と SAML-EC は別の仕様であり、別のケースが要る
+### ★ ECP and SAML-EC are separate specifications and require separate cases
 
-IIP-IDP13〜16 が参照するのは **[SAML2ECP] ECP Profile v2.0** だが、
-**IIP-IDP15 だけは別文書を参照している**。
+IIP-IDP13–16 reference **[SAML2ECP] ECP Profile v2.0**, but **only IIP-IDP15 references a different document**.
 
 > *Identity Providers MUST support the generation and inclusion of a random key
 > in accordance with **[SAML-EC], Section 5.3.1**.*
 
-`[SAML-EC]` は IETF kitten WG の
+`[SAML-EC]` is the IETF kitten WG's
 [SAML Enhanced Client SASL and GSS-API Mechanisms](https://datatracker.ietf.org/doc/html/draft-ietf-kitten-sasl-saml-ec-16)
-（インターネットドラフト）であり、ECP Profile ではない。
+(an Internet-Draft), not the ECP Profile.
 
-| 義務 | 参照仕様 | 検査対象 | 通常の ECP 往復で検証できるか |
+| Obligation | Referenced specification | Test target | Can it be verified in an ordinary ECP round trip? |
 |---|---|---|---|
-| IIP-IDP13.a | ECP Profile v2.0 | `SubjectConfirmation/@Method` = Bearer、`@Recipient` | ✅ |
-| **IIP-IDP13.b** | ECP Profile v2.0 §2.3 | **channel bindings の検証** | ✅（下記のケース群が必要） |
-| IIP-IDP14 | RFC 2617 | HTTP Basic 認証 | ✅ |
-| **IIP-IDP15** | **[SAML-EC] §5.3.1** | **`<samlec:GeneratedKey>`**（Assertion の `<saml:Advice>` 内） | ❌ **別ケースが必要** |
-| IIP-IDP16 | ECP Profile v2.0 §2.3.10 | メタデータからの設定取り込み | ✅ |
+| IIP-IDP13.a | ECP Profile v2.0 | `SubjectConfirmation/@Method` = Bearer, `@Recipient` | ✅ |
+| **IIP-IDP13.b** | ECP Profile v2.0 §2.3 | **Verification of channel bindings** | ✅ (the case group below is required) |
+| IIP-IDP14 | RFC 2617 | HTTP Basic authentication | ✅ |
+| **IIP-IDP15** | **[SAML-EC] §5.3.1** | **`<samlec:GeneratedKey>`** (inside the Assertion's `<saml:Advice>`) | ❌ **A separate case is required** |
+| IIP-IDP16 | ECP Profile v2.0 §2.3.10 | Importing configuration from metadata | ✅ |
 
-したがって `peer/ecp/` を 2 系統に分ける。
+Therefore, divide `peer/ecp/` into two paths.
 
 ```
 peer/ecp/
-  ├─ profile/   ECP Profile v2.0 クライアント（IDP13, IDP14, IDP16）
-  └─ samlec/    SAML-EC 拡張クライアント（IDP15）
-                 SAML-EC 用の要求を送り、Advice 内の samlec:GeneratedKey を検査する
+  ├─ profile/   ECP Profile v2.0 client (IDP13, IDP14, IDP16)
+  └─ samlec/    SAML-EC extension client (IDP15)
+                 Send a request for SAML-EC and inspect samlec:GeneratedKey in Advice
 ```
 
-**参照ドラフトの版を `specs.yaml` に固定する**（[05 §5](05-test-definition-format.md) の規則 28）。
-ドラフトは版によって章番号も要素定義も変わりうるため、
-「§5.3.1」がどの版のものかを結果に残せないと再現性がない。
+**Fix the version of the referenced draft in `specs.yaml`** (rule 28 of [05 §5](05-test-definition-format.md)).
+Because the section numbers and element definitions of a draft may change by version,
+reproducibility is impossible unless the result records which version contains “§5.3.1.”
 
-### ★ channel bindings（IIP-IDP13.b）のテストケース群
+### ★ Test case group for channel bindings (IIP-IDP13.b)
 
-原文は *MUST support "Bearer" subject confirmation **and verification of channel bindings*** であり、
-channel bindings の**検証**まで MUST に含まれる。
-ECP v2 §2.3.6.2 は、一致した場合の**出力**まで規定している。
+The original text says *MUST support "Bearer" subject confirmation **and verification of channel bindings***, and the **verification** of channel bindings is included in the MUST.
+ECP v2 §2.3.6.2 also specifies the **output** when they match.
 
 > *…MUST include at least one `<cb:ChannelBindings>` element … as **SOAP header blocks** in its message to the client.*
 > *…MUST include at least one `<cb:ChannelBindings>` element in the **`<saml:Advice>`** element of any `<saml:Assertion>` elements that it returns.*
 > *The `<samlp:AuthnRequest>` message **MUST be signed** if the channel bindings extension option is used.*
 
-| # | 入力 | 期待 |
+| # | Input | Expected |
 |---|---|---|
-| 1 | SP と ECP クライアントの channel binding が**一致**。`AuthnRequest` は署名済み | 認証成功に加えて、**`cb:ChannelBindings` が (a) 応答の SOAP ヘッダブロック と (b) 返却された Assertion の `<saml:Advice>` の両方に含まれる**こと。★どちらか一方しかなければ IIP-IDP13.b 違反 |
-| 2 | **不一致** | エラー `<samlp:Response>` が返る。Assertion を返してはならない |
-| 3 | `AuthnRequest` の `<Extensions>` にのみ channel binding が存在 | ECP v2 の規定に沿った扱い。少なくとも**成功した Assertion を無検証で返さない**こと |
-| 4 | SOAP ヘッダ側にのみ存在 | 同上 |
-| 5 | channel binding を使用しているが **`AuthnRequest` が未署名** | ★ 期待を具体化: 仕様が署名を MUST としているため、**エラー Response が返ること**。署名なしで Assertion を発行したら FAIL |
+| 1 | Channel bindings between the SP and ECP client **match**. The `AuthnRequest` is signed. | In addition to successful authentication, **`cb:ChannelBindings` is included in both (a) the SOAP header blocks of the response and (b) the `<saml:Advice>` of the returned Assertion**. ★ If it appears in only one of the two, this violates IIP-IDP13.b. |
+| 2 | **Mismatch** | An error `<samlp:Response>` is returned. An Assertion must not be returned. |
+| 3 | Channel binding exists only in the `AuthnRequest`'s `<Extensions>`. | Handle it according to ECP v2. At a minimum, **do not return a successful Assertion without verification**. |
+| 4 | Exists only on the SOAP header side. | Same as above. |
+| 5 | Channel binding is used, but the **`AuthnRequest` is unsigned**. | ★ Make the expectation explicit: because the specification makes signing a MUST, **an error Response is returned**. If an Assertion is issued without a signature, return FAIL. |
 
-ケース 2・5 は negative test なので [03 §5](03-test-model.md) の証拠ラダーに従う。
-ECP はバックチャネルなので L1（SAML Status エラー）で自動判定できる可能性が高い。
+Cases 2 and 5 are negative tests, so follow the evidence ladder in [03 §5](03-test-model.md).
+Because ECP is a back-channel, automatic determination at L1 (SAML Status error) is highly likely.
 
-## 4. エンドポイント設計
+## 4. Endpoint Design
 
 ```
 GET  /                              Web UI
-GET  /api/plans                     Test Plan 一覧
-POST /api/plans                     Test Plan 作成
-GET  /api/plans/{id}                Test Plan 詳細（+ 発行された entityID / metadata URL）
-POST /api/plans/{id}/runs           Test Run 開始
-GET  /api/runs/{id}                 Run の状態（SSE でストリーム）
-POST /api/runs/{id}/cases/{cid}/arm     ケースをアーム（SP テスト）
-POST /api/runs/{id}/cases/{cid}/attest  利用者の観測結果を申告
-GET  /api/runs/{id}/transcript      通信ログ
-GET  /api/runs/{id}/result.json     結果 JSON
-POST /api/runs/{id}/publish         結果公開（opt-in）
+GET  /api/plans                     Test Plan list
+POST /api/plans                     Create Test Plan
+GET  /api/plans/{id}                Test Plan details (+ issued entityID / metadata URL)
+POST /api/plans/{id}/runs           Start Test Run
+GET  /api/runs/{id}                 Run status (streamed via SSE)
+POST /api/runs/{id}/cases/{cid}/arm     Arm case (SP testing)
+POST /api/runs/{id}/cases/{cid}/attest  Declare user's observation result
+GET  /api/runs/{id}/transcript      Communication log
+GET  /api/runs/{id}/result.json     Result JSON
+POST /api/runs/{id}/publish         Publish result (opt-in)
 
---- SAML プロトコル面 ---
-GET  /p/{plan}/metadata             Test Peer のメタデータ（署名付き）
-GET  /p/{plan}/metadata?variant=X   異常系メタデータ（expired / unsigned / badsig / no-validUntil）
+--- SAML protocol surface ---
+GET  /p/{plan}/metadata             Test Peer metadata (signed)
+GET  /p/{plan}/metadata?variant=X   Abnormal-path metadata (expired / unsigned / badsig / no-validUntil)
 GET  /mdq/{encodedEntityID}         Metadata Query Protocol
 POST /p/{plan}/sp/acs/{index}       Test SP: Assertion Consumer Service
 GET|POST /p/{plan}/sp/slo           Test SP: Single Logout
@@ -347,84 +342,78 @@ POST /p/{plan}/sp/paos              Test SP: ECP (PAOS) Response Consumer ★
 GET|POST /p/{plan}/idp/sso          Test IdP: SSO
 GET|POST /p/{plan}/idp/slo          Test IdP: SLO
 POST /p/{plan}/idp/slo/soap         Test IdP: SOAP SLO
-GET  /p/{plan}/start/{caseId}       ブラウザ操作の起点（利用者がクリックする）
+GET  /p/{plan}/start/{caseId}       Starting point for browser operation (user clicks)
 ```
 
-> `?variant=` によるメタデータの差し替えは IIP-MD03 / MD04 の検証に必須。
-> ただし **variant を切り替えた瞬間に対象がキャッシュを更新するとは限らない**ため、
-> variant は「Test Plan の現在の配布状態」として Suite 側の状態で管理し、
-> 利用者に「対象のメタデータを再読込してください」と指示する対話ステップを挟む。
+> Replacing metadata with `?variant=` is essential for verifying IIP-MD03 / MD04.
+> However, **switching the variant does not necessarily mean that the target immediately refreshes its cache**, so
+> manage the variant in the Suite's state as “the current distribution state of the Test Plan,” and insert an interactive step instructing the user to “reload the target's metadata.”
 
 ## 5. Transcript Recorder
 
-判定の根拠を全て残す。これが Suite の価値の半分を占める。
+Retain all grounds for the determination. This accounts for half of the Suite's value.
 
-### 5.1 記録するもの
+### 5.1 What to record
 
 ```
-- 方向 (inbound / outbound), timestamp (ms), 相関ID
-- HTTP: method, URL, status, ヘッダ（§5.2 の除去後）, 生ボディ（§5.2 の除去後）
-- SAML: 
-    - エンコード前の生バイト列（Redirect の deflate+base64、POST の base64 を解いたもの）
-    - 整形済み XML
-    - OpenSAML でのパース結果サマリ（Issuer, ID, InResponseTo, Destination, Conditions, Status ...）
-    - 署名検証の詳細（参照 URI、Transform 一覧、使用鍵、検証結果）
-- 判定に使った条件式とその評価結果
+- Direction (inbound / outbound), timestamp (ms), correlation ID
+- HTTP: method, URL, status, headers (after removal in §5.2), raw body (after removal in §5.2)
+- SAML:
+    - Raw byte sequence before encoding (the deflate+base64-decoded Redirect payload, and the base64-decoded POST payload)
+    - Formatted XML
+    - Summary of the result parsed by OpenSAML (Issuer, ID, InResponseTo, Destination, Conditions, Status ...)
+    - Signature verification details (reference URI, list of Transforms, key used, verification result)
+- The expressions used for the determination and their evaluation results
 ```
 
-UI ではテスト結果 → 判定理由 → 該当トランザクション → 生 XML までワンクリックで辿れること。
+In the UI, it must be possible to navigate from test result → reason for determination → applicable transaction → raw XML with one click.
 
-### 5.2 ★ 秘匿情報の除去は Recorder への投入前に行う
+### 5.2 ★ Remove confidential information before submitting it to the Recorder
 
-**公開時のスクラブでは遅い。** ECP テスト（IIP-IDP14）では HTTP Basic 認証を使うため、
-`Authorization` ヘッダをそのまま記録すると **可逆な Base64 のまま資格情報が
-`/data` に永続化される**。公開しなくても、ディスク・バックアップ・
-Transcript ダウンロードから漏れる。
+**Scrubbing at publication time is too late.** ECP testing (IIP-IDP14) uses HTTP Basic authentication, so if the `Authorization` header is recorded as-is, the credentials remain **persisted in `/data` as reversible Base64**. Even without publication, they could leak from the disk, backups, or Transcript downloads.
 
-Recorder は入口に **Redactor** を持ち、永続化する前に不可逆に落とす。
+The Recorder has a **Redactor** at its entry point and irreversibly removes data before persistence.
 
-| 対象 | 処理 |
+| Target | Processing |
 |---|---|
-| `Authorization` / `Proxy-Authorization` | 値を捨て、`Authorization: <redacted: Basic, 42 bytes>` に置換 |
-| `Cookie` / `Set-Cookie` | 名前は残し、値を `<redacted: 24 bytes>` に置換 |
-| `application/x-www-form-urlencoded` のボディ | キー名が `password` / `passwd` / `pwd` / `secret` / `token` / `otp` / `pin` に一致する値を除去 |
-| Test Plan の `test_user_hint` | Transcript に載せない |
-| ECP の資格情報 | **実行中のみメモリ保持**。`CaseState` にも書かない（[05 §4.2](05-test-definition-format.md)） |
-| SAML の `<saml:AttributeValue>` | **Transcript には残す**（判定に必要）。公開時にマスクする（[06 §4](06-results-and-publication.md)） |
+| `Authorization` / `Proxy-Authorization` | Discard the value and replace it with `Authorization: <redacted: Basic, 42 bytes>` |
+| `Cookie` / `Set-Cookie` | Retain the name and replace the value with `<redacted: 24 bytes>` |
+| Body of `application/x-www-form-urlencoded` | Remove values whose key name matches `password` / `passwd` / `pwd` / `secret` / `token` / `otp` / `pin` |
+| `test_user_hint` of the Test Plan | Do not include it in the Transcript |
+| ECP credentials | **Retain in memory only during execution**. Do not write them to `CaseState` either ([05 §4.2](05-test-definition-format.md)) |
+| SAML `<saml:AttributeValue>` | **Retain in the Transcript** (required for the determination). Mask it at publication time ([06 §4](06-results-and-publication.md)) |
 
-設計上の要点:
+Key design points:
 
-- Redactor は **`Transcript.record()` の内部**にあり、迂回できる API を作らない
-- 除去は**不可逆**。「あとで復号できる形」で保存しない
-- 除去したこと自体は残す（ヘッダ名・バイト長）。デバッグ時に「存在したか」は分かる
-- ケース実装が `ctx.fetch()` 以外で HTTP を叩けない設計（[05 §4.3](05-test-definition-format.md)）が
-  この保証を成立させている
-- `RedactorTest` で、Basic 認証つきの ECP 往復を実行したあと
-  **`/data` 配下の全バイト列に資格情報が現れないこと**を検証する
+- The Redactor is **inside `Transcript.record()`**; do not create an API that can bypass it.
+- Removal is **irreversible**. Do not store data in a form that can be decrypted later.
+- Retain the fact that removal occurred (header name and byte length). It must be possible to tell during debugging whether the data existed.
+- The design in which case implementations cannot issue HTTP except through `ctx.fetch()` ([05 §4.3](05-test-definition-format.md)) establishes this guarantee.
+- With `RedactorTest`, after executing an ECP round trip with Basic authentication, verify that **the credentials do not appear in any byte sequence under `/data`**.
 
-## 6. コード構成（案）
+## 6. Code Structure (Proposal)
 
 ```
 samlier/
-├── core/            ドメインモデル (Plan, Run, Case, Result, Verdict)
+├── core/            Domain models (Plan, Run, Case, Result, Verdict)
 ├── saml/
-│   ├── normal/      OpenSAML ベースの生成・解析
-│   ├── raw/         DOM/StAX ベースの生成（Phase 4 の足場）
-│   ├── crypto/      Santuario ラッパ、鍵生成、アルゴリズム定義
-│   └── metadata/    メタデータ生成・variant・MDQ
+│   ├── normal/      OpenSAML-based generation and parsing
+│   ├── raw/         DOM/StAX-based generation (foundation for Phase 4)
+│   ├── crypto/      Santuario wrapper, key generation, algorithm definitions
+│   └── metadata/    Metadata generation, variants, MDQ
 ├── peer/
-│   ├── sp/          Test SP のエンドポイントと状態（PAOS ACS を含む）
-│   ├── idp/         Test IdP のエンドポイントと状態
-│   └── ecp/         ECP クライアント（対象 IdP の ECP 対応を試験する。§3.7）
-├── runner/          状態機械、アーミング、attestation
+│   ├── sp/          Test SP endpoints and state (including PAOS ACS)
+│   ├── idp/         Test IdP endpoints and state
+│   └── ecp/         ECP client (tests the target IdP's ECP support. §3.7)
+├── runner/          State machine, arming, attestation
 ├── tests/
-│   ├── defs/        *.yaml（テスト定義、リソースとして埋め込み）
-│   └── impl/        Java 実装。YAML の id と 1:1 で紐づく
-├── store/           SQLite アクセス
+│   ├── defs/        *.yaml (test definitions, embedded as resources)
+│   └── impl/        Java implementations. Bound 1:1 to YAML ids
+├── store/           SQLite access
 ├── api/             REST + SSE (Javalin)
-├── auth/            Hosted 版の管理アクセス（シークレット URL、将来の OIDC RP）
-│                    ★ peer/ とはセッション・Cookie・オリジンを完全に分離する
-└── web/             React + Vite (TypeScript)。report.html も同じアプリから静的ビルド
+├── auth/            Administrative access for the hosted version (secret URL, future OIDC RP)
+│                    ★ Completely separate sessions, cookies, and origin from peer/
+└── web/             React + Vite (TypeScript). report.html is also a static build from the same application
 ```
 
-CI で「YAML に対応する実装クラスがある」「実装クラスに対応する YAML がある」を検証する。
+In CI, verify that “there is an implementation class corresponding to each YAML” and “there is a YAML corresponding to each implementation class.”

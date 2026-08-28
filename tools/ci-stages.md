@@ -1,14 +1,14 @@
-# CI ステージの分離
+# Separation of CI stages
 
-**G1 用検査とリリース用 CI は別ジョブにする。**
-G1 の段階ではテストケース実装がまだ存在しないため、
-ケース実装を要求する規則を同じジョブに入れると G1 が永久に通らない。
+**Use separate jobs for G1 checks and release CI.**
+Test-case implementations do not yet exist during the G1 phase;
+putting rules that require case implementations in the same job would make G1 fail forever.
 
-| ステージ | いつ走るか | ネットワーク | 何を検査するか |
+| Stage | When it runs | Network | What it checks |
 |---|---|---|---|
-| **`g1Check`** | 全 PR（現在の主ジョブ） | 不要 | カタログの構造だけ。[05 §5](../docs/05-test-definition-format.md) の規則 1〜6c-0、20d |
-| **`specReconcile`** | 定期 + リリース前 | **必要** | 原文を取得し、節/句のダイジェストと語の検査。規則 5b-3・5b-4・6c-1 |
-| **`releaseCheck`** | `release` / `publish` / `dockerPush` の前 | 不要 | **ケース実装を要求する規則**。7〜19、20b・20c、21〜28 |
+| **`g1Check`** | Every PR (current main job) | Not required | Catalog structure only. Rules 1–6c-0 and 20d of [05 §5](../docs/05-test-definition-format.md) |
+| **`specReconcile`** | Scheduled + before release | **Required** | Fetches source text and checks section/clause digests and terminology. Rules 5b-3, 5b-4, and 6c-1 |
+| **`releaseCheck`** | Before `release` / `publish` / `dockerPush` | Not required | **Rules requiring case implementations**: 7–19, 20b–20c, 21–28 |
 
 ```
 tasks.named("release")    { dependsOn(":specReconcile", ":releaseCheck") }
@@ -16,198 +16,195 @@ tasks.named("publish")    { dependsOn(":specReconcile", ":releaseCheck") }
 tasks.named("dockerPush") { dependsOn(":specReconcile", ":releaseCheck") }
 ```
 
-## `g1Check` に含める規則（G1 作成フェーズで通る必要がある）
+## Rules included in `g1Check` (must pass during the G1 creation phase)
 
-- 1〜5d: カタログの構造・述語・条件・`configuration_failure_semantics`
-- 6b: 全 obligation に `review` ブロックがある（`state: PENDING_REVIEW` を許容）
-- 6c / 6c-0: `source_spec` / `source_selector` / `source_section_digest` / `source_clause` の存在と範囲
-- 6: `NOT_OBSERVABLE` の obligation が理由文を持ち、ケースを持たない
-- 20d: 条件付き義務の適用性評価がケース実行より先
+- 1–5d: Catalog structure, predicates, conditions, and `configuration_failure_semantics`
+- 6b: Every obligation has a `review` block (`state: PENDING_REVIEW` is permitted)
+- 6c / 6c-0: Presence and ranges of `source_spec` / `source_selector` / `source_section_digest` / `source_clause`
+- 6: `NOT_OBSERVABLE` obligations have a reason statement and no cases
+- 20d: Applicability of conditional obligations is evaluated before case execution
 
-## `releaseCheck` に回す規則（G1 完了後に有効になる）
+## Rules deferred to `releaseCheck` (become effective after G1 is complete)
 
-- ★ **承認の確認は `coverage.yaml` を見ない**。固定 SHA の `g1_ci_verify.sh` を実行し、
-  生成された `build/spec-reconcile-report.json` の
-  **`g1.complete == true`** と **`provenance.validator_source_kind == "external-pin"`**
-  を確認する（`coverage.yaml` の `review` は常に `PENDING_REVIEW` のまま）
-- 7: `NOT_OBSERVABLE` 以外の全 obligation が 1 件以上のテストケースを持つ
-- 8〜19: テスト定義と実装の整合（YAML ↔ `TestCaseImpl`）
-- 20b・20c: `CapabilityBranchTest` / outcome→Verdict 変換
-- 21〜28: 生成物の一致、golden fixture、outbox 規約、依存仕様の版固定
+- ★ **Approval is not checked by looking at `coverage.yaml`**. Run the pinned-SHA `g1_ci_verify.sh`,
+  in the generated `build/spec-reconcile-report.json`
+  **`g1.complete == true`** and **`provenance.validator_source_kind == "external-pin"`**
+  then verify **`g1.complete == true`** and **`provenance.validator_source_kind == "external-pin"`**
+  in the generated `build/spec-reconcile-report.json` (`review` in `coverage.yaml` remains `PENDING_REVIEW` at all times).
+- 7: Every obligation other than `NOT_OBSERVABLE` has at least one test case
+- 8–19: Consistency between test definitions and implementations (YAML ↔ `TestCaseImpl`)
+- 20b–20c: `CapabilityBranchTest` / outcome→Verdict conversion
+- 21–28: Generated-artifact equality, golden fixture, outbox rules, and dependency-spec version pinning
 
-## 実体（`.github/workflows/g1.yml`）
+## Actual implementation (`.github/workflows/g1.yml`)
 
-| job | trigger | ネットワーク | 内容 |
+| job | trigger | Network | Content |
 |---|---|---|---|
-| `g1-check` | PR / push | 不要 | `g1_docgen.py --check` + **`--structural-only`**（CI 側に除外リストを書かない） |
-| `spec-reconcile` | push / 定期 / 手動 | **必要** | 原文と全 <!--g1:specs-->25<!--/g1--> 仕様を強制再取得して照合 |
-| `g1b-approval` | **常に実行**（ジョブ条件を置かない） | 必要 | 署名済み承認の検証。**固定 SHA から runner と依存を取り出して隔離実行**し、`g1.complete` / provenance / pin の一致を確認 |
+| `g1-check` | PR / push | Not required | `g1_docgen.py --check` + **`--structural-only`** (do not write an exclusion list on the CI side) |
+| `spec-reconcile` | push / scheduled / manual | **Required** | Force-fetches and reconciles the source text and all <!--g1:specs-->25<!--/g1--> specifications |
+| `g1b-approval` | **Always runs** (no job condition) | Required | Validates signed approval. **Extracts the runner and dependencies from the pinned SHA and runs them in isolation**, then checks `g1.complete` / provenance / pin equality |
 
-`g1b-approval` は **`tools/g1_ci_verify.sh` を呼ばず、同等の処理を workflow に展開している**。
-ラッパー自身も改変されうるため、**CI 設定側に置くことが最後の trust anchor** になる。
+`g1b-approval` **does not call `tools/g1_ci_verify.sh`; it expands the equivalent process in the workflow**.
+Because the wrapper itself can be modified, **putting this in the CI configuration is the final trust anchor**.
 
-必要な repository variables:
+Required repository variables:
 
-| 変数 | 内容 |
+| Variable | Content |
 |---|---|
-| `G1_TOOLS_COMMIT` | runner / validator / 依存の取得元（40 桁完全 SHA）。**承認時に決めて設定する** |
-| `G1_ALLOWED_SIGNERS` | `gpg.ssh.allowedSignersFile` の内容（承認者の公開鍵）。★ `env:` 経由で渡す（`${{ }}` を run に直接展開すると script injection になる） |
-| `G1_SIGNER_MAP` | 任意。`principal=reviewer-id,...` の外部固定マッピング。未設定なら **reviewer は署名者 principal と一致していなければならない** |
+| `G1_TOOLS_COMMIT` | Source for runner / validator / dependencies (complete 40-digit SHA). **Set this at approval time.** |
+| `G1_ALLOWED_SIGNERS` | Contents of `gpg.ssh.allowedSignersFile` (approvers' public keys). ★ Pass through `env:` (directly expanding `${{ }}` into `run` causes script injection) |
+| `G1_SIGNER_MAP` | Optional external fixed mapping of `principal=reviewer-id,...`. If unset, **reviewer must equal the signer's principal** |
 
-### ★ ジョブ条件で有効・無効を切り替えない
+### Do not toggle enablement with a job condition ★
 
-条件で skip されたジョブは GitHub では **Success 扱い**になり、
-required check にしてもマージを阻止しない。
-`if: vars.G1B_ENABLED == 'true'` のような条件を置くと、
-**変数を消すだけでゲートを無効化できる**。
+A job skipped by a condition is treated as **Success** by GitHub,
+and does not block merging even when made a required check.
+Adding a condition such as `if: vars.G1B_ENABLED == 'true'` would let the gate be disabled
+**simply by deleting the variable**.
 
-`g1b-approval` は**常に実行**し、承認が済んでいなければ**失敗する**。
-G1b 前はこのジョブが赤いのが正しい状態であり、
-**required check にするかどうかは branch protection 側で切り替える**。
+`g1b-approval` **always runs** and **fails** if approval is incomplete.
+Before G1b, this job being red is the correct state;
+**whether to make it a required check is switched on the branch-protection side**.
 
-**`.github/` と `tools/g1_*` は `.github/CODEOWNERS` で保護し、
-branch protection で「CODEOWNERS のレビュー必須」にすること。**
-これをしないと、workflow を書き換えるだけでゲート全体が無効になる。
+**Protect `.github/` and `tools/g1_*` with `.github/CODEOWNERS`,
+and require “CODEOWNERS review” in branch protection.**
+Without this, rewriting the workflow alone disables the entire gate.
 
-## 実装状況
+## Implementation status
 
-| ステージ | 実体 | 状態 |
+| Stage | Actual implementation | Status |
 |---|---|---|
-| `g1Check` | `tools/g1_validate.py --offline` の構造検査部（SR-15〜SR-29, SR-36）+ `tools/g1_docgen.py --check` | 通る |
-| `specReconcile` | `tools/g1_validate.py`（**強制再取得**で原文と全 <!--g1:specs-->25<!--/g1--> 仕様を照合） | **`totals.blocking_failures == 0`**（承認前は SR-30 / SR-31 が FAIL のまま残る）。★ PASS 数は検査項目を足すたびに変わるので固定値を書かない |
-| `releaseCheck` | 未実装。テストケースが 0 件のため（G2 完了後） | 未実施 |
+| `g1Check` | Structural checks in `tools/g1_validate.py --offline` (SR-15–SR-29, SR-36) + `tools/g1_docgen.py --check` | Passes |
+| `specReconcile` | `tools/g1_validate.py` (**force-fetches** and reconciles source text and all <!--g1:specs-->25<!--/g1--> specifications) | **`totals.blocking_failures == 0`** (before approval, SR-30 / SR-31 remain FAIL). ★ Do not hard-code a PASS count because it changes whenever checks are added |
+| `releaseCheck` | Not implemented because there are 0 test cases (after G2 is complete) | Not run |
 
-`build/spec-reconcile-report.json` の `checks[]` は、どの検査がブロッキングかを
-`totals.blocking_failures` で区別する。**SR-30（open question 残存）と SR-31（未承認）は
-G1 の完了条件**であり、作成フェーズでは FAIL のまま提出される。
-それ以外の FAIL は成果物の欠陥を意味し、`g1_validate.py` は終了コード 1 を返す。
+`checks[]` in `build/spec-reconcile-report.json` distinguishes blocking checks using
+`totals.blocking_failures`. **SR-30 (open question remains) and SR-31 (not approved)
+are completion conditions for G1** and remain FAIL when submitted during the creation phase.
+Any other FAIL indicates a defect in the artifacts, and `g1_validate.py` returns exit code 1.
 
-### ★ 承認は「対象 commit の外にある署名付き記録」に拘束される
+### ★ Approval is bound to a signed record outside the target commit
 
-`obligation_digest` は事故による改変を検出するが、**digest を計算し直せる者**には無力である。
-そこで承認の真正性は **git の署名**でのみ担保する。
+`obligation_digest` detects accidental modification, but is powerless against **someone who can recompute the digest**.
+Therefore, approval authenticity is guaranteed **only by the git signature**.
 
 ```
-commit C : tests/{coverage,specs,predicates}.yaml     ← 承認対象（全て PENDING_REVIEW）
-commit A : tests/approvals/g1.yaml                    ← 承認記録。★ C の外・署名必須
-           （coverage.yaml は編集しない）
+commit C : tests/{coverage,specs,predicates}.yaml     ← Approval target (all PENDING_REVIEW)
+commit A : tests/approvals/g1.yaml                    ← Approval record. ★ Outside C; signature required
+           (do not edit coverage.yaml)
 ```
 
-**承認記録を承認対象の中に置いてはならない。** 記録を追記した時点で対象 commit が
-変わってしまい、正常な手順では決して一致しない（自己参照）。
+**Do not place the approval record inside the approval target.** Appending the record changes the target commit,
+so it can never match under the normal procedure (self-reference).
 
 `tests/approvals/g1.yaml`:
 
 ```yaml
-target_commit: <40 桁の完全な SHA-1>          # 短縮 SHA は拒否する
+target_commit: <40-digit complete SHA-1>          # Reject abbreviated SHAs
 artifact_digests:
-  tests/coverage.yaml:   "sha256:…"          # 対象 commit の内容の digest
+  tests/coverage.yaml:   "sha256:…"          # Digest of the target commit's contents
   tests/specs.yaml:      "sha256:…"
   tests/predicates.yaml: "sha256:…"
 evidence:
   kind: signed-commit
-  reviewers: [<承認者>]
-  evidence_url: https://…                     # PR / レビュー記録
-  # ref は置かない。自分を含む commit の SHA を書くのは自己参照になる
+  reviewers: [<approver>]
+  evidence_url: https://…                     # PR / review record
+  # Do not place ref here. Writing a commit SHA that includes itself is self-reference.
 approvals:
   - obligation: IIP-G01.a
-    obligation_digest: "sha256:…"             # 対象 commit の内容から再計算した値
-    reviewer: <承認者>                         # authored_by と異なること
-    approved_at: 2026-08-26T12:00:00+00:00    # タイムゾーン必須の ISO-8601
+    obligation_digest: "sha256:…"             # Recomputed from the target commit's contents
+    reviewer: <approver>                         # Must differ from authored_by
+    approved_at: 2026-08-26T12:00:00+00:00    # ISO-8601 with required time zone
 ```
 
-validator（**SR-38**）が確認すること:
+The validator (**SR-38**) verifies:
 
-| 確認 | 手段 |
+| Check | Method |
 |---|---|
-| 承認記録が commit されている | `git log -1 -- tests/approvals/g1.yaml` |
-| **保護対象ファイルの現在値が A と一致する** | `git show <A>:<path>` とバイト比較 |
-| **`tests/` のファイル集合が A と一致する** | `git ls-tree -r A tests` |
-| **その commit が署名されている** | `git verify-commit` |
-| **正本は署名済み commit の中身**（作業ツリーではない） | `git show <C_sig>:tests/approvals/g1.yaml` |
-| 作業ツリーが署名済み内容と一致する | digest 比較 |
-| `target_commit` が 40 桁で git に実在する | `git rev-parse --verify <sha>^{commit}` の完全一致 |
-| 対象 commit の成果物 digest が一致する | `git show <C>:tests/*.yaml` |
-| 全義務が承認され、digest が対象 commit の内容と一致する | 対象 commit から再計算 |
-| reviewer ≠ authored_by / `evidence.reviewers` に含まれる | 対象 commit の `authored_by` と照合 |
-| `approved_at` がタイムゾーン付き ISO-8601 | 文字列全体を `fromisoformat` |
+| Approval record is committed | `git log -1 -- tests/approvals/g1.yaml` |
+| **Current values of protected files match A** | `git show <A>:<path>` and byte comparison |
+| **The `tests/` file set matches A** | `git ls-tree -r A tests` |
+| **That commit is signed** | `git verify-commit` |
+| **The canonical copy is the signed commit's contents** (not the working tree) | `git show <C_sig>:tests/approvals/g1.yaml` |
+| Working tree matches signed contents | Digest comparison |
+| `target_commit` is 40 digits and exists in git | Exact match from `git rev-parse --verify <sha>^{commit}` |
+| Target commit artifact digests match | `git show <C>:tests/*.yaml` |
+| All obligations are approved and digests match target commit contents | Recomputed from target commit |
+| reviewer ≠ authored_by / is included in `evidence.reviewers` | Compared with `authored_by` from target commit |
+| `approved_at` is ISO-8601 with a time zone | Entire string passed to `fromisoformat` |
 
-### 承認が守る対象（`PROTECTED_PATHS`）
+### Protected by approval (`PROTECTED_PATHS`)
 
-承認記録だけを署名で守っても意味がない。**署名済み A の tree と現在値を突き合わせる対象**:
+Signing only the approval record is meaningless. These are **compared between signed A's tree and current values**:
 
 ```
 tests/coverage.yaml      tests/specs.yaml       tests/predicates.yaml
 tests/approvals/g1.yaml  tools/g1_validate.py   tools/g1_extract.py
 ```
 
-加えて **`tests/` 配下のファイル集合**が A と一致することも確認する（追加・削除の検出）。
-これがないと、A の後に coverage を書き換えて `obligation_digest` を再計算するだけで通ってしまう。
+It also verifies that the **file set under `tests/`** matches A (detecting additions and deletions).
+Without this, one could rewrite coverage after A and pass simply by recomputing `obligation_digest`.
 
-**validator 自身を保護対象に含めている**が、それだけでは足りない。
-**改変された validator を実行すると、その validator は自分の改変を報告しない**（自己検査の限界）。
+**The validator itself is included among the protected paths**, but that is not sufficient.
+**If a modified validator is executed, it will not report its own modification** (the limit of self-inspection).
 
-### ★ 承認の検証は `tools/g1_trusted_verify.py` から行う
+### ★ Validate approval through `tools/g1_trusted_verify.py`
 
 ```bash
 python3 tools/g1_trusted_verify.py [--offline]
-#   0 = ブロッキング違反なし / 1 = あり / 2 = 検証の前提が崩れている
+#   0 = no blocking violations / 1 = present / 2 = verification preconditions are broken
 ```
 
-このランナーは**現在の checkout の validator を実行しない**。
+This runner **does not execute the validator from the current checkout**.
 
-1. **自分自身を `python -I` で起動し直す**（`PYTHONPATH` と user site を無効化）。
-   これをしないと `PYTHONPATH=. python tools/g1_trusted_verify.py` で
-   リポジトリ直下の未署名 `yaml.py` が署名検証**前に**実行される
-2. 承認記録を最後に変更した commit A を git から特定する
-3. A の署名を検証する（`signed-commit` は `git verify-commit`、
-   `signed-tag` は `git verify-tag` + tag が A を指すことの確認）
-4. **A が対象 commit C の子孫**であることを確認する
-5. **`C..A` の変更が `tests/approvals/g1.yaml` だけ**であることを確認する
-6. ★ **validator は A から取らない**。`G1_VALIDATOR_COMMIT`（CI が外部から固定する
-   trust anchor。**40 桁完全 SHA のみ**。`HEAD` / `main` などの可変 ref は拒否）が
-   あればそこから、なければ **C**（レビュアーが実際に読んだ成果物）から
-   `g1_validate.py` / `g1_extract.py` を隔離ディレクトリに取り出す
-7. `python -I` で実行し、検査対象リポジトリは `G1_REPO_ROOT` で渡す
+1. **Relaunches itself with `python -I`** (disabling `PYTHONPATH` and the user site).
+   Without this, `PYTHONPATH=. python tools/g1_trusted_verify.py` would execute an unsigned `yaml.py` in the repository root **before** signature verification.
+2. Identifies commit A that last changed the approval record from git.
+3. Verifies A's signature (`signed-commit` uses `git verify-commit`; `signed-tag` uses `git verify-tag` and confirms that the tag points to A).
+4. Confirms that **A is a descendant of target commit C**.
+5. Confirms that **the only change in `C..A` is `tests/approvals/g1.yaml`**.
+6. ★ **Does not take the validator from A**. If `G1_VALIDATOR_COMMIT` (a CI-fixed external
+   trust anchor; **only a complete 40-digit SHA**; mutable refs such as `HEAD` / `main` are rejected)
+   exists, takes it from there; otherwise takes `g1_validate.py` / `g1_extract.py` from **C** (the artifact actually read by the reviewer) into an isolated directory.
+7. Executes with `python -I` and passes the repository under test through `G1_REPO_ROOT`.
 
-> **なぜ A から取ってはいけないか**: A の署名者が承認記録と一緒に validator を
-> 弱体化できてしまう。実際、A に「即座に全件 PASS を出して終了する validator」を
-> 含めて署名すると、署名検証を通ったうえで `exit 0` になった。
+> **Why it must not be taken from A**: The signer of A could weaken the validator together with the approval record.
+> In fact, including a validator in A that “immediately reports PASS for everything and exits” resulted in `exit 0` after signature verification passed.
 >
-> C から取る場合も、C 自体を署名者が作れる余地は残る。
-> **CI では `G1_VALIDATOR_COMMIT` を外部設定で固定すること。**
+> Taking it from C still leaves room for the signer to create C itself.
+> **CI must fix `G1_VALIDATOR_COMMIT` through external configuration.**
 
-### ★ ランナー自身の固定 — `tools/g1_ci_verify.sh`
+### Pin the runner itself — `tools/g1_ci_verify.sh` ★
 
-ランナー内の制約（`C..A` の制限、validator の取得元固定）は、
-**ランナーを書き換えれば削除できる**。ランナーの中ではこれを防げない。
+The constraints inside the runner (the `C..A` restriction and fixed validator source)
+**can be removed by rewriting the runner**. The runner cannot prevent this internally.
 
 ```bash
-G1_TOOLS_COMMIT=<40桁SHA> tools/g1_ci_verify.sh [--offline]
+G1_TOOLS_COMMIT=<40-digit SHA> tools/g1_ci_verify.sh [--offline]
 ```
 
-このラッパーは固定 SHA から `g1_trusted_verify.py` / `g1_validate.py` / `g1_extract.py`
-を取り出し、`python -I` で実行する。検査対象は `G1_REPO_ROOT` で渡すため、
-**隔離ディレクトリではなく実リポジトリ**が検査される。
+This wrapper extracts `g1_trusted_verify.py` / `g1_validate.py` / `g1_extract.py` from the pinned SHA
+and executes them with `python -I`. Because the repository under test is passed through `G1_REPO_ROOT`,
+**the real repository**, not the isolated directory, is inspected.
 
-- `G1_TOOLS_COMMIT` 未設定 → **exit 2**（fail closed）
-- `HEAD` / `main` などの可変 ref → **exit 2**
-- ★ **validator の取得元は常に `G1_TOOLS_COMMIT`**。環境に残った
-  `G1_VALIDATOR_COMMIT` は `env -u` で落とす（ambient 継承で
-  「runner は正しいが validator だけ別 commit」になるのを防ぐ）。
-  別 anchor を使う場合は `--validator-commit=<40桁SHA>` を**明示**する
-  （警告を出力し、`provenance.validator_source` に記録される）
-- 実測: 現在の checkout の runner を「即時 PASS」に書き換えても、
-  ラッパー経由なら `BLOCK`（SR-38 / SR-40）
+- `G1_TOOLS_COMMIT` unset → **exit 2** (fail closed)
+- Mutable refs such as `HEAD` / `main` → **exit 2**
+- ★ **The validator source is always `G1_TOOLS_COMMIT`**. Remove any inherited
+  `G1_VALIDATOR_COMMIT` with `env -u` (to prevent ambient inheritance from making
+  “the runner correct but the validator from another commit”). To use another anchor,
+  explicitly specify `--validator-commit=<40-digit SHA>`
+  (a warning is printed and recorded in `provenance.validator_source`).
+- Observed: Even if the current checkout's runner is rewritten to “immediate PASS”,
+  the wrapper returns `BLOCK` (SR-38 / SR-40)
 
-**最後の一枚は CI 設定側で固定する。** ラッパー自身もリポジトリ内のコピーなので、
-CI では下のスニペットを workflow に**インラインで**書くか、固定 SHA から取り出して実行する。
+**Fix the final layer in the CI configuration.** Since the wrapper itself is a copy in the repository,
+CI must write the snippet below **inline** in the workflow or extract and execute it from a pinned SHA.
 
 ```yaml
-# .github/workflows 等（例）
+# Example in .github/workflows, etc.
 - name: G1 approval verification
   env:
-    G1_TOOLS_COMMIT: "0000000000000000000000000000000000000000"   # ← 承認時に固定
+    G1_TOOLS_COMMIT: "0000000000000000000000000000000000000000"   # ← Fix at approval time
   run: |
     set -euo pipefail
     TMP=$(mktemp -d); mkdir -p "$TMP/tools"
@@ -217,72 +214,70 @@ CI では下のスニペットを workflow に**インラインで**書くか、
     env -u PYTHONPATH G1_REPO_ROOT="$PWD"         G1_RUNNER_COMMIT="$G1_TOOLS_COMMIT"         G1_VALIDATOR_COMMIT="$G1_TOOLS_COMMIT"         python3 -I "$TMP/tools/g1_trusted_verify.py"
 ```
 
-監査レポートの `provenance` に `validator_source` / `validator_source_kind`
-（`external-pin` / `target-commit`）/ `runner_source` / `repo_root` が記録される。
+The audit report's `provenance` records `validator_source` / `validator_source_kind`
+(`external-pin` / `target-commit`) / `runner_source` / `repo_root`.
 
-### 承認時に `coverage.yaml` を編集しない
+### Do not edit `coverage.yaml` at approval time
 
-`C..A` を承認記録だけに制限した結果、**承認では `g1_state` も編集しない**。
-完了状態は承認記録から導出する（レポートの `g1.state` は導出値、
-`g1.authored_state` が `coverage.yaml` の記載）。
+Because `C..A` is restricted to the approval record, **do not edit `g1_state` during approval either**.
+Completion status is derived from the approval record (`g1.state` in the report is derived;
+`g1.authored_state` is the value recorded in `coverage.yaml`).
 
-**shadow import の遮断**: python は `sys.path[0]` にスクリプトの位置を入れるため、
-未追跡の `tools/yaml.py` を置くだけで署名検証より前に任意コードが走る。
-ランナーは冒頭で自分のディレクトリを `sys.path` から外し、
-抽出した validator は `tools/` を `sys.path` に一切載せない
-（`g1_extract` は明示パスで `importlib` 読み込み）。
-併せて **SR-40**（`tools/` に未追跡 `.py` がない）と
-**`tools/` のファイル集合の一致**で、shim の設置自体を検出する。
+**Block shadow imports**: Python puts the script's location in `sys.path[0]`,
+so merely placing an untracked `tools/yaml.py` runs arbitrary code before signature verification.
+The runner removes its own directory from `sys.path` at startup,
+and the extracted validator never puts `tools/` on `sys.path`
+(`g1_extract` loads it with `importlib` using an explicit path).
+Together with **SR-40** (no untracked `.py` in `tools/`) and
+**matching the `tools/` file set**, this detects the shim's installation itself.
 
-**限界の明示**（validator はこれ以上を主張しない）:
+**Explicit limits** (the validator makes no stronger claim):
 
-| 保証できること | 保証できないこと |
+| Can guarantee | Cannot guarantee |
 |---|---|
-| 署名鍵の保持者が承認記録に署名した | その鍵が**実在のレビュアー**のものか（`allowedSignersFile` / CODEOWNERS などリポジトリ運用側の設定に依存） |
-| 承認後に保護対象ファイルが変わっていない | **ランナー自身**が改変された場合。→ `tools/g1_ci_verify.sh` が固定 SHA からランナーを取り出す（下記） |
-| レビュアーが原文を読んだと**記録した**こと | レビュアーが**実際に**原文を読んだこと |
+| Holder of the signing key signed the approval record | Whether that key belongs to a **real reviewer** (depends on repository-side configuration such as `allowedSignersFile` / CODEOWNERS) |
+| Protected files did not change after approval | If **the runner itself** was modified. → `tools/g1_ci_verify.sh` extracts the runner from a pinned SHA (below) |
+| The reviewer **recorded** that they read the source text | That the reviewer **actually** read the source text |
 
-**G1 完了の判定式**（レポートの `g1.complete`）:
+**G1 completion formula** (report's `g1.complete`):
 
 ```
-complete = (blocking failure が 0)
-       AND (open question が 0)
-       AND (全 obligation が tests/approvals/g1.yaml で承認済み)
-# coverage.yaml は承認時に編集しない（C..A の制限のため編集できない）
+complete = (blocking failure = 0)
+       AND (open question = 0)
+       AND (all obligations approved in tests/approvals/g1.yaml)
+# Do not edit coverage.yaml at approval time (it cannot be edited because of the C..A restriction)
 ```
 
-`state: APPROVED` に書き換えるだけでは通らない。**SR-36** が
-reviewer / approved_at の存在、reviewer ≠ authored_by、
-承認時に記録した spec / version / selector / 節ダイジェストが**現在値と一致する**ことを要求する
-（原文が変われば節ダイジェストが変わり、承認は自動的に失効する）。
+Simply changing to `state: APPROVED` does not pass. **SR-36** requires
+reviewer / approved_at, reviewer ≠ authored_by, and the spec / version / selector / section digest recorded at approval to match current values
+(if source text changes, the section digest changes and approval automatically becomes invalid).
 
-## 依存環境
+## Dependency environment
 
 ```bash
 python3 -m venv .venv
 .venv/bin/pip install -r tools/requirements.txt   # PyYAML 6.0.2 / pdfminer.six 20240706
-.venv/bin/python tools/g1_validate.py             # 既定 = 強制再取得（network）
-.venv/bin/python tools/g1_validate.py --offline   # キャッシュのみ。CI の g1Check 用
+.venv/bin/python tools/g1_validate.py             # Default = force-fetch (network)
+.venv/bin/python tools/g1_validate.py --offline   # Cache only; for CI g1Check
 ```
 
-## 取得セマンティクス
+## Fetch semantics
 
-`g1_extract.fetch()` の `mode`:
+`g1_extract.fetch()` modes:
 
-| mode | 挙動 | 使う場所 |
+| mode | Behavior | Used by |
 |---|---|---|
-| `network`（既定） | **必ず再取得**してキャッシュを更新する | `specReconcile` / リリース前 |
-| `offline` | キャッシュのみ。未キャッシュなら失敗 | `g1Check`（オフライン CI） |
-| `cache-first` | キャッシュがあれば使う | 起票（`g1_author.py`）のみ |
+| `network` (default) | **Always refetches** and updates the cache | `specReconcile` / before release |
+| `offline` | Cache only. Fails if not cached | `g1Check` (offline CI) |
+| `cache-first` | Uses the cache if available | Drafting (`g1_author.py`) only |
 
-キャッシュ優先を既定にすると、**URL が到達不能でも古い内容で PASS してしまう**。
-既定を強制再取得にしたうえで、到達不能な URL では `SR-00` / `SR-33` が落ちることを実地確認済み。
+If cache-first were the default, an unreachable **URL could still PASS using stale content**.
+The default was changed to force-fetch, and it has been verified in practice that unreachable URLs produce `SR-00` / `SR-33` failures.
 
-## pin する原文は「再取得で再現する」ものに限る
+## Only pin source text that is reproducible by refetching
 
-`G1_VERIFY_STABILITY=1 python3 tools/g1_author.py` は、pin した全仕様を
-**2 回取得してバイト列が一致すること**を検証する。
+`G1_VERIFY_STABILITY=1 python3 tools/g1_author.py` verifies that **two fetches of every pinned specification produce identical bytes**.
 
-動的レンダリングされる `tools.ietf.org` の HTML と OASIS の errata HTML は
-取得のたびにバイト列が変わり digest を固定できなかったため、
-**不変のアーカイブ URL（IETF は `www.ietf.org/archive/id/*.txt`、OASIS errata は PDF）**に切り替えた。
+The dynamically rendered HTML at `tools.ietf.org` and OASIS errata HTML changed bytes on every fetch,
+so their digests could not be pinned. They were therefore switched to **immutable archive URLs
+(IETF: `www.ietf.org/archive/id/*.txt`; OASIS errata: PDF)**.

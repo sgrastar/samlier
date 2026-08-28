@@ -1,15 +1,15 @@
 # Build output
 build/*
-# ★ :specReconcile レポートは追跡しない。
-#   実行のたびに run_id / executed_at / tools の commit 状態で内容が変わるため、
-#   コミットに含めると必ず古い結果が残る（実際 53/56・SR-40 blocking のまま残っていた）。
-#   正本は CI の artifact（.github/workflows/g1.yml の upload-artifact）。
+# Do not track the :specReconcile report.
+# Its run_id, executed_at, and tools commit state change on every run, so a committed
+# copy inevitably becomes stale (one was left at 53/56 with SR-40 blocking).
+# The canonical copy is the CI artifact uploaded by .github/workflows/g1.yml.
 out/
 .gradle/
 bin/
 
-# 原文キャッシュ（:specReconcile が取得する。配布物にもリポジトリにも含めない）
-# docs/04-requirement-coverage.md の設計ゲート G1 を参照
+# Original-text cache fetched by :specReconcile; exclude it from both the
+# distribution and the repository. See design gate G1 in docs/04-requirement-coverage.md.
 build/spec-cache/
 
 # Node / frontend
@@ -17,7 +17,7 @@ node_modules/
 dist/
 *.tsbuildinfo
 
-# Runtime data（SQLite / 生成鍵 / Transcript）
+# Runtime data (SQLite / generated keys / Transcript)
 data/
 *.db
 *.db-wal
@@ -31,7 +31,7 @@ data/
 # OS
 .DS_Store
 
-# G1: 原文キャッシュと authoring 入力（原文の句を含むため配布しない）
+# G1 authoring input. It contains original clauses and must not be distributed.
 tools/g1_authoring.py
 
 # Python
