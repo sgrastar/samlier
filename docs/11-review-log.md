@@ -3334,3 +3334,14 @@ IIP-IDP17.v から字句 variant を削除し、それぞれの schema 義務へ
 補足指摘については、Asynchronous request を response error fixture に混ぜないこと、version 非互換には
 一般 Requester ではなく具体的な VersionMismatch を使うこと、同一 major の higher minor は process / reject
 のどちらも許されることを controls に明記した。CP2c の内容を先取りして判定規則は追加していない。
+
+### CP2b-Core-B 外部再レビューの完了
+
+固定 commit `28184f6` を作成者以外が修正対象に限定して再確認し、
+`verification: PASS / findings: none` を確認した。Destination、Consent の署名証拠、IdP LogoutResponse の
+top-level StatusCode、identifier uniqueness と schema の責務分離、補足 controls の全項目で前回の
+counterexample が閉じ、level / roles / condition / testability の回帰もなかった。
+
+これにより CP2b-Core-B を閉じ、CP2b（基本 Single Logout の Profile 直接句、Core §3.7、
+underlying request / response rules）全体を完了とする。残る SLO の open question は
+IIP-IDP17.b の Asynchronous Single Logout Extension だけである。
