@@ -3512,3 +3512,54 @@ runtime scope を具体化するときの読み違い防止項目として保持
 `g1_docgen.py --check` 一致、structural-only 43/44 PASS・blocking 0、network 再取得は
 61/62 PASS・blocking 0。残る FAIL は SR-31（全 542 obligations が未承認）のみで、SR-30 は解消した。
 本 checkpoint は authoring 完了であり、外部 reviewer の意味確認前なので G1b 承認ではない。
+
+---
+
+## G1b-CP3-Metadata-R1 — 2026-08-28 外部レビュー findings の一括修正
+
+固定 commit `c4f1d49` を作成者以外が Metadata 参照仕様 6 件と MDIOP consumer 規則に限定して
+双方向照合し、6 論点を受けた。参照 PDF の前置き・actor・大文字小文字を再確認し、成立する指摘を
+一括で反映した。
+
+### 誤った照合対象と actor の訂正
+
+- `IIP-MD05.d4`: EntityAttributes assertion の entity NameID は `NameQualifier` ではなく、
+  **NameID の文字内容**が enclosing `EntityDescriptor/@entityID` と一致する。entity Format では
+  `NameQualifier` 等を要求しない
+- 旧 `IIP-MD05.aa`: 「future SAML specifications ... SHOULD provide alternate identifiers」は
+  将来仕様の仕様著者が主語であり、IdP / SP 実装の obligation ではないため削除した。根拠文は
+  `IIP-MD05.a` の notes に残した
+
+### 前件不成立と観測不能の分離
+
+`IIP-MD05.a7`（同型 role が 0/1 個）、`.ae`（候補鍵が1本）、`.e3`（symmetric-key
+`KeyDescriptor` なし）、`.e5`（同じ general type が 0/1 algorithm）の各前件が観測可能に偽なら、
+`satisfied_with_note` ではなく空虚充足の `satisfied` とする。同型の placement 規則 `.f1` / `.fc` も、
+optional container が 0 件なら `satisfied` とした。`satisfied_with_note` を条件分岐不発の代用にして
+WARNING を発生させない。
+
+### forward completeness と二重計上
+
+- `IIP-MD05.ec`: `alg:DigestMethod/@Algorithm` と `alg:SigningMethod/@Algorithm` の必須属性を追加
+- `IIP-MD05.ed`: symmetric key で Symmetric Key Wrap / Key Derivation の `EncryptionMethod` を
+  掲載してよい MAY を追加。publisher に一意 verdict を付けず、consumer acceptance は親 MUST の
+  fixture で確認する
+- `IIP-MD05.fk`: `mdui:Logo/@height` と `@width` の mandatory 属性を追加
+- `IIP-MD05.aw`: `use=signing` / `use=encryption` の明示値だけを判定する。`use` 省略時の両用途は、
+  IIP 本文が同じ規則を直接 MUST とする `IIP-MD11.a` で一度だけ判定する
+
+### E94 の大文字小文字
+
+Errata E94 の置換後本文は caching について `MUST be based` とする一方、取得時刻の保存は
+`consumers must retain` と小文字化している。SAML2Meta の Notation に従い、`IIP-MD05.aq` の
+判定対象を cache expiry が `cacheDuration` に基づくことへ限定し、取得時刻を明示的に保存する
+内部実装方式を MUST にしない。
+
+### 採用しなかった指摘部分
+
+`IIP-MD05.fc` の `sp` role は維持する。IIP-MD05 は IdP / SP 双方へ MetaUi support を要求し、
+SP は IdP metadata の `DiscoHints` を消費する actor になり得るためである。ただし SP 自身へ
+`DiscoHints` の発行を要求しないことを control に明記した。
+
+義務数は 542 → 544。修正版は同じレビュアーチャットで、上記 findings の閉鎖と Metadata 外への
+回帰がないことだけを1回確認する。

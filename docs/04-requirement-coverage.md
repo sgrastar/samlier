@@ -15,13 +15,13 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 | 指標 | 値 |
 |---|---|
 | 要件 | 69 |
-| 義務（obligation） | 542 |
-| うち MUST_CLASS | 401 |
-| うち SHOULD_CLASS | 112 |
-| うち MAY_CLASS | 29 |
+| 義務（obligation） | 544 |
+| うち MUST_CLASS | 403 |
+| うち SHOULD_CLASS | 111 |
+| うち MAY_CLASS | 30 |
 | 条件付き義務 | 105 |
-| IdP プロファイル | 412 義務（Core 252 / Full 160） |
-| SP プロファイル | 318 義務（Core 181 / Full 137） |
+| IdP プロファイル | 414 義務（Core 254 / Full 160） |
+| SP プロファイル | 320 義務（Core 183 / Full 137） |
 | 非規範（イタリック）スパン | 26 |
 
 **Testability**
@@ -31,7 +31,7 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 | `AUTOMATED` | Suite と対象の直接通信で完結（ブラウザ不要） | 96 |
 | `BROWSER` | 利用者のブラウザが必要 | 216 |
 | `ATTESTED` | 対象内部の挙動を利用者が申告 | 53 |
-| `CONFIG` | 対象側の設定変更を依頼したうえで実行 | 176 |
+| `CONFIG` | 対象側の設定変更を依頼したうえで実行 | 178 |
 | `NOT_OBSERVABLE` | 外部から原理的に検証不能。ケースを作らない | 1 |
 
 **判定に関する注意**
@@ -430,7 +430,6 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 | `IIP-MD05.a7` | RECOMMENDED | idp/sp | `CONFIG` | — | full | 同じ型の複数 role descriptor は protocolSupportEnumeration を重複させないことが推奨される |
 | `IIP-MD05.a8` | MUST | idp/sp | `CONFIG` | — | core | AdditionalMetadataLocation/@namespace は参照先文書 root の XML namespace と一致する |
 | `IIP-MD05.a9` | MUST | idp/sp | `CONFIG` | — | core | SAML V2.0 role の protocolSupportEnumeration は SAML V2.0 protocol namespace URI を含む |
-| `IIP-MD05.aa` | SHOULD | idp/sp | `CONFIG` | — | full | 同じ namespace を共有する将来 SAML 仕様は必要に応じ alternate protocol support identifier を提供することが望ましい |
 | `IIP-MD05.ab` | MUST | idp/sp | `CONFIG` | — | core | 単一方向の message だけを扱う endpoint では ResponseLocation を省略する |
 | `IIP-MD05.ac` | MUST | idp/sp | `CONFIG` | — | core | affiliation owner 自身が member の場合は AffiliateMember にもその識別子を含める |
 | `IIP-MD05.ad` | SHOULD | idp/sp | `CONFIG` | — | full | relying party は metadata 内の同一用途のどの鍵の使用も許容することが望ましい |
@@ -446,13 +445,13 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 | `IIP-MD05.an` | MUST | idp/sp | `AUTOMATED` | — | core | 許可外 transform を受理する場合、署名対象 metadata の内容が除外されていないことを保証する |
 | `IIP-MD05.ao` | MAY | idp/sp | `AUTOMATED` | — | full | metadata 署名は ds:KeyInfo を省略してよい |
 | `IIP-MD05.ap` | MUST | idp/sp | `CONFIG` | — | core | nested metadata では parent/root と子の短い方の validUntil / cacheDuration を適用する |
-| `IIP-MD05.aq` | MUST | idp/sp | `CONFIG` | — | core | metadata cache は cacheDuration に基づき、instance 取得時刻を保持する |
+| `IIP-MD05.aq` | MUST | idp/sp | `CONFIG` | — | core | metadata cache は cacheDuration に基づく |
 | `IIP-MD05.ar` | MUST | idp/sp | `CONFIG` | — | core | effective validUntil 到達時に metadata を invalid とみなす |
 | `IIP-MD05.as` | MUST_NOT | idp/sp | `CONFIG` | — | core | invalid になった metadata を使用してはならない |
 | `IIP-MD05.at` | MAY | idp/sp | `CONFIG` | — | full | cacheDuration を過ぎても明示的に invalid でない metadata は使用してよい |
 | `IIP-MD05.au` | MAY | idp/sp | `CONFIG` | — | full | ResponseLocation 省略時は response を Location で処理する |
 | `IIP-MD05.av` | MUST | idp/sp | `CONFIG` | — | core | 同一名の indexed endpoint 集合で index を一意にし、定義された順序で default を選ぶ |
-| `IIP-MD05.aw` | MUST | idp/sp | `CONFIG` | — | core | KeyDescriptor/@use を signing+TLS、encryption-key wrapping、省略時は両方として解釈する |
+| `IIP-MD05.aw` | MUST | idp/sp | `CONFIG` | — | core | 明示された KeyDescriptor/@use を signing+TLS または encryption-key wrapping として解釈する |
 | `IIP-MD05.b` | MUST | idp/sp | `CONFIG` | — | core | SAML V2.0 Metadata Schema に適合したメタデータに対応 |
 | `IIP-MD05.c` | MUST | idp/sp | `CONFIG` | — | core | SAML V2.0 Metadata Interoperability Profile に対応 |
 | `IIP-MD05.c1` | MUST | idp/sp | `CONFIG` | — | core | 対象が生成する MDIOP metadata は安全な通信要件の記述として自己完結する |
@@ -473,7 +472,7 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 | `IIP-MD05.d1` | MUST | idp/sp | `CONFIG` | — | core | EntityAttributes 内の Assertion を標準 SAML assertion rules に従って処理する |
 | `IIP-MD05.d2` | MUST_NOT | idp/sp | `CONFIG` | — | core | EntitiesDescriptor/Extensions の EntityAttributes に Assertion を含めてはならない |
 | `IIP-MD05.d3` | MUST_NOT | idp/sp | `CONFIG` | — | core | 1つの Extensions 内に EntityAttributes を複数置いてはならない |
-| `IIP-MD05.d4` | MUST | idp/sp | `CONFIG` | — | core | EntityAttributes assertion の Subject は entity format の NameID で、NameQualifier は enclosing entityID と対応する |
+| `IIP-MD05.d4` | MUST | idp/sp | `CONFIG` | — | core | EntityAttributes assertion の Subject は entity format の NameID で、その値は enclosing entityID と一致する |
 | `IIP-MD05.d5` | MUST_NOT | idp/sp | `CONFIG` | — | core | EntityAttributes assertion の Subject に SubjectConfirmation を含めてはならない |
 | `IIP-MD05.d6` | MUST | idp/sp | `CONFIG` | — | core | EntityAttributes assertion は AttributeStatement をちょうど1つ含む |
 | `IIP-MD05.d7` | MUST_NOT | idp/sp | `CONFIG` | — | core | EntityAttributes assertion に他の statement type を含めてはならない |
@@ -491,6 +490,8 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 | `IIP-MD05.e9` | SHOULD | idp/sp | `CONFIG` | — | full | metadata consumer は algorithm element を列挙順に調べることが望ましい |
 | `IIP-MD05.ea` | SHOULD | idp/sp | `CONFIG` | — | full | metadata consumer は列挙中で最初に対応する algorithm を選ぶことが望ましい |
 | `IIP-MD05.eb` | MUST | idp/sp | `CONFIG` | — | core | role level の signature algorithm metadata は entity level より優先し、両集合を結合しない |
+| `IIP-MD05.ec` | MUST | idp/sp | `CONFIG` | — | core | DigestMethod / SigningMethod は Algorithm URI を含む |
+| `IIP-MD05.ed` | MAY | idp/sp | `CONFIG` | — | full | symmetric-key KeyDescriptor は他の algorithm type の EncryptionMethod を列挙してよい |
 | `IIP-MD05.f` | MUST | idp/sp | `CONFIG` | — | core | Login and Discovery UI 拡張 (mdui) に対応 |
 | `IIP-MD05.f1` | MUST | idp/sp | `CONFIG` | — | core | UIInfo は role descriptor の Extensions 内に置く |
 | `IIP-MD05.f2` | MUST | idp/sp | `CONFIG` | — | core | UIInfo は少なくとも1つの child element を含む |
@@ -511,6 +512,7 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 | `IIP-MD05.fh` | SHOULD_NOT | idp/sp | `BROWSER` | — | full | metadata UI URL に https / http / data 以外の scheme を使わないことが望ましい |
 | `IIP-MD05.fi` | RECOMMENDED | idp/sp | `BROWSER` | — | full | metadata UI URL には HTTPS を使うことが推奨される |
 | `IIP-MD05.fj` | SHOULD | idp/sp | `BROWSER` | — | full | display name consumer は DisplayName → ServiceName → entityID / endpoint hostname の順に優先することが望ましい |
+| `IIP-MD05.fk` | MUST | idp/sp | `CONFIG` | — | core | 各 Logo 要素は height / width 属性を含む |
 | `IIP-MD05.g` | MUST_NOT | idp/sp | `CONFIG` | — | core | その他の拡張内容が存在してもメタデータの消費・利用を妨げてはならない |
 
 <details><summary><code>IIP-MD05.a</code> の詳細</summary>
@@ -527,6 +529,7 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
   - SAML2Meta §4 の任意 publication mechanism（DNS / well-known location）を必須能力にしない。HTTP 取得は IIP-MD02、署名検証は IIP-MD03、期限拒否能力は IIP-MD04 が別に判定する
 - **設定不能時の意味**: `test_precondition`
 - **参照先仕様**: `SAML2Meta`
+- **注記**: SAML2Meta §2.4.1 の『future SAML specifications ... SHOULD provide alternate protocol support identifiers』は 将来仕様の仕様著者を主語とするため、IdP / SP 実装の独立 obligation にはしない。
 - **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
 
@@ -622,7 +625,7 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 - **必要な variant**:
   - `v-841ccfd3f4` 対象が同型 role を複数発行する場合の protocolSupportEnumeration を比較
 - **対照（negative control）**:
-  - 同型 role が 0/1 個なら satisfied_with_note。重複の意味が別 profile で定義される場合はその profile の規則を優先する
+  - 同型 role が 0/1 個なら前件が偽なので satisfied。重複の意味が別 profile で定義される場合はその profile の規則を優先する
 - **設定不能時の意味**: `test_precondition`
 - **参照先仕様**: `SAML2Meta`
 - **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[93, 159)` `sha256:1360c8fd9ba8…`
@@ -651,19 +654,6 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
   - `v-186e57ba3e` 欠落 role の negative control
 - **対照（negative control）**:
   - 非 SAML role にはこの URI を要求しない
-- **設定不能時の意味**: `test_precondition`
-- **参照先仕様**: `SAML2Meta`
-- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[93, 159)` `sha256:1360c8fd9ba8…`
-- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
-
-</details>
-
-<details><summary><code>IIP-MD05.aa</code> の詳細</summary>
-
-- **必要な variant**:
-  - `v-1bcf55d47b` 対象が同一 namespace の複数 protocol version/profile を公開する場合の識別子
-- **対照（negative control）**:
-  - 該当する将来仕様を対象が実装しない Run は satisfied_with_note。SAML 2.0 URI だけの通常 role を WARNING にしない
 - **設定不能時の意味**: `test_precondition`
 - **参照先仕様**: `SAML2Meta`
 - **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[93, 159)` `sha256:1360c8fd9ba8…`
@@ -719,7 +709,7 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 - **必要な variant**:
   - `v-19fa1a800c` 複数候補鍵があるとき、対象の ds:KeyInfo 等が使用鍵を識別可能にする
 - **対照（negative control）**:
-  - 候補鍵が1本だけなら satisfied_with_note。特定方法を X509Data に限定しない
+  - 候補鍵が1本だけなら使用鍵は既に一意で前件が空虚に成立するため satisfied。特定方法を X509Data に限定しない
 - **設定不能時の意味**: `test_precondition`
 - **参照先仕様**: `SAML2Meta`
 - **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[93, 159)` `sha256:1360c8fd9ba8…`
@@ -873,12 +863,14 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 <details><summary><code>IIP-MD05.aq</code> の詳細</summary>
 
 - **必要な variant**:
-  - `v-13b09f5a56` 取得時刻 + cacheDuration の直前/直後
+  - `v-4b8709a434` instance の取得時点を基準にした cacheDuration の直前/直後
   - `v-b29f8ae3ad` parent cacheDuration が child より短い
 - **対照（negative control）**:
   - cache expiration と metadata invalidity を混同しない。refresh 失敗だけで invalid と判定することは本義務の要求ではない
+  - 取得時刻を明示的に保存する内部実装方式は要求しない。別の時刻情報から同じ cache expiry を導出してもよい
 - **設定不能時の意味**: `test_precondition`
 - **参照先仕様**: `SAML2Meta`
+- **注記**: Errata E94 の置換後本文は caching について大文字 MUST を用いる一方、取得時刻については 『consumers must retain』と小文字化している。SAML2Meta §1.2 の Notation に従い、後者を独立した MUST として判定しない。
 - **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[93, 159)` `sha256:1360c8fd9ba8…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
 
@@ -961,9 +953,9 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
   - `v-43cabe9b1e` use=signing で XML署名
   - `v-9a67d14603` use=signing で TLS
   - `v-cbed006395` use=encryption で鍵 wrapping
-  - `v-ce7334fef8` use 省略で署名/TLS と暗号の双方
 - **対照（negative control）**:
   - use=signing を XML signature だけに狭めない。use=encryption を data encryption algorithm 自体の宣言と取り違えない
+  - use 省略時の両用途規則は、IIP 本文が同じ規則を直接 MUST とする IIP-MD11.a で一度だけ判定し、本義務で二重計上しない
 - **設定不能時の意味**: `test_precondition`
 - **参照先仕様**: `SAML2Meta`
 - **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[93, 159)` `sha256:1360c8fd9ba8…`
@@ -1267,9 +1259,10 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 
 - **必要な variant**:
   - `v-6e85cc0870` Format=urn:oasis:names:tc:SAML:2.0:nameid-format:entity
-  - `v-4087483847` NameQualifier が enclosing EntityDescriptor/@entityID と一致
+  - `v-f030dabce3` NameID の文字内容が enclosing EntityDescriptor/@entityID と一致
+  - `v-336d33151d` NameID 値が異なる negative control
 - **対照（negative control）**:
-  - NameID の文字内容ではなく qualifier と enclosing entity の対応を検査する
+  - NameQualifier を照合値の代用にしない。entity NameID では SAML2Core §8.3.6 に従い NameQualifier / SPNameQualifier / SPProvidedID を要求しない
 - **設定不能時の意味**: `test_precondition`
 - **参照先仕様**: `MetaAttr`
 - **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[257, 318)` `sha256:2dfa8c656abb…`
@@ -1400,7 +1393,7 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 - **必要な variant**:
   - `v-33f8fced7b` shared-secret / password を表す KeyDescriptor と Block/Stream EncryptionMethod
 - **対照（negative control）**:
-  - 対象が symmetric-key KeyDescriptor を生成・消費しない Run は satisfied_with_note。非対称 key にこの義務を課さない
+  - 観測した metadata に symmetric-key KeyDescriptor がなければ前件が偽なので satisfied。非対称 key にこの義務を課さない
 - **設定不能時の意味**: `test_precondition`
 - **参照先仕様**: `SAML2MetaAlgSup`
 - **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[319, 387)` `sha256:c5226e0be20d…`
@@ -1428,7 +1421,7 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 - **必要な variant**:
   - `v-84865ad4a2` 同じ type の2 algorithm を順序入替し、対象の選択が先頭に追従する
 - **対照（negative control）**:
-  - 1 algorithm だけなら satisfied_with_note。強度順を Samlier が独自に決めず、publisher の列挙順を preference として扱う
+  - 同じ general type が 0/1 algorithm だけなら前件が偽なので satisfied。強度順を Samlier が独自に決めず、publisher の列挙順を preference として扱う
 - **設定不能時の意味**: `test_precondition`
 - **参照先仕様**: `SAML2MetaAlgSup`
 - **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[319, 387)` `sha256:c5226e0be20d…`
@@ -1521,10 +1514,39 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 
 </details>
 
+<details><summary><code>IIP-MD05.ec</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-90d18294da` alg:DigestMethod/@Algorithm
+  - `v-6326ec70fb` alg:SigningMethod/@Algorithm
+  - `v-fa05bdf6d7` 各属性欠落の negative control
+- **対照（negative control）**:
+  - md:EncryptionMethod/@Algorithm は IIP-MD05.e4 で別に判定する。alg: 側の必須属性を metadata XSD の検査へ委譲しない
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `SAML2MetaAlgSup`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[319, 387)` `sha256:c5226e0be20d…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.ed</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-5d5d617819` Symmetric Key Wrap
+  - `v-4648e00631` Key Derivation
+- **対照（negative control）**:
+  - 掲載する・しないの双方が許されるため publisher に一意 verdict を付けない。掲載された valid 要素を consumer が扱えることは親 IIP-MD05.e の acceptance fixture で確認する
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `SAML2MetaAlgSup`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[319, 387)` `sha256:c5226e0be20d…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
 <details><summary><code>IIP-MD05.f</code> の詳細</summary>
 
 - **必要な variant**:
-  - `v-ad6fc4430f` UIInfo の DisplayName / Description / Keywords / Logo / InformationURL / PrivacyStatementURL を全て含む多言語 metadata
+  - `v-f08c4d2b11` UIInfo の DisplayName / Description / Keywords / Logo（height / width 必須）/ InformationURL / PrivacyStatementURL を全て含む多言語 metadata
   - `v-d153d14cea` UIInfo 内の未知名前空間 extension
   - `v-3da59d7a3d` DiscoHints の IPv4 CIDR / IPv6 CIDR / DomainHint / geo URI と未知名前空間 extension
   - `v-2c662c3d9c` 同じ種類を異なる xml:lang で複数含む
@@ -1544,7 +1566,7 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
   - `v-3ed7c655aa` SPSSODescriptor/Extensions
   - `v-03e6635d5d` EntityDescriptor/Extensions の invalid control
 - **対照（negative control）**:
-  - UIInfo の出力自体は任意。観測された各 UIInfo の placement を検査し、0件なら satisfied_with_note
+  - UIInfo の出力自体は任意。観測された各 UIInfo の placement を検査し、0件なら前件が偽なので satisfied
 - **設定不能時の意味**: `test_precondition`
 - **参照先仕様**: `MetaUi`
 - **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[388, 465)` `sha256:62b5f48cfcc2…`
@@ -1694,7 +1716,8 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
   - `v-6869a8d502` IDPSSODescriptor/Extensions
   - `v-0fa4ebd855` SPSSODescriptor/Extensions / EntityDescriptor/Extensions の invalid control
 - **対照（negative control）**:
-  - DiscoHints の出力自体は任意。観測された各 DiscoHints の placement を検査し、0件なら satisfied_with_note
+  - DiscoHints の出力自体は任意。観測された各 DiscoHints の placement を検査し、0件なら前件が偽なので satisfied
+  - roles は IdP publisher と、IdP metadata を消費する SP consumer の双方を含む。SP 自身に DiscoHints の発行を要求しない
 - **設定不能時の意味**: `test_precondition`
 - **参照先仕様**: `MetaUi`
 - **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[388, 465)` `sha256:62b5f48cfcc2…`
@@ -1793,6 +1816,22 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
   - `v-510684449a` DisplayName / ServiceName 欠落
 - **対照（negative control）**:
   - display name に依存しない implementation は satisfied_with_note。OrganizationDisplayName の optional migration support を必須にしない
+- **参照先仕様**: `MetaUi`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[388, 465)` `sha256:62b5f48cfcc2…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.fk</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-7d2624b39e` height / width の双方あり
+  - `v-7978ca418f` height 欠落
+  - `v-ca175b18c2` width 欠落
+  - `v-d35804c14d` 両方欠落
+- **対照（negative control）**:
+  - vector image でも両属性は mandatory。画像の実寸と属性値が一致するという原文にない条件は追加しない
+- **設定不能時の意味**: `test_precondition`
 - **参照先仕様**: `MetaUi`
 - **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[388, 465)` `sha256:62b5f48cfcc2…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
@@ -8725,8 +8764,8 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 
 ```
 g1_state       : PENDING_REVIEW
-obligations    : 542
-未承認         : 542
+obligations    : 544
+未承認         : 544
 未解決 open Q  : 0
 ```
 

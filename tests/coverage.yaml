@@ -1,6 +1,6 @@
 # tests/coverage.yaml — 要件カタログ（G1 成果物 / 判定レベルの唯一の出典）
 # 生成: build_g1.py（原文からオフセットと digest を解決）/ 手編集しない
-generated_at: 2026-08-28T08:22:37+00:00
+generated_at: 2026-08-28T09:01:41+00:00
 schema_version: 1
 g1_state: PENDING_REVIEW
 # 作成者は reviewer / approved_at を埋めない。別のレビュアーが原文と直接照合して承認する。
@@ -785,13 +785,14 @@ requirements:
         controls:
           - "構文上の受理だけで PASS にしない。endpoint・鍵・属性要求等を実際の相互運用に用いることを確認する"
           - "SAML2Meta §4 の任意 publication mechanism（DNS / well-known location）を必須能力にしない。HTTP 取得は IIP-MD02、署名検証は IIP-MD03、期限拒否能力は IIP-MD04 が別に判定する"
+        notes_ja: "SAML2Meta §2.4.1 の『future SAML specifications ... SHOULD provide alternate protocol support identifiers』は 将来仕様の仕様著者を主語とするため、IdP / SP 実装の独立 obligation にはしない。"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:c711bbc440d4465d6269669de7bec8161a58c1a9369acbac3a2a0cfa371782f7"
+          obligation_digest: "sha256:3b730ca611a66b867672469bbc147f1da22173f0095114e018cf61a742ec273c"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-MD05"
@@ -1043,14 +1044,14 @@ requirements:
           - id: v-841ccfd3f4
             description_ja: "対象が同型 role を複数発行する場合の protocolSupportEnumeration を比較"
         controls:
-          - "同型 role が 0/1 個なら satisfied_with_note。重複の意味が別 profile で定義される場合はその profile の規則を優先する"
+          - "同型 role が 0/1 個なら前件が偽なので satisfied。重複の意味が別 profile で定義される場合はその profile の規則を優先する"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:c475646f2edebeb4cc6b86b11e3280b5669dcba282425add965b46c916d78b6f"
+          obligation_digest: "sha256:32f952d62fff607397c77c78ac5d76944b0f1475e071544989bcc0d48f9703a5"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-MD05"
@@ -1125,41 +1126,6 @@ requirements:
           reviewer: null
           approved_at: null
           obligation_digest: "sha256:07d22c538bdbfdbd6d581f4849e4c99944fd57a1827cc945759dd5d143af8d10"
-          source_spec: kantara-fedinterop-impl
-          spec_version: "1.1"
-          source_selector: "#IIP-MD05"
-          source_section_digest: "sha256:179e60c42ba24c02b7952da07f1ac1576eb0a1760f0eed2cb4893685df376496"
-      - key: IIP-MD05.aa
-        roles: [idp, sp]
-        level: SHOULD
-        testability: CONFIG
-        condition: null
-        configuration_failure_semantics: test_precondition
-        summary_en: "Future SAML specifications sharing a namespace should provide alternate protocol support identifiers when needed"
-        summary_ja: "同じ namespace を共有する将来 SAML 仕様は必要に応じ alternate protocol support identifier を提供することが望ましい"
-        references_spec: SAML2Meta
-        reference_derivation: true
-        reference_evidence:
-          - spec: SAML2Meta
-            locator: "2\\.4\\.1 Element <RoleDescriptor>||2\\.4\\.1\\.1 Element <KeyDescriptor>"
-            section_digest: "sha256:62989261b433f12022b7078a8bafdd97ad5af05ac8b15b1f963f011cc8bb1212"
-            basis_ja: "将来仕様の識別子 SHOULD"
-        level_assignment: { idp: full, sp: full }
-        source_clauses:
-          - { start: 0, end: 92, digest: "sha256:7dfacaaae6f1628a334526662ac0d62563407dd4dfcfba6aca718084508215b5", occurrences: 1 }
-          - { start: 93, end: 159, digest: "sha256:1360c8fd9ba87eeb5d6fa07f14f57756778f17c37bcd79c34ce23641adf4976c", occurrences: 1 }
-        required_variants:
-          - id: v-1bcf55d47b
-            description_ja: "対象が同一 namespace の複数 protocol version/profile を公開する場合の識別子"
-        controls:
-          - "該当する将来仕様を対象が実装しない Run は satisfied_with_note。SAML 2.0 URI だけの通常 role を WARNING にしない"
-        authored_by: samlier-g1-builder
-        review:
-          # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
-          state: PENDING_REVIEW
-          reviewer: null
-          approved_at: null
-          obligation_digest: "sha256:0c9506e83291a407798eb39146ebfd34b81df0c6d2041a686ef7a2f2b4ef4dd4"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-MD05"
@@ -1300,14 +1266,14 @@ requirements:
           - id: v-19fa1a800c
             description_ja: "複数候補鍵があるとき、対象の ds:KeyInfo 等が使用鍵を識別可能にする"
         controls:
-          - "候補鍵が1本だけなら satisfied_with_note。特定方法を X509Data に限定しない"
+          - "候補鍵が1本だけなら使用鍵は既に一意で前件が空虚に成立するため satisfied。特定方法を X509Data に限定しない"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:c91b87e50e7ef884e2eef33c39b86887828be0c4a9a152e879aa4be4b97be32f"
+          obligation_digest: "sha256:7aa100ec969c6c3cfdc503c3de99ce39ff7ce71f0a975b14f3a4357913245c7a"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-MD05"
@@ -1712,33 +1678,35 @@ requirements:
         testability: CONFIG
         condition: null
         configuration_failure_semantics: test_precondition
-        summary_en: "Metadata caching must use cacheDuration and retain the time the instance was obtained"
-        summary_ja: "metadata cache は cacheDuration に基づき、instance 取得時刻を保持する"
+        summary_en: "Metadata caching must be based on cacheDuration"
+        summary_ja: "metadata cache は cacheDuration に基づく"
         references_spec: SAML2Meta
         reference_derivation: true
         reference_evidence:
           - spec: SAML2Errata
             locator: "E94: Discussion of metadata caching mixes in validity||3 Acknowledgments"
             section_digest: "sha256:8160bae9b2b1480bac746e56370a02be5dcc32e5ce032a057720b06d0f4a6816"
-            basis_ja: "cacheDuration と取得時刻の処理 MUST"
+            basis_ja: "cacheDuration に基づく caching MUST"
         level_assignment: { idp: core, sp: core }
         source_clauses:
           - { start: 0, end: 92, digest: "sha256:7dfacaaae6f1628a334526662ac0d62563407dd4dfcfba6aca718084508215b5", occurrences: 1 }
           - { start: 93, end: 159, digest: "sha256:1360c8fd9ba87eeb5d6fa07f14f57756778f17c37bcd79c34ce23641adf4976c", occurrences: 1 }
         required_variants:
-          - id: v-13b09f5a56
-            description_ja: "取得時刻 + cacheDuration の直前/直後"
+          - id: v-4b8709a434
+            description_ja: "instance の取得時点を基準にした cacheDuration の直前/直後"
           - id: v-b29f8ae3ad
             description_ja: "parent cacheDuration が child より短い"
         controls:
           - "cache expiration と metadata invalidity を混同しない。refresh 失敗だけで invalid と判定することは本義務の要求ではない"
+          - "取得時刻を明示的に保存する内部実装方式は要求しない。別の時刻情報から同じ cache expiry を導出してもよい"
+        notes_ja: "Errata E94 の置換後本文は caching について大文字 MUST を用いる一方、取得時刻については 『consumers must retain』と小文字化している。SAML2Meta §1.2 の Notation に従い、後者を独立した MUST として判定しない。"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:0d2a08ea0104613103760ba90970db102f2551c99feb2ae1fede2f9b17305683"
+          obligation_digest: "sha256:9ca571e87907819b2cb87ffb8dfdbf50acdc749122a11e0aadb0e86f38e0b5c5"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-MD05"
@@ -1940,8 +1908,8 @@ requirements:
         testability: CONFIG
         condition: null
         configuration_failure_semantics: test_precondition
-        summary_en: "KeyDescriptor use values must be interpreted as signing/TLS, encryption-key wrapping, or both when omitted"
-        summary_ja: "KeyDescriptor/@use を signing+TLS、encryption-key wrapping、省略時は両方として解釈する"
+        summary_en: "Explicit KeyDescriptor use values must be interpreted as signing/TLS or encryption-key wrapping"
+        summary_ja: "明示された KeyDescriptor/@use を signing+TLS または encryption-key wrapping として解釈する"
         references_spec: SAML2Meta
         reference_derivation: true
         reference_evidence:
@@ -1960,17 +1928,16 @@ requirements:
             description_ja: "use=signing で TLS"
           - id: v-cbed006395
             description_ja: "use=encryption で鍵 wrapping"
-          - id: v-ce7334fef8
-            description_ja: "use 省略で署名/TLS と暗号の双方"
         controls:
           - "use=signing を XML signature だけに狭めない。use=encryption を data encryption algorithm 自体の宣言と取り違えない"
+          - "use 省略時の両用途規則は、IIP 本文が同じ規則を直接 MUST とする IIP-MD11.a で一度だけ判定し、本義務で二重計上しない"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:04f16a5172c9a98ba9e0da88a39a7baf18032fbf08d1d8e16df878f4ec223e05"
+          obligation_digest: "sha256:46df94d67810e067f475b3fa1d5a1814ef070bfaf48f4d09c6778d519a86fc4c"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-MD05"
@@ -2746,15 +2713,15 @@ requirements:
         testability: CONFIG
         condition: null
         configuration_failure_semantics: test_precondition
-        summary_en: "An EntityAttributes assertion subject must be an entity NameID whose qualifier identifies the enclosing entity"
-        summary_ja: "EntityAttributes assertion の Subject は entity format の NameID で、NameQualifier は enclosing entityID と対応する"
+        summary_en: "An EntityAttributes assertion subject must be an entity NameID whose value identifies the enclosing entity"
+        summary_ja: "EntityAttributes assertion の Subject は entity format の NameID で、その値は enclosing entityID と一致する"
         references_spec: MetaAttr
         reference_derivation: true
         reference_evidence:
           - spec: MetaAttr
             locator: "2\\.4 Assertion Profile||3 Conformance"
             section_digest: "sha256:38841e9ed5f1277ad445e584eb9d844341b1fb0433f4330a850b24d3e57bee54"
-            basis_ja: "subject NameID format / qualifier MUST"
+            basis_ja: "subject NameID format / value correspondence MUST"
         level_assignment: { idp: core, sp: core }
         source_clauses:
           - { start: 0, end: 92, digest: "sha256:7dfacaaae6f1628a334526662ac0d62563407dd4dfcfba6aca718084508215b5", occurrences: 1 }
@@ -2762,17 +2729,19 @@ requirements:
         required_variants:
           - id: v-6e85cc0870
             description_ja: "Format=urn:oasis:names:tc:SAML:2.0:nameid-format:entity"
-          - id: v-4087483847
-            description_ja: "NameQualifier が enclosing EntityDescriptor/@entityID と一致"
+          - id: v-f030dabce3
+            description_ja: "NameID の文字内容が enclosing EntityDescriptor/@entityID と一致"
+          - id: v-336d33151d
+            description_ja: "NameID 値が異なる negative control"
         controls:
-          - "NameID の文字内容ではなく qualifier と enclosing entity の対応を検査する"
+          - "NameQualifier を照合値の代用にしない。entity NameID では SAML2Core §8.3.6 に従い NameQualifier / SPNameQualifier / SPProvidedID を要求しない"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:e4344835f13290e00e12fe2ab51dcf73da9d4289c248ad860b544421e71e01f2"
+          obligation_digest: "sha256:175d6a3d673400ce3e8c25f62533403a259ec0a14aac02b428fb83b428f260c3"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-MD05"
@@ -3107,14 +3076,14 @@ requirements:
           - id: v-33f8fced7b
             description_ja: "shared-secret / password を表す KeyDescriptor と Block/Stream EncryptionMethod"
         controls:
-          - "対象が symmetric-key KeyDescriptor を生成・消費しない Run は satisfied_with_note。非対称 key にこの義務を課さない"
+          - "観測した metadata に symmetric-key KeyDescriptor がなければ前件が偽なので satisfied。非対称 key にこの義務を課さない"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:c29c263b736b305520012d45cd568507888327c2134fa28fa87f5fa69c16144a"
+          obligation_digest: "sha256:ea726bff638bf9ff16779e84e345bc30a059aeb5364f67ea7babc090dce4fdcb"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-MD05"
@@ -3181,14 +3150,14 @@ requirements:
           - id: v-84865ad4a2
             description_ja: "同じ type の2 algorithm を順序入替し、対象の選択が先頭に追従する"
         controls:
-          - "1 algorithm だけなら satisfied_with_note。強度順を Samlier が独自に決めず、publisher の列挙順を preference として扱う"
+          - "同じ general type が 0/1 algorithm だけなら前件が偽なので satisfied。強度順を Samlier が独自に決めず、publisher の列挙順を preference として扱う"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:c240aaf7c8c66c12acac2f9593bc69ccbfd480440cc4d25bfbfce022e40176ae"
+          obligation_digest: "sha256:fef33f4bd4176b47e46a0c668462069c380bfd4580b3d8aaf93788a1f8630e14"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-MD05"
@@ -3416,6 +3385,82 @@ requirements:
           spec_version: "1.1"
           source_selector: "#IIP-MD05"
           source_section_digest: "sha256:179e60c42ba24c02b7952da07f1ac1576eb0a1760f0eed2cb4893685df376496"
+      - key: IIP-MD05.ec
+        roles: [idp, sp]
+        level: MUST
+        testability: CONFIG
+        condition: null
+        configuration_failure_semantics: test_precondition
+        summary_en: "DigestMethod and SigningMethod elements must contain an Algorithm URI"
+        summary_ja: "DigestMethod / SigningMethod は Algorithm URI を含む"
+        references_spec: SAML2MetaAlgSup
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2MetaAlgSup
+            locator: "2\\.4 Expression of Signature Capabilities||2\\.5 Metadata Consumers"
+            section_digest: "sha256:bb863419d8327d639fdb24fc8db450bf5587ad8826b65c7f75cfe70cda45dbcc"
+            basis_ja: "DigestMethod / SigningMethod の Algorithm [Required]"
+        level_assignment: { idp: core, sp: core }
+        source_clauses:
+          - { start: 0, end: 92, digest: "sha256:7dfacaaae6f1628a334526662ac0d62563407dd4dfcfba6aca718084508215b5", occurrences: 1 }
+          - { start: 319, end: 387, digest: "sha256:c5226e0be20d118f31b029a207914ee40e17770413aaa62b7d0d04f23f79e1f6", occurrences: 1 }
+        required_variants:
+          - id: v-90d18294da
+            description_ja: "alg:DigestMethod/@Algorithm"
+          - id: v-6326ec70fb
+            description_ja: "alg:SigningMethod/@Algorithm"
+          - id: v-fa05bdf6d7
+            description_ja: "各属性欠落の negative control"
+        controls:
+          - "md:EncryptionMethod/@Algorithm は IIP-MD05.e4 で別に判定する。alg: 側の必須属性を metadata XSD の検査へ委譲しない"
+        authored_by: samlier-g1-builder
+        review:
+          # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
+          state: PENDING_REVIEW
+          reviewer: null
+          approved_at: null
+          obligation_digest: "sha256:d4c22e342a40225852d9eb62e232eb1a96da8b192d2eaee395412676d1e210d1"
+          source_spec: kantara-fedinterop-impl
+          spec_version: "1.1"
+          source_selector: "#IIP-MD05"
+          source_section_digest: "sha256:179e60c42ba24c02b7952da07f1ac1576eb0a1760f0eed2cb4893685df376496"
+      - key: IIP-MD05.ed
+        roles: [idp, sp]
+        level: MAY
+        testability: CONFIG
+        condition: null
+        configuration_failure_semantics: test_precondition
+        summary_en: "A symmetric-key KeyDescriptor may list EncryptionMethod elements for other algorithm types"
+        summary_ja: "symmetric-key KeyDescriptor は他の algorithm type の EncryptionMethod を列挙してよい"
+        references_spec: SAML2MetaAlgSup
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2MetaAlgSup
+            locator: "2\\.3 Expression of Encryption Capabilities||2\\.4 Expression of Signature Capabilities"
+            section_digest: "sha256:b5ea26219fb237734dc493ab34b07867abe322c4f0f1a34f12e4da005efeddb0"
+            basis_ja: "Symmetric Key Wrap / Key Derivation の掲載 MAY"
+        level_assignment: { idp: full, sp: full }
+        source_clauses:
+          - { start: 0, end: 92, digest: "sha256:7dfacaaae6f1628a334526662ac0d62563407dd4dfcfba6aca718084508215b5", occurrences: 1 }
+          - { start: 319, end: 387, digest: "sha256:c5226e0be20d118f31b029a207914ee40e17770413aaa62b7d0d04f23f79e1f6", occurrences: 1 }
+        required_variants:
+          - id: v-5d5d617819
+            description_ja: "Symmetric Key Wrap"
+          - id: v-4648e00631
+            description_ja: "Key Derivation"
+        controls:
+          - "掲載する・しないの双方が許されるため publisher に一意 verdict を付けない。掲載された valid 要素を consumer が扱えることは親 IIP-MD05.e の acceptance fixture で確認する"
+        authored_by: samlier-g1-builder
+        review:
+          # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
+          state: PENDING_REVIEW
+          reviewer: null
+          approved_at: null
+          obligation_digest: "sha256:21d7e19d76b1452803fd0459e43c8f171672e12b4a04fffd136d515eecb6f355"
+          source_spec: kantara-fedinterop-impl
+          spec_version: "1.1"
+          source_selector: "#IIP-MD05"
+          source_section_digest: "sha256:179e60c42ba24c02b7952da07f1ac1576eb0a1760f0eed2cb4893685df376496"
       - key: IIP-MD05.f
         roles: [idp, sp]
         level: MUST
@@ -3436,8 +3481,8 @@ requirements:
           - { start: 0, end: 92, digest: "sha256:7dfacaaae6f1628a334526662ac0d62563407dd4dfcfba6aca718084508215b5", occurrences: 1 }
           - { start: 388, end: 465, digest: "sha256:62b5f48cfcc216e864e1cde934458eb24dbabe26d755c0059359994c91da50ca", occurrences: 1 }
         required_variants:
-          - id: v-ad6fc4430f
-            description_ja: "UIInfo の DisplayName / Description / Keywords / Logo / InformationURL / PrivacyStatementURL を全て含む多言語 metadata"
+          - id: v-f08c4d2b11
+            description_ja: "UIInfo の DisplayName / Description / Keywords / Logo（height / width 必須）/ InformationURL / PrivacyStatementURL を全て含む多言語 metadata"
           - id: v-d153d14cea
             description_ja: "UIInfo 内の未知名前空間 extension"
           - id: v-3da59d7a3d
@@ -3452,7 +3497,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:29b18fd9ae65823333413d64fddcc2b6e827ed83f6ef39be64f414ad3d514c2a"
+          obligation_digest: "sha256:8f842c9fac14ac9371e4ae7e5a87bf041db56649b12c83cce45bd6053bb93cb3"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-MD05"
@@ -3484,14 +3529,14 @@ requirements:
           - id: v-03e6635d5d
             description_ja: "EntityDescriptor/Extensions の invalid control"
         controls:
-          - "UIInfo の出力自体は任意。観測された各 UIInfo の placement を検査し、0件なら satisfied_with_note"
+          - "UIInfo の出力自体は任意。観測された各 UIInfo の placement を検査し、0件なら前件が偽なので satisfied"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:3ea59d7863af8ad8abc0f5aacc8f1abda726e586d7e18bb915b6de997dd8bd45"
+          obligation_digest: "sha256:a6d2ca16b42ebd2fbf694fb3050a149ef7b254db01d8c1ded2f7c35a7baed2e5"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-MD05"
@@ -3890,14 +3935,15 @@ requirements:
           - id: v-0fa4ebd855
             description_ja: "SPSSODescriptor/Extensions / EntityDescriptor/Extensions の invalid control"
         controls:
-          - "DiscoHints の出力自体は任意。観測された各 DiscoHints の placement を検査し、0件なら satisfied_with_note"
+          - "DiscoHints の出力自体は任意。観測された各 DiscoHints の placement を検査し、0件なら前件が偽なので satisfied"
+          - "roles は IdP publisher と、IdP metadata を消費する SP consumer の双方を含む。SP 自身に DiscoHints の発行を要求しない"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:9f1c1396eb33658bc626a09d74ba8463f273ff07e1347bb2a89d758053841902"
+          obligation_digest: "sha256:0fdf71a821d68999654709e4bac034922d4f98749d3534964591d42ac8c72c13"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-MD05"
@@ -4159,6 +4205,47 @@ requirements:
           reviewer: null
           approved_at: null
           obligation_digest: "sha256:f9fcee5afadb1bd73983867899a7792949e13064f89cabe8ae1ec60b1a543c55"
+          source_spec: kantara-fedinterop-impl
+          spec_version: "1.1"
+          source_selector: "#IIP-MD05"
+          source_section_digest: "sha256:179e60c42ba24c02b7952da07f1ac1576eb0a1760f0eed2cb4893685df376496"
+      - key: IIP-MD05.fk
+        roles: [idp, sp]
+        level: MUST
+        testability: CONFIG
+        condition: null
+        configuration_failure_semantics: test_precondition
+        summary_en: "Every Logo element must contain height and width attributes"
+        summary_ja: "各 Logo 要素は height / width 属性を含む"
+        references_spec: MetaUi
+        reference_derivation: true
+        reference_evidence:
+          - spec: MetaUi
+            locator: "2\\.1\\.5 Element <mdui:Logo>||2\\.1\\.6 Element <mdui:InformationURL>"
+            section_digest: "sha256:143c4d6969cbee6fdec71d9c703ca277ae317abad372e3ddf3b0f73080e615f4"
+            basis_ja: "Logo height / width [Required]"
+        level_assignment: { idp: core, sp: core }
+        source_clauses:
+          - { start: 0, end: 92, digest: "sha256:7dfacaaae6f1628a334526662ac0d62563407dd4dfcfba6aca718084508215b5", occurrences: 1 }
+          - { start: 388, end: 465, digest: "sha256:62b5f48cfcc216e864e1cde934458eb24dbabe26d755c0059359994c91da50ca", occurrences: 1 }
+        required_variants:
+          - id: v-7d2624b39e
+            description_ja: "height / width の双方あり"
+          - id: v-7978ca418f
+            description_ja: "height 欠落"
+          - id: v-ca175b18c2
+            description_ja: "width 欠落"
+          - id: v-d35804c14d
+            description_ja: "両方欠落"
+        controls:
+          - "vector image でも両属性は mandatory。画像の実寸と属性値が一致するという原文にない条件は追加しない"
+        authored_by: samlier-g1-builder
+        review:
+          # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
+          state: PENDING_REVIEW
+          reviewer: null
+          approved_at: null
+          obligation_digest: "sha256:592245ff1e59dfd84d0e8d1d5148b84accd477adec283626f4ac946db4030ec8"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-MD05"
