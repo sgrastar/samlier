@@ -3266,3 +3266,25 @@ propagation と呼ぶ capability の一部を別経路から必須度 SHOULD に
 この解釈が無言にならないよう、IIP-IDP17.c に SAML2Prof §4.4.3.3 と Core §3.7.3.2 の evidence、
 上流 / 下流それぞれの情報記録 variant、OPTIONAL override の rationale を追加した。
 上流伝播を実装して観測した場合の作法は IIP-IDP17.r / .s と target-emitted request 規則で受動評価する。
+
+---
+
+## G1b-CP2b-Core-A-R2 — 2026-08-28 §3.7 外部再レビュー完了
+
+固定 commit `8513aa1` を作成者以外が、前回 findings の対象である IIP-SP14.q / .z と
+IIP-IDP17.c、および SAML2Core §3.7.3.1 / §3.7.3.2、SAML2Prof §4.4.3.2 / §4.4.3.3 に
+限定して再確認した。結果は `verification: PASS / findings: none / scope_violations: none` だった。
+
+再レビューでは次を確認した。
+
+- IIP-SP14.q は `aslo:Asynchronous` のない request だけを base Core の LogoutResponse 義務の
+  verdict 対象とし、invalid request / invalid signature の参照先も `.ai` / `.af` と一致する
+- IIP-SP14.z の追加対照は、同一 principal、未失効 request、異なる SessionIndex S2 だけを変え、
+  SessionIndex を無視して principal 全体を拒否する実装を検出する
+- IIP-IDP17.c は、SAML2Prof §4.4.3.3 が logout propagation を session authority または participant
+  への送信として一括定義することを根拠に、上流 / 下流の両経路を OPTIONAL に含める
+- `90d8a31` から `8513aa1` までに義務キー、level、roles、condition の変更はなく、変更は
+  IIP-SP14.q / .z / IIP-IDP17.c の variant / control / evidence に限定される
+
+これにより CP2b-Core-A（Core §3.7 固有規則）は閉じる。SP14.aa〜.as、IDP17.v〜.am の
+underlying request / response rules は別 checkpoint の CP2b-Core-B で確認する。
