@@ -124,7 +124,7 @@ The validator (**SR-38**) verifies:
 |---|---|
 | Approval record is committed | `git log -1 -- tests/approvals/g1.yaml` |
 | **Current values of protected files match A** | `git show <A>:<path>` and byte comparison |
-| **The `tests/` file set matches A** | `git ls-tree -r A tests` |
+| **Every explicitly protected G1 path matches A** | `git show <A>:<path>` and byte comparison |
 | **That commit is signed** | `git verify-commit` |
 | **The canonical copy is the signed commit's contents** (not the working tree) | `git show <C_sig>:tests/approvals/g1.yaml` |
 | Working tree matches signed contents | Digest comparison |
@@ -145,8 +145,16 @@ tools/g1_migration_validate.py  tools/g1_schema_validate.py  tools/g1_language_c
 tools/g1-semantic-exceptions.yaml  schema/g1-*.json
 ```
 
-It also verifies that the **file set under `tests/`** matches A (detecting additions and deletions).
-Without this, one could rewrite coverage after A and pass simply by recomputing `obligation_digest`.
+The approval boundary is deliberately path-scoped. Later-gate artifacts such as
+`tests/cases.yaml`, `tests/mutants/*.yaml`, and `tools/g2_validate.py` may coexist
+without invalidating G1. The three normative catalogs and every G1 verifier,
+schema, exception manifest, and approval record remain explicitly protected.
+
+Direct validator execution restarts with `python -I` before importing PyYAML and
+removes its own `tools/` directory from `sys.path`. This prevents a later-stage
+module such as `tools/yaml.py` from shadowing a trusted dependency. Whole-directory
+file-set equality is therefore neither the trust boundary nor a substitute for
+the explicit protected-path list.
 
 **The validator itself is included among the protected paths**, but that is not sufficient.
 **If a modified validator is executed, it will not report its own modification** (the limit of self-inspection).

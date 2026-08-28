@@ -3577,3 +3577,28 @@ This changes signed evidence ranges and obligation digests, but not the verdict 
 ### Baseline Exception Discipline
 
 The allowed semantic departures from baseline `ca54c4b83ac1a3208591f03772b4cf52c62045d4` are recorded in `tools/g1-semantic-exceptions.yaml`. Each entry includes the source, counterexample, and correction. The migration validator rejects unlisted changed fields, stale exception entries, and exception references to unknown obligations. The manifest remains `REQUIRES_G1B_REVIEW`; it does not authorize or substitute for signed approval.
+
+---
+
+## G1b Approval-Boundary Amendment — 2026-08-29
+
+The first signed G1 approval compared the complete file sets under `tests/` and
+`tools/` with the approval commit. That prevented any approved later gate from
+adding its own artifacts: the planned `tests/cases.yaml`, `tests/mutants/*.yaml`,
+and `tools/g2_validate.py` would invalidate G1 even though they do not alter the
+G1 catalogs.
+
+The approval boundary is now the explicit `PROTECTED_PATHS` list. It retains the
+three normative catalogs, the G1 approval record, all G1 validators and extraction
+logic, the migration exception manifest, and all G1 schemas. Additions outside
+that list do not affect G1 approval. Changing a protected byte still invalidates
+approval.
+
+The former whole-directory check also served as a defense against Python import
+shadowing. To preserve that property without claiming ownership of future-stage
+files, direct execution of `g1_validate.py` now restarts under `python -I` before
+any third-party import and removes the script directory from `sys.path`. Trusted
+and CI entry points continue to extract the validator from a pinned commit and
+execute it in isolated mode. The G1 catalog content and obligation digests are
+unchanged; the amended validator must nevertheless receive a new signed approval
+because it is itself a protected G1 artifact.
