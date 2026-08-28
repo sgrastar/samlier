@@ -52,6 +52,18 @@ def reference_shape(items: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
     ]
 
 
+def linked_shape(items: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
+    """Return only executable link semantics, excluding translated notes."""
+    return [
+        {
+            "obligation": item.get("obligation"),
+            "kind": item.get("kind"),
+            "variants": item.get("variants"),
+        }
+        for item in (items or [])
+    ]
+
+
 def open_question_state(item: dict[str, Any]) -> bool:
     return any(
         bool(value)
@@ -72,7 +84,7 @@ def invariant_shape(item: dict[str, Any]) -> dict[str, Any]:
         "level_assignment": item.get("level_assignment"),
         "source_clauses": item.get("source_clauses"),
         "reference_evidence": reference_shape(item.get("reference_evidence")),
-        "linked_obligations": item.get("linked_obligations"),
+        "linked_obligations": linked_shape(item.get("linked_obligations")),
         "required_variant_count": len(item.get("required_variants", [])),
         "control_count": len(item.get("controls", [])),
         "open_question": open_question_state(item),
@@ -173,11 +185,11 @@ def main() -> int:
         errors.append(f"normative obligation structure changed: {sorted(changed)}")
 
     old_spec_logic = {
-        key: {k: v for k, v in value.items() if k != "title"}
+        key: {k: v for k, v in value.items() if k not in {"title", "note", "url_note"}}
         for key, value in old_specs["specs"].items()
     }
     new_spec_logic = {
-        key: {k: v for k, v in value.items() if k != "title"}
+        key: {k: v for k, v in value.items() if k not in {"title", "note", "url_note"}}
         for key, value in new_specs["specs"].items()
     }
     if old_spec_logic != new_spec_logic:

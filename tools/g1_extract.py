@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""g1_extract.py — 原文の取得と決定論的な正規化・節切り出し（author と validator の共有モジュール）
+"""g1_extract.py — Fetch and deterministically normalize and extract sections from source documents (shared by author and validator)
 
-正規化手順を 1 箇所に置くことで、生成側と検証側が同じ文字列に到達することを保証する。
+Keeping normalization in one place ensures that generation and validation produce the same string.
 """
 import os,re,html,hashlib,unicodedata,urllib.request
 
@@ -11,12 +11,12 @@ def cache_dir(root):
     d=os.path.join(root,CACHE_DIRNAME); os.makedirs(d,exist_ok=True); return d
 
 def fetch(root,key,url,mode='network',timeout=60):
-    """原文を取得する。
+    """Fetch the source document.
 
-    mode='network' (既定): **必ずネットワークから再取得**しキャッシュを更新する。
-        キャッシュが古い / URL が到達不能でも古い内容で PASS してしまう事故を防ぐ。
-    mode='offline'       : キャッシュのみ。未キャッシュなら (None, path)。
-    mode='cache-first'   : 起票（author）用。キャッシュがあればそれを使う。
+    mode='network' (default): **Always refetch from the network** and update the cache.
+        This prevents a stale cache from producing PASS when the URL is unreachable.
+    mode='offline'       : Cache only; returns (None, path) if uncached.
+    mode='cache-first'   : For authoring; uses the cache when available.
     """
     assert mode in ('network','offline','cache-first'), mode
     u=url.lower()
@@ -33,14 +33,14 @@ def fetch(root,key,url,mode='network',timeout=60):
     open(path,'wb').write(data)
     return data,path
 
-# ---- 承認の対象となる「義務の内容」の正規形 ----
-# 承認 digest の対象は「review 以外の全フィールド」。
-# 列挙方式にすると新しいフィールドを足したときに取りこぼす（実際に summary_ja / notes_ja が
-# 漏れており、承認後に日本語の説明を書き換えても検出できなかった）。
+# ---- Canonical form of the obligation content covered by approval ----
+# The approval digest covers every field except "review".
+# Enumerating fields can miss newly added fields (human-readable explanatory fields were once
+# omitted, so changing them after approval went undetected).
 EXCLUDED_FROM_DIGEST=('review',)
 
 def _norm(v):
-    """JSON 化できる正規形にする。date / datetime は ISO 文字列にする。"""
+    """Convert to a JSON-compatible canonical form; date / datetime use ISO strings."""
     import datetime as _dt
     if isinstance(v,dict):  return {str(k):_norm(v[k]) for k in sorted(v,key=str)}
     if isinstance(v,list):  return [_norm(x) for x in v]
@@ -48,11 +48,12 @@ def _norm(v):
     return v
 
 def canonical_obligation(o,predicates=None):
-    """義務の正規形（JSON, ソート済み）。
+    """Canonical form of an obligation (sorted JSON).
 
-    - review 以外の全フィールドを含む（生成物 docs/04 に出る日本語も含む）
-    - 参照する述語の**定義そのもの**を埋め込む。述語名だけだと predicates.yaml の
-      declared / observed / 除外規則を書き換えても digest が変わらない
+    - Includes every field except review, including human-readable text emitted in docs/04.
+    - Embeds the **definition itself** of the referenced predicate. Including only its name
+      would leave the digest unchanged if predicates.yaml's declared / observed / exclusion
+      rules changed.
     """
     import json
     d={k:_norm(v) for k,v in o.items() if k not in EXCLUDED_FROM_DIGEST and v is not None}
@@ -67,7 +68,7 @@ def obligation_digest(o,predicates=None):
     return sha(canonical_obligation(o,predicates))
 
 def catalog_digest(specs_doc,predicates_doc):
-    """specs.yaml と predicates.yaml 全体の digest（義務単位の digest を補う）。"""
+    """Digest the complete specs.yaml and predicates.yaml documents (complements obligation digests)."""
     import json
     return sha(json.dumps({'specs':_norm(specs_doc.get('specs')),
                            'predicates':_norm(predicates_doc.get('predicates'))},
@@ -89,39 +90,40 @@ def normalize_html(raw, mark_em=False):
     return '\n'.join(l for l in (re.sub(r'[ \t]+',' ',x).strip() for x in t.split('\n')) if l)
 
 def normalize_pdf(raw):
-    """pdfminer.six でテキスト化し、ページフッタと行番号列を除いて正規化する。"""
+    """Extract text with pdfminer.six and normalize it by removing page footers and line-number columns."""
     from pdfminer.high_level import extract_text
     import io
     t=extract_text(io.BytesIO(raw))
     t=unicodedata.normalize('NFC',t)
-    t=re.sub(r'\n[a-z0-9-]+-2\.0-os\s*\n.*?Page \d+ of \d+\s*\n','\n',t,flags=re.S)   # OASIS フッタ
-    t=re.sub(r'\n(?:\s*\d{1,4}\s*\n)+','\n',t)                                        # 行番号列
+    t=re.sub(r'\n[a-z0-9-]+-2\.0-os\s*\n.*?Page \d+ of \d+\s*\n','\n',t,flags=re.S)   # OASIS footer
+    t=re.sub(r'\n(?:\s*\d{1,4}\s*\n)+','\n',t)                                        # Line-number column
     return '\n'.join(l for l in (re.sub(r'[ \t]+',' ',x).strip() for x in t.split('\n')) if l)
 
 def normalize_text(raw):
-    """text/plain（IETF ドラフト等）用。★ 山括弧を保持する。
+    """For text/plain documents (such as IETF drafts). ★ Preserve angle brackets.
 
-    HTML として処理すると <samlec:GeneratedKey> のような **仕様本文中の XML 要素名**が
-    タグとして削除され、根拠の digest も語の検査も壊れる。
+    Processing as HTML would remove **XML element names in the specification text**, such as
+    <samlec:GeneratedKey>, as tags and break both evidence digests and term checks.
     """
     t=raw.decode('utf-8',errors='replace')
     t=unicodedata.normalize('NFC',t)
-    t=re.sub(r'\n\f?[^\n]*\[Page \d+\][^\n]*\n','\n',t)      # RFC のページフッタ
-    t=re.sub(r'\n\f[^\n]*\n','\n',t)                          # 改ページ直後のヘッダ
+    t=re.sub(r'\n\f?[^\n]*\[Page \d+\][^\n]*\n','\n',t)      # RFC page footer
+    t=re.sub(r'\n\f[^\n]*\n','\n',t)                          # Header immediately after a page break
     return '\n'.join(l for l in (re.sub(r'[ \t]+',' ',x).rstrip() for x in t.split('\n')) if l)
 
 def normalize(raw,url,mark_em=False):
     u=url.lower()
     if u.endswith('.pdf'):  return normalize_pdf(raw)
-    # ★ .txt / .xsd / .xml は山括弧を保持する。
-    #   HTML として処理すると仕様本文中の XML 要素名やスキーマ定義が消える。
+    # ★ Preserve angle brackets in .txt / .xsd / .xml files.
+    #   Processing them as HTML would remove XML element names and schema definitions.
     if u.endswith(('.txt','.xsd','.xml')):  return normalize_text(raw)
     return normalize_html(raw,mark_em)
 
 LOCATOR_SEP='||'
 def section(text,locator):
-    """locator = '<開始見出しの正規表現>||<次の見出しの正規表現>' で節を切り出す。
-       開始は最後の一致（目次の重複を避ける）、終了はそれ以降の最初の一致。"""
+    """Extract a section with locator = '<start-heading regex>||<next-heading regex>'.
+       Use the last start match (to avoid duplicate table-of-contents entries) and the first
+       subsequent end match."""
     start_re,end_re=locator.split(LOCATOR_SEP,1)
     st=[m.start() for m in re.finditer(start_re,text)]
     if not st: raise KeyError(f'locator start not found: {start_re!r}')

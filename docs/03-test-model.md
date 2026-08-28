@@ -661,7 +661,7 @@ run.completeness ∈ { COMPLETE, INCOMPLETE }
 - **UI とレポートは 2 つを必ず併記する**。片方だけの表示を禁止する
 
 ```
-CONFORMANT (tested scope)  ·  INCOMPLETE (3 obligations unresolved)
+CONFORMANT (tested scope)  ·  INCOMPLETE (3 obligations unresolved) <!--g1-literal-->
 ```
 
 - 従来の単一ラベル `INCOMPLETE` は `conformance = INDETERMINATE` に相当する。
