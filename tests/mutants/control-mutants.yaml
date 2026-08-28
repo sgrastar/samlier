@@ -1,0 +1,20 @@
+schema_version: 1
+control_mutants:
+- id: reject-everything
+  bases:
+  - sp-full-slo-enc
+  - sp-core-minimal
+  - idp-full
+  - idp-core-no-ecp
+  behavior_en: Reject every protocol input regardless of whether the input and prerequisite state are conforming.
+  must_change_cases: all_with_positive_control
+  unchanged_rule: baseline_for_all_others
+- id: accept-everything
+  bases:
+  - sp-full-slo-enc
+  - sp-core-minimal
+  - idp-full
+  - idp-core-no-ecp
+  behavior_en: Accept every protocol input regardless of malformed, forbidden, or contradictory content.
+  must_change_cases: all_with_negative_control
+  unchanged_rule: baseline_for_all_others

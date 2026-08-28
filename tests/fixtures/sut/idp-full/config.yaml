@@ -1,0 +1,38 @@
+schema_version: 1
+role: idp
+profile: idp-full
+features:
+  ecp: true
+  single_logout: true
+  assertion_encryption: true
+  proxying: true
+conditions:
+  allowcreate_general_interoperability_case: 'TRUE'
+  claims_mdq_support: 'TRUE'
+  claims_slo_support_sp: 'TRUE'
+  derives_url_from_relaystate: 'TRUE'
+  emits_idplist_getcomplete: 'TRUE'
+  not_token_translation_proxy: 'TRUE'
+  peer_declares_algorithm_support: 'TRUE'
+  proxies_to_non_saml_provider: 'TRUE'
+  proxy_allowcreate_general_interoperability_case: 'TRUE'
+  reissues_foreign_persistent_identifier: 'TRUE'
+  relaystate_privacy_required: 'TRUE'
+  setting_supported_by_implementation: 'TRUE'
+  slo_relaystate_privacy_required: 'TRUE'
+  supports_artifact_binding: 'TRUE'
+  supports_authnrequest_proxying: 'TRUE'
+  supports_cbc: 'TRUE'
+  supports_encrypted_nameid: 'TRUE'
+  supports_name_identifier_management: 'TRUE'
+  supports_outbound_encryption: 'TRUE'
+  supports_slo_idp: 'TRUE'
+  supports_slo_initiation_sp: 'TRUE'
+  supports_slo_sp: 'TRUE'
+  supports_unsolicited_responses: 'TRUE'
+  unsolicited_acs_from_metadata: 'TRUE'
+  uses_random_identifier_generation: 'TRUE'
+  uses_small_integer_sessionindex: 'TRUE'
+interaction:
+  browser: true
+  attestation: true

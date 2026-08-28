@@ -121,6 +121,10 @@ python3 -m venv .venv
 
 # After approval
 G1_TOOLS_COMMIT=<40-digit SHA> PY=.venv/bin/python tools/g1_ci_verify.sh
+
+# During G2 / after G2 approval
+.venv/bin/python tools/g2_validate.py
+G2_TOOLS_COMMIT=<40-digit SHA> PY=.venv/bin/python tools/g2_ci_verify.sh
 ```
 
 If `--structural-only` reports a blocking violation, **do not include that change**.
@@ -131,9 +135,9 @@ If `--structural-only` reports a blocking violation, **do not include that chang
 
 ```
 G1a ✅ Catalog creation
-G1b ⏳ Review of obligation meaning (source-text comparison and signed approval by someone other than the author)
-M0     Skeleton implementation        ← May begin after G1b. 0 tests.
-G2  ⏳ Test design       ← Case definitions, controls, mutants. Reviewed by someone other than the author.
+G1b ✅ Review of obligation meaning (source-text comparison and signed approval by someone other than the author)
+M0  ✅ Skeleton implementation. 0 verdict cases.
+G2  ⏳ Test design       ← Authored and validated; signed independent review remains required.
 M1〜   Verdict case implementation   ← ★ After G2 is complete.
 ```
 

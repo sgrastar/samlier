@@ -39,7 +39,7 @@ Self-hosted mode permits private network targets by default. Hosted deployments 
 
 ## Project status and design
 
-The requirements catalog has passed signed G1 review. M0 contains no verdict cases. Test design must pass G2 before M1 case implementation begins. See [the design index](docs/README.md), [the roadmap](docs/01-scope-and-roadmap.md), and [the implementation rules](AGENTS.md).
+The requirements catalog has passed signed G1 review and the zero-case M0 skeleton is implemented. The role-specific G2 case and mutant design is awaiting independent signed approval. No verdict cases are implemented; M1 remains blocked until G2 approval. See [the design index](docs/README.md), [the G2 design](docs/12-g2-test-design.md), [the roadmap](docs/01-scope-and-roadmap.md), and [the implementation rules](AGENTS.md).
 
 ## License
 

@@ -1,0 +1,38 @@
+schema_version: 1
+role: idp
+profile: idp-core
+features:
+  ecp: false
+  single_logout: false
+  assertion_encryption: false
+  proxying: false
+conditions:
+  allowcreate_general_interoperability_case: 'TRUE'
+  claims_mdq_support: 'FALSE'
+  claims_slo_support_sp: 'FALSE'
+  derives_url_from_relaystate: 'FALSE'
+  emits_idplist_getcomplete: 'FALSE'
+  not_token_translation_proxy: 'TRUE'
+  peer_declares_algorithm_support: 'FALSE'
+  proxies_to_non_saml_provider: 'FALSE'
+  proxy_allowcreate_general_interoperability_case: 'FALSE'
+  reissues_foreign_persistent_identifier: 'FALSE'
+  relaystate_privacy_required: 'TRUE'
+  setting_supported_by_implementation: 'FALSE'
+  slo_relaystate_privacy_required: 'TRUE'
+  supports_artifact_binding: 'FALSE'
+  supports_authnrequest_proxying: 'FALSE'
+  supports_cbc: 'FALSE'
+  supports_encrypted_nameid: 'FALSE'
+  supports_name_identifier_management: 'FALSE'
+  supports_outbound_encryption: 'FALSE'
+  supports_slo_idp: 'FALSE'
+  supports_slo_initiation_sp: 'FALSE'
+  supports_slo_sp: 'FALSE'
+  supports_unsolicited_responses: 'FALSE'
+  unsolicited_acs_from_metadata: 'FALSE'
+  uses_random_identifier_generation: 'FALSE'
+  uses_small_integer_sessionindex: 'FALSE'
+interaction:
+  browser: true
+  attestation: true

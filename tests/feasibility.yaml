@@ -1,0 +1,58 @@
+schema_version: 1
+spikes:
+  - id: S1
+    target: ECP and SAML-EC
+    status: PASS
+    assertions:
+      - SOAP and PAOS envelopes preserve channel-binding data independently in the SOAP header and Assertion Advice.
+      - The ECP-to-IdP forwarding step can remove every header received from the SP without removing samlec:GeneratedKey evidence.
+      - Matching, mismatching, request-only, header-only, and signed-request variants remain distinct case inputs.
+    verified_by:
+      - saml:G2FeasibilitySpikeTest.s1EcpAndSamlEcCanPreserveRequiredChannelBindingLocations
+    limitations_en: The probe proves the XML and state boundaries; target-specific credentials and transport remain runtime preconditions and are never persisted.
+  - id: S2
+    target: SLO and Asynchronous SLO
+    status: PASS
+    assertions:
+      - Front-channel and SOAP LogoutRequest messages can share a parsed semantic model without losing the original transport.
+      - The Asynchronous SLO extension is independently observable.
+      - Session-destroying cases can be ordered after session establishment and response observation.
+    verified_by:
+      - saml:G2FeasibilitySpikeTest.s2SloMessagesAndSessionDestructionOrderAreRepresentable
+    limitations_en: The spike proves representability and ordering; product-specific logout UI steps remain BROWSER case instructions.
+  - id: S3
+    target: MDQ and metadata variants
+    status: PASS
+    assertions:
+      - A variant selector survives target re-fetch through HTTP 301, 302, and 307 redirects.
+      - The same metadata identity can expose deterministic variant responses without changing the registered URL.
+    verified_by:
+      - saml:G2FeasibilitySpikeTest.s3MdqVariantsSurviveRequiredRedirectStatuses
+    limitations_en: A target that cannot be forced to refresh produces not_verified(target_config_unavailable), not a target violation.
+  - id: S4
+    target: secondary_peer
+    status: PASS
+    assertions:
+      - A second Test IdP has a distinct deterministic entityID below the same Test Plan.
+      - Its metadata registration path is independent from the primary Test IdP path.
+    verified_by:
+      - saml:G2FeasibilitySpikeTest.s4SecondaryPeerHasIndependentEntityIdAndRegistrationPath
+    limitations_en: The second entity remains optional plan configuration and is requested only by cases that require a second Test IdP.
+  - id: S5
+    target: Raw XML generation
+    status: PASS
+    assertions:
+      - Raw fixtures preserve DTDs, unknown attributes, entity references, and character references byte for byte.
+      - Boundary lengths are measured in Unicode code points and fixtures never synthesize isolated surrogates.
+    verified_by:
+      - saml:G2FeasibilitySpikeTest.s5RawXmlFixturesPreserveExactBytesAndXmlCharacterReferences
+    limitations_en: Raw fixtures bypass the normal OpenSAML builder intentionally and must still pass size and outbound-policy controls.
+  - id: S6
+    target: HTTP-Redirect raw query signatures
+    status: PASS
+    assertions:
+      - Signature input is assembled from the original encoded parameter pairs before URL decoding.
+      - Percent-escape spelling, plus signs, and parameter values are not reconstructed.
+    verified_by:
+      - saml:G2FeasibilitySpikeTest.s6RedirectSignatureInputUsesRawEncodedOctets
+    limitations_en: Duplicate signed parameters are rejected as ambiguous rather than selecting a parser-dependent value.

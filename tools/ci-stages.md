@@ -239,8 +239,22 @@ so merely placing an untracked `tools/yaml.py` runs arbitrary code before signat
 The runner removes its own directory from `sys.path` at startup,
 and the extracted validator never puts `tools/` on `sys.path`
 (`g1_extract` loads it with `importlib` using an explicit path).
-Together with **SR-40** (no untracked `.py` in `tools/`) and
-**matching the `tools/` file set**, this detects the shim's installation itself.
+Together with **SR-40** (no untracked or uncommitted `.py` in `tools/`) and the
+explicit protected-path comparison, this prevents an unreviewed shim from
+participating in G1 verification while allowing committed later-gate tools to coexist.
+
+## G2 design and approval
+
+`tools/g2_validate.py` validates the role-specific case catalog, exact stable-ID
+variant expansion, controls, counterexamples, dependency graph, baseline outcome
+matrix, mutant all-others oracle, and named feasibility tests. Its report is
+`build/g2-report.json` and remains `PENDING_REVIEW` until every case digest is in a
+signed `tests/approvals/g2.yaml` record.
+
+The G2 trust protocol mirrors G1: target commit C contains no approval record;
+signed commit A adds only `tests/approvals/g2.yaml`; CI extracts the trusted runner
+and validator from the immutable `G2_TOOLS_COMMIT`. The workflow must verify
+`g2.complete == true` and external-pin provenance before enabling M1.
 
 **Explicit limits** (the validator makes no stronger claim):
 

@@ -1,6 +1,6 @@
 # tools/
 
-Tools for the G1 design gate. **Generation, documentation, and validation are separated into three components.**
+Tools for the G1 and G2 design gates. **Generation, documentation, and validation are separated.**
 
 | Script | Role | Network | Authoring input | Reproducibility |
 |---|---|---|---|---|
@@ -10,6 +10,8 @@ Tools for the G1 design gate. **Generation, documentation, and validation are se
 | `g1_language_check.py` | Reject Japanese residue in tracked public text, except explicit allowlist entries | **Not required** | **Not required** | ✅ CI build artifact under `build/` |
 | `g1_schema_validate.py` | Enforce the G1 JSON Schemas against canonical catalogs and migration artifacts | **Not required** | **Not required** | ✅ CI build artifact under `build/` |
 | `g1_validate.py` | **Independently validates** committed artifacts | Required (`--offline` can use the cache) | **Not required** | ✅ |
+| `g2_validate.py` | Independently validates case, control, mutant, baseline, feasibility, and approval artifacts | **Not required** | **Not required** | ✅ CI artifact under `build/` |
+| `g2_trusted_verify.py` / `g2_ci_verify.sh` | Verify signed G2 approval using an externally pinned validator and runner | **Not required** | **Not required** | ✅ |
 
 Dependencies: `PyYAML`, `pdfminer.six`, `cryptography`, and `jsonschema` (all exact-version and hash pinned in `requirements.lock`)
 
@@ -21,6 +23,7 @@ python3 tools/g1_schema_validate.py
 python3 tools/g1_language_check.py
 python3 tools/g1_validate.py          # Fetch and reconcile source text → build/spec-reconcile-report.json (not tracked by Git)
 python3 tools/g1_validate.py --offline
+python3 tools/g2_validate.py          # build/g2-report.json; approval may remain pending
 ```
 
 ## The validator is independent of generation

@@ -21,5 +21,11 @@
 /tools/requirements.txt       @sgrastar
 /tools/requirements.lock      @sgrastar
 
+# G2 design gate and signed approval verifier
+/tools/g2_validate.py         @sgrastar
+/tools/g2_trusted_verify.py   @sgrastar
+/tools/g2_ci_verify.sh        @sgrastar
+/.github/workflows/g2.yml     @sgrastar
+
 # Approved artifacts
 /tests/                       @sgrastar
