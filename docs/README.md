@@ -32,7 +32,7 @@ OIDF Conformance Suite の SAML 版に相当するものを目指す。
 | 成果物 | 内容 |
 |---|---|
 | `tests/specs.yaml` | 仕様カタログ（<!--g1:specs-->25<!--/g1--> 仕様。外部ドラフトは版を固定） |
-| `tests/coverage.yaml` | **要件カタログ＝判定レベルの唯一の出典**。<!--g1:requirements-->69<!--/g1--> 要件 → **<!--g1:obligations-->544<!--/g1--> 義務**（うち <!--g1:multi_clause-->128<!--/g1--> は複数範囲の `source_clauses`） |
+| `tests/coverage.yaml` | **要件カタログ＝判定レベルの唯一の出典**。<!--g1:requirements-->69<!--/g1--> 要件 → **<!--g1:obligations-->544<!--/g1--> 義務**（うち <!--g1:multi_clause-->129<!--/g1--> は複数範囲の `source_clauses`） |
 | `tests/predicates.yaml` | 条件述語の固定集合（<!--g1:predicates-->26<!--/g1--> 述語） |
 | `build/spec-reconcile-report.json` | 独立 validator の結果（**`totals.blocking_failures == 0`** を満たすこと。承認前は SR-30〈open question 残存〉と SR-31〈未承認〉が FAIL のまま残る＝ G1 の完了条件）。**ビルド生成物なので Git 管理下に置かない**（CI artifact として保存する） |
 | `docs/04-requirement-coverage.md` | `coverage.yaml` からの**生成物**（手編集禁止） |

@@ -1,6 +1,6 @@
 # tests/coverage.yaml — 要件カタログ（G1 成果物 / 判定レベルの唯一の出典）
 # 生成: build_g1.py（原文からオフセットと digest を解決）/ 手編集しない
-generated_at: 2026-08-28T09:01:41+00:00
+generated_at: 2026-08-28T09:22:48+00:00
 schema_version: 1
 g1_state: PENDING_REVIEW
 # 作成者は reviewer / approved_at を埋めない。別のレビュアーが原文と直接照合して承認する。
@@ -1930,14 +1930,14 @@ requirements:
             description_ja: "use=encryption で鍵 wrapping"
         controls:
           - "use=signing を XML signature だけに狭めない。use=encryption を data encryption algorithm 自体の宣言と取り違えない"
-          - "use 省略時の両用途規則は、IIP 本文が同じ規則を直接 MUST とする IIP-MD11.a で一度だけ判定し、本義務で二重計上しない"
+          - "use 省略時の XML署名・TLS/SSL・暗号鍵 wrapping は、IIP 本文が E62 を引用して直接 MUST とする IIP-MD11.a で一度だけ判定し、本義務で二重計上しない"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:46df94d67810e067f475b3fa1d5a1814ef070bfaf48f4d09c6778d519a86fc4c"
+          obligation_digest: "sha256:4f226f56babf7f275b0b54540f8063285d41084c5369284625b750cabf9fb82a"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-MD05"
@@ -5032,25 +5032,36 @@ requirements:
         testability: CONFIG
         condition: null
         configuration_failure_semantics: test_precondition
-        summary_en: "A md:KeyDescriptor with no use attribute must be valid as both a signing and an encryption key"
-        summary_ja: "use 属性のない md:KeyDescriptor は署名・暗号の両方に有効"
+        summary_en: "A md:KeyDescriptor with no use attribute must be valid for XML signing, TLS/SSL, and encryption-key wrapping"
+        summary_ja: "use 属性のない md:KeyDescriptor は XML署名・TLS/SSL・暗号鍵 wrapping の全用途に有効"
+        references_spec: "SAML2Errata#E62"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2Errata
+            locator: "E62: TLS Keys in KeyDescriptor||E63: IdP Discovery Cookie Interpretation"
+            section_digest: "sha256:4adedf0d3fd843633addcdac09462e0fae24060d3a7e6d126b0fd9b788835487"
+            basis_ja: "use 省略時は signing の XML署名・TLS/SSL と encryption key wrapping の全用途に適用"
         level_assignment: { idp: core, sp: core }
         source_clauses:
           - { start: 0, end: 128, digest: "sha256:561322c88cc5b931cd889f477c60743d8cda4d8512f11373c0228cb9c2388251", occurrences: 1 }
+          - { start: 193, end: 301, digest: "sha256:f525aec15d8f9292d7fa3a32e92221d44accdfe0ca8a49d3ce752d3c253b9d4c", occurrences: 1 }
         required_variants:
-          - id: v-d0deb3bdbd
-            description_ja: "use なし鍵のみの variant で署名検証が通るか"
-          - id: v-bf171e8959
-            description_ja: "同 variant で暗号化に使われるか"
+          - id: v-ebc42eadb5
+            description_ja: "use なし鍵のみの metadata で XML 署名検証が通る"
+          - id: v-bb045bcdd2
+            description_ja: "use なし鍵と同じ public key を使う TLS server / peer authentication が、当該 role の TLS 経路で成立する"
+          - id: v-ef0ae88617
+            description_ja: "use なし鍵を encryption key wrapping に使用できる"
         controls:
-          - "署名側・暗号側の両方を確認する。片方だけで PASS にしない"
+          - "E62 の signing use は XML signature だけでなく TLS/SSL も含む。3用途を個別に確認し、いずれか1つだけで PASS にしない"
+          - "対象 role に安全に実行できる TLS 経路を構成できなければ violated ではなく not_verified(tls_key_usage_path_unavailable)。明示 use=signing の鍵で代用しない"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:fa641a125332eeb534dd50db28d85bee8f6a51cba42eae48a15a70d8fbe152bf"
+          obligation_digest: "sha256:c2640073fa938e805ddea2ab12e563712234023adc76e04df3e6e31e8e66a02d"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-MD11"

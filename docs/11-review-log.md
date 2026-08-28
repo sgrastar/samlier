@@ -3563,3 +3563,21 @@ SP は IdP metadata の `DiscoHints` を消費する actor になり得るため
 
 義務数は 542 → 544。修正版は同じレビュアーチャットで、上記 findings の閉鎖と Metadata 外への
 回帰がないことだけを1回確認する。
+
+### CP3-R1 再レビューの残存 finding
+
+固定 commit `0975b57` の再レビューでは、前回6論点中5件が閉鎖したが、E62 の重複解消で
+TLS/SSL 経路を落とした回帰が見つかった。`.aw` から `use` 省略 variant を丸ごと除いた一方、
+委譲先 `IIP-MD11.a` は XML署名と暗号化しか検査しておらず、`use` 省略鍵を TLS/SSL に使えない
+実装が PASS できる状態だった。
+
+`IIP-MD11.a` に IIP 節内の E62 引用句と Errata E62 の reference evidence を追加し、required variant を
+次の3用途へ揃えた。
+
+- XML署名の検証
+- 当該 role の TLS server / peer authentication
+- encryption key wrapping
+
+TLS 経路を安全に構成できない場合は target violation へ転嫁せず
+`not_verified(tls_key_usage_path_unavailable)` とする。明示 `use=signing` の fixture で省略時検査を
+代用しない。義務数 544 は維持し、variant は1件増える。

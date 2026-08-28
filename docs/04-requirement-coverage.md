@@ -955,7 +955,7 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
   - `v-cbed006395` use=encryption で鍵 wrapping
 - **対照（negative control）**:
   - use=signing を XML signature だけに狭めない。use=encryption を data encryption algorithm 自体の宣言と取り違えない
-  - use 省略時の両用途規則は、IIP 本文が同じ規則を直接 MUST とする IIP-MD11.a で一度だけ判定し、本義務で二重計上しない
+  - use 省略時の XML署名・TLS/SSL・暗号鍵 wrapping は、IIP 本文が E62 を引用して直接 MUST とする IIP-MD11.a で一度だけ判定し、本義務で二重計上しない
 - **設定不能時の意味**: `test_precondition`
 - **参照先仕様**: `SAML2Meta`
 - **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[93, 159)` `sha256:1360c8fd9ba8…`
@@ -2191,17 +2191,20 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 
 | 義務 | Level | Role | Testability | 条件 | Core/Full | 要約 |
 |---|---|---|---|---|---|---|
-| `IIP-MD11.a` | MUST | idp/sp | `CONFIG` | — | core | use 属性のない md:KeyDescriptor は署名・暗号の両方に有効 |
+| `IIP-MD11.a` | MUST | idp/sp | `CONFIG` | — | core | use 属性のない md:KeyDescriptor は XML署名・TLS/SSL・暗号鍵 wrapping の全用途に有効 |
 
 <details><summary><code>IIP-MD11.a</code> の詳細</summary>
 
 - **必要な variant**:
-  - `v-d0deb3bdbd` use なし鍵のみの variant で署名検証が通るか
-  - `v-bf171e8959` 同 variant で暗号化に使われるか
+  - `v-ebc42eadb5` use なし鍵のみの metadata で XML 署名検証が通る
+  - `v-bb045bcdd2` use なし鍵と同じ public key を使う TLS server / peer authentication が、当該 role の TLS 経路で成立する
+  - `v-ef0ae88617` use なし鍵を encryption key wrapping に使用できる
 - **対照（negative control）**:
-  - 署名側・暗号側の両方を確認する。片方だけで PASS にしない
+  - E62 の signing use は XML signature だけでなく TLS/SSL も含む。3用途を個別に確認し、いずれか1つだけで PASS にしない
+  - 対象 role に安全に実行できる TLS 経路を構成できなければ violated ではなく not_verified(tls_key_usage_path_unavailable)。明示 use=signing の鍵で代用しない
 - **設定不能時の意味**: `test_precondition`
-- **source_clauses**: `[0, 128)` `sha256:561322c88cc5…`
+- **参照先仕様**: `SAML2Errata#E62`
+- **source_clauses**: `[0, 128)` `sha256:561322c88cc5…` , `[193, 301)` `sha256:f525aec15d8f…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
 
 </details>
