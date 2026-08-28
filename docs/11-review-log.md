@@ -3581,3 +3581,20 @@ TLS/SSL 経路を落とした回帰が見つかった。`.aw` から `use` 省�
 TLS 経路を安全に構成できない場合は target violation へ転嫁せず
 `not_verified(tls_key_usage_path_unavailable)` とする。明示 `use=signing` の fixture で省略時検査を
 代用しない。義務数 544 は維持し、variant は1件増える。
+
+### CP3 外部再レビューの完了
+
+固定 commit `ca54c4b` を同じレビュアーが CP3-R1 の残存 E62 finding と直接的回帰だけに限定して
+再確認し、`verification: PASS / findings: none / scope_violations: none` を確認した。
+
+- `IIP-MD11.a` の2 source clauses は IIP 直接 MUST と節内 E62 引用の双方に一致する
+- Errata E62 から XML署名・TLS/SSL・encryption key wrapping の3用途が導出される
+- required variants は3用途を個別に検査し、明示 `use=signing` の fixture で省略時を代用しない
+- TLS 経路を構成できない場合は `not_verified` とし、適合実装へ誤 FAIL を出さない
+- `.aw` は明示 `use`、`MD11.a` は省略 `use` を一度だけ判定する
+- R1 から意味変更された obligation は `.aw` / `MD11.a` の2件だけである
+
+これにより CP3（Metadata）を閉じる。CP1（Web Browser SSO）、CP2a（Discovery）、CP2b（SLO）、
+CP2c（Async SLO / ECP）、CP3（Metadata）の限定意味レビューはすべて完了した。次は個別仕様の
+再レビューを繰り返さず、全カタログの境界・重複・level / role / applicability・未解決参照を横断する
+最終監査を1回行い、G1b の署名承認可否を決める。
