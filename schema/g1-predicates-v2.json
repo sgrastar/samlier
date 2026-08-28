@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://samlier.example/schema/g1-predicates-v2.json",
+  "title": "Samlier English-canonical G1 predicate catalog",
+  "type": "object",
+  "required": ["schema_version", "predicates"],
+  "properties": {
+    "schema_version": { "const": 2 },
+    "predicates": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["kind", "description_en", "declared", "observed", "rationale_en"],
+        "not": {
+          "anyOf": [
+            { "required": ["description_ja"] },
+            { "required": ["rationale_ja"] }
+          ]
+        }
+      }
+    }
+  }
+}
