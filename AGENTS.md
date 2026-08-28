@@ -83,7 +83,10 @@ Always pair positive / negative controls ([G2 in docs/01](docs/01-scope-and-road
 
 **Cover expanded `linked_obligations` as well.** A link with `kind: inherit_variants` means
 “also cover the linked obligation's `required_variants`,” and must be expanded **transitively**.
-Do **not inherit** `role` / `level` / `condition` / `testability` (use the obligation's own values).
+Always use the owning obligation's `role` / `level` / `testability`. Variant applicability normally uses
+the owner's condition (`owner_condition`), but when the link explicitly declares
+`variant_applicability: linked_condition`, apply the linked obligation's condition **only to the imported variants**.
+Do not silently discard or infer this setting.
 Coverage does **not** count as coverage of the linked obligation itself (do not double-count).
 See [the section on link semantics in docs/03](docs/03-test-model.md) for the complete rule.
 
