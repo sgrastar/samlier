@@ -394,6 +394,7 @@ CORE_SECTIONS={'2.1','2.2','2.3','2.4','2.5'}
 # Allowed linked-obligation kinds. Any extension must update the semantic
 # definition in docs/03 and SR-22g in g1_validate.py at the same time.
 LINK_KINDS = {'inherit_variants'}
+LINK_VARIANT_APPLICABILITY = {'owner_condition', 'linked_condition'}
 
 def level_assignment(rid,o):
     """Samlier-specific Core: MUST_CLASS excluding SLO, ECP, and Discovery."""
@@ -513,9 +514,17 @@ for rid in RIDS:
                     raise SystemExit(f"{o['key']}: linked_obligations.kind must be one of {sorted(LINK_KINDS)}; got {lk.get('kind')!r}. Define new kinds in docs/03 and g1_validate.py SR-22g first")
                 if not lk.get('note_en'):
                     raise SystemExit(f"{o['key']}: linked_obligations requires note_en explaining the inherited content")
+                applicability = lk.get('variant_applicability', 'owner_condition')
+                if applicability not in LINK_VARIANT_APPLICABILITY:
+                    raise SystemExit(
+                        f"{o['key']}: linked_obligations.variant_applicability must be one of "
+                        f"{sorted(LINK_VARIANT_APPLICABILITY)}; got {applicability!r}"
+                    )
                 L+= [f"          - obligation: {lk['obligation']}",
-                     f"            kind: {lk['kind']}",
-                     f"            note_en: {y(lk['note_en'])}"]
+                     f"            kind: {lk['kind']}"]
+                if applicability != 'owner_condition':
+                    L.append(f"            variant_applicability: {applicability}")
+                L.append(f"            note_en: {y(lk['note_en'])}")
         if o.get('controls'):
             L.append("        controls:")
             for v in o['controls']: L.append(f"          - {y(v)}")

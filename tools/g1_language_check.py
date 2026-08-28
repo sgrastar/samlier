@@ -17,6 +17,20 @@ REPORT = ROOT / "build" / "g1-language-report.json"
 JAPANESE = re.compile(
     r"[\u3040-\u30ff\u31f0-\u31ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]"
 )
+LEGACY_FIELD = re.compile(r"\b[A-Za-z0-9_.-]*_ja\b")
+# These files necessarily discuss or consume the legacy baseline vocabulary.
+# They are not canonical public data formats.
+LEGACY_FIELD_EXEMPTIONS = {
+    "docs/11-review-log.md",
+    "tools/g1_migration_validate.py",
+    "tools/g1_language_check.py",
+    "tools/g1_schema_validate.py",
+    "schema/g1-coverage-v2.json",
+    "schema/g1-predicates-v2.json",
+    "schema/g1-specs-v2.json",
+    "schema/g1-variant-map-v1.json",
+    "schema/g1-semantic-exceptions-v1.json",
+}
 
 
 def tracked_files() -> list[str]:
@@ -48,6 +62,7 @@ def main() -> int:
     args = parser.parse_args()
     patterns = allow_patterns()
     matches: list[dict[str, object]] = []
+    legacy_field_matches: list[dict[str, object]] = []
 
     for relative in tracked_files():
         if relative.startswith("build/spec-cache/"):
@@ -75,6 +90,17 @@ def main() -> int:
                         "text": line.strip(),
                     }
                 )
+            if relative not in LEGACY_FIELD_EXEMPTIONS:
+                legacy = LEGACY_FIELD.findall(line)
+                if legacy:
+                    legacy_field_matches.append(
+                        {
+                            "path": relative,
+                            "line": line_number,
+                            "fields": legacy,
+                            "text": line.strip(),
+                        }
+                    )
 
     REPORT.parent.mkdir(parents=True, exist_ok=True)
     payload = {
@@ -83,7 +109,9 @@ def main() -> int:
         "matching_lines": len(matches),
         "matching_characters": sum(int(item["characters"]) for item in matches),
         "matches": matches,
-        "passed": not matches,
+        "legacy_field_exemptions": sorted(LEGACY_FIELD_EXEMPTIONS),
+        "legacy_field_matches": legacy_field_matches,
+        "passed": not matches and not legacy_field_matches,
     }
     REPORT.write_text(
         json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
@@ -96,7 +124,10 @@ def main() -> int:
         print(f"{item['path']}:{item['line']}: {item['text']}")
     if len(matches) > 50:
         print(f"... {len(matches) - 50} more lines; see {REPORT.relative_to(ROOT)}")
-    return 0 if not matches or args.report_only else 1
+    print(f"Legacy Japanese-language fields: {len(legacy_field_matches)} matches")
+    for item in legacy_field_matches[:50]:
+        print(f"{item['path']}:{item['line']}: {', '.join(item['fields'])}")
+    return 0 if (not matches and not legacy_field_matches) or args.report_only else 1
 
 
 if __name__ == "__main__":

@@ -20,6 +20,7 @@ DEFAULT_BASELINE = "ca54c4b83ac1a3208591f03772b4cf52c62045d4"
 ROOT = Path(__file__).resolve().parents[1]
 REPORT = ROOT / "build" / "g1-migration-report.json"
 VARIANT_MAP = ROOT / "build" / "g1-variant-id-map.json"
+SEMANTIC_EXCEPTIONS = ROOT / "tools" / "g1-semantic-exceptions.yaml"
 
 
 def git_yaml(commit: str, path: str) -> dict[str, Any]:
@@ -31,6 +32,32 @@ def git_yaml(commit: str, path: str) -> dict[str, Any]:
 
 def worktree_yaml(path: str) -> dict[str, Any]:
     return yaml.safe_load((ROOT / path).read_text(encoding="utf-8"))
+
+
+def semantic_exceptions(baseline: str) -> tuple[dict[str, set[str]], list[str], dict[str, Any]]:
+    """Load explicitly reviewed departures from the fixed migration baseline."""
+    manifest = yaml.safe_load(SEMANTIC_EXCEPTIONS.read_text(encoding="utf-8")) or {}
+    errors: list[str] = []
+    if manifest.get("baseline_commit") != baseline:
+        errors.append(
+            "semantic-exception baseline does not match the comparison baseline: "
+            f"{manifest.get('baseline_commit')!r} != {baseline!r}"
+        )
+    if manifest.get("status") != "REQUIRES_G1B_REVIEW":
+        errors.append("semantic exceptions must remain REQUIRES_G1B_REVIEW before G1b")
+    allowed: dict[str, set[str]] = {}
+    seen_ids: set[str] = set()
+    for item in manifest.get("exceptions", []):
+        exception_id = item.get("id")
+        obligation = item.get("obligation")
+        fields = set(item.get("fields") or [])
+        if exception_id in seen_ids:
+            errors.append(f"duplicate semantic-exception id: {exception_id}")
+        seen_ids.add(exception_id)
+        if obligation in allowed:
+            errors.append(f"duplicate semantic-exception obligation: {obligation}")
+        allowed[obligation] = fields
+    return allowed, errors, manifest
 
 
 def obligations(catalog: dict[str, Any]) -> dict[str, dict[str, Any]]:
@@ -63,6 +90,9 @@ def linked_shape(items: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
             "obligation": item.get("obligation"),
             "kind": item.get("kind"),
             "variants": item.get("variants"),
+            "variant_applicability": item.get(
+                "variant_applicability", "owner_condition"
+            ),
         }
         for item in (items or [])
     ]
@@ -181,12 +211,15 @@ def main() -> int:
     new_specs = worktree_yaml("tests/specs.yaml")
     old_predicates = git_yaml(args.baseline, "tests/predicates.yaml")
     new_predicates = worktree_yaml("tests/predicates.yaml")
+    allowed_changes, exception_errors, exception_manifest = semantic_exceptions(
+        args.baseline
+    )
 
     old_obligations = obligations(old_catalog)
     new_obligations = obligations(new_catalog)
     old_requirements = requirements(old_catalog)
     new_requirements = requirements(new_catalog)
-    errors: list[str] = []
+    errors: list[str] = list(exception_errors)
 
     if set(old_requirements) != set(new_requirements):
         errors.append(
@@ -250,8 +283,33 @@ def main() -> int:
                 }
             )
 
-    if changed:
-        errors.append(f"normative obligation structure changed: {sorted(changed)}")
+    actual_changed_fields: dict[str, set[str]] = {
+        key: {
+            field
+            for field in set(value["baseline"]) | set(value["current"])
+            if value["baseline"].get(field) != value["current"].get(field)
+        }
+        for key, value in changed.items()
+    }
+    unapproved_changes: dict[str, list[str]] = {}
+    for key, fields in actual_changed_fields.items():
+        unexpected = fields - allowed_changes.get(key, set())
+        if unexpected:
+            unapproved_changes[key] = sorted(unexpected)
+    stale_exceptions: dict[str, list[str]] = {}
+    for key, fields in allowed_changes.items():
+        missing = fields - actual_changed_fields.get(key, set())
+        if missing:
+            stale_exceptions[key] = sorted(missing)
+    unknown_exception_obligations = sorted(set(allowed_changes) - set(new_obligations))
+    if unapproved_changes:
+        errors.append(f"unapproved normative changes: {unapproved_changes}")
+    if stale_exceptions:
+        errors.append(f"stale semantic exceptions: {stale_exceptions}")
+    if unknown_exception_obligations:
+        errors.append(
+            f"semantic exceptions reference unknown obligations: {unknown_exception_obligations}"
+        )
 
     old_spec_logic = {
         key: {k: v for k, v in value.items() if k not in {"title", "note", "url_note"}}
@@ -328,6 +386,13 @@ def main() -> int:
         "requirement_changes": changed_requirements,
         "catalog_changes": changed_catalog,
         "normative_changes": changed,
+        "semantic_exception_status": exception_manifest.get("status"),
+        "semantic_exceptions": {
+            key: sorted(actual_changed_fields.get(key, set()))
+            for key in sorted(allowed_changes)
+        },
+        "unapproved_normative_changes": unapproved_changes,
+        "stale_semantic_exceptions": stale_exceptions,
         "english_field_errors": english_errors,
         "errors": errors,
         "passed": not errors,

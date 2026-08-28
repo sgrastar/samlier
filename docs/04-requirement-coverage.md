@@ -20,7 +20,7 @@ Validation: `python3 tools/g1_validate.py` → `build/spec-reconcile-report.json
 | MUST_CLASS | 403 |
 | SHOULD_CLASS | 111 |
 | MAY_CLASS | 30 |
-| Conditional obligations | 105 |
+| Conditional obligations | 108 |
 | IdP profile | 414 obligations (Core 254 / Full 160) |
 | SP profile | 320 obligations (Core 183 / Full 137) |
 | Non-normative (italic) spans | 26 |
@@ -2225,6 +2225,8 @@ Validation: `python3 tools/g1_validate.py` → `build/spec-reconcile-report.json
   - `v-4c677c4907` 1 encryption key
   - `v-fa5cd1f9c6` 2 encryption keys
   - `v-0b1224822c` 3 Suite metadata variants
+- **Controls (negative controls)**:
+  - When multiple encryption keys are published, the target may use any one of them for outbound encryption. Do not require a particular key or key order.
 - **Configuration failure semantics**: `normative_capability`
 - **Notes**: This obligation concerns whether the peer’s multiple encryption keys can be consumed. It is distinct from rollover of the implementation’s own decryption keys (SP08 / IDP19).
 - **source_clauses**: `[0, 154)` `sha256:8b1c5bad9782…`
@@ -2334,7 +2336,7 @@ Validation: `python3 tools/g1_validate.py` → `build/spec-reconcile-report.json
   - `v-0f4ee545b4` 1 self-signed certificate
   - `v-99b4a8488f` 3 self-signed certificates
   - `v-a1e480dcec` 20-year validity period
-- **Configuration failure semantics**: `test_precondition`
+- **Configuration failure semantics**: `normative_capability`
 - **source_clauses**: `[0, 85)` `sha256:efe1ac438853…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
 
@@ -2345,7 +2347,7 @@ Validation: `python3 tools/g1_validate.py` → `build/spec-reconcile-report.json
 - **Required variants**:
   - `v-f21abb1c89` Expired certificate
   - `v-3bc7889026` Not-yet-valid certificate
-- **Configuration failure semantics**: `test_precondition`
+- **Configuration failure semantics**: `normative_capability`
 - **Notes**: The cited MDIOP states that not-yet-valid status, critical and non-critical extensions, and usage flags also do not prevent use of the key.
 - **source_clauses**: `[0, 85)` `sha256:efe1ac438853…` , `[86, 124)` `sha256:be414b37d785…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
@@ -2357,7 +2359,7 @@ Validation: `python3 tools/g1_validate.py` → `build/spec-reconcile-report.json
 - **Required variants**:
   - `v-8a46b69554` Certificate signed with SHA-1
   - `v-524e4a98e5` Certificate signed with SHA-512
-- **Configuration failure semantics**: `test_precondition`
+- **Configuration failure semantics**: `normative_capability`
 - **source_clauses**: `[0, 85)` `sha256:efe1ac438853…` , `[126, 175)` `sha256:731dafad9c7e…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
 
@@ -2376,7 +2378,7 @@ Validation: `python3 tools/g1_validate.py` → `build/spec-reconcile-report.json
   - `v-80652c7142` Valid certificate (control; detects implementations that reject all certificates)
 - **Controls (negative controls)**:
   - ★ Make each variation a separate variant. Passing one does not detect implementations that reject the others.
-- **Configuration failure semantics**: `test_precondition`
+- **Configuration failure semantics**: `normative_capability`
 - **Referenced specification**: `SAML2MDIOP`
 - **Reference derivation**: The quoted text is directly included in the IIP source text (non-italicized, therefore normative), so its meaning is definite without reading the referenced section.
 - **Notes**: The previous version mixed not-yet-valid certificates into the MD12.b note and left the remainder only as notes. Because the quoted portions are non-italicized, they are normative under the G1 rules; make every item that could be used as a reason for rejection a separate variant.
@@ -7481,9 +7483,9 @@ Validation: `python3 tools/g1_validate.py` → `build/spec-reconcile-report.json
 | Obligation | Level | Role | Testability | Condition | Core/Full | Summary |
 |---|---|---|---|---|---|---|
 | `IIP-SP15.a` | MUST | sp | `BROWSER` | `supports_slo_initiation_sp`<br>(CAPABILITY_BASED) | full | Support sending SP-initiated LogoutRequest messages with HTTP-Redirect |
-| `IIP-SP15.b` | MUST | sp | `BROWSER` | — | full | When consuming LogoutRequest messages, support receiving them with HTTP-Redirect |
-| `IIP-SP15.c` | MUST | sp | `BROWSER` | — | full | When consuming LogoutRequest messages, support returning LogoutResponse messages with HTTP-Redirect |
-| `IIP-SP15.d` | MUST | sp | `BROWSER` | — | full | When consuming LogoutResponse messages, support receiving them with HTTP-Redirect |
+| `IIP-SP15.b` | MUST | sp | `BROWSER` | `supports_slo_sp`<br>(CAPABILITY_BASED) | full | When consuming LogoutRequest messages, support receiving them with HTTP-Redirect |
+| `IIP-SP15.c` | MUST | sp | `BROWSER` | `supports_slo_sp`<br>(CAPABILITY_BASED) | full | When consuming LogoutRequest messages, support returning LogoutResponse messages with HTTP-Redirect |
+| `IIP-SP15.d` | MUST | sp | `BROWSER` | `supports_slo_sp`<br>(CAPABILITY_BASED) | full | When consuming LogoutResponse messages, support receiving them with HTTP-Redirect |
 
 <details><summary><code>IIP-SP15.a</code> details</summary>
 
@@ -7554,7 +7556,7 @@ Validation: `python3 tools/g1_validate.py` → `build/spec-reconcile-report.json
 - **Required variants**:
   - `v-d10ed99386` Whether two keys can be configured
 - **Configuration failure semantics**: `normative_capability`
-- **source_clauses**: `[141, 338)` `sha256:90fb97968915…`
+- **source_clauses**: `[141, 254)` `sha256:059756073dbf…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
 
 </details>
@@ -7564,7 +7566,7 @@ Validation: `python3 tools/g1_validate.py` → `build/spec-reconcile-report.json
 - **Required variants**:
   - `v-c495957ae7` Encrypt with the second key → decrypted
   - `v-28ac3cb696` Unregistered key → failure (control)
-- **source_clauses**: `[362, 466)` `sha256:f51f26e9ee37…`
+- **source_clauses**: `[255, 466)` `sha256:d842bb823694…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
 
 </details>
@@ -8470,7 +8472,9 @@ Validation: `python3 tools/g1_validate.py` → `build/spec-reconcile-report.json
 - **Controls (negative controls)**:
   - Verify that ecp:Response/@AssertionConsumerServiceURL matches the PAOS ACS in metadata.
   - ★ Covering only ECP-specific elements omits the subjects covered by §4.1.6, which is inherited at the beginning of §2.3.10.
-- **Linked obligation**: `IIP-SSO06.a` (`inherit_variants` / 8 variants) — Because the beginning of IIP-IDP16 (§2.3.10) inherits the Web Browser SSO §4.1.6 rules for ECP, the required_variants of IIP-SSO06.a must also be covered in the ECP context. Use this obligation's role, level, condition, and testability.
+  - For variants imported from IIP-SSO06.a, apply condition (b) element by element. If the implementation does not support the corresponding setting, that imported variant is not applicable and must not be reported as a violation.
+  - The hoksso:ProtocolBinding and holder-of-key browser-binding variants apply only when Holder of Key is supported. If it is not supported, record satisfied_with_note for those runtime-scoped variants rather than a violation.
+- **Linked obligation**: `IIP-SSO06.a` (`inherit_variants` / 8 variants / applicability: `linked_condition`) — Because the beginning of IIP-IDP16 (§2.3.10) inherits the Web Browser SSO §4.1.6 rules for ECP, the required_variants of IIP-SSO06.a must also be covered in the ECP context. Use IIP-IDP16.a's role, level, and testability, but retain the linked IIP-SSO06.a condition for those imported variants.
 - **Configuration failure semantics**: `normative_capability`
 - **Referenced specification**: `SAML2ECP#2.3.10`
 - **Reference basis (SAML2ECP)**; locator: `2\.3\.10 Use of Metadata||2\.3\.11 Message Signing Profile`: Basis for the metadata elements enumerated in §2.3.10 (PAOS ACS / SOAP SingleSignOnService / cb:supportsChannelBindings / conditional HoK requirements / index and isDefault).

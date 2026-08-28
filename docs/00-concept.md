@@ -144,7 +144,7 @@ Writing `FAIL` in a mutant definition would repeat the error of uniformly turnin
 # tests/mutants/no-signature-validation.yaml
 id: no-signature-validation
 base: sp-full-slo-enc            # ★ Explicitly identify the baseline for this mutant
-injected_violation_ja: Do not validate XML signatures on Responses at all
+injected_violation_en: Do not validate XML signatures on Responses at all
 expected_changes:                # Obligations that should change from baseline (written as outcome)
   IIP-SP13.a: violated
   IIP-MD07.b: violated

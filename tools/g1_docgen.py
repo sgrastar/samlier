@@ -94,7 +94,8 @@ for r in reqs:
             A("- **Controls (negative controls)**:")
             for v in o['controls']: A(f"  - {v}")
         for lk in LINKS.get(o['key'],[]):
-            A(f"- **Linked obligation**: `{lk['obligation']}` (`{lk['kind']}` / {VARN.get(lk['obligation'],0)} variants) — {lk['note_en']}")
+            scope=lk.get('variant_applicability','owner_condition')
+            A(f"- **Linked obligation**: `{lk['obligation']}` (`{lk['kind']}` / {VARN.get(lk['obligation'],0)} variants / applicability: `{scope}`) — {lk['note_en']}")
         for src,kind in BACK.get(o['key'],[]):
             A(f"- **Referenced by**: `{src}` incorporates this obligation via `{kind}`. Editing this obligation's variants also affects `{src}` cases.")
         if o.get('configuration_failure_semantics'):

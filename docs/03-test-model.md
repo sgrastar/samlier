@@ -217,6 +217,7 @@ Therefore, `coverage.yaml` carries a **machine-readable link**.
 linked_obligations:
   - obligation: IIP-SSO06.a
     kind: inherit_variants          # The only type currently defined
+    variant_applicability: linked_condition
     note_en: "…why it is incorporated…"
 ```
 
@@ -225,7 +226,7 @@ linked_obligations:
 | # | Rule | Reason |
 |---|---|---|
 | **L1** | `kind: inherit_variants` means that "**A's cases MUST also cover B's `required_variants`**." Expansion is **transitive** | To prevent inherited items from being omitted from case design |
-| **L2** | **`role` / `level` / `condition` / `testability` are not inherited**. Always use A's own values | A is an obligation established in a different context (ECP / SLO, etc.). Importing B's conditions or role would result in misapplication |
+| **L2** | `role`, `level`, and `testability` always come from A. Variant applicability defaults to A's condition (`owner_condition`). When the incorporated rule expressly retains B's applicability boundary, set `variant_applicability: linked_condition`; only the imported variants then use B's condition | A is established in a different context, so actor and level must not leak across the link. At the same time, dropping an element-level capability condition can turn unsupported optional functionality into a violation |
 | **L3** | Expanded variants are referenced using **`<obligation-key>#<variant-id>`** (the `covers_variants` notation) | To identify which obligation a variant originated from |
 | **L4** | **Do not double-count**. Even if A's case covers B's variant, **B's coverage is not satisfied** (and vice versa). The denominators for completeness / mutant coverage are counted **per obligation** | To prevent “B is also done because A has a case” |
 | **L5** | Include the **set of expanded variant IDs** in the case digest. Editing B's variant changes the digest of A's case as well, requiring **re-review** | To prevent changes to B from silently propagating to A's cases |
@@ -235,13 +236,15 @@ linked_obligations:
 
 | Check | Content |
 |---|---|
-| `SR-22g-shape` | Must have the shape `{obligation, kind, note_en}` |
+| `SR-22g-shape` | Must have the shape `{obligation, kind, optional variant_applicability, note_en}` |
 | `SR-22d` | The reference target exists |
 | `SR-22e` | It is not a self-reference |
 | `SR-22f` | There are no cycles |
 | `SR-22g` | `kind` is a defined vocabulary term (currently only `inherit_variants`) |
 | `SR-22h` | Expansion is finite (within depth 4) and non-empty |
 | `SR-22i` | The import target is not `NOT_OBSERVABLE` (which would make the link meaningless because there are no variants) |
+| `SR-22j` | `variant_applicability` is `owner_condition` or `linked_condition` |
+| `SR-22k` | `linked_condition` points to an obligation that actually has a condition |
 
 > **When adding a type, update `docs/03` (this table) → `LINK_KINDS` in `g1_author.py` →
 > `SR-22g` in `g1_validate.py` at the same time.**

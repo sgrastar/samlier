@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://samlier.example/schema/g1-semantic-exceptions-v1.json",
+  "title": "Samlier reviewed semantic exceptions to the English migration baseline",
+  "type": "object",
+  "propertyNames": { "not": { "pattern": "_ja$" } },
+  "required": ["schema_version", "baseline_commit", "status", "exceptions"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "baseline_commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "status": { "const": "REQUIRES_G1B_REVIEW" },
+    "exceptions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "propertyNames": { "not": { "pattern": "_ja$" } },
+        "required": [
+          "id", "obligation", "fields", "finding", "source",
+          "counterexample", "correction"
+        ],
+        "properties": {
+          "id": { "type": "string", "pattern": "^G1B-FINAL-[0-9]{2}$" },
+          "obligation": { "type": "string", "minLength": 1 },
+          "fields": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": { "type": "string", "minLength": 1 }
+          },
+          "finding": { "type": "string", "minLength": 1 },
+          "source": { "type": "string", "minLength": 1 },
+          "counterexample": { "type": "string", "minLength": 1 },
+          "correction": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  }
+}

@@ -11,6 +11,11 @@
 /tools/g1_extract.py          @sgrastar
 /tools/g1_ci_verify.sh         @sgrastar
 /tools/g1_docgen.py           @sgrastar
+/tools/g1_migration_validate.py @sgrastar
+/tools/g1_schema_validate.py  @sgrastar
+/tools/g1_language_check.py   @sgrastar
+/tools/g1-semantic-exceptions.yaml @sgrastar
+/schema/                      @sgrastar
 
 # ★ Dependencies. Included as trust anchors because they determine the code executed before signature verification.
 /tools/requirements.txt       @sgrastar

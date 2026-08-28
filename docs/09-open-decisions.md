@@ -279,7 +279,7 @@ Using this as the source of truth:
 **Do not reproduce** the requirement text from the Kantara document. Put the following in test definitions and the results screen:
 
 1. Requirement ID (`IIP-MD04`)
-2. A **short summary written by us** (`spec.quote_summary` / `summary_en` / `summary_ja`)
+2. A **short English summary written by us** (`spec.quote_summary` / `summary_en`)
 3. A link to the relevant anchor in the original
    (`https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html#IIP-MD04`)
 4. Explicit document name, version, publication date, and publisher
@@ -357,22 +357,17 @@ Limit CI to the `AUTOMATED` subset and mutant golden tests.
 Pin images by digest and place configuration fixtures in the repository.
 If results change due to environmental differences, they cannot function as regression detection.
 
-## ✅ D-13. Multilingual Support — **Decision: English only (provide a `ja` slot)**
+## ✅ D-13. Language Support — **Decision: English only**
 
-The Phase 1 UI and reports will be English only. Define the following
-**keys** in the test-definition YAML: `title_ja` / `instructions.ja` / `expected.ja` / `attestation.question_ja`,
-but make only `en` mandatory in CI checks.
+The Phase 1 UI, reports, test definitions, and public documentation are English only.
+Do not reserve language-specific fields in the canonical schema.
 
 ```
-CI required:  title, instructions.en, expected.en, (attestation.question_en)
-CI optional:  title_ja, instructions.ja, expected.ja, attestation.question_ja
+CI required:  title, instructions, expected, (attestation.question)
 ```
 
-This allows Japanese to be added later without schema or CI-rule changes.
-The UI should also use the i18n mechanism (key lookup) from the start, bundling only the `en` dictionary initially.
-
-> Decide whether to release a Japanese version once users actually arrive.
-> However, the cost of making it possible to add later is nearly zero, so create only the slot now.
+Adding another language later requires an explicit schema and design revision. Do not introduce dormant language slots now,
+because they would reintroduce non-English canonical field names immediately after the English-only migration.
 
 ## ✅ D-14. Numerical Interpretation of “reasonable” — **Decision: Use an intermediate value by default, configurable in the Test Plan**
 

@@ -165,10 +165,10 @@ cases:
     milestone: M1
     controls:
       - kind: positive             # A conforming implementation passes
-        description_ja: Send a signed Response → it is accepted
+        description_en: Send a signed Response → it is accepted
       - kind: negative             # A nonconforming implementation fails
-        description_ja: With rejection configured, send an unsigned Response → it is rejected
-    counterexample_ja: >           # ★ Required: an implementation that passes without satisfying the obligation
+        description_en: With rejection configured, send an unsigned Response → it is rejected
+    counterexample_en: >           # ★ Required: an implementation that passes without satisfying the obligation
       An implementation that rejects every Response regardless of whether an AuthnRequest exists.
       The positive control catches this.
     depends_on: [IIP-SSO01-01]
@@ -183,9 +183,9 @@ cases:
 ```yaml
         required_variants:
           - id: v-3f2a1b7c9d
-            description_ja: With rejection configured, send a completely unsigned Response → it is rejected
+            description_en: With rejection configured, send a completely unsigned Response → it is rejected
           - id: v-8e41c05b62
-            description_ja: Signed Response → it is accepted (control)
+            description_en: Signed Response → it is accepted (control)
 ```
 
 The ID is a content hash derived from **the obligation key + description** (`v-` + 10 hex).
@@ -196,12 +196,12 @@ It does not change when reordered; editing the description changes it (= the var
 
 - [ ] **All <!--g1:case_target-->543<!--/g1--> obligations are assigned to at least one case** (verified in CI).
 - [ ] Each obligation’s **`required_variants` is completely covered by `covers_variants`**.
-- [ ] **Expanded `linked_obligations` are also covered** — the variant set obtained by **transitively expanding** links with `kind: inherit_variants` is the denominator ([03 §Link semantics](03-test-model.md) L1).
+- [ ] **Expanded `linked_obligations` are also covered** — the variant set obtained by **transitively expanding** links with `kind: inherit_variants` is the denominator ([03 §Link semantics](03-test-model.md) L1). Apply each link's `variant_applicability` rule while scheduling the imported variants (L2).
       Covering the destination’s variants **does not cover the linked obligation itself** (L4).
       Refer to them with the qualified form `<obligation key>#<variant ID>` (L3).
 - [ ] Each case has both a **positive control and a negative control**
-      (if only one exists, record the reason in `control_waiver_ja`).
-- [ ] Each case includes a **`counterexample_ja`** (an implementation that passes without satisfying the obligation).
+      (if only one exists, record the reason in `control_waiver_en`).
+- [ ] Each case includes a **`counterexample_en`** (an implementation that passes without satisfying the obligation).
       If one cannot be written, redesign the case because it has no detection power.
 - [ ] ★ Each obligation is **detected by an executable mutant or has a waiver**
       (`detected_by_mutants` is non-empty, or `mutant_waiver` records the reason and

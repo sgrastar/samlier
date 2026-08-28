@@ -37,6 +37,8 @@ jobs:
         run: .venv/bin/python tools/g1_docgen.py --check
       - name: Check English-canonical migration invariants
         run: .venv/bin/python tools/g1_migration_validate.py --require-english-fields
+      - name: Enforce G1 JSON Schemas
+        run: .venv/bin/python tools/g1_schema_validate.py
       - name: Check tracked public files for Japanese residue
         run: .venv/bin/python tools/g1_language_check.py
       - name: Structural validation
@@ -62,6 +64,7 @@ jobs:
             build/g1-migration-report.json
             build/g1-variant-id-map.json
             build/g1-language-report.json
+            build/g1-schema-report.json
 
   # ------------------------------------------------------------ specReconcile
   spec-reconcile:

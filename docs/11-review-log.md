@@ -3544,3 +3544,36 @@ The same reviewer rechecked pinned commit `ca54c4b`, limited to the remaining E6
 - The only obligations whose meaning changed from R1 are `.aw` / `MD11.a`
 
 CP3 (Metadata) is therefore closed. The scoped semantic reviews of CP1 (Web Browser SSO), CP2a (Discovery), CP2b (SLO), CP2c (Async SLO / ECP), and CP3 (Metadata) are all complete. The next step is not to repeat reviews of individual specifications, but to conduct one final audit across the entire catalog covering boundaries, duplication, level / role / applicability, and unresolved references, and then determine whether G1b can receive signed approval.
+
+---
+
+## G1b Final Cross-Catalog Audit Corrections — 2026-08-28
+
+The external final audit of English-canonical commit `14bcc1d` found 7 issues. Five were pre-existing catalog defects carried faithfully from the Japanese baseline; two concerned enforcement of the English-canonical migration. No G1b approval existed, so the catalog was corrected before signing.
+
+### Semantic Corrections Requiring G1b Review
+
+- `IIP-IDP16.a`: imported `IIP-SSO06.a` variants now retain the linked obligation's condition. Owner role, level, and testability remain unchanged. This prevents unsupported optional metadata settings from becoming violations merely because the variants are reused in ECP. The Holder-of-Key runtime scope is also explicit
+- `IIP-MD12.a`–`.d`: inability to support a required certificate form is absence of a normative capability, not failure of a test precondition. A target that rejects a covered form therefore produces a violation rather than escaping as `not_verified`
+- `IIP-SP15.b`–`.d`: restored the profile-level `supports_slo_sp` condition from the introductory clause. A Service Provider that does not support SLO receives `NOT_APPLICABLE`, not `satisfied_with_note`
+- `IIP-MD08.a`: added a control preserving the normative permission to select any one of multiple published encryption keys. A case must not require a particular key or key order
+
+### Evidence-Range Correction
+
+The normalized `IIP-SP16` text was rechecked directly. The reviewer-proposed offsets were close but not exact. The correct sentence boundaries are:
+
+- `IIP-SP16.b`: `[141, 254)` — the complete configuration sentence
+- `IIP-SP16.c`: `[255, 466)` — the complete decryption-attempt sentence, including the RFC 2119 verb and “in unspecified order”
+
+This changes signed evidence ranges and obligation digests, but not the verdict meaning.
+
+### Enforcement Corrections
+
+- Canonical public documentation no longer specifies Japanese-language field names
+- The public-language check now also rejects legacy Japanese-language field suffixes, even when their values contain only ASCII text. Historical review records, baseline migration code, and the schemas that express the prohibition are explicit exemptions
+- JSON Schemas are now executed in CI rather than merely stored. The schemas use generic property-name rejection, and the schema runner also performs a recursive legacy-field check
+- `jsonschema` and its transitive dependencies are exact-version and hash pinned
+
+### Baseline Exception Discipline
+
+The allowed semantic departures from baseline `ca54c4b83ac1a3208591f03772b4cf52c62045d4` are recorded in `tools/g1-semantic-exceptions.yaml`. Each entry includes the source, counterexample, and correction. The migration validator rejects unlisted changed fields, stale exception entries, and exception references to unknown obligations. The manifest remains `REQUIRES_G1B_REVIEW`; it does not authorize or substitute for signed approval.

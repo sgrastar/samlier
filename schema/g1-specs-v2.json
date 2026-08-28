@@ -3,6 +3,7 @@
   "$id": "https://samlier.example/schema/g1-specs-v2.json",
   "title": "Samlier G1 specification catalog",
   "type": "object",
+  "propertyNames": { "not": { "pattern": "_ja$" } },
   "required": ["schema_version", "specs"],
   "properties": {
     "schema_version": { "const": 2 },
@@ -10,7 +11,8 @@
       "type": "object",
       "additionalProperties": {
         "type": "object",
-        "required": ["title", "publisher", "version", "url", "role", "source_digest"]
+        "propertyNames": { "not": { "pattern": "_ja$" } },
+        "required": ["title", "publisher", "version", "url", "role"]
       }
     }
   }

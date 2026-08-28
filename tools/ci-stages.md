@@ -23,7 +23,8 @@ tasks.named("dockerPush") { dependsOn(":specReconcile", ":releaseCheck") }
 - 6c / 6c-0: Presence and ranges of `source_spec` / `source_selector` / `source_section_digest` / `source_clause`
 - 6: `NOT_OBSERVABLE` obligations have a reason statement and no cases
 - 20d: Applicability of conditional obligations is evaluated before case execution
-- English-canonical migration: semantic equality with baseline commit `ca54c4b83ac1a3208591f03772b4cf52c62045d4`, one-to-one variant-ID mapping, and no `_ja` fields
+- English-canonical migration: semantic equality with baseline commit `ca54c4b83ac1a3208591f03772b4cf52c62045d4`, explicitly reviewed semantic exceptions, one-to-one variant-ID mapping, and no legacy Japanese-language fields
+- JSON Schema enforcement for the catalogs, variant-ID map, and semantic-exception manifest
 - Public-language policy: no Japanese characters in tracked public text outside the explicit allowlist
 
 ## Rules deferred to `releaseCheck` (become effective after G1 is complete)
@@ -40,7 +41,7 @@ tasks.named("dockerPush") { dependsOn(":specReconcile", ":releaseCheck") }
 
 | job | trigger | Network | Content |
 |---|---|---|---|
-| `g1-check` | PR / push | Not required | Migration comparison + variant map + Japanese-residue scan + `g1_docgen.py --check` + **`--structural-only`** |
+| `g1-check` | PR / push | Not required | Migration comparison + variant map + schema enforcement + Japanese-residue and legacy-field scan + `g1_docgen.py --check` + **`--structural-only`** |
 | `spec-reconcile` | push / scheduled / manual | **Required** | Force-fetches and reconciles the source text and all <!--g1:specs-->25<!--/g1--> specifications |
 | `g1b-approval` | **Always runs** (no job condition) | Required | Validates signed approval. **Extracts the runner and dependencies from the pinned SHA and runs them in isolation**, then checks `g1.complete` / provenance / pin equality |
 
@@ -74,7 +75,7 @@ Without this, rewriting the workflow alone disables the entire gate.
 
 | Stage | Actual implementation | Status |
 |---|---|---|
-| `g1Check` | `g1_migration_validate.py --require-english-fields` + `g1_language_check.py` + structural checks + `g1_docgen.py --check` | Passes |
+| `g1Check` | migration comparison + JSON Schema enforcement + language/legacy-field checks + structural checks + `g1_docgen.py --check` | Passes |
 | `specReconcile` | `tools/g1_validate.py` (**force-fetches** and reconciles source text and all <!--g1:specs-->25<!--/g1--> specifications) | **`totals.blocking_failures == 0`** (before approval, SR-30 / SR-31 remain FAIL). ★ Do not hard-code a PASS count because it changes whenever checks are added |
 | `releaseCheck` | Not implemented because there are 0 test cases (after G2 is complete) | Not run |
 
@@ -140,6 +141,8 @@ Signing only the approval record is meaningless. These are **compared between si
 ```
 tests/coverage.yaml      tests/specs.yaml       tests/predicates.yaml
 tests/approvals/g1.yaml  tools/g1_validate.py   tools/g1_extract.py
+tools/g1_migration_validate.py  tools/g1_schema_validate.py  tools/g1_language_check.py
+tools/g1-semantic-exceptions.yaml  schema/g1-*.json
 ```
 
 It also verifies that the **file set under `tests/`** matches A (detecting additions and deletions).

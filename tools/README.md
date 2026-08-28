@@ -8,14 +8,16 @@ Tools for the G1 design gate. **Generation, documentation, and validation are se
 | `g1_docgen.py` | `tests/coverage.yaml` → `docs/04` | **Not required** | **Not required** | ✅ Identical output from a separate checkout |
 | `g1_migration_validate.py` | Compare the English catalog with the fixed Japanese baseline and emit the one-to-one variant-ID map | **Not required** | **Not required** | ✅ CI build artifacts under `build/` |
 | `g1_language_check.py` | Reject Japanese residue in tracked public text, except explicit allowlist entries | **Not required** | **Not required** | ✅ CI build artifact under `build/` |
+| `g1_schema_validate.py` | Enforce the G1 JSON Schemas against canonical catalogs and migration artifacts | **Not required** | **Not required** | ✅ CI build artifact under `build/` |
 | `g1_validate.py` | **Independently validates** committed artifacts | Required (`--offline` can use the cache) | **Not required** | ✅ |
 
-Dependency: `PyYAML` (`g1_docgen.py` / `g1_validate.py`)
+Dependencies: `PyYAML`, `pdfminer.six`, `cryptography`, and `jsonschema` (all exact-version and hash pinned in `requirements.lock`)
 
 ```bash
 python3 tools/g1_docgen.py            # Regenerate docs/04
 python3 tools/g1_docgen.py --check    # Only check that it matches the generated artifact (for CI)
 python3 tools/g1_migration_validate.py --require-english-fields
+python3 tools/g1_schema_validate.py
 python3 tools/g1_language_check.py
 python3 tools/g1_validate.py          # Fetch and reconcile source text → build/spec-reconcile-report.json (not tracked by Git)
 python3 tools/g1_validate.py --offline

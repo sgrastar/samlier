@@ -49,7 +49,6 @@ requirements:
         level: MUST
         condition: null
         summary_en: "Support the ability to reject unsigned <samlp:Response> elements"
-        summary_ja: "Ability to reject unsigned <samlp:Response> elements"
         testability: BROWSER
         level_assignment: { sp: core }
       - key: IIP-SP13.b
@@ -57,7 +56,6 @@ requirements:
         level: SHOULD                      # ★ Rejecting by default is SHOULD
         condition: null
         summary_en: "Reject unsigned <samlp:Response> elements by default"
-        summary_ja: "Reject unsigned Response by default"
         testability: BROWSER
         level_assignment: { sp: core }
 
@@ -175,7 +173,6 @@ Evaluation rules (as established by [03 §1](03-test-model.md)):
 id: IIP-MD04-02
 obligation: IIP-MD04.a                 # ★ Refers to an obligation, not a requirement
 title: "Reject metadata whose validUntil has already passed"
-title_ja: "Reject metadata whose validUntil has already passed"
 
 mode: CONFIG                           # AUTOMATED | BROWSER | ATTESTED | CONFIG
 configuration_failure_semantics: normative_capability

@@ -173,11 +173,12 @@ check("SR-22","all non-NOT_OBSERVABLE obligations have required_variants",not no
 # The meaning is defined in docs/03-test-model.md, under the link semantics section.
 # This only checks that G2 can mechanically apply the expansion rules.
 LINK_KINDS={'inherit_variants'}   # Update docs/03 and g1_author.py together when adding kinds.
+LINK_VARIANT_APPLICABILITY={'owner_condition','linked_condition'}
 _keys={o['key'] for _,o in obs}
 _obl={o['key']:o for _,o in obs}
 _badshape=[(o['key'],lk) for _,o in obs for lk in (o.get('linked_obligations') or [])
            if not isinstance(lk,dict) or not lk.get('obligation') or not lk.get('kind') or not lk.get('note_en')]
-check("SR-22g-shape","linked_obligations have the shape {obligation, kind, note_en}",not _badshape,_badshape[:5])
+check("SR-22g-shape","linked_obligations have the shape {obligation, kind, optional variant_applicability, note_en}",not _badshape,_badshape[:5])
 def _links(o):
     return [lk for lk in (o.get('linked_obligations') or []) if isinstance(lk,dict) and lk.get('obligation')]
 _dang=[(o['key'],lk['obligation']) for _,o in obs for lk in _links(o) if lk['obligation'] not in _keys]
@@ -198,6 +199,13 @@ _c=_cyc()
 check("SR-22f","linked_obligations contain no cycles",_c is None,_c or '')
 _badkind=[(o['key'],lk['kind']) for _,o in obs for lk in _links(o) if lk['kind'] not in LINK_KINDS]
 check("SR-22g","linked_obligation kinds use the defined vocabulary",not _badkind,_badkind[:5])
+_badscope=[(o['key'],lk.get('variant_applicability')) for _,o in obs for lk in _links(o)
+           if lk.get('variant_applicability','owner_condition') not in LINK_VARIANT_APPLICABILITY]
+check("SR-22j","linked_obligation variant_applicability uses the defined vocabulary",not _badscope,_badscope[:5])
+_missing_link_condition=[(o['key'],lk['obligation']) for _,o in obs for lk in _links(o)
+                         if lk.get('variant_applicability')=='linked_condition'
+                         and not (_obl.get(lk['obligation']) or {}).get('condition')]
+check("SR-22k","linked_condition scope points to an obligation with a condition",not _missing_link_condition,_missing_link_condition[:5])
 # The transitive expansion must be finite and non-empty. G2 covers_variants uses this set as its denominator.
 def _expand(key,depth=0):
     """Build the transitive variant reference set for inherit_variants.
@@ -399,7 +407,12 @@ def _iso_full(v):
 
 # Files protected by approval, including this validator (to detect validator weakening).
 PROTECTED_PATHS=('tests/coverage.yaml','tests/specs.yaml','tests/predicates.yaml',
-                 'tests/approvals/g1.yaml','tools/g1_validate.py','tools/g1_extract.py')
+                 'tests/approvals/g1.yaml','tools/g1_validate.py','tools/g1_extract.py',
+                 'tools/g1_migration_validate.py','tools/g1_schema_validate.py',
+                 'tools/g1_language_check.py','tools/g1-semantic-exceptions.yaml',
+                 'schema/g1-coverage-v2.json','schema/g1-predicates-v2.json',
+                 'schema/g1-specs-v2.json','schema/g1-variant-map-v1.json',
+                 'schema/g1-semantic-exceptions-v1.json')
 APPROVAL_REL='tests/approvals/g1.yaml' 
 APPROVAL_PATH=os.path.join(ROOT,APPROVAL_REL)
 appr=None; appr_src_problems=[]; _sig_info=None

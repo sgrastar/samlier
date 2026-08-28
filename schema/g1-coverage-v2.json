@@ -3,6 +3,7 @@
   "$id": "https://samlier.example/schema/g1-coverage-v2.json",
   "title": "Samlier English-canonical G1 coverage catalog",
   "type": "object",
+  "propertyNames": { "not": { "pattern": "_ja$" } },
   "required": ["schema_version", "g1_state", "requirements"],
   "properties": {
     "schema_version": { "const": 2 },
@@ -11,6 +12,7 @@
       "type": "array",
       "items": {
         "type": "object",
+        "propertyNames": { "not": { "pattern": "_ja$" } },
         "required": ["id", "obligations"],
         "properties": {
           "id": { "type": "string" },
@@ -18,9 +20,10 @@
             "type": "array",
             "items": {
               "type": "object",
+              "propertyNames": { "not": { "pattern": "_ja$" } },
               "required": [
                 "key", "roles", "level", "testability", "summary_en",
-                "required_variants", "controls", "source_clauses"
+                "required_variants", "source_clauses"
               ],
               "properties": {
                 "summary_en": { "type": "string", "minLength": 1 },
@@ -28,15 +31,27 @@
                   "type": "array",
                   "items": {
                     "type": "object",
+                    "propertyNames": { "not": { "pattern": "_ja$" } },
                     "required": ["id", "description_en"],
                     "properties": {
                       "id": { "type": "string", "pattern": "^v-[0-9a-f]{10}$" },
                       "description_en": { "type": "string", "minLength": 1 }
-                    },
-                    "not": {
-                      "anyOf": [
-                        { "required": ["description_ja"] }
-                      ]
+                    }
+                  }
+                },
+                "linked_obligations": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "propertyNames": { "not": { "pattern": "_ja$" } },
+                    "required": ["obligation", "kind", "note_en"],
+                    "properties": {
+                      "obligation": { "type": "string", "minLength": 1 },
+                      "kind": { "const": "inherit_variants" },
+                      "variant_applicability": {
+                        "enum": ["owner_condition", "linked_condition"]
+                      },
+                      "note_en": { "type": "string", "minLength": 1 }
                     }
                   }
                 },
@@ -44,14 +59,6 @@
                   "type": "array",
                   "items": { "type": "string", "minLength": 1 }
                 }
-              },
-              "not": {
-                "anyOf": [
-                  { "required": ["summary_ja"] },
-                  { "required": ["notes_ja"] },
-                  { "required": ["applicability_note_ja"] },
-                  { "required": ["open_question_ja"] }
-                ]
               }
             }
           }
