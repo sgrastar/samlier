@@ -33,6 +33,15 @@ jobs:
         run: |
           python3 -m venv .venv
           .venv/bin/pip install --require-hashes -r tools/requirements.lock
+      - name: Signature-key allowlist
+        env:
+          G1_ALLOWED_SIGNERS: ${{ vars.G1_ALLOWED_SIGNERS }}
+        run: |
+          set -euo pipefail
+          printf '%s\n' "$G1_ALLOWED_SIGNERS" > /tmp/allowed_signers
+          test -s /tmp/allowed_signers || { echo "G1_ALLOWED_SIGNERS is empty"; exit 2; }
+          git config gpg.format ssh
+          git config gpg.ssh.allowedSignersFile /tmp/allowed_signers
       - name: Check that docs/04 matches coverage.yaml
         run: .venv/bin/python tools/g1_docgen.py --check
       - name: Check English-canonical migration invariants
@@ -78,6 +87,15 @@ jobs:
         run: |
           python3 -m venv .venv
           .venv/bin/pip install --require-hashes -r tools/requirements.lock
+      - name: Signature-key allowlist
+        env:
+          G1_ALLOWED_SIGNERS: ${{ vars.G1_ALLOWED_SIGNERS }}
+        run: |
+          set -euo pipefail
+          printf '%s\n' "$G1_ALLOWED_SIGNERS" > /tmp/allowed_signers
+          test -s /tmp/allowed_signers || { echo "G1_ALLOWED_SIGNERS is empty"; exit 2; }
+          git config gpg.format ssh
+          git config gpg.ssh.allowedSignersFile /tmp/allowed_signers
       - name: Force-fetch and reconcile source text and all referenced specifications
         run: |
           set -euo pipefail
