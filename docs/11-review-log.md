@@ -3146,3 +3146,20 @@ binding 義務を使って optional capability 自体を必須へ戻してはな
 また optional capability の不在は肯定的観測だけでは証明できないため、これを `CAPABILITY_BASED` 条件へ
 置き換えて永久に `NOT_VERIFIED` にしてもならない。実装した message 方向へ受動適用し、未使用なら
 `satisfied_with_note` とする。
+
+---
+
+## G1b-CP2b-Profile-R2 — 2026-08-28 Redirect response capability の排他 fixture
+
+R1 の外部再確認では前回 4 件の解消と message 単位の受動規則の妥当性が確認されたが、
+response binding の fixture に 1 件の共通不足が残った。
+
+SAML2Prof 4.4.3.4 / 4.4.3.5 は、asynchronous response に双方が対応する任意の binding を使えるとする。
+Suite peer が Redirect と POST の両方を広告した状態で Redirect response を要求すると、POST を正当に選ぶ適合対象を
+不適合にしてしまう。このため IIP-SP15.c と IIP-IDP18.b の fixture を、Suite peer の SLO response endpoint が
+HTTP-Redirect だけを広告する排他構成に変更した。
+
+### 一般則
+
+複数の候補から選択できる capability を positive に検査するときは、対象へ特定候補を強制する前に、
+Suite 側 fixture で他の適合候補を除く。候補を複数提示したまま、対象が選べる `MAY` を失敗条件へ変えない。

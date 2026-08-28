@@ -5247,9 +5247,10 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 <details><summary><code>IIP-SP15.c</code> の詳細</summary>
 
 - **必要な variant**:
-  - `v-58b1bad15d` Suite IdP の Redirect SingleLogoutService / ResponseLocation へ HTTP-Redirect LogoutRequest を送り、SP が HTTP-Redirect で LogoutResponse を返す
+  - `v-0fc9855319` Suite IdP の SLO response endpoint を HTTP-Redirect のみで広告し、HTTP-Redirect LogoutRequest を送る → SP が HTTP-Redirect で LogoutResponse を返す
 - **対照（negative control）**:
   - responder 方向は request consumption に付随する。受信未対応 SP は satisfied_with_note とし、response 発行を要求しない
+  - Suite IdP が Redirect と POST 等を同時に広告した状態で Redirect response を強制しない。SAML2Prof 4.4.3.4 は双方が対応する任意の asynchronous binding を MAY use とする
 - **source_clauses**: `[0, 139)` `sha256:c44ab5ee19a9…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
 
@@ -6179,9 +6180,10 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 <details><summary><code>IIP-IDP18.b</code> の詳細</summary>
 
 - **必要な variant**:
-  - `v-2484f39598` Suite SP の Redirect SingleLogoutService / ResponseLocation から HTTP-Redirect LogoutRequest を送り、IdP が HTTP-Redirect で LogoutResponse を返す
+  - `v-b1c9debde1` Suite SP の SLO response endpoint を HTTP-Redirect のみで広告し、HTTP-Redirect LogoutRequest を送る → IdP が HTTP-Redirect で LogoutResponse を返す
 - **対照（negative control）**:
   - IIP-IDP17.a の必須基本フローに対応する送信方向。IdP の任意の request 発行を前提にしない
+  - Suite SP が Redirect と POST 等を同時に広告した状態で Redirect response を強制しない。SAML2Prof 4.4.3.5 は双方が対応する任意の binding を MAY use とする
 - **source_clauses**: `[0, 92)` `sha256:4874105bfdab…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
 

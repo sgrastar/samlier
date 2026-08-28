@@ -1,6 +1,6 @@
 # tests/coverage.yaml — 要件カタログ（G1 成果物 / 判定レベルの唯一の出典）
 # 生成: build_g1.py（原文からオフセットと digest を解決）/ 手編集しない
-generated_at: 2026-08-27T16:46:25+00:00
+generated_at: 2026-08-28T01:26:34+00:00
 schema_version: 1
 g1_state: PENDING_REVIEW
 # 作成者は reviewer / approved_at を埋めない。別のレビュアーが原文と直接照合して承認する。
@@ -12013,17 +12013,18 @@ requirements:
         source_clauses:
           - { start: 0, end: 139, digest: "sha256:c44ab5ee19a92d712fb9073f23334d5e54a323b81091b04597fe077a8c06af67", occurrences: 1 }
         required_variants:
-          - id: v-58b1bad15d
-            description_ja: "Suite IdP の Redirect SingleLogoutService / ResponseLocation へ HTTP-Redirect LogoutRequest を送り、SP が HTTP-Redirect で LogoutResponse を返す"
+          - id: v-0fc9855319
+            description_ja: "Suite IdP の SLO response endpoint を HTTP-Redirect のみで広告し、HTTP-Redirect LogoutRequest を送る → SP が HTTP-Redirect で LogoutResponse を返す"
         controls:
           - "responder 方向は request consumption に付随する。受信未対応 SP は satisfied_with_note とし、response 発行を要求しない"
+          - "Suite IdP が Redirect と POST 等を同時に広告した状態で Redirect response を強制しない。SAML2Prof 4.4.3.4 は双方が対応する任意の asynchronous binding を MAY use とする"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:9ca7d42ef92d397e16ad351aac8b06a3792cff48b9b01110a7e1314c5d18cd21"
+          obligation_digest: "sha256:e87765ca3e9e2607855755a1095c2924e00784c096eca4cf8de003ee5470320c"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SP15"
@@ -14041,17 +14042,18 @@ requirements:
         source_clauses:
           - { start: 0, end: 92, digest: "sha256:4874105bfdabad7437549b779f129ccbabd47b704335e4f142e5a3c115b996b8", occurrences: 1 }
         required_variants:
-          - id: v-2484f39598
-            description_ja: "Suite SP の Redirect SingleLogoutService / ResponseLocation から HTTP-Redirect LogoutRequest を送り、IdP が HTTP-Redirect で LogoutResponse を返す"
+          - id: v-b1c9debde1
+            description_ja: "Suite SP の SLO response endpoint を HTTP-Redirect のみで広告し、HTTP-Redirect LogoutRequest を送る → IdP が HTTP-Redirect で LogoutResponse を返す"
         controls:
           - "IIP-IDP17.a の必須基本フローに対応する送信方向。IdP の任意の request 発行を前提にしない"
+          - "Suite SP が Redirect と POST 等を同時に広告した状態で Redirect response を強制しない。SAML2Prof 4.4.3.5 は双方が対応する任意の binding を MAY use とする"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:5d562251853d63fb6807659c7f551ffd86fc31321ccf23e8c16706af62004d67"
+          obligation_digest: "sha256:065274a30d283db35c272b4d7061b5d9a5eb2f5102b97e797cb8eae95a53b83e"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-IDP18"
