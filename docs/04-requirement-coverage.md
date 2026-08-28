@@ -15,12 +15,12 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 | 指標 | 値 |
 |---|---|
 | 要件 | 69 |
-| 義務（obligation） | 428 |
-| うち MUST_CLASS | 330 |
-| うち SHOULD_CLASS | 82 |
-| うち MAY_CLASS | 16 |
-| 条件付き義務 | 91 |
-| IdP プロファイル | 299 義務（Core 190 / Full 109） |
+| 義務（obligation） | 446 |
+| うち MUST_CLASS | 339 |
+| うち SHOULD_CLASS | 87 |
+| うち MAY_CLASS | 20 |
+| 条件付き義務 | 105 |
+| IdP プロファイル | 317 義務（Core 190 / Full 127） |
 | SP プロファイル | 223 義務（Core 119 / Full 104） |
 | 非規範（イタリック）スパン | 26 |
 
@@ -28,10 +28,10 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 
 | 記号 | 意味 | 件数 |
 |---|---|---|
-| `AUTOMATED` | Suite と対象の直接通信で完結（ブラウザ不要） | 77 |
-| `BROWSER` | 利用者のブラウザが必要 | 203 |
-| `ATTESTED` | 対象内部の挙動を利用者が申告 | 46 |
-| `CONFIG` | 対象側の設定変更を依頼したうえで実行 | 101 |
+| `AUTOMATED` | Suite と対象の直接通信で完結（ブラウザ不要） | 87 |
+| `BROWSER` | 利用者のブラウザが必要 | 205 |
+| `ATTESTED` | 対象内部の挙動を利用者が申告 | 50 |
+| `CONFIG` | 対象側の設定変更を依頼したうえで実行 | 103 |
 | `NOT_OBSERVABLE` | 外部から原理的に検証不能。ケースを作らない | 1 |
 
 **判定に関する注意**
@@ -6118,6 +6118,20 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 | 義務 | Level | Role | Testability | 条件 | Core/Full | 要約 |
 |---|---|---|---|---|---|---|
 | `IIP-IDP13.a` | MUST | idp | `AUTOMATED` | `not_token_translation_proxy`<br>(CLASSIFICATION_BASED) | full | SAML V2.0 Enhanced Client or Proxy Profile v2.0 に対応 |
+| `IIP-IDP13.e` | MUST | idp | `AUTOMATED` | `not_token_translation_proxy`<br>(CLASSIFICATION_BASED) | full | ECP の SAML SOAP binding exchange を完了し、SAML Response または SOAP fault を返す |
+| `IIP-IDP13.f` | MUST | idp | `CONFIG` | `not_token_translation_proxy`<br>(CLASSIFICATION_BASED) | full | error を返す場合を除き principal の身元を確立する |
+| `IIP-IDP13.g` | MUST | idp | `AUTOMATED` | `not_token_translation_proxy`<br>(CLASSIFICATION_BASED) | full | SAML Response を返す場合、要求から導出した返送先を持つ ecp:Response header を含める |
+| `IIP-IDP13.h` | SHOULD | idp | `AUTOMATED` | `not_token_translation_proxy`<br>(CLASSIFICATION_BASED) | full | 署名付き AuthnRequest の認証に成功した場合、ecp:RequestAuthenticated header を含めることが望ましい |
+| `IIP-IDP13.i` | MUST | idp | `AUTOMATED` | `not_token_translation_proxy`<br>(CLASSIFICATION_BASED) | full | ECP response の SOAP header block に必要な actor / mustUnderstand 値を設定する |
+| `IIP-IDP13.j` | MUST | idp | `AUTOMATED` | `not_token_translation_proxy`<br>(CLASSIFICATION_BASED) | full | ECP Response 内の assertion を assertion または response level で integrity protection する |
+| `IIP-IDP13.k` | SHOULD | idp | `ATTESTED` | `not_token_translation_proxy`<br>(CLASSIFICATION_BASED) | full | ECP exchange の SOAP header を integrity protection することが望ましい |
+| `IIP-IDP13.l` | MUST | idp | `CONFIG` | `not_token_translation_proxy`<br>(CLASSIFICATION_BASED) | full | ECP の途中で行う HTTP exchange を元の AuthnRequest と安全に関連付ける |
+| `IIP-IDP13.m` | SHOULD | idp | `ATTESTED` | `not_token_translation_proxy`<br>(CLASSIFICATION_BASED) | full | 表示 UI がない、または最小限の SOAP / HTTP based authentication をサポートすることが望ましい |
+| `IIP-IDP13.n` | SHOULD_NOT | idp | `ATTESTED` | `not_token_translation_proxy`<br>(CLASSIFICATION_BASED) | full | SP の TLS endpoint を probe しただけの certificate から ECP assertion 暗号鍵を導出しないことが望ましい |
+| `IIP-IDP13.o` | MAY | idp | `AUTOMATED` | `not_token_translation_proxy`<br>(CLASSIFICATION_BASED) | full | ECP response に ecp:RelayState header を含めてもよい |
+| `IIP-IDP13.p` | MAY | idp | `AUTOMATED` | `not_token_translation_proxy`<br>(CLASSIFICATION_BASED) | full | delegation audience marker を、IdP 自身を AudienceRestriction に含める要求と解釈してもよい |
+| `IIP-IDP13.q` | SHOULD_NOT | idp | `ATTESTED` | `not_token_translation_proxy`<br>(CLASSIFICATION_BASED) | full | ECP exchange では HTML 等の presentation-oriented authentication を避けることが望ましい |
+| `IIP-IDP13.r` | MAY | idp | `AUTOMATED` | `not_token_translation_proxy`<br>(CLASSIFICATION_BASED) | full | SAML SOAP exchange 完了前に中間 HTTP presentation exchange を行ってもよい |
 | `IIP-IDP13.b` | OPTIONAL | idp | `ATTESTED` | `not_token_translation_proxy`<br>(CLASSIFICATION_BASED) | full | ECP Profile への完全準拠は任意 |
 | `IIP-IDP13.c` | MUST | idp | `AUTOMATED` | `not_token_translation_proxy`<br>(CLASSIFICATION_BASED) | full | ECP で Bearer subject confirmation をサポートする |
 | `IIP-IDP13.d` | MUST | idp | `AUTOMATED` | `not_token_translation_proxy`<br>(CLASSIFICATION_BASED) | full | ECP で channel bindings の検証に対応 |
@@ -6125,10 +6139,195 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 <details><summary><code>IIP-IDP13.a</code> の詳細</summary>
 
 - **必要な variant**:
-  - `v-da292a062f` PAOS ACS を含む Suite メタデータで ECP 往復が成立する
+  - `v-ceb99bb14c` PAOS ACS を含む Suite メタデータと HTTP Basic 認証を使い、SOAP AuthnRequest から SOAP Response / fault まで basic ECP exchange が成立する
+  - `v-b34b7aec68` 成功経路と認証失敗経路の双方で、HTTP 表示だけで終わらず SAML SOAP binding exchange が完了する
+- **対照（negative control）**:
+  - ★ 単に HTTP 200 を返す実装、HTML login 後に SOAP Response / fault を返さない実装を PASS にしない
+  - ★ Full conformance は IIP-IDP13.b が OPTIONAL とする。HoK、X.509、TLS Client Authentication、client XML Signature の全対応を本 basic capability の MUST にしない
+  - ★ IIP 原文が『All applicable Web Browser SSO requirements ... excepting IIP-SSO02 and IIP-SSO03』とするため、G2 の ECP plan は IdP に適用可能な IIP-SSO 義務を ECP 文脈でも schedule する。各 obligation の level は維持し、1 個の container MUST に畳んで SHOULD / MAY を引き上げない
 - **参照先仕様**: `SAML2ECP`
-- **注記**: 原文末尾に『This requirement does not apply to token translation Proxies.』の適用除外がある。また『excepting IIP-SSO02 and IIP-SSO03』により ECP 実行時は Redirect/POST バインディング要件が適用されない。
-- ⚠ **未解決**: 参照仕様 SAML2ECP の該当節を読んで規範内容を分解する。Bearer / channel bindings 以外の規範内容の扱いを決める（Full conformance は OPTIONAL だが、対応表明した範囲の扱い）
+- **注記**: 原文末尾に『This requirement does not apply to token translation Proxies.』の適用除外がある。ECP Profile v2.0 §2.2 は channel bindings / HoK を base profile への optional additions とする。IIP は basic ECP support を MUST、Full conformance を OPTIONAL としたうえで Bearer と channel binding verification を個別に MUST としているため、§3.1.1 の full-conformance-only capability を .a に逆輸入しない。分解対象は IdP actor の basic exchange（§2.3.4〜.6）と basic exchange に直接かかる security rules（§2.3.9）。client / SP actor の §2.3.1〜.4 / .7〜.8、optional HoK feature 固有の §2.3.4.1 / .5.1 / .6.3、metadata consumption の §2.3.10（IIP-IDP16）、Bearer / channel bindings（IIP-IDP13.c / .d）はここへ重複収録しない。
+- **source_clauses**: `[0, 102)` `sha256:01ca8c2a74c0…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-IDP13.e</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-6959cbbad1` 認証成功 → SOAP body に samlp:Response を返す
+  - `v-508414ea6b` 認証失敗 / AuthnRequest 処理失敗 → error samlp:Response または SOAP fault を返す
+- **対照（negative control）**:
+  - HTML login form や HTTP error だけで exchange を終える実装を検出する。SOAP fault は原文が明示する適合経路なので error Response だけを要求しない
+- **参照先仕様**: `SAML2ECP#2.3.4+2.3.6`
+- **source_clauses**: `[0, 102)` `sha256:01ca8c2a74c0…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-IDP13.f</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-94abd59ba3` ambient authentication を排除した構成で正しい資格情報 → principal に対応する成功 assertion
+  - `v-2c0e29763d` 誤った資格情報 → 別 principal の assertion を発行せず error Response / SOAP fault
+- **対照（negative control）**:
+  - 既存 session / client certificate / 統合認証を排除できなければ not_verified(ambient_auth_not_excludable)。可視の login UI がないこと自体を違反にしない
+  - ForceAuthn の fresh authentication は IIP-IDP06、HTTP Basic capability は IIP-IDP14 で二重計上せず判定する
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `SAML2ECP#2.3.5`
+- **source_clauses**: `[0, 102)` `sha256:01ca8c2a74c0…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-IDP13.g</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-855ff7539f` 成功・error の別を問わず、観測した各 samlp:Response → ecp:Response header があり @AssertionConsumerServiceURL は要求で選ばれた PAOS ACS と一致
+  - `v-10d28df38d` SOAP fault → samlp:Response がないため本 header-presence 規則の実行時 scope 外
+- **対照（negative control）**:
+  - 固定 URL を常に返す実装を検出するため、AuthnRequest / metadata の PAOS ACS を切り替える対照を置く
+  - error path では samlp:Response と SOAP fault のどちらも許される。error Response を必須経路にしない
+- **参照先仕様**: `SAML2ECP#2.3.6`
+- **source_clauses**: `[0, 102)` `sha256:01ca8c2a74c0…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-IDP13.h</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-c4e335bf2e` Suite SP の署名付き AuthnRequest を IdP が認証して成功 Response を返す → ecp:RequestAuthenticated header を含む
+- **対照（negative control）**:
+  - 署名を検証できなかった error 経路、未署名要求、SOAP fault は実行時 scope 外。★ SHOULD_CLASS
+- **参照先仕様**: `SAML2ECP#2.3.6`
+- **source_clauses**: `[0, 102)` `sha256:01ca8c2a74c0…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-IDP13.i</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-20e62bf818` IdP が送出した ecp:Response → S:actor=.../next かつ S:mustUnderstand=1
+  - `v-6a4da9d436` IdP が送出した cb:ChannelBindings response header → S:actor=.../next かつ S:mustUnderstand=1
+  - `v-8dca052714` IIP-IDP13.h の署名付き request scenario で ecp:RequestAuthenticated が観測された場合 → S:actor=.../next。§2.3.6.1 が mustUnderstand を Optional とするため有無を判定しない
+- **対照（negative control）**:
+  - 存在自体が MAY / SHOULD の header を本義務で要求しない。観測された IdP-origin header の属性だけを受動検査する
+  - HoK header は Full conformance / optional HoK feature の範囲なので basic ECP support の required variant に入れない
+- **参照先仕様**: `SAML2ECP#2.3`
+- **source_clauses**: `[0, 102)` `sha256:01ca8c2a74c0…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-IDP13.j</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-996f048ecf` 観測した各 ECP Response の assertion が、個別 assertion の有効な integrity protection または Response level の有効な integrity protection の少なくとも一方で覆われる
+- **対照（negative control）**:
+  - 原文は assertion or response level の選言。経路別 required variant にすると G2 で AND になるため分けない。実際に両方あれば両方を検証する
+  - どちらの有効な protection もない ECP Response は violated
+- **参照先仕様**: `SAML2ECP#2.3.9`
+- **source_clauses**: `[0, 102)` `sha256:01ca8c2a74c0…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-IDP13.k</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-065d4fdcba` IdP と ECP client 間の response exchange で、IdP 送出 SOAP headers が TLS または message-level mechanism により保護される
+- **対照（negative control）**:
+  - TLS 以外の protection も原文が許す。内部 transport / message protection を確認できなければ not_verified。★ SHOULD_CLASS
+- **参照先仕様**: `SAML2ECP#2.3.9`
+- **source_clauses**: `[0, 102)` `sha256:01ca8c2a74c0…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-IDP13.l</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-7badbfd279` 同一 browser/client session 内の中間 authentication exchange → 元 AuthnRequest に対応する Response
+  - `v-902e0f42e1` 別 client/session の相関情報を混ぜる → 元 AuthnRequest と交差せず拒否 / 分離される
+- **対照（negative control）**:
+  - 単一 exchange だけでは相関を証明できない。2 個の並行 ECP exchange を交差させる negative control が要る。内部相関を観測できなければ not_verified(ecp_request_association_not_observable)
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `SAML2ECP#2.3.9`
+- **source_clauses**: `[0, 102)` `sha256:01ca8c2a74c0…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-IDP13.m</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-2211111a15` HTTP Basic 等、HTML form 操作なしで ECP authentication exchange を完了できる
+- **対照（negative control）**:
+  - IIP-IDP14 の Basic capability と同じ観測を再利用できるが、本義務は UI characteristic の SHOULD。違反は WARNING であり Basic の MUST と集約しない
+- **参照先仕様**: `SAML2ECP#2.3.4`
+- **source_clauses**: `[0, 102)` `sha256:01ca8c2a74c0…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-IDP13.n</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-f12b37fbb3` ECP assertion を暗号化する構成 → encryption key の由来が metadata / explicit trust 等であり、unauthenticated endpoint probing だけではない
+- **対照（negative control）**:
+  - assertion を暗号化しない Run は satisfied_with_note。暗号化しない capability を要求しない。内部 key provenance を確認できなければ not_verified。★ SHOULD_NOT_CLASS
+- **参照先仕様**: `SAML2ECP#2.3.9`
+- **source_clauses**: `[0, 102)` `sha256:01ca8c2a74c0…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-IDP13.o</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-d88b3f0593` ecp:RelayState を含む response / 含まない response のいずれも適合として情報記録
+- **対照（negative control）**:
+  - MAY_CLASS。存在も不在も違反にしない
+- **参照先仕様**: `SAML2ECP#2.3.6`
+- **source_clauses**: `[0, 102)` `sha256:01ca8c2a74c0…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-IDP13.p</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-f35cb95f84` delegation marker 付き request に対する IdP の解釈を情報記録。採用・非採用のどちらも適合
+- **対照（negative control）**:
+  - MAY_CLASS。Audience を追加しないことを違反にしない
+- **参照先仕様**: `SAML2ECP#2.3.6`
+- **source_clauses**: `[0, 102)` `sha256:01ca8c2a74c0…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-IDP13.q</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-f49b02003a` basic ECP authentication path が HTML login form 等の presentation-oriented interface を必須にしない
+- **対照（negative control）**:
+  - NOT RECOMMENDED は禁止ではない。HTML path しか提供しない場合は violated → WARNING であり basic ECP capability の FAIL にしない
+  - IIP-IDP13.m の positive capability（minimal-UI mechanism）と、本義務の実際の presentation path を別 outcome として扱う
+- **参照先仕様**: `SAML2ECP#2.3.4`
+- **source_clauses**: `[0, 102)` `sha256:01ca8c2a74c0…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-IDP13.r</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-5bf7419669` 中間 HTTP exchange の有無・回数を情報記録し、どちらも適合として扱う
+- **対照（negative control）**:
+  - MAY_CLASS。中間 exchange の不在を違反にしない。最終 SOAP completion は IIP-IDP13.e が別に判定する
+- **参照先仕様**: `SAML2ECP#2.3.4`
 - **source_clauses**: `[0, 102)` `sha256:01ca8c2a74c0…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
 
@@ -6139,7 +6338,8 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 - **必要な variant**:
   - `v-0e3292a3ad` 完全準拠を主張するかを情報として記録（判定しない）
 - **対照（negative control）**:
-  - 完全準拠していないことを違反にしない。MUST なのは .c と .d のみ
+  - 完全準拠していないことを違反にしない。§3.1.1 の X.509 proof、TLS Client Authentication、client XML Signature の全 capability を basic ECP support の MUST にしない
+  - basic ECP exchange の IdP actor 規則は .a / .e〜.r、IIP が明示的に選んだ Bearer / channel binding は .c / .d、HTTP Basic は IIP-IDP14 でそれぞれの原文レベルを維持して判定する
 - **参照先仕様**: `SAML2ECP`
 - **source_clauses**: `[103, 131)` `sha256:35392bd66ad5…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
@@ -6268,6 +6468,10 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 |---|---|---|---|---|---|---|
 | `IIP-IDP17.a` | MUST | idp | `BROWSER` | — | full | SAML V2.0 SingleLogout profile に対応 |
 | `IIP-IDP17.b` | MUST | idp | `BROWSER` | — | full | SAML V2.0 Asynchronous Single Logout Protocol Extension に対応 |
+| `IIP-IDP17.b1` | MUST_NOT | idp | `BROWSER` | — | full | asynchronous LogoutRequest の initiator へ LogoutResponse を返さない |
+| `IIP-IDP17.b2` | MUST | idp | `BROWSER` | — | full | async request に LogoutResponse を返さない代わりに、関連する feedback を全て提供する |
+| `IIP-IDP17.b3` | MUST | idp | `AUTOMATED` | — | full | 送出する aslo:Asynchronous を samlp:LogoutRequest/samlp:Extensions 内に配置する |
+| `IIP-IDP17.b4` | MAY | idp | `AUTOMATED` | — | full | metadata endpoint で asynchronous logout request 対応を表明してもよい |
 | `IIP-IDP17.c` | OPTIONAL | idp | `BROWSER` | — | full | 他のセッション参加者へのログアウト伝播は任意 |
 | `IIP-IDP17.d` | MUST | idp | `CONFIG` | `supports_slo_idp`<br>(CAPABILITY_BASED) | full | 受信 LogoutRequest の principal identifier と SessionIndex を調べ、終了対象 session 集合を決定する |
 | `IIP-IDP17.e` | MUST | idp | `BROWSER` | `supports_slo_idp`<br>(CAPABILITY_BASED) | full | response を伴う request で IdP 自身に関する session を正常終了した場合、top-level Success の LogoutResponse を返す |
@@ -6325,11 +6529,66 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 <details><summary><code>IIP-IDP17.b</code> の詳細</summary>
 
 - **必要な variant**:
-  - `v-723b93db6c` asyncslo:Asynchronous 拡張付き LogoutRequest → LogoutResponse を返さずセッションが終了する
+  - `v-b0c90d49f2` 有効な aslo:Asynchronous 付き LogoutRequest → 同じ identifier / SessionIndex の同期 LogoutRequest と同じ session determination / request validation が行われる
+  - `v-2104230447` 不正な署名・Destination・SessionIndex を持つ async request → response を返さないまま、対応する Core request processing と同じく session へ依拠しない
 - **対照（negative control）**:
-  - 拡張なしの LogoutRequest には LogoutResponse が返ることを対照に置く
+  - ★ §2.2 は Core §3.7.3.2 に従う処理を要求するが、Core の session 終了自体は SHOULD（IIP-IDP17.q）。『session が必ず終了する』を本 MUST の期待値にしない
+  - ★ request initiator conformance（async element を含める能力）と session authority conformance（受信処理）を区別する。IIP-IDP17.c が LogoutRequest propagation を OPTIONAL とするため、IdP に async request 発行 capability を追加要求しない
+  - response 禁止は IIP-IDP17.b1、feedback は .b2、対象が実際に発行した async request の placement は .b3 で分離する
 - **参照先仕様**: `SAML2ASLO`
-- ⚠ **未解決**: 参照仕様 SAML2ASLO の該当節を読んで規範内容を分解する。aslo:Asynchronous の配置・LogoutResponse を返さない条件を分解する
+- **source_clauses**: `[109, 184)` `sha256:b6bba3e952da…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-IDP17.b1</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-a7d8776e5e` aslo:Asynchronous 付き LogoutRequest → front-channel / back-channel のいずれにも samlp:LogoutResponse を返さない
+- **対照（negative control）**:
+  - 拡張なしの同期 LogoutRequest → IIP-IDP17.a / .e / .o の条件に従い LogoutResponse が返る対照を置く
+  - HTTP の user-facing feedback は LogoutResponse ではなく許可され、むしろ IIP-IDP17.b2 が MUST とする。HTTP response 自体を禁止しない
+- **参照先仕様**: `SAML2ASLO#2.2`
+- **source_clauses**: `[109, 184)` `sha256:b6bba3e952da…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-IDP17.b2</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-50c3f049d1` front-channel async LogoutRequest の成功 → user-facing HTTP response が logout success を示す
+  - `v-c4ac95fec9` front-channel async LogoutRequest の失敗 → user-facing HTTP response が failure を示す
+- **対照（negative control）**:
+  - 固定の『success』page だけを返す実装を検出するため success / failure を対にする
+  - back-channel で user agent がない場合に web page を要求しない。利用 binding / application で relevant な feedback channel を判定する
+- **参照先仕様**: `SAML2ASLO#2.2`
+- **source_clauses**: `[109, 184)` `sha256:b6bba3e952da…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-IDP17.b3</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-b199fe5fc8` 対象 IdP が async LogoutRequest を実際に発行した場合、aslo:Asynchronous はその LogoutRequest 直下の samlp:Extensions 内に存在する
+- **対照（negative control）**:
+  - LogoutRequest 発行 / propagation capability 自体は IIP-IDP17.c が OPTIONAL。観測されなければ satisfied_with_note
+  - LogoutRequest 外または Extensions 外での使用は仕様上 undefined。本義務は target-emitted element の配置だけを判定し、receiver に独自の拒否義務を足さない
+- **参照先仕様**: `SAML2ASLO#2.1`
+- **source_clauses**: `[109, 184)` `sha256:b6bba3e952da…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-IDP17.b4</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-ccf5612cf9` SLO endpoint の aslo:supportsAsynchronous 属性の有無・値を情報記録する
+  - `v-423d81f520` supportsAsynchronous=true の endpoint へ送る LogoutRequest に extension を含める / 含めない選択を情報記録する
+- **対照（negative control）**:
+  - MAY_CLASS。metadata 表明がないこと、または表明 endpoint へ sync request を送ることを違反にしない
+- **参照先仕様**: `SAML2ASLO#2.3`
 - **source_clauses**: `[109, 184)` `sha256:b6bba3e952da…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
 
@@ -6983,9 +7242,9 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 
 ```
 g1_state       : PENDING_REVIEW
-obligations    : 428
-未承認         : 428
-未解決 open Q  : 9 ['IIP-MD05.a', 'IIP-MD05.b', 'IIP-MD05.c', 'IIP-MD05.d', 'IIP-MD05.e', 'IIP-MD05.f', 'IIP-MD06.a', 'IIP-IDP13.a', 'IIP-IDP17.b']
+obligations    : 446
+未承認         : 446
+未解決 open Q  : 7 ['IIP-MD05.a', 'IIP-MD05.b', 'IIP-MD05.c', 'IIP-MD05.d', 'IIP-MD05.e', 'IIP-MD05.f', 'IIP-MD06.a']
 ```
 
 作成者は `reviewer` / `approved_at` を埋めていません。

@@ -1,6 +1,6 @@
 # tests/coverage.yaml — 要件カタログ（G1 成果物 / 判定レベルの唯一の出典）
 # 生成: build_g1.py（原文からオフセットと digest を解決）/ 手編集しない
-generated_at: 2026-08-28T05:45:16+00:00
+generated_at: 2026-08-28T07:25:10+00:00
 schema_version: 1
 g1_state: PENDING_REVIEW
 # 作成者は reviewer / approved_at を埋めない。別のレビュアーが原文と直接照合して承認する。
@@ -13995,24 +13995,572 @@ requirements:
         reference_derivation: true
         reference_evidence:
           - spec: SAML2ECP
-            locator: "2\\.3 Profile Description||2\\.4 "
-            section_digest: "sha256:4022a0eda87bdc6fb59534e571bdb754fccaa62d4a352cb1defaf1451ae771ca"
-            basis_ja: "ECP Profile 本体の規範内容"
+            locator: "2\\.3 Profile Description||2\\.3\\.1 ECP Issues HTTP Request to Service Provider"
+            section_digest: "sha256:b7c1b0b98cdd7e7984368b03be59552d02f2466388207216ab2c2a43c93c8f1c"
+            basis_ja: "ECP Profile の各 step に共通する SOAP header 規則と、後続の basic ECP exchange の前置き"
+          - spec: SAML2ECP
+            locator: "2\\.3\\.4 ECP Routes <samlp:AuthnRequest> to Identity Provider||2\\.3\\.4\\.1"
+            section_digest: "sha256:212cc80f0020c2ac9e08208b779b78ab0c7359fe1f3925b1d7f23c02f34a45c2"
+            basis_ja: "client から IdP へ SOAP AuthnRequest を届け、最終的に IdP が SAML SOAP binding exchange を完了する基本フロー"
+          - spec: SAML2ECP
+            locator: "2\\.3\\.5 Identity Provider Identifies Principal||2\\.3\\.5\\.1"
+            section_digest: "sha256:dac9bcf87d3aa352cfab4cafd7b84a17f47db13e30088bb3ea25c34a719bdd3e"
+            basis_ja: "IdP が principal を識別する基本フロー"
+          - spec: SAML2ECP
+            locator: "2\\.3\\.6 Identity Provider Issues <samlp:Response> to ECP||2\\.3\\.6\\.1"
+            section_digest: "sha256:745fcbc5f6504821b49bf7cfa779dc82ccf9f84bf38ba3751cafa0616444a4bf"
+            basis_ja: "IdP が SAML Response または SOAP fault を返す基本フロー"
         level_assignment: { idp: full }
         source_clauses:
           - { start: 0, end: 102, digest: "sha256:01ca8c2a74c033d17d27fc4eddce3d36809cbce425d66d275261843d2e08b497", occurrences: 1 }
         required_variants:
-          - id: v-da292a062f
-            description_ja: "PAOS ACS を含む Suite メタデータで ECP 往復が成立する"
-        notes_ja: "原文末尾に『This requirement does not apply to token translation Proxies.』の適用除外がある。また『excepting IIP-SSO02 and IIP-SSO03』により ECP 実行時は Redirect/POST バインディング要件が適用されない。"
-        open_question_ja: "参照仕様 SAML2ECP の該当節を読んで規範内容を分解する。Bearer / channel bindings 以外の規範内容の扱いを決める（Full conformance は OPTIONAL だが、対応表明した範囲の扱い）"
+          - id: v-ceb99bb14c
+            description_ja: "PAOS ACS を含む Suite メタデータと HTTP Basic 認証を使い、SOAP AuthnRequest から SOAP Response / fault まで basic ECP exchange が成立する"
+          - id: v-b34b7aec68
+            description_ja: "成功経路と認証失敗経路の双方で、HTTP 表示だけで終わらず SAML SOAP binding exchange が完了する"
+        controls:
+          - "★ 単に HTTP 200 を返す実装、HTML login 後に SOAP Response / fault を返さない実装を PASS にしない"
+          - "★ Full conformance は IIP-IDP13.b が OPTIONAL とする。HoK、X.509、TLS Client Authentication、client XML Signature の全対応を本 basic capability の MUST にしない"
+          - "★ IIP 原文が『All applicable Web Browser SSO requirements ... excepting IIP-SSO02 and IIP-SSO03』とするため、G2 の ECP plan は IdP に適用可能な IIP-SSO 義務を ECP 文脈でも schedule する。各 obligation の level は維持し、1 個の container MUST に畳んで SHOULD / MAY を引き上げない"
+        notes_ja: "原文末尾に『This requirement does not apply to token translation Proxies.』の適用除外がある。ECP Profile v2.0 §2.2 は channel bindings / HoK を base profile への optional additions とする。IIP は basic ECP support を MUST、Full conformance を OPTIONAL としたうえで Bearer と channel binding verification を個別に MUST としているため、§3.1.1 の full-conformance-only capability を .a に逆輸入しない。分解対象は IdP actor の basic exchange（§2.3.4〜.6）と basic exchange に直接かかる security rules（§2.3.9）。client / SP actor の §2.3.1〜.4 / .7〜.8、optional HoK feature 固有の §2.3.4.1 / .5.1 / .6.3、metadata consumption の §2.3.10（IIP-IDP16）、Bearer / channel bindings（IIP-IDP13.c / .d）はここへ重複収録しない。"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:8810bb3868e8361fc270b7873e3fd104a20cc18c628fdcfa2bd9685911fffa79"
+          obligation_digest: "sha256:8b51a65d229f1a21cc1ab6d9c436e9712e2424f36849438abed77ac80261e11a"
+          source_spec: kantara-fedinterop-impl
+          spec_version: "1.1"
+          source_selector: "#IIP-IDP13"
+          source_section_digest: "sha256:48b976641b3da6105d00e4a0ccc6669046e9f0de0fa7238c6a7735dc6a45074c"
+      - key: IIP-IDP13.e
+        roles: [idp]
+        level: MUST
+        testability: AUTOMATED
+        condition:
+          predicate: not_token_translation_proxy
+          predicate_kind: CLASSIFICATION_BASED
+        exclusion_clause_en: "This requirement does not apply to token translation Proxies."
+        summary_en: "Complete the ECP SAML SOAP binding exchange and return a SAML Response or SOAP fault"
+        summary_ja: "ECP の SAML SOAP binding exchange を完了し、SAML Response または SOAP fault を返す"
+        references_spec: "SAML2ECP#2.3.4+2.3.6"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2ECP
+            locator: "2\\.3\\.4 ECP Routes <samlp:AuthnRequest> to Identity Provider||2\\.3\\.4\\.1"
+            section_digest: "sha256:212cc80f0020c2ac9e08208b779b78ab0c7359fe1f3925b1d7f23c02f34a45c2"
+            basis_ja: "途中で HTTP presentation exchange を挟んでも、IdP は最終的に SAML SOAP binding exchange を完了して SAML response を返さなければならない"
+          - spec: SAML2ECP
+            locator: "2\\.3\\.6 Identity Provider Issues <samlp:Response> to ECP||2\\.3\\.6\\.1"
+            section_digest: "sha256:745fcbc5f6504821b49bf7cfa779dc82ccf9f84bf38ba3751cafa0616444a4bf"
+            basis_ja: "認証・AuthnRequest 処理の成否にかかわらず、IdP は samlp:Response または SOAP fault を返す"
+        level_assignment: { idp: full }
+        source_clauses:
+          - { start: 0, end: 102, digest: "sha256:01ca8c2a74c033d17d27fc4eddce3d36809cbce425d66d275261843d2e08b497", occurrences: 1 }
+        required_variants:
+          - id: v-6959cbbad1
+            description_ja: "認証成功 → SOAP body に samlp:Response を返す"
+          - id: v-508414ea6b
+            description_ja: "認証失敗 / AuthnRequest 処理失敗 → error samlp:Response または SOAP fault を返す"
+        controls:
+          - "HTML login form や HTTP error だけで exchange を終える実装を検出する。SOAP fault は原文が明示する適合経路なので error Response だけを要求しない"
+        authored_by: samlier-g1-builder
+        review:
+          # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
+          state: PENDING_REVIEW
+          reviewer: null
+          approved_at: null
+          obligation_digest: "sha256:caa2698a0f46f5b0384b34828847971ac2a249cea9839fd411aa70c87936dbbe"
+          source_spec: kantara-fedinterop-impl
+          spec_version: "1.1"
+          source_selector: "#IIP-IDP13"
+          source_section_digest: "sha256:48b976641b3da6105d00e4a0ccc6669046e9f0de0fa7238c6a7735dc6a45074c"
+      - key: IIP-IDP13.f
+        roles: [idp]
+        level: MUST
+        testability: CONFIG
+        condition:
+          predicate: not_token_translation_proxy
+          predicate_kind: CLASSIFICATION_BASED
+        exclusion_clause_en: "This requirement does not apply to token translation Proxies."
+        configuration_failure_semantics: test_precondition
+        summary_en: "Establish the identity of the principal unless returning an error"
+        summary_ja: "error を返す場合を除き principal の身元を確立する"
+        references_spec: "SAML2ECP#2.3.5"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2ECP
+            locator: "2\\.3\\.5 Identity Provider Identifies Principal||2\\.3\\.5\\.1"
+            section_digest: "sha256:dac9bcf87d3aa352cfab4cafd7b84a17f47db13e30088bb3ea25c34a719bdd3e"
+            basis_ja: "IdP は service provider へ error を返す場合を除き principal の identity を MUST establish する。ForceAuthn=true の fresh establishment は IIP-IDP06 が別に判定する"
+        level_assignment: { idp: full }
+        source_clauses:
+          - { start: 0, end: 102, digest: "sha256:01ca8c2a74c033d17d27fc4eddce3d36809cbce425d66d275261843d2e08b497", occurrences: 1 }
+        required_variants:
+          - id: v-94abd59ba3
+            description_ja: "ambient authentication を排除した構成で正しい資格情報 → principal に対応する成功 assertion"
+          - id: v-2c0e29763d
+            description_ja: "誤った資格情報 → 別 principal の assertion を発行せず error Response / SOAP fault"
+        controls:
+          - "既存 session / client certificate / 統合認証を排除できなければ not_verified(ambient_auth_not_excludable)。可視の login UI がないこと自体を違反にしない"
+          - "ForceAuthn の fresh authentication は IIP-IDP06、HTTP Basic capability は IIP-IDP14 で二重計上せず判定する"
+        authored_by: samlier-g1-builder
+        review:
+          # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
+          state: PENDING_REVIEW
+          reviewer: null
+          approved_at: null
+          obligation_digest: "sha256:ff0f407b13ea332024f224c72f93093e5da0d3c099737f40e6c8f99168657d73"
+          source_spec: kantara-fedinterop-impl
+          spec_version: "1.1"
+          source_selector: "#IIP-IDP13"
+          source_section_digest: "sha256:48b976641b3da6105d00e4a0ccc6669046e9f0de0fa7238c6a7735dc6a45074c"
+      - key: IIP-IDP13.g
+        roles: [idp]
+        level: MUST
+        testability: AUTOMATED
+        condition:
+          predicate: not_token_translation_proxy
+          predicate_kind: CLASSIFICATION_BASED
+        exclusion_clause_en: "This requirement does not apply to token translation Proxies."
+        summary_en: "When returning a SAML Response, include an ecp:Response header with the derived response destination"
+        summary_ja: "SAML Response を返す場合、要求から導出した返送先を持つ ecp:Response header を含める"
+        references_spec: "SAML2ECP#2.3.6"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2ECP
+            locator: "2\\.3\\.6 Identity Provider Issues <samlp:Response> to ECP||2\\.3\\.6\\.1"
+            section_digest: "sha256:745fcbc5f6504821b49bf7cfa779dc82ccf9f84bf38ba3751cafa0616444a4bf"
+            basis_ja: "Response を含む場合、SOAP envelope は ecp:Response header を含み、AssertionConsumerServiceURL は AuthnRequest から導出した delivery location でなければならない"
+        level_assignment: { idp: full }
+        source_clauses:
+          - { start: 0, end: 102, digest: "sha256:01ca8c2a74c033d17d27fc4eddce3d36809cbce425d66d275261843d2e08b497", occurrences: 1 }
+        required_variants:
+          - id: v-855ff7539f
+            description_ja: "成功・error の別を問わず、観測した各 samlp:Response → ecp:Response header があり @AssertionConsumerServiceURL は要求で選ばれた PAOS ACS と一致"
+          - id: v-10d28df38d
+            description_ja: "SOAP fault → samlp:Response がないため本 header-presence 規則の実行時 scope 外"
+        controls:
+          - "固定 URL を常に返す実装を検出するため、AuthnRequest / metadata の PAOS ACS を切り替える対照を置く"
+          - "error path では samlp:Response と SOAP fault のどちらも許される。error Response を必須経路にしない"
+        authored_by: samlier-g1-builder
+        review:
+          # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
+          state: PENDING_REVIEW
+          reviewer: null
+          approved_at: null
+          obligation_digest: "sha256:c71d56bd95aa465eb8fcb123d14fdcae94c605045a1891da1a4d12ca0675f3ee"
+          source_spec: kantara-fedinterop-impl
+          spec_version: "1.1"
+          source_selector: "#IIP-IDP13"
+          source_section_digest: "sha256:48b976641b3da6105d00e4a0ccc6669046e9f0de0fa7238c6a7735dc6a45074c"
+      - key: IIP-IDP13.h
+        roles: [idp]
+        level: SHOULD
+        testability: AUTOMATED
+        condition:
+          predicate: not_token_translation_proxy
+          predicate_kind: CLASSIFICATION_BASED
+        exclusion_clause_en: "This requirement does not apply to token translation Proxies."
+        summary_en: "When a signed AuthnRequest is successfully authenticated, include an ecp:RequestAuthenticated header"
+        summary_ja: "署名付き AuthnRequest の認証に成功した場合、ecp:RequestAuthenticated header を含めることが望ましい"
+        references_spec: "SAML2ECP#2.3.6"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2ECP
+            locator: "2\\.3\\.6 Identity Provider Issues <samlp:Response> to ECP||2\\.3\\.6\\.1"
+            section_digest: "sha256:745fcbc5f6504821b49bf7cfa779dc82ccf9f84bf38ba3751cafa0616444a4bf"
+            basis_ja: "IdP が digital signature により AuthnRequest を successfully authenticated した場合、ecp:RequestAuthenticated SOAP header を SHOULD include する"
+        level_assignment: { idp: full }
+        source_clauses:
+          - { start: 0, end: 102, digest: "sha256:01ca8c2a74c033d17d27fc4eddce3d36809cbce425d66d275261843d2e08b497", occurrences: 1 }
+        required_variants:
+          - id: v-c4e335bf2e
+            description_ja: "Suite SP の署名付き AuthnRequest を IdP が認証して成功 Response を返す → ecp:RequestAuthenticated header を含む"
+        controls:
+          - "署名を検証できなかった error 経路、未署名要求、SOAP fault は実行時 scope 外。★ SHOULD_CLASS"
+        authored_by: samlier-g1-builder
+        review:
+          # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
+          state: PENDING_REVIEW
+          reviewer: null
+          approved_at: null
+          obligation_digest: "sha256:c7b0a07ace491e3c9eac9455f6078a861af6a5c87c9fee9659e7d0831e9a9ffa"
+          source_spec: kantara-fedinterop-impl
+          spec_version: "1.1"
+          source_selector: "#IIP-IDP13"
+          source_section_digest: "sha256:48b976641b3da6105d00e4a0ccc6669046e9f0de0fa7238c6a7735dc6a45074c"
+      - key: IIP-IDP13.i
+        roles: [idp]
+        level: MUST
+        testability: AUTOMATED
+        condition:
+          predicate: not_token_translation_proxy
+          predicate_kind: CLASSIFICATION_BASED
+        exclusion_clause_en: "This requirement does not apply to token translation Proxies."
+        summary_en: "Set the required SOAP actor and mustUnderstand values on ECP response header blocks"
+        summary_ja: "ECP response の SOAP header block に必要な actor / mustUnderstand 値を設定する"
+        references_spec: "SAML2ECP#2.3"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2ECP
+            locator: "2\\.3 Profile Description||2\\.3\\.1 ECP Issues HTTP Request to Service Provider"
+            section_digest: "sha256:b7c1b0b98cdd7e7984368b03be59552d02f2466388207216ab2c2a43c93c8f1c"
+            basis_ja: "profile が記述する全 SOAP header block は、別途指定がない限り actor=.../next と mustUnderstand=1 を MUST contain する"
+          - spec: SAML2ECP
+            locator: "2\\.3\\.6 Identity Provider Issues <samlp:Response> to ECP||2\\.3\\.6\\.1"
+            section_digest: "sha256:745fcbc5f6504821b49bf7cfa779dc82ccf9f84bf38ba3751cafa0616444a4bf"
+            basis_ja: "ecp:Response / ecp:RequestAuthenticated の IdP 送出文脈"
+        level_assignment: { idp: full }
+        source_clauses:
+          - { start: 0, end: 102, digest: "sha256:01ca8c2a74c033d17d27fc4eddce3d36809cbce425d66d275261843d2e08b497", occurrences: 1 }
+        required_variants:
+          - id: v-20e62bf818
+            description_ja: "IdP が送出した ecp:Response → S:actor=.../next かつ S:mustUnderstand=1"
+          - id: v-6a4da9d436
+            description_ja: "IdP が送出した cb:ChannelBindings response header → S:actor=.../next かつ S:mustUnderstand=1"
+          - id: v-8dca052714
+            description_ja: "IIP-IDP13.h の署名付き request scenario で ecp:RequestAuthenticated が観測された場合 → S:actor=.../next。§2.3.6.1 が mustUnderstand を Optional とするため有無を判定しない"
+        controls:
+          - "存在自体が MAY / SHOULD の header を本義務で要求しない。観測された IdP-origin header の属性だけを受動検査する"
+          - "HoK header は Full conformance / optional HoK feature の範囲なので basic ECP support の required variant に入れない"
+        authored_by: samlier-g1-builder
+        review:
+          # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
+          state: PENDING_REVIEW
+          reviewer: null
+          approved_at: null
+          obligation_digest: "sha256:66086591267bfe46473777b7c2d9881ad2bffa5451f902c7b3a2d38130a3ada9"
+          source_spec: kantara-fedinterop-impl
+          spec_version: "1.1"
+          source_selector: "#IIP-IDP13"
+          source_section_digest: "sha256:48b976641b3da6105d00e4a0ccc6669046e9f0de0fa7238c6a7735dc6a45074c"
+      - key: IIP-IDP13.j
+        roles: [idp]
+        level: MUST
+        testability: AUTOMATED
+        condition:
+          predicate: not_token_translation_proxy
+          predicate_kind: CLASSIFICATION_BASED
+        exclusion_clause_en: "This requirement does not apply to token translation Proxies."
+        summary_en: "Integrity-protect assertions in an ECP Response at the assertion or response level"
+        summary_ja: "ECP Response 内の assertion を assertion または response level で integrity protection する"
+        references_spec: "SAML2ECP#2.3.9"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2ECP
+            locator: "2\\.3\\.9 Security Considerations||2\\.3\\.10 Use of Metadata"
+            section_digest: "sha256:a73b43991114d5e9de311b1b613c5080d2436facb2ed42870a981a0e3d00f62b"
+            basis_ja: "ECP Response の assertion は個別 assertion または Response level のいずれかで MUST be integrity protected する"
+        level_assignment: { idp: full }
+        source_clauses:
+          - { start: 0, end: 102, digest: "sha256:01ca8c2a74c033d17d27fc4eddce3d36809cbce425d66d275261843d2e08b497", occurrences: 1 }
+        required_variants:
+          - id: v-996f048ecf
+            description_ja: "観測した各 ECP Response の assertion が、個別 assertion の有効な integrity protection または Response level の有効な integrity protection の少なくとも一方で覆われる"
+        controls:
+          - "原文は assertion or response level の選言。経路別 required variant にすると G2 で AND になるため分けない。実際に両方あれば両方を検証する"
+          - "どちらの有効な protection もない ECP Response は violated"
+        authored_by: samlier-g1-builder
+        review:
+          # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
+          state: PENDING_REVIEW
+          reviewer: null
+          approved_at: null
+          obligation_digest: "sha256:cc143f6fe91356357f93c108c406d99638503eadcd45aef4c4aedca57d01c77c"
+          source_spec: kantara-fedinterop-impl
+          spec_version: "1.1"
+          source_selector: "#IIP-IDP13"
+          source_section_digest: "sha256:48b976641b3da6105d00e4a0ccc6669046e9f0de0fa7238c6a7735dc6a45074c"
+      - key: IIP-IDP13.k
+        roles: [idp]
+        level: SHOULD
+        testability: ATTESTED
+        condition:
+          predicate: not_token_translation_proxy
+          predicate_kind: CLASSIFICATION_BASED
+        exclusion_clause_en: "This requirement does not apply to token translation Proxies."
+        summary_en: "Integrity-protect SOAP headers in the ECP exchange"
+        summary_ja: "ECP exchange の SOAP header を integrity protection することが望ましい"
+        references_spec: "SAML2ECP#2.3.9"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2ECP
+            locator: "2\\.3\\.9 Security Considerations||2\\.3\\.10 Use of Metadata"
+            section_digest: "sha256:a73b43991114d5e9de311b1b613c5080d2436facb2ed42870a981a0e3d00f62b"
+            basis_ja: "Bearer の場合も含め、全 SOAP headers は TLS 等により SHOULD be integrity protected する"
+        level_assignment: { idp: full }
+        source_clauses:
+          - { start: 0, end: 102, digest: "sha256:01ca8c2a74c033d17d27fc4eddce3d36809cbce425d66d275261843d2e08b497", occurrences: 1 }
+        required_variants:
+          - id: v-065d4fdcba
+            description_ja: "IdP と ECP client 間の response exchange で、IdP 送出 SOAP headers が TLS または message-level mechanism により保護される"
+        controls:
+          - "TLS 以外の protection も原文が許す。内部 transport / message protection を確認できなければ not_verified。★ SHOULD_CLASS"
+        authored_by: samlier-g1-builder
+        review:
+          # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
+          state: PENDING_REVIEW
+          reviewer: null
+          approved_at: null
+          obligation_digest: "sha256:a716b09672530f462fd9c6b87bb5c31b9e7d046521df7a64ce87dbe9a8a1d6f1"
+          source_spec: kantara-fedinterop-impl
+          spec_version: "1.1"
+          source_selector: "#IIP-IDP13"
+          source_section_digest: "sha256:48b976641b3da6105d00e4a0ccc6669046e9f0de0fa7238c6a7735dc6a45074c"
+      - key: IIP-IDP13.l
+        roles: [idp]
+        level: MUST
+        testability: CONFIG
+        condition:
+          predicate: not_token_translation_proxy
+          predicate_kind: CLASSIFICATION_BASED
+        exclusion_clause_en: "This requirement does not apply to token translation Proxies."
+        configuration_failure_semantics: test_precondition
+        summary_en: "Securely associate intermediate HTTP exchanges with the original ECP AuthnRequest"
+        summary_ja: "ECP の途中で行う HTTP exchange を元の AuthnRequest と安全に関連付ける"
+        references_spec: "SAML2ECP#2.3.9"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2ECP
+            locator: "2\\.3\\.9 Security Considerations||2\\.3\\.10 Use of Metadata"
+            section_digest: "sha256:a73b43991114d5e9de311b1b613c5080d2436facb2ed42870a981a0e3d00f62b"
+            basis_ja: "AuthnRequest delivery 後から Response return 前までの HTTP exchanges は元の request と MUST be securely associated する"
+        level_assignment: { idp: full }
+        source_clauses:
+          - { start: 0, end: 102, digest: "sha256:01ca8c2a74c033d17d27fc4eddce3d36809cbce425d66d275261843d2e08b497", occurrences: 1 }
+        required_variants:
+          - id: v-7badbfd279
+            description_ja: "同一 browser/client session 内の中間 authentication exchange → 元 AuthnRequest に対応する Response"
+          - id: v-902e0f42e1
+            description_ja: "別 client/session の相関情報を混ぜる → 元 AuthnRequest と交差せず拒否 / 分離される"
+        controls:
+          - "単一 exchange だけでは相関を証明できない。2 個の並行 ECP exchange を交差させる negative control が要る。内部相関を観測できなければ not_verified(ecp_request_association_not_observable)"
+        authored_by: samlier-g1-builder
+        review:
+          # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
+          state: PENDING_REVIEW
+          reviewer: null
+          approved_at: null
+          obligation_digest: "sha256:aabb2cdd019626f66024ae18b66d93f4b4d60adf5328400335c64cac1ace248d"
+          source_spec: kantara-fedinterop-impl
+          spec_version: "1.1"
+          source_selector: "#IIP-IDP13"
+          source_section_digest: "sha256:48b976641b3da6105d00e4a0ccc6669046e9f0de0fa7238c6a7735dc6a45074c"
+      - key: IIP-IDP13.m
+        roles: [idp]
+        level: SHOULD
+        testability: ATTESTED
+        condition:
+          predicate: not_token_translation_proxy
+          predicate_kind: CLASSIFICATION_BASED
+        exclusion_clause_en: "This requirement does not apply to token translation Proxies."
+        summary_en: "Support SOAP- or HTTP-based authentication with no or minimal presentation-oriented interface"
+        summary_ja: "表示 UI がない、または最小限の SOAP / HTTP based authentication をサポートすることが望ましい"
+        references_spec: "SAML2ECP#2.3.4"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2ECP
+            locator: "2\\.3\\.4 ECP Routes <samlp:AuthnRequest> to Identity Provider||2\\.3\\.4\\.1"
+            section_digest: "sha256:212cc80f0020c2ac9e08208b779b78ab0c7359fe1f3925b1d7f23c02f34a45c2"
+            basis_ja: "HTML / presentation-oriented authentication は NOT RECOMMENDED で、IdP と client は UI がない又は最小限の SOAP / HTTP mechanisms を SHOULD support する"
+        level_assignment: { idp: full }
+        source_clauses:
+          - { start: 0, end: 102, digest: "sha256:01ca8c2a74c033d17d27fc4eddce3d36809cbce425d66d275261843d2e08b497", occurrences: 1 }
+        required_variants:
+          - id: v-2211111a15
+            description_ja: "HTTP Basic 等、HTML form 操作なしで ECP authentication exchange を完了できる"
+        controls:
+          - "IIP-IDP14 の Basic capability と同じ観測を再利用できるが、本義務は UI characteristic の SHOULD。違反は WARNING であり Basic の MUST と集約しない"
+        authored_by: samlier-g1-builder
+        review:
+          # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
+          state: PENDING_REVIEW
+          reviewer: null
+          approved_at: null
+          obligation_digest: "sha256:407e436a8ac2ac0d1d567330fb2035186eea87b58558249d6d1737ea58d4bf74"
+          source_spec: kantara-fedinterop-impl
+          spec_version: "1.1"
+          source_selector: "#IIP-IDP13"
+          source_section_digest: "sha256:48b976641b3da6105d00e4a0ccc6669046e9f0de0fa7238c6a7735dc6a45074c"
+      - key: IIP-IDP13.n
+        roles: [idp]
+        level: SHOULD_NOT
+        testability: ATTESTED
+        condition:
+          predicate: not_token_translation_proxy
+          predicate_kind: CLASSIFICATION_BASED
+        exclusion_clause_en: "This requirement does not apply to token translation Proxies."
+        summary_en: "Do not derive an ECP assertion-encryption key merely by probing a service provider TLS endpoint"
+        summary_ja: "SP の TLS endpoint を probe しただけの certificate から ECP assertion 暗号鍵を導出しないことが望ましい"
+        references_spec: "SAML2ECP#2.3.9"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2ECP
+            locator: "2\\.3\\.9 Security Considerations||2\\.3\\.10 Use of Metadata"
+            section_digest: "sha256:a73b43991114d5e9de311b1b613c5080d2436facb2ed42870a981a0e3d00f62b"
+            basis_ja: "assertion encryption key は、別途 authenticate でき encryption 用と確認された場合を除き、SP endpoint probing で得た TLS certificate から SHOULD NOT derive する"
+        level_assignment: { idp: full }
+        source_clauses:
+          - { start: 0, end: 102, digest: "sha256:01ca8c2a74c033d17d27fc4eddce3d36809cbce425d66d275261843d2e08b497", occurrences: 1 }
+        required_variants:
+          - id: v-f12b37fbb3
+            description_ja: "ECP assertion を暗号化する構成 → encryption key の由来が metadata / explicit trust 等であり、unauthenticated endpoint probing だけではない"
+        controls:
+          - "assertion を暗号化しない Run は satisfied_with_note。暗号化しない capability を要求しない。内部 key provenance を確認できなければ not_verified。★ SHOULD_NOT_CLASS"
+        authored_by: samlier-g1-builder
+        review:
+          # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
+          state: PENDING_REVIEW
+          reviewer: null
+          approved_at: null
+          obligation_digest: "sha256:b33f29bec4f08c507b9958291269a84c0ff92c9f1a16ca771efe9248a1304bd0"
+          source_spec: kantara-fedinterop-impl
+          spec_version: "1.1"
+          source_selector: "#IIP-IDP13"
+          source_section_digest: "sha256:48b976641b3da6105d00e4a0ccc6669046e9f0de0fa7238c6a7735dc6a45074c"
+      - key: IIP-IDP13.o
+        roles: [idp]
+        level: MAY
+        testability: AUTOMATED
+        condition:
+          predicate: not_token_translation_proxy
+          predicate_kind: CLASSIFICATION_BASED
+        exclusion_clause_en: "This requirement does not apply to token translation Proxies."
+        summary_en: "An ECP response may include an ecp:RelayState header"
+        summary_ja: "ECP response に ecp:RelayState header を含めてもよい"
+        references_spec: "SAML2ECP#2.3.6"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2ECP
+            locator: "2\\.3\\.6 Identity Provider Issues <samlp:Response> to ECP||2\\.3\\.6\\.1"
+            section_digest: "sha256:745fcbc5f6504821b49bf7cfa779dc82ccf9f84bf38ba3751cafa0616444a4bf"
+            basis_ja: "SOAP envelope は ecp:RelayState SOAP header を MAY contain する"
+        level_assignment: { idp: full }
+        source_clauses:
+          - { start: 0, end: 102, digest: "sha256:01ca8c2a74c033d17d27fc4eddce3d36809cbce425d66d275261843d2e08b497", occurrences: 1 }
+        required_variants:
+          - id: v-d88b3f0593
+            description_ja: "ecp:RelayState を含む response / 含まない response のいずれも適合として情報記録"
+        controls:
+          - "MAY_CLASS。存在も不在も違反にしない"
+        authored_by: samlier-g1-builder
+        review:
+          # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
+          state: PENDING_REVIEW
+          reviewer: null
+          approved_at: null
+          obligation_digest: "sha256:dc95645584dae513408191afa7543983682a0d19de13235b5f89e9a650e5646d"
+          source_spec: kantara-fedinterop-impl
+          spec_version: "1.1"
+          source_selector: "#IIP-IDP13"
+          source_section_digest: "sha256:48b976641b3da6105d00e4a0ccc6669046e9f0de0fa7238c6a7735dc6a45074c"
+      - key: IIP-IDP13.p
+        roles: [idp]
+        level: MAY
+        testability: AUTOMATED
+        condition:
+          predicate: not_token_translation_proxy
+          predicate_kind: CLASSIFICATION_BASED
+        exclusion_clause_en: "This requirement does not apply to token translation Proxies."
+        summary_en: "The identity provider may interpret the delegation audience marker as a request to identify itself in an audience restriction"
+        summary_ja: "delegation audience marker を、IdP 自身を AudienceRestriction に含める要求と解釈してもよい"
+        references_spec: "SAML2ECP#2.3.6"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2ECP
+            locator: "2\\.3\\.6 Identity Provider Issues <samlp:Response> to ECP||2\\.3\\.6\\.1"
+            section_digest: "sha256:745fcbc5f6504821b49bf7cfa779dc82ccf9f84bf38ba3751cafa0616444a4bf"
+            basis_ja: "delegation Audience を含む request を、IdP 自身を audience restriction に含める assertion の要求と MAY interpret する"
+        level_assignment: { idp: full }
+        source_clauses:
+          - { start: 0, end: 102, digest: "sha256:01ca8c2a74c033d17d27fc4eddce3d36809cbce425d66d275261843d2e08b497", occurrences: 1 }
+        required_variants:
+          - id: v-f35cb95f84
+            description_ja: "delegation marker 付き request に対する IdP の解釈を情報記録。採用・非採用のどちらも適合"
+        controls:
+          - "MAY_CLASS。Audience を追加しないことを違反にしない"
+        authored_by: samlier-g1-builder
+        review:
+          # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
+          state: PENDING_REVIEW
+          reviewer: null
+          approved_at: null
+          obligation_digest: "sha256:a5034b15e770c13c1068ddfb6e390de52517d9b5eae1cee2538fdd20f6f9ddff"
+          source_spec: kantara-fedinterop-impl
+          spec_version: "1.1"
+          source_selector: "#IIP-IDP13"
+          source_section_digest: "sha256:48b976641b3da6105d00e4a0ccc6669046e9f0de0fa7238c6a7735dc6a45074c"
+      - key: IIP-IDP13.q
+        roles: [idp]
+        level: SHOULD_NOT
+        testability: ATTESTED
+        condition:
+          predicate: not_token_translation_proxy
+          predicate_kind: CLASSIFICATION_BASED
+        exclusion_clause_en: "This requirement does not apply to token translation Proxies."
+        summary_en: "Avoid HTML or other presentation-oriented authentication in the ECP exchange"
+        summary_ja: "ECP exchange では HTML 等の presentation-oriented authentication を避けることが望ましい"
+        references_spec: "SAML2ECP#2.3.4"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2ECP
+            locator: "2\\.3\\.4 ECP Routes <samlp:AuthnRequest> to Identity Provider||2\\.3\\.4\\.1"
+            section_digest: "sha256:212cc80f0020c2ac9e08208b779b78ab0c7359fe1f3925b1d7f23c02f34a45c2"
+            basis_ja: "HTML / presentation-oriented interface for authentication の使用は NOT RECOMMENDED とする"
+        level_assignment: { idp: full }
+        source_clauses:
+          - { start: 0, end: 102, digest: "sha256:01ca8c2a74c033d17d27fc4eddce3d36809cbce425d66d275261843d2e08b497", occurrences: 1 }
+        required_variants:
+          - id: v-f49b02003a
+            description_ja: "basic ECP authentication path が HTML login form 等の presentation-oriented interface を必須にしない"
+        controls:
+          - "NOT RECOMMENDED は禁止ではない。HTML path しか提供しない場合は violated → WARNING であり basic ECP capability の FAIL にしない"
+          - "IIP-IDP13.m の positive capability（minimal-UI mechanism）と、本義務の実際の presentation path を別 outcome として扱う"
+        authored_by: samlier-g1-builder
+        review:
+          # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
+          state: PENDING_REVIEW
+          reviewer: null
+          approved_at: null
+          obligation_digest: "sha256:ba2bb1cd1b04c8cf4a19480ab9b67ed3ecf9a96195abbbed11c4d2dba1afb0c6"
+          source_spec: kantara-fedinterop-impl
+          spec_version: "1.1"
+          source_selector: "#IIP-IDP13"
+          source_section_digest: "sha256:48b976641b3da6105d00e4a0ccc6669046e9f0de0fa7238c6a7735dc6a45074c"
+      - key: IIP-IDP13.r
+        roles: [idp]
+        level: MAY
+        testability: AUTOMATED
+        condition:
+          predicate: not_token_translation_proxy
+          predicate_kind: CLASSIFICATION_BASED
+        exclusion_clause_en: "This requirement does not apply to token translation Proxies."
+        summary_en: "The identity provider may use intermediate HTTP presentation exchanges before completing the SAML SOAP exchange"
+        summary_ja: "SAML SOAP exchange 完了前に中間 HTTP presentation exchange を行ってもよい"
+        references_spec: "SAML2ECP#2.3.4"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2ECP
+            locator: "2\\.3\\.4 ECP Routes <samlp:AuthnRequest> to Identity Provider||2\\.3\\.4\\.1"
+            section_digest: "sha256:212cc80f0020c2ac9e08208b779b78ab0c7359fe1f3925b1d7f23c02f34a45c2"
+            basis_ja: "IdP は client の HTTP request に HTML login form 等を返してもよく、複数の HTTP exchange を行ってもよいが、最終的には SOAP exchange を完了する"
+        level_assignment: { idp: full }
+        source_clauses:
+          - { start: 0, end: 102, digest: "sha256:01ca8c2a74c033d17d27fc4eddce3d36809cbce425d66d275261843d2e08b497", occurrences: 1 }
+        required_variants:
+          - id: v-5bf7419669
+            description_ja: "中間 HTTP exchange の有無・回数を情報記録し、どちらも適合として扱う"
+        controls:
+          - "MAY_CLASS。中間 exchange の不在を違反にしない。最終 SOAP completion は IIP-IDP13.e が別に判定する"
+        authored_by: samlier-g1-builder
+        review:
+          # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
+          state: PENDING_REVIEW
+          reviewer: null
+          approved_at: null
+          obligation_digest: "sha256:535a5cd88191009c5dfe9348b8abe105775b914d09d86971a96a582810fb2bc4"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-IDP13"
@@ -14037,14 +14585,15 @@ requirements:
           - id: v-0e3292a3ad
             description_ja: "完全準拠を主張するかを情報として記録（判定しない）"
         controls:
-          - "完全準拠していないことを違反にしない。MUST なのは .c と .d のみ"
+          - "完全準拠していないことを違反にしない。§3.1.1 の X.509 proof、TLS Client Authentication、client XML Signature の全 capability を basic ECP support の MUST にしない"
+          - "basic ECP exchange の IdP actor 規則は .a / .e〜.r、IIP が明示的に選んだ Bearer / channel binding は .c / .d、HTTP Basic は IIP-IDP14 でそれぞれの原文レベルを維持して判定する"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:9794420257374a27735de206868f759bc37b1685f82565ed4dc6da5440ea31a3"
+          obligation_digest: "sha256:862c472bffa3ddb7b518189eda76b62e679df4456ee4886d3a9c3580bacbffcb"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-IDP13"
@@ -14367,23 +14916,165 @@ requirements:
           - spec: SAML2ASLO
             locator: "2 Single Logout Protocol Extension for Asynchronous Reques||3 Conformance"
             section_digest: "sha256:86a1bb5a71936307cfb6c7c0819ad72f064e64631690a87cd2487a9886edfb64"
-            basis_ja: "Async SLO 拡張の規範定義"
+            basis_ja: "session authority が async LogoutRequest を Core に従って処理し、request initiator へ LogoutResponse を返さない規則、および user-facing feedback の規則"
         level_assignment: { idp: full }
         source_clauses:
           - { start: 109, end: 184, digest: "sha256:b6bba3e952dad96c6632c22909623672579ec9b07b5b4dcf6e2b75beaf0cad2b", occurrences: 1 }
         required_variants:
-          - id: v-723b93db6c
-            description_ja: "asyncslo:Asynchronous 拡張付き LogoutRequest → LogoutResponse を返さずセッションが終了する"
+          - id: v-b0c90d49f2
+            description_ja: "有効な aslo:Asynchronous 付き LogoutRequest → 同じ identifier / SessionIndex の同期 LogoutRequest と同じ session determination / request validation が行われる"
+          - id: v-2104230447
+            description_ja: "不正な署名・Destination・SessionIndex を持つ async request → response を返さないまま、対応する Core request processing と同じく session へ依拠しない"
         controls:
-          - "拡張なしの LogoutRequest には LogoutResponse が返ることを対照に置く"
-        open_question_ja: "参照仕様 SAML2ASLO の該当節を読んで規範内容を分解する。aslo:Asynchronous の配置・LogoutResponse を返さない条件を分解する"
+          - "★ §2.2 は Core §3.7.3.2 に従う処理を要求するが、Core の session 終了自体は SHOULD（IIP-IDP17.q）。『session が必ず終了する』を本 MUST の期待値にしない"
+          - "★ request initiator conformance（async element を含める能力）と session authority conformance（受信処理）を区別する。IIP-IDP17.c が LogoutRequest propagation を OPTIONAL とするため、IdP に async request 発行 capability を追加要求しない"
+          - "response 禁止は IIP-IDP17.b1、feedback は .b2、対象が実際に発行した async request の placement は .b3 で分離する"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:b13fac972b4643515825d6605efa136a421df6c80f0c0ea492157a4e460a600e"
+          obligation_digest: "sha256:b534ef484dce0d1d7c996a7fcd913508bab9ed0c38d681a761e933129c748383"
+          source_spec: kantara-fedinterop-impl
+          spec_version: "1.1"
+          source_selector: "#IIP-IDP17"
+          source_section_digest: "sha256:b8fbb3dc6012f92a0fbb3eafd6ac5c5363cb82d75f3c74827c4b207479981b83"
+      - key: IIP-IDP17.b1
+        roles: [idp]
+        level: MUST_NOT
+        testability: BROWSER
+        condition: null
+        summary_en: "Do not send a LogoutResponse to the initiator of an asynchronous LogoutRequest"
+        summary_ja: "asynchronous LogoutRequest の initiator へ LogoutResponse を返さない"
+        references_spec: "SAML2ASLO#2.2"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2ASLO
+            locator: "2\\.2 Asynchronous Logout Request Processing||2\\.3 Metadata Considerations"
+            section_digest: "sha256:466c14a6a937be2c2c20ca8a32cac6edf05cb0be7db69da47b23c5d98b133607"
+            basis_ja: "session authority は async request を Core に従って処理するが、request initiator へ samlp:LogoutResponse を MUST NOT send する"
+        level_assignment: { idp: full }
+        source_clauses:
+          - { start: 109, end: 184, digest: "sha256:b6bba3e952dad96c6632c22909623672579ec9b07b5b4dcf6e2b75beaf0cad2b", occurrences: 1 }
+        required_variants:
+          - id: v-a7d8776e5e
+            description_ja: "aslo:Asynchronous 付き LogoutRequest → front-channel / back-channel のいずれにも samlp:LogoutResponse を返さない"
+        controls:
+          - "拡張なしの同期 LogoutRequest → IIP-IDP17.a / .e / .o の条件に従い LogoutResponse が返る対照を置く"
+          - "HTTP の user-facing feedback は LogoutResponse ではなく許可され、むしろ IIP-IDP17.b2 が MUST とする。HTTP response 自体を禁止しない"
+        authored_by: samlier-g1-builder
+        review:
+          # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
+          state: PENDING_REVIEW
+          reviewer: null
+          approved_at: null
+          obligation_digest: "sha256:a645abcae60b885e8ce1df97467a05a36d6592dad2ccad886aa8883249d192d5"
+          source_spec: kantara-fedinterop-impl
+          spec_version: "1.1"
+          source_selector: "#IIP-IDP17"
+          source_section_digest: "sha256:b8fbb3dc6012f92a0fbb3eafd6ac5c5363cb82d75f3c74827c4b207479981b83"
+      - key: IIP-IDP17.b2
+        roles: [idp]
+        level: MUST
+        testability: BROWSER
+        condition: null
+        summary_en: "Provide all relevant feedback when no LogoutResponse is returned for an asynchronous request"
+        summary_ja: "async request に LogoutResponse を返さない代わりに、関連する feedback を全て提供する"
+        references_spec: "SAML2ASLO#2.2"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2ASLO
+            locator: "2\\.2 Asynchronous Logout Request Processing||2\\.3 Metadata Considerations"
+            section_digest: "sha256:466c14a6a937be2c2c20ca8a32cac6edf05cb0be7db69da47b23c5d98b133607"
+            basis_ja: "LogoutResponse が返らないため session authority は all relevant feedback を MUST provide し、front-channel では logout 成否を示す web page が例示される"
+        level_assignment: { idp: full }
+        source_clauses:
+          - { start: 109, end: 184, digest: "sha256:b6bba3e952dad96c6632c22909623672579ec9b07b5b4dcf6e2b75beaf0cad2b", occurrences: 1 }
+        required_variants:
+          - id: v-50c3f049d1
+            description_ja: "front-channel async LogoutRequest の成功 → user-facing HTTP response が logout success を示す"
+          - id: v-c4ac95fec9
+            description_ja: "front-channel async LogoutRequest の失敗 → user-facing HTTP response が failure を示す"
+        controls:
+          - "固定の『success』page だけを返す実装を検出するため success / failure を対にする"
+          - "back-channel で user agent がない場合に web page を要求しない。利用 binding / application で relevant な feedback channel を判定する"
+        authored_by: samlier-g1-builder
+        review:
+          # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
+          state: PENDING_REVIEW
+          reviewer: null
+          approved_at: null
+          obligation_digest: "sha256:b7eed71894d5c42136d79d8c3e315eae78a1d5e3bd08958d8391c92d2fe35a91"
+          source_spec: kantara-fedinterop-impl
+          spec_version: "1.1"
+          source_selector: "#IIP-IDP17"
+          source_section_digest: "sha256:b8fbb3dc6012f92a0fbb3eafd6ac5c5363cb82d75f3c74827c4b207479981b83"
+      - key: IIP-IDP17.b3
+        roles: [idp]
+        level: MUST
+        testability: AUTOMATED
+        condition: null
+        summary_en: "Place an emitted aslo:Asynchronous element inside samlp:LogoutRequest/samlp:Extensions"
+        summary_ja: "送出する aslo:Asynchronous を samlp:LogoutRequest/samlp:Extensions 内に配置する"
+        references_spec: "SAML2ASLO#2.1"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2ASLO
+            locator: "2\\.1 Element <aslo:Asynchronous>||2\\.2 Asynchronous Logout Request Processing"
+            section_digest: "sha256:4060f93181df4532f71294c241f463d65e59510aa740b9e4fd3eef0a36c20216"
+            basis_ja: "aslo:Asynchronous element は samlp:LogoutRequest の samlp:Extensions 内に MUST appear し、他の context での使用は定義されない"
+        level_assignment: { idp: full }
+        source_clauses:
+          - { start: 109, end: 184, digest: "sha256:b6bba3e952dad96c6632c22909623672579ec9b07b5b4dcf6e2b75beaf0cad2b", occurrences: 1 }
+        required_variants:
+          - id: v-b199fe5fc8
+            description_ja: "対象 IdP が async LogoutRequest を実際に発行した場合、aslo:Asynchronous はその LogoutRequest 直下の samlp:Extensions 内に存在する"
+        controls:
+          - "LogoutRequest 発行 / propagation capability 自体は IIP-IDP17.c が OPTIONAL。観測されなければ satisfied_with_note"
+          - "LogoutRequest 外または Extensions 外での使用は仕様上 undefined。本義務は target-emitted element の配置だけを判定し、receiver に独自の拒否義務を足さない"
+        authored_by: samlier-g1-builder
+        review:
+          # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
+          state: PENDING_REVIEW
+          reviewer: null
+          approved_at: null
+          obligation_digest: "sha256:28f337b47e35e37172dd92e5f7b670014d8ded63a4b69fbce620bdfe3805bef4"
+          source_spec: kantara-fedinterop-impl
+          spec_version: "1.1"
+          source_selector: "#IIP-IDP17"
+          source_section_digest: "sha256:b8fbb3dc6012f92a0fbb3eafd6ac5c5363cb82d75f3c74827c4b207479981b83"
+      - key: IIP-IDP17.b4
+        roles: [idp]
+        level: MAY
+        testability: AUTOMATED
+        condition: null
+        summary_en: "Metadata endpoints may advertise support for asynchronous logout requests"
+        summary_ja: "metadata endpoint で asynchronous logout request 対応を表明してもよい"
+        references_spec: "SAML2ASLO#2.3"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2ASLO
+            locator: "2\\.3 Metadata Considerations||3 Conformance"
+            section_digest: "sha256:ee091e5dd903eafc76db3f9df0fa522eefcc2eddbd759cb5ad9331f95489d261"
+            basis_ja: "metadata は endpoint ごとの extension support を示すため MAY be used でき、supportsAsynchronous=true の endpoint へ送る request は extension を MAY include する"
+        level_assignment: { idp: full }
+        source_clauses:
+          - { start: 109, end: 184, digest: "sha256:b6bba3e952dad96c6632c22909623672579ec9b07b5b4dcf6e2b75beaf0cad2b", occurrences: 1 }
+        required_variants:
+          - id: v-ccf5612cf9
+            description_ja: "SLO endpoint の aslo:supportsAsynchronous 属性の有無・値を情報記録する"
+          - id: v-423d81f520
+            description_ja: "supportsAsynchronous=true の endpoint へ送る LogoutRequest に extension を含める / 含めない選択を情報記録する"
+        controls:
+          - "MAY_CLASS。metadata 表明がないこと、または表明 endpoint へ sync request を送ることを違反にしない"
+        authored_by: samlier-g1-builder
+        review:
+          # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
+          state: PENDING_REVIEW
+          reviewer: null
+          approved_at: null
+          obligation_digest: "sha256:a0ab349f1819f90d1874c2a9d685c25159e44228a90082ed42bd9ccd65edff31"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-IDP17"

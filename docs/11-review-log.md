@@ -3345,3 +3345,57 @@ counterexample が閉じ、level / roles / condition / testability の回帰も�
 これにより CP2b-Core-B を閉じ、CP2b（基本 Single Logout の Profile 直接句、Core §3.7、
 underlying request / response rules）全体を完了とする。残る SLO の open question は
 IIP-IDP17.b の Asynchronous Single Logout Extension だけである。
+
+---
+
+## G1b-CP2c-Extensions-AUTHOR — 2026-08-28 Async SLO / ECP 原文分解
+
+往復回数を抑えるため、残る protocol extension 2 件を 1 checkpoint にまとめた。
+SAML2ASLO §2〜§3 と SAML2ECP §2.3〜§3.1.1 の関連ページを全文・レンダリングの双方で確認し、
+IIP-IDP17.b と IIP-IDP13.a の open question を閉じた。この checkpoint は作成者候補であり未承認。
+
+### Asynchronous SLO
+
+IIP-IDP17.b を次へ分解した。
+
+- `.b`: session authority として async LogoutRequest を Core §3.7.3.2 に従って処理する MUST
+- `.b1`: request initiator へ LogoutResponse を返さない MUST_NOT
+- `.b2`: LogoutResponse の代わりに relevant feedback を提供する MUST
+- `.b3`: 対象 IdP が async LogoutRequest を実際に発行した場合の `samlp:Extensions` 内配置 MUST
+- `.b4`: endpoint metadata で extension support を表明してよい MAY
+
+Core の session 終了自体は SHOULD（IIP-IDP17.q）なので `.b` の MUST に引き上げない。
+また IIP-IDP17.c は LogoutRequest propagation を OPTIONAL とするため、request initiator conformance を根拠に
+IdP へ async request 発行 capability を追加しない。`.b3` は target-emitted message の受動規則である。
+
+### ECP
+
+IIP-IDP13.a の basic ECP capability を、IdP actor の basic exchange と直接の security rules へ分解した。
+
+- `.e`: SAML SOAP exchange を完了し Response または SOAP fault を返す MUST
+- `.f`: error を返す場合を除く principal identification MUST
+- `.g`: Response を返す場合の `ecp:Response` header / destination MUST
+- `.h`: signed AuthnRequest を認証した場合の `ecp:RequestAuthenticated` SHOULD
+- `.i`: IdP-origin SOAP header の actor / mustUnderstand MUST
+- `.j`: assertion または Response level の integrity protection MUST（選言を required variants の連言にしない）
+- `.k`: SOAP headers の integrity protection SHOULD
+- `.l`: 中間 HTTP exchange と元 AuthnRequest の secure association MUST
+- `.m` / `.q`: minimal-UI authentication support SHOULD / presentation-oriented authentication SHOULD_NOT
+- `.n`: endpoint probing だけで得た TLS certificate から encryption key を導出しない SHOULD_NOT
+- `.o` / `.p` / `.r`: RelayState、delegation interpretation、中間 HTTP exchange の各 MAY
+
+IIP は basic ECP support を MUST とする一方、Full conformance を明示的に OPTIONAL とする。
+そのため SAML2ECP §3.1.1 の X.509 proof、TLS Client Authentication、client XML Signature の全 capability、
+および optional HoK feature 固有の規則を basic support の MUST に逆輸入しない。Bearer / channel binding verification は
+IIP-IDP13.c / .d、HTTP Basic は IIP-IDP14、metadata consumption は IIP-IDP16 が別に判定する。
+
+IIP-IDP13 の「All applicable Web Browser SSO requirements ... excepting IIP-SSO02 and IIP-SSO03」は、
+既存 obligation の level を保ったまま ECP plan でも schedule する規則とした。1 個の container MUST にリンクして
+SHOULD / MAY を引き上げたり、同じ target obligation を二重計上したりしない。
+
+### 検証状態
+
+義務は 428 から 446。`g1_docgen.py --check` と structural-only は blocking 0、network 再取得は
+60/62 PASS・blocking 0。残る FAIL は SR-30（MD05.a〜.f / MD06.a の open question 7 件）と
+SR-31（446 義務が未承認）のみである。次に固定 commit を別チャットのレビュアーが、
+Async SLO の initiator / authority 分離と ECP の basic / Full conformance 境界に限定して編集禁止で確認する。
