@@ -3173,3 +3173,65 @@ Suite 側 fixture で他の適合候補を除く。候補を複数提示した�
 ただし、IIP-SP14.p / .q と IIP-IDP17.a の `open_question_ja` は意図的に残っている。
 Profile の直接句が PASS したことは、`process ... as defined in [SAMLCore]` が取り込む Core §3.7 の
 分解完了を意味しない。次の CP2b-Core で actor 別に解消する。
+
+---
+
+## G1b-CP2b-Core — 2026-08-28 SAML2Core §3.7 と underlying request / response rules
+
+SAML2Core §3.7、§3.2.1、§3.2.2、§4.1.3、§5.4.4 と protocol schema を原文・ページ画像の両方で確認した。
+CP2b-Profile の open question 3 件を、SLO 固有規則と actor / direction 依存の共通規則に分解した。
+
+### §3.7 固有規則
+
+SP が optional な LogoutRequest consumption を実装した場合の participant rules は次へ分けた。
+
+- IIP-SP14.y: 受信 LogoutRequest の認証（MUST）
+- IIP-SP14.p: identifier / SessionIndex に従う local session の無効化。SessionIndex なしなら principal の全 session（MUST）
+- IIP-SP14.z: 4 条件を満たす後着 assertion にも未失効 logout を適用（MUST）
+- IIP-SP14.q: 処理後の LogoutResponse。SAML-invalid request に応答する場合の Requester は .ai へ分離
+
+IdP の session authority rules は次へ分けた。
+
+- IIP-IDP17.p: sender authentication（MUST）
+- IIP-IDP17.q: IdP 自身の matching current session を終了（SHOULD）
+- IIP-IDP17.e / .o: 自身の終了成功なら top-level Success、失敗なら top-level error（各 MUST）
+- IIP-IDP17.r: propagation を実装した場合、個別失敗後も全 applicable participant へ試行（SHOULD）
+- IIP-IDP17.s: 実施した propagation が不完全なら second-level PartialLogout（MUST）
+- IIP-IDP17.t / .u: IdP 発行 LogoutRequest の NotOnOrAfter（MUST / SHOULD）
+
+Core §3.7 冒頭の participant が LogoutRequest を送る MUST は、同じ行為を直接要求する IIP-SP14.b で既に判定する。
+LogoutRequest / LogoutResponse の認証・完全性に関する Core SHOULD は、Profile の強い MUST である
+IIP-SP14.k / .x と IIP-IDP17.m / .i が既に覆うため、弱い重複義務を追加しない。
+
+### underlying request / response rules
+
+SLO message の actor / direction により期待値が変わる規則を SP14.aa〜.as、IDP17.v〜.am に分解した。
+
+- emitted message の ID 一意性、schema conformance、LogoutResponse/@InResponseTo
+- consumed message の Destination 照合、XML signature 検証、invalid signature への非依拠と error 処理、signer 評価
+- Consent が同意取得を示す emitted message の署名
+- invalid request に応答する場合の Requester、emitted response の top-level status
+- request / response version の拒否・関係・VersionMismatch・requester 方針
+- 許可外 transform を受理する verifier が message 内容を署名対象から除外しないこと
+
+一方、Core の共通データ型、生成側 XML Signature profile、extension namespace は、既存の
+IIP-SSO01.dz / .ea / .eb / .ec / .ed / .ee / .ef / .eg / .eh / .ei / .er / .eu / .ev / .ew / .ex / .ah が
+「全 SAML message」を横断して受動検査する。IdP 発行 response の top-level StatusCode は IIP-SSO01.ch も同様である。
+同じ違反を別の IIP 親の下で二重計上しないため、これらは再作成せず SP14.a / IDP17.a の notes に対応を記録した。
+
+### optional capability の境界
+
+- IIP-SP14.c / .c1 の request / response consumption は独立して OPTIONAL のままにした。共通 Core 規則は実際に消費した方向へ受動適用し、未実装方向から capability を推測しない
+- IIP-IDP17.c の propagation は OPTIONAL のままにした。IIP-IDP17.r / .s は propagation を実施した Run にだけ適用し、実施しない IdP を WARNING / FAIL にしない
+- IdP-initiated SLO と IdP の LogoutRequest 発行は permission / optional capability のままにした。発行 message が観測されたときだけ生成規則を適用する
+- IIP-SP14.c1 を、Core の requester version 規則から response consumption の必須能力へ戻さない
+- `aslo:Asynchronous` を含む request は base Core の LogoutResponse 義務の実行時 scope 外とし、IIP-IDP17.b の CP2c で判定する
+
+### 現在の状態
+
+義務は 381 から 427。CP2b-Core で 46 義務を追加し、既存 5 義務（SP14.a / .p / .q、IDP17.a / .e）だけを更新した。
+network / offline とも 60/62 PASS、blocking 0。open question は 12 から 9 へ減り、SLO の残りは
+IIP-IDP17.b（Asynchronous SLO）のみである。
+
+この checkpoint は作成者候補であり未承認。次に固定 commit を別チャットのレビュアーが、
+Core §3.7 の前置き・actor・OPTIONAL override と §3.2 / §4 / §5 の不足・過剰に限定して編集禁止で確認する。
