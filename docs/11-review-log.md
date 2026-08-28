@@ -3288,3 +3288,49 @@ IIP-IDP17.c、および SAML2Core §3.7.3.1 / §3.7.3.2、SAML2Prof §4.4.3.2 / 
 
 これにより CP2b-Core-A（Core §3.7 固有規則）は閉じる。SP14.aa〜.as、IDP17.v〜.am の
 underlying request / response rules は別 checkpoint の CP2b-Core-B で確認する。
+
+---
+
+## G1b-CP2b-Core-B-R1 — 2026-08-28 共通 request / response 規則の外部レビュー
+
+固定 commit `a39c109` を作成者以外が SAML2Core §3.2 / §4.1.3 / §5.4.4 と関連 binding に
+限定して確認し、3 findings を受けた。原文を再確認して3件とも採用した。
+
+### Destination の Optional を受理義務にしない
+
+IIP-SP14.ac / IIP-IDP17.x は、Destination 不一致の破棄 MUST と「正しい Destination」の対照に加えて、
+Destination 省略 message を受理することまで required variant にしていた。しかし Core の
+`Destination [Optional]` は省略時の受理を要求しない。さらに署名付き HTTP-Redirect / HTTP-POST は
+SAML2Bind §3.4.5.2 / §3.5.5.2 により Destination を含める MUST がある。
+
+省略 variant を削除し、省略 message には本義務から verdict を付けないこと、binding と対象ポリシーの
+規則に委ねることを明記した。同じ誤りが IIP-SSO01.ag / .aq にもあったため同時に修正した。
+「属性が Optional」と「受信者が省略 message を受理しなければならない」を同一視しない。
+
+### top-level StatusCode を SLO actor ごとに覆う
+
+IIP-IDP17.a は、IdP 発行 LogoutResponse の top-level StatusCode を IIP-SSO01.ch が横断検査するとしていた。
+しかし `.ch` は Web Browser SSO Profile の Response processing 取り込み句に基づく義務であり、
+SLO の LogoutResponse まで覆う根拠を持たない。SP 側には IIP-SP14.aj がある一方、IdP 側だけ欠落していた。
+
+IIP-IDP17.an（MUST）を追加し、IdP 発行 LogoutResponse の最上位値を Success / Requester /
+Responder / VersionMismatch に限定する。PartialLogout / AuthnFailed 等の二次コードを最上位に置く実装を
+検出する。IIP-IDP17.e / .o / .s は状況別の値、本義務は top-level list 自体を判定する。
+
+### Consent の署名証拠に binding 固有署名を含める
+
+IIP-SP14.ah / IIP-IDP17.ac は、同意取得を示す Consent を含む message の署名証拠を
+`<ds:Signature>` だけに限定していた。HTTP-Redirect は SAML2Bind §3.4.4.1 により XML 署名を
+encoding 前に除去し、SigAlg / Signature のクエリ署名を付ける。適合実装を WARNING にしないため、
+XML 署名または delivery binding が規定する検証可能な message 署名の選言へ直した。
+
+### 再利用確認からの追加修正
+
+レビューの double-counting 確認で、identifier uniqueness 義務の required variant に xs:ID の
+字句規則が混入していることも確認した。字句違反は schema conformance の違反であり、一意性確率の
+違反ではない。同じ欠陥を2義務で violated にしないため、IIP-SSO01.af / .ao / .dr、IIP-SP14.aa、
+IIP-IDP17.v から字句 variant を削除し、それぞれの schema 義務へ責務を固定した。
+
+補足指摘については、Asynchronous request を response error fixture に混ぜないこと、version 非互換には
+一般 Requester ではなく具体的な VersionMismatch を使うこと、同一 major の higher minor は process / reject
+のどちらも許されることを controls に明記した。CP2c の内容を先取りして判定規則は追加していない。

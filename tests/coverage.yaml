@@ -1,6 +1,6 @@
 # tests/coverage.yaml — 要件カタログ（G1 成果物 / 判定レベルの唯一の出典）
 # 生成: build_g1.py（原文からオフセットと digest を解決）/ 手編集しない
-generated_at: 2026-08-28T02:42:59+00:00
+generated_at: 2026-08-28T05:45:16+00:00
 schema_version: 1
 g1_state: PENDING_REVIEW
 # 作成者は reviewer / approved_at を埋めない。別のレビュアーが原文と直接照合して承認する。
@@ -3170,8 +3170,6 @@ requirements:
         source_clauses:
           - { start: 0, end: 125, digest: "sha256:ff1057626aaa898cc4a76e1e0e4e9f6ad908c018ad60ce09d95e71634b08fac5", occurrences: 1 }
         required_variants:
-          - id: v-a593295a2d
-            description_ja: "対象が送る全 AuthnRequest の @ID が xs:ID の字句規則に適合する（先頭が数字でない等）"
           - id: v-d8a8ab311f
             description_ja: "連続する複数回の SSO で @ID が毎回異なる（別の要求という別オブジェクトに同じ値を割り当てていない）"
           - id: v-34b157d53c
@@ -3180,6 +3178,7 @@ requirements:
             description_ja: "AuthnRequest の @ID が、同じ対象が発行する他のオブジェクトの @ID と衝突しない"
         controls:
           - "★ 受動的な常時チェック。全ケースに横断適用する"
+          - "★ xs:ID の字句規則は schema conformance（IIP-SSO01.cg）で判定する。同じ字句違反を identifier uniqueness の違反にも数えない"
           - "★ 本義務は『別のデータオブジェクトに同じ識別子を割り当てない』（negligible probability）まで。確率そのものの評価は IIP-SSO01.cd / .ce、PRNG の seed は .cf、『1 オブジェクトの宣言はちょうど 1 つ』は .cc に分けた。いずれも BROWSER / AUTOMATED 観測では証明できないため testability が違う"
           - "★ 連番であること自体は違反ではない（原文は一意性しか要求していない）。advisory に記録する"
         authored_by: samlier-g1-builder
@@ -3188,7 +3187,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:4c2e7d4129846267c6417c74984f36c61ab32ec6d031da3d884c6ed3c2146a0e"
+          obligation_digest: "sha256:d1c859fd3cef4760d73ed101bb1b608745255b0a489dbf501ae051b00eb8cb13"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SSO01"
@@ -3219,11 +3218,9 @@ requirements:
             description_ja: "@Destination のホストだけを変えた AuthnRequest → 破棄される"
           - id: v-da31ee838d
             description_ja: "対照: 正しい @Destination → 受理される"
-          - id: v-33dc9f6043
-            description_ja: "対照: @Destination を省略 → 受理される（Optional なので省略自体は違反ではない）"
         controls:
           - "★ 悪意ある転送（malicious forwarding）への対策。対照がないと『常に破棄する実装』を PASS にする"
-          - "★ 省略時に破棄する実装は誤り。省略ケースを必ず対にする"
+          - "★ @Destination が Optional であることは、省略 message の受理義務を意味しない。省略時は本義務で verdict を付けず、binding と対象ポリシーの規則に委ねる"
           - "★ HTTP-Redirect バインディングでは署名対象に @Destination が含まれる。改竄すると署名不正でも落ちるので、未署名要求でも試して理由を切り分ける"
         authored_by: samlier-g1-builder
         review:
@@ -3231,7 +3228,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:3494434a78ea8caee22004b9b3cac4321e6c51378de3aa30ea59876ef9cd03c3"
+          obligation_digest: "sha256:1477d5e48215efd78a5c3f98c8a5e33e5527304c12e3967c8cce499a86f7b8a4"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SSO01"
@@ -3529,10 +3526,6 @@ requirements:
         source_clauses:
           - { start: 0, end: 125, digest: "sha256:ff1057626aaa898cc4a76e1e0e4e9f6ad908c018ad60ce09d95e71634b08fac5", occurrences: 1 }
         required_variants:
-          - id: v-a758ac1f21
-            description_ja: "対象が送る全 <Response>/@ID が xs:ID の字句規則に適合する"
-          - id: v-bb268f4cd7
-            description_ja: "対象が送る全 <Assertion>/@ID が xs:ID の字句規則に適合する"
           - id: v-95fe3ba476
             description_ja: "連続する複数回の SSO で <Response>/@ID と <Assertion>/@ID がそれぞれ毎回異なる"
           - id: v-46bcb641e6
@@ -3543,6 +3536,7 @@ requirements:
             description_ja: "並行する複数セッションでも衝突しない"
         controls:
           - "★ 受動的な常時チェック"
+          - "★ xs:ID の字句規則は schema conformance（IIP-SSO01.dv / .dw）で判定する。同じ字句違反を identifier uniqueness の違反にも数えない"
           - "★ 訂正: 前版は『Assertion/@ID の一意性は IIP-SSO01.w が扱う』と書いていたが不正確だった。IIP-SSO01.w は **SP 側の replay 検出**であって、**IdP が SAML2Core 1.3.4 に従って Assertion ID を生成する義務**の代用にはならない。本義務に <Assertion>/@ID を含めた"
           - "★ 確率の評価は IIP-SSO01.cd / .ce、PRNG の seed は .cf、『1 オブジェクトの宣言はちょうど 1 つ』は .cc"
         authored_by: samlier-g1-builder
@@ -3551,7 +3545,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:07c3815f5d57dc86cecdf4e0f35e74697b90059d43f5166e44205af24aa01921"
+          obligation_digest: "sha256:d8b14379b656986121801a1d9e6b939ffdb07ba8337340f367997f23d30d44b7"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SSO01"
@@ -3625,11 +3619,9 @@ requirements:
             description_ja: "@Destination のホストだけを変えた <Response> → 破棄される"
           - id: v-bb4a04aa9d
             description_ja: "対照: 正しい @Destination → 受理される"
-          - id: v-fdffaeb10e
-            description_ja: "対照: @Destination を省略 → 受理される（Optional なので省略自体は違反ではない）"
         controls:
           - "★ 悪意ある転送への対策。IIP-SSO01.o（Recipient 照合）と似ているが別要素・別規則。Recipient は bearer <SubjectConfirmationData>、Destination は <Response> のルート属性"
-          - "★ 省略時に破棄する実装は誤り。省略ケースを必ず対にする"
+          - "★ @Destination が Optional であることは、省略 response の受理義務を意味しない。省略時は本義務で verdict を付けず、binding と対象ポリシーの規則に委ねる"
           - "★ 署名済み <Response> では @Destination も署名対象。改竄すると署名不正でも落ちるので、署名の有無を切り替えて理由を切り分ける"
         authored_by: samlier-g1-builder
         review:
@@ -3637,7 +3629,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:0abb56ede6e938bd071673dbb4f557da5784ab0f5a43a10c7f6c91cf054a1d06"
+          obligation_digest: "sha256:9f347ee244240fee41fccf95003c8dc55fa838939a504c833cfa4cd4e8b2717c"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SSO01"
@@ -7558,13 +7550,12 @@ requirements:
         source_clauses:
           - { start: 0, end: 125, digest: "sha256:ff1057626aaa898cc4a76e1e0e4e9f6ad908c018ad60ce09d95e71634b08fac5", occurrences: 1 }
         required_variants:
-          - id: v-d7023c4b52
-            description_ja: "対象が上流 Samlier-IdP へ送る AuthnRequest の @ID が xs:ID の字句規則に適合する"
           - id: v-433b556e33
             description_ja: "連続する 2 回のプロキシで上流への @ID が毎回異なる"
           - id: v-6f88e2941e
             description_ja: "上流への @ID が、元要求（下流 Samlier-SP → 対象）の @ID をそのまま流用していない"
         controls:
+          - "★ xs:ID の字句規則は schema conformance（IIP-SSO01.dx）で判定する。同じ字句違反を identifier uniqueness の違反にも数えない"
           - "★ IIP-SSO01.af は role が sp（SP が生成する要求）だけを対象にしている。プロキシ IdP も上流へ新しい AuthnRequest を生成するので、その @ID にも同じ規則が適用される"
           - "★ 『元要求の @ID をそのまま使う』実装が典型的な違反。別のデータオブジェクトに同じ識別子を割り当てている"
           - "★ 確率・seed の細目は IIP-SSO01.cd / .ce / .cf が role idp/sp で覆う"
@@ -7575,7 +7566,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:bb13e5b6145f2084ed2d8583565fd38199ceedc06e1e8d67bb38cbb0c7b2cf5b"
+          obligation_digest: "sha256:559607c6741079ad50cee589604ad340a348c86e59fc1d61589b41089f2c6425"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SSO01"
@@ -12063,12 +12054,11 @@ requirements:
         source_clauses:
           - { start: 0, end: 109, digest: "sha256:284c8f09360551d5a9db48439f6d40890b67152fcf6a716c6885b468678edb80", occurrences: 1 }
         required_variants:
-          - id: v-29e3e6642f
-            description_ja: "対象 SP が発行する全 LogoutRequest / LogoutResponse の @ID が xs:ID の字句規則に適合する"
           - id: v-1f1d448dea
             description_ja: "連続・並行する SLO exchange と request / response 間で、別 message object に同じ @ID を再利用しない"
         controls:
           - "SP 発行 LogoutResponse は request consumption を実装した場合だけ観測される。観測されない方向を追加 capability として要求しない"
+          - "@ID の xs:ID 字句規則は IIP-SP14.as の schema conformance で判定する。同じ欠陥を uniqueness 違反にも数えない"
           - "連番であること自体は違反ではない。確率に仕様外の絶対閾値を置かない"
         authored_by: samlier-g1-builder
         review:
@@ -12076,7 +12066,7 @@ requirements:
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:77537b6460b07a1e2cefd00ad4294cca98aca84cb1f2edb58cb25f2f4b49473d"
+          obligation_digest: "sha256:e511ea30a6c7276501bcd8ede521afc839590ddfcde0fec873b1f750e1eed663"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SP14"
@@ -12123,7 +12113,7 @@ requirements:
         condition: null
         summary_en: "If Destination is present on a consumed SLO request or response, compare it with the actual receiving location and discard a mismatch"
         summary_ja: "消費する SLO request / response に @Destination があれば実受信場所と照合し、不一致なら破棄する"
-        references_spec: "SAML2Core#3.2.1-3.2.2"
+        references_spec: "SAML2Core#3.2.1-3.2.2 + SAML2Bind#3.4.5.2,#3.5.5.2"
         reference_derivation: true
         reference_evidence:
           - spec: SAML2Core
@@ -12134,6 +12124,14 @@ requirements:
             locator: "3\\.2\\.2 Complex Type StatusResponseType||3\\.2\\.2\\.1 Element <Status>"
             section_digest: "sha256:0afc0f943eef864f6eedaf665817fac10f79b6acf420ef3866d53eb938d90003"
             basis_ja: "response の Destination にも同じ MUST check / discard 規則がある"
+          - spec: SAML2Bind
+            locator: "3\\.4\\.5\\.2 Security Considerations||3\\.4\\.6 Error Reporting"
+            section_digest: "sha256:f73eaa85855c2d74ef49ad221b9e509402a2ad7bca78d082fed5811b5007a11d"
+            basis_ja: "署名付き HTTP-Redirect message は Destination を MUST 含み、recipient は受信場所との一致を MUST verify する"
+          - spec: SAML2Bind
+            locator: "3\\.5\\.5\\.2 Security Considerations||3\\.5\\.6 Error Reporting"
+            section_digest: "sha256:01cded1931c798be2e19170c699f79a09284e5534e7293e5b5f05f002f973c5e"
+            basis_ja: "署名付き HTTP-POST message にも同じ Destination MUST / 照合 MUST がある"
         level_assignment: { sp: full }
         source_clauses:
           - { start: 0, end: 109, digest: "sha256:284c8f09360551d5a9db48439f6d40890b67152fcf6a716c6885b468678edb80", occurrences: 1 }
@@ -12144,17 +12142,16 @@ requirements:
             description_ja: "応答消費対応 SP へ誤 Destination の LogoutResponse → exchange の成功として扱わない"
           - id: v-874787df08
             description_ja: "各方向の対照: 正しい Destination → 通常処理へ進む"
-          - id: v-52a02e7c1e
-            description_ja: "各方向の対照: Destination 省略 → 省略だけを理由に拒否しない"
         controls:
           - "request / response consumption は IIP-SP14.c / .c1 で独立に OPTIONAL。未実装方向は satisfied_with_note とし、他方向から推測しない"
+          - "Destination 省略 message の受理を本義務から要求しない。Core の Optional は受理義務ではなく、署名付き Redirect / POST では Binding が Destination を要求する"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:68bfdb4f29513d56b2ee773b16fe14715a2df6324685349e68e074cf771ffaec"
+          obligation_digest: "sha256:857ae226571f2368e2e70e99e60c4542aa4eb6e851fb17a64a4ea999d577de2f"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SP14"
@@ -12268,13 +12265,14 @@ requirements:
             description_ja: "署名不正 LogoutResponse → exchange を error として処理・記録する"
         controls:
           - "★ SHOULD_CLASS。内部エラー処理を観測できなければ not_verified。未実装の consumption 方向は satisfied_with_note"
+          - "CP2c で Asynchronous SLO の response 禁止を分解するまで、本義務の request fixture に aslo:Asynchronous を含めない"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:783c5d176fe362e7dc97170a58816bb981198ed6c3c3be31e1396090d5824957"
+          obligation_digest: "sha256:6282f341e21f8d29e86f69f99f525ac4e400413cf41bc2ad2f4a370d4b4ce394"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SP14"
@@ -12323,7 +12321,7 @@ requirements:
         condition: null
         summary_en: "Sign an emitted SLO request or response when its Consent value indicates that principal consent was obtained"
         summary_ja: "同意取得を示す @Consent を含む SLO request / response を発行する場合、その message に署名することが望ましい"
-        references_spec: "SAML2Core#3.2.1-3.2.2"
+        references_spec: "SAML2Core#3.2.1-3.2.2 + SAML2Bind#3.4.4.1"
         reference_derivation: true
         reference_evidence:
           - spec: SAML2Core
@@ -12334,21 +12332,26 @@ requirements:
             locator: "3\\.2\\.2 Complex Type StatusResponseType||3\\.2\\.2\\.1 Element <Status>"
             section_digest: "sha256:0afc0f943eef864f6eedaf665817fac10f79b6acf420ef3866d53eb938d90003"
             basis_ja: "response の Consent が principal consent obtained を示すなら response は SHOULD be signed"
+          - spec: SAML2Bind
+            locator: "3\\.4\\.4\\.1 DEFLATE Encoding||3\\.4\\.5 Message Exchange"
+            section_digest: "sha256:120f597a5f9042f54a5a140ef5e594e66aed79d886b30e4e1a7c9e579ac56c77"
+            basis_ja: "HTTP-Redirect は XML 署名を除去し、元 message が署名されていた場合は encoded query string に SigAlg / Signature の署名を付ける"
         level_assignment: { sp: full }
         source_clauses:
           - { start: 0, end: 109, digest: "sha256:284c8f09360551d5a9db48439f6d40890b67152fcf6a716c6885b468678edb80", occurrences: 1 }
         required_variants:
-          - id: v-f65dd81664
-            description_ja: "対象 SP が同意取得を示す @Consent を含めて発行した LogoutRequest / LogoutResponse → その message 自体に XML 署名がある"
+          - id: v-598ea669d6
+            description_ja: "対象 SP が同意取得を示す @Consent を含めて発行した LogoutRequest / LogoutResponse → XML 署名または delivery binding が規定する message 署名があり、検証可能である"
         controls:
           - "@Consent を送らない、または unspecified の場合は satisfied_with_note。response 発行 capability を追加要求しない"
+          - "HTTP-Redirect では <ds:Signature> を除去して SigAlg / Signature のクエリ署名を付ける。XML 署名がないことだけを WARNING にしない"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:d051bc1041b0b3b56ffe8f272589d57abe9825f551b8e5ad6da1b57219e5c514"
+          obligation_digest: "sha256:18c5d27ee4c0767b872aaa9999d37aac2d7d69ccdc4143f08d0ff27a4d8e7882"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SP14"
@@ -12375,13 +12378,14 @@ requirements:
             description_ja: "必須属性欠落等の invalid LogoutRequest → SAML LogoutResponse を返す場合、top-level @Value=Requester"
         controls:
           - "原文は if it responds。HTTP error / 無応答を本 MUST の違反にしない。request consumption 未対応 SP は satisfied_with_note"
+          - "未対応 version への SAML 応答は、より具体的な IIP-SP14.an の VersionMismatch を適用し、本義務の Requester を重ねない"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:21fe8caac656b44d0befe1e0cc0c475e0ccca6727336e5dc7f3450b018d9f1af"
+          obligation_digest: "sha256:11651e7c6bcdfc6579a64ccf3871bc25544fa08f31685924100e85ae9e895ded"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SP14"
@@ -12443,13 +12447,14 @@ requirements:
             description_ja: "対照: @Version=2.0 の妥当な LogoutRequest → 通常処理へ進む"
         controls:
           - "request consumption は OPTIONAL。未対応 SP は satisfied_with_note。応答する場合の VersionMismatch は IIP-SP14.an"
+          - "対応 major と同じで higher minor の request は MAY process / MAY reject の選択なので、どちらにも verdict を付けない"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:5effe52db8c93503f8101ec0abc03f735d2744f5604577bcbefe9ae13346fea3"
+          obligation_digest: "sha256:04cbb3df9e0f0d13bbdbd94073e8a8fc5825e51dbaa2b2180fe5370982a3cc96"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SP14"
@@ -12580,13 +12585,14 @@ requirements:
         controls:
           - "IIP-SP14.c1 は LogoutResponse consumption を明示的に OPTIONAL とする。非対応 SP に response consumption capability を間接的に要求せず satisfied_with_note とする"
           - "response を消費する実装・Run では本 Core 規則を受動適用し、対応不能 version の request を発行した場合だけ violated"
+          - "Asynchronous SLO extension により response を要求しない request は実行時 scope 外。CP2c で extension の規則を判定する"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:8b01d2eed8d84aff636760501c4250694d931669f4637e14a35ca595743df379"
+          obligation_digest: "sha256:96323a66099dc3da0de4658dfe671fb8c37a377899fddfa8f9bb2fc06f14e3b8"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-SP14"
@@ -14336,14 +14342,14 @@ requirements:
           - "★ §4.4.2 は IdP が profile を step 2 から開始できる（can initiate）とするだけで、IdP-initiated SLO capability を MUST にしない"
           - "★ 他 session participant への伝播は IIP-IDP17.c が OPTIONAL と明示する。§4.4.3.1 / .2 の propagation SHOULD / 手順 3・4 を無条件の義務へ戻さない"
           - "★ 基本フローは SP-initiated request の受信・session determination・元 requester への response。request binding と response binding の能力は IIP-IDP18 が別途判定する"
-        notes_ja: "CP2b で §4.4 全体と Errata E38、Core §3.7 と underlying request / response rules を actor 別に照合した。IdP-initiated 開始は permission、他参加者への propagation は IIP で明示的に OPTIONAL なので、IdP の必須 capability に含めない。Core の共通データ型・生成側 XML Signature profile・extension namespace・IdP 発行 response の top-level StatusCode は、全 SAML message を横断対象にする既存義務 IIP-SSO01.dz / .ea / .eb / .ec / .ed / .ee / .ef / .eg / .eh / .ei / .er / .eu / .ev / .ew / .ex / .ah / .ch が SLO message も受動検査するため二重計上しない。SLO の actor / direction で結果が変わる規則だけ .d 以降へ分解した。"
+        notes_ja: "CP2b で §4.4 全体と Errata E38、Core §3.7 と underlying request / response rules を actor 別に照合した。IdP-initiated 開始は permission、他参加者への propagation は IIP で明示的に OPTIONAL なので、IdP の必須 capability に含めない。Core の共通データ型・生成側 XML Signature profile・extension namespace は、全 SAML message を横断対象にする既存義務 IIP-SSO01.dz / .ea / .eb / .ec / .ed / .ee / .ef / .eg / .eh / .ei / .er / .eu / .ev / .ew / .ex / .ah が SLO message も受動検査するため二重計上しない。IdP 発行 LogoutResponse の top-level StatusCode は IIP-IDP17.an で判定する。SLO の actor / direction で結果が変わる規則だけ .d 以降へ分解した。"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:a4bdb18fb6cf76dedad1403b1d3d861b33c5ddf913485080a285737406300483"
+          obligation_digest: "sha256:00a68a261a629e5495ba820f3f6da9d39001fb97dc59d7fb291ad382ce8e0d25"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-IDP17"
@@ -15105,19 +15111,18 @@ requirements:
         source_clauses:
           - { start: 0, end: 107, digest: "sha256:0649b5f4937ddaf054925804c5e79e1c7260aeb6704060d2eb256754a88010f5", occurrences: 1 }
         required_variants:
-          - id: v-b6c9aebca8
-            description_ja: "対象 IdP 発行 LogoutResponse と、任意経路で発行した LogoutRequest の @ID が xs:ID の字句規則に適合する"
           - id: v-6fcb288d87
             description_ja: "連続・並行する SLO exchange と request / response 間で、別 message object に同じ @ID を再利用しない"
         controls:
           - "IdP 発行 LogoutRequest は optional capability。観測されない方向を要求しない。連番であること自体は違反ではない"
+          - "@ID の xs:ID 字句規則は IIP-IDP17.am の schema conformance で判定する。同じ欠陥を uniqueness 違反にも数えない"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:c011bfa3ffa21f09d2c35c95319a58863af2dff19c09312715dd927501a8d04b"
+          obligation_digest: "sha256:e7c059046fa53dc0bd7261eeedf7d7b27e4603a1b20118f4baa8779d27904d01"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-IDP17"
@@ -15166,7 +15171,7 @@ requirements:
         condition: null
         summary_en: "If Destination is present on a consumed SLO request or response, compare it with the actual receiving location and discard a mismatch"
         summary_ja: "消費する SLO request / response に @Destination があれば実受信場所と照合し、不一致なら破棄する"
-        references_spec: "SAML2Core#3.2.1-3.2.2"
+        references_spec: "SAML2Core#3.2.1-3.2.2 + SAML2Bind#3.4.5.2,#3.5.5.2"
         reference_derivation: true
         reference_evidence:
           - spec: SAML2Core
@@ -15177,6 +15182,14 @@ requirements:
             locator: "3\\.2\\.2 Complex Type StatusResponseType||3\\.2\\.2\\.1 Element <Status>"
             section_digest: "sha256:0afc0f943eef864f6eedaf665817fac10f79b6acf420ef3866d53eb938d90003"
             basis_ja: "response の Destination にも同じ MUST check / discard 規則がある"
+          - spec: SAML2Bind
+            locator: "3\\.4\\.5\\.2 Security Considerations||3\\.4\\.6 Error Reporting"
+            section_digest: "sha256:f73eaa85855c2d74ef49ad221b9e509402a2ad7bca78d082fed5811b5007a11d"
+            basis_ja: "署名付き HTTP-Redirect message は Destination を MUST 含み、recipient は受信場所との一致を MUST verify する"
+          - spec: SAML2Bind
+            locator: "3\\.5\\.5\\.2 Security Considerations||3\\.5\\.6 Error Reporting"
+            section_digest: "sha256:01cded1931c798be2e19170c699f79a09284e5534e7293e5b5f05f002f973c5e"
+            basis_ja: "署名付き HTTP-POST message にも同じ Destination MUST / 照合 MUST がある"
         level_assignment: { idp: full }
         source_clauses:
           - { start: 0, end: 107, digest: "sha256:0649b5f4937ddaf054925804c5e79e1c7260aeb6704060d2eb256754a88010f5", occurrences: 1 }
@@ -15187,17 +15200,16 @@ requirements:
             description_ja: "IdP が request を発行した optional 経路で誤 Destination の LogoutResponse → 成功として処理しない"
           - id: v-ac32870bef
             description_ja: "各観測方向の対照: 正しい Destination → 通常処理へ進む"
-          - id: v-1a4ea83e7d
-            description_ja: "各観測方向の対照: Destination 省略 → 省略だけを理由に拒否しない"
         controls:
           - "LogoutRequest 受信は必須基本フロー。LogoutResponse 受信は IdP が response-bearing request を発行した場合だけの受動規則で、発行 capability を追加要求しない"
+          - "Destination 省略 message の受理を本義務から要求しない。Core の Optional は受理義務ではなく、署名付き Redirect / POST では Binding が Destination を要求する"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:0307e8346d2d6c270e3a8c2f665644ca3db54534446c4dbcd2f2c3615c408b07"
+          obligation_digest: "sha256:4e800e19f986e241e937a7a984e050c7a29286e31d81d6a932a9bc56e41352b5"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-IDP17"
@@ -15310,13 +15322,14 @@ requirements:
             description_ja: "optional response-consumption 経路で署名不正 LogoutResponse → exchange を error として処理・記録する"
         controls:
           - "★ SHOULD_CLASS。内部エラー処理を観測できなければ not_verified。LogoutResponse 受信方向が観測されなければ satisfied_with_note"
+          - "CP2c で Asynchronous SLO の response 禁止を分解するまで、本義務の request fixture に aslo:Asynchronous を含めない"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:a1698b87a8aa63929f6ee5bd0aa5c50d25249fae8330c0eeb3c202da4e69bf9b"
+          obligation_digest: "sha256:8a2cfd635e27e7a944a3b5f02b0a83f125dd0ce450d01ac59fdc9ea1f29e1443"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-IDP17"
@@ -15365,7 +15378,7 @@ requirements:
         condition: null
         summary_en: "Sign an emitted SLO request or response when its Consent value indicates that principal consent was obtained"
         summary_ja: "同意取得を示す @Consent を含む SLO request / response を発行する場合、その message に署名することが望ましい"
-        references_spec: "SAML2Core#3.2.1-3.2.2"
+        references_spec: "SAML2Core#3.2.1-3.2.2 + SAML2Bind#3.4.4.1"
         reference_derivation: true
         reference_evidence:
           - spec: SAML2Core
@@ -15376,21 +15389,26 @@ requirements:
             locator: "3\\.2\\.2 Complex Type StatusResponseType||3\\.2\\.2\\.1 Element <Status>"
             section_digest: "sha256:0afc0f943eef864f6eedaf665817fac10f79b6acf420ef3866d53eb938d90003"
             basis_ja: "response の Consent が principal consent obtained を示すなら response は SHOULD be signed"
+          - spec: SAML2Bind
+            locator: "3\\.4\\.4\\.1 DEFLATE Encoding||3\\.4\\.5 Message Exchange"
+            section_digest: "sha256:120f597a5f9042f54a5a140ef5e594e66aed79d886b30e4e1a7c9e579ac56c77"
+            basis_ja: "HTTP-Redirect は XML 署名を除去し、元 message が署名されていた場合は encoded query string に SigAlg / Signature の署名を付ける"
         level_assignment: { idp: full }
         source_clauses:
           - { start: 0, end: 107, digest: "sha256:0649b5f4937ddaf054925804c5e79e1c7260aeb6704060d2eb256754a88010f5", occurrences: 1 }
         required_variants:
-          - id: v-3984256328
-            description_ja: "対象 IdP が同意取得を示す @Consent を含めて発行した LogoutRequest / LogoutResponse → その message 自体に XML 署名がある"
+          - id: v-b32e02b63d
+            description_ja: "対象 IdP が同意取得を示す @Consent を含めて発行した LogoutRequest / LogoutResponse → XML 署名または delivery binding が規定する message 署名があり、検証可能である"
         controls:
           - "@Consent を送らない、または unspecified の場合は satisfied_with_note。LogoutRequest 発行 capability を追加要求しない"
+          - "HTTP-Redirect では <ds:Signature> を除去して SigAlg / Signature のクエリ署名を付ける。XML 署名がないことだけを WARNING にしない"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:c89567f1a914785a8044efb4e0985d25cffca0ea68b3c7892bc294756ab7e532"
+          obligation_digest: "sha256:e30102da797e69ac7088c6e1f81229efeb208eb7b667d8210efbfdb8ce9db646"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-IDP17"
@@ -15419,13 +15437,14 @@ requirements:
             description_ja: "必須属性欠落等の invalid LogoutRequest → SAML LogoutResponse を返す場合、top-level @Value=Requester"
         controls:
           - "原文は if it responds。HTTP error / 無応答を本 MUST の違反にしない"
+          - "未対応 version への SAML 応答は、より具体的な IIP-IDP17.ah の VersionMismatch を適用し、本義務の Requester を重ねない"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:88c1b3bf61b0d71e3da323b86941a9f43a3da61e92230b22cfea3c51023c252c"
+          obligation_digest: "sha256:b172fd79060e3e565f628f72c3f42405bd679d3a6777e155cd20bb3e0ee5162c"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-IDP17"
@@ -15456,13 +15475,14 @@ requirements:
             description_ja: "対照: @Version=2.0 の妥当な LogoutRequest → 通常処理へ進む"
         controls:
           - "応答する場合の VersionMismatch は IIP-IDP17.ah"
+          - "対応 major と同じで higher minor の request は MAY process / MAY reject の選択なので、どちらにも verdict を付けない"
         authored_by: samlier-g1-builder
         review:
           # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:ea66fe3b11e2a086692c7e4a7b06a7af409e9e0e564662a9d7bb0ea49eeaa7ee"
+          obligation_digest: "sha256:b8c25286912db1b627c0ef013dde20bafa2618a6a5f0bd9e9fe88072ad6b1d35"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-IDP17"
@@ -15756,6 +15776,41 @@ requirements:
           reviewer: null
           approved_at: null
           obligation_digest: "sha256:141c3942774b16d20c8225c682d94369fd02051bc1a17b8d196f452c59e592d8"
+          source_spec: kantara-fedinterop-impl
+          spec_version: "1.1"
+          source_selector: "#IIP-IDP17"
+          source_section_digest: "sha256:b8fbb3dc6012f92a0fbb3eafd6ac5c5363cb82d75f3c74827c4b207479981b83"
+      - key: IIP-IDP17.an
+        roles: [idp]
+        level: MUST
+        testability: AUTOMATED
+        condition: null
+        summary_en: "Use a permitted top-level StatusCode in every emitted LogoutResponse"
+        summary_ja: "IdP が発行する LogoutResponse の最上位 StatusCode に許可された top-level 値を使う"
+        references_spec: "SAML2Core#3.2.2.2"
+        reference_derivation: true
+        reference_evidence:
+          - spec: SAML2Core
+            locator: "3\\.2\\.2\\.2 Element <StatusCode>||3\\.2\\.2\\.3 Element <StatusMessage>"
+            section_digest: "sha256:7279c4b04ea968dd6b920443323126c72348fd13c91e53666e3265f7cf58b8ce"
+            basis_ja: "topmost StatusCode/@Value は §3.2.2.2 の top-level list から選ぶことを MUST とする"
+        level_assignment: { idp: full }
+        source_clauses:
+          - { start: 0, end: 107, digest: "sha256:0649b5f4937ddaf054925804c5e79e1c7260aeb6704060d2eb256754a88010f5", occurrences: 1 }
+        required_variants:
+          - id: v-b7874a1987
+            description_ja: "対象 IdP 発行 LogoutResponse の最上位 @Value が Success / Requester / Responder / VersionMismatch のいずれかで、PartialLogout / AuthnFailed 等の二次コードを最上位に置かない"
+        controls:
+          - "成功・失敗の両経路に適用する。IIP-IDP17.e / .o / .s は状況に応じた値を判定し、本義務は top-level list の構文的制約を判定する"
+          - "Asynchronous request に response を要求しない。ただし通常の SP-initiated SLO では IIP-IDP17.a により LogoutResponse 発行 capability が必須であり、未観測を satisfied_with_note にしない"
+          - "subordinate status code の省略・独自 URI は MAY なので禁止しない"
+        authored_by: samlier-g1-builder
+        review:
+          # state は起票側の記録。承認の正本は tests/approvals/g1.yaml
+          state: PENDING_REVIEW
+          reviewer: null
+          approved_at: null
+          obligation_digest: "sha256:14d83fc6df75dfc86d2968fb993e8a06df5ef0ae053bd08df2ccce4bef354adb"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-IDP17"

@@ -15,12 +15,12 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 | 指標 | 値 |
 |---|---|
 | 要件 | 69 |
-| 義務（obligation） | 427 |
-| うち MUST_CLASS | 329 |
+| 義務（obligation） | 428 |
+| うち MUST_CLASS | 330 |
 | うち SHOULD_CLASS | 82 |
 | うち MAY_CLASS | 16 |
 | 条件付き義務 | 91 |
-| IdP プロファイル | 298 義務（Core 190 / Full 108） |
+| IdP プロファイル | 299 義務（Core 190 / Full 109） |
 | SP プロファイル | 223 義務（Core 119 / Full 104） |
 | 非規範（イタリック）スパン | 26 |
 
@@ -28,7 +28,7 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 
 | 記号 | 意味 | 件数 |
 |---|---|---|
-| `AUTOMATED` | Suite と対象の直接通信で完結（ブラウザ不要） | 76 |
+| `AUTOMATED` | Suite と対象の直接通信で完結（ブラウザ不要） | 77 |
 | `BROWSER` | 利用者のブラウザが必要 | 203 |
 | `ATTESTED` | 対象内部の挙動を利用者が申告 | 46 |
 | `CONFIG` | 対象側の設定変更を依頼したうえで実行 | 101 |
@@ -1584,12 +1584,12 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 <details><summary><code>IIP-SSO01.af</code> の詳細</summary>
 
 - **必要な variant**:
-  - `v-a593295a2d` 対象が送る全 AuthnRequest の @ID が xs:ID の字句規則に適合する（先頭が数字でない等）
   - `v-d8a8ab311f` 連続する複数回の SSO で @ID が毎回異なる（別の要求という別オブジェクトに同じ値を割り当てていない）
   - `v-34b157d53c` 並行する複数セッションでも @ID が衝突しない
   - `v-48ff594428` AuthnRequest の @ID が、同じ対象が発行する他のオブジェクトの @ID と衝突しない
 - **対照（negative control）**:
   - ★ 受動的な常時チェック。全ケースに横断適用する
+  - ★ xs:ID の字句規則は schema conformance（IIP-SSO01.cg）で判定する。同じ字句違反を identifier uniqueness の違反にも数えない
   - ★ 本義務は『別のデータオブジェクトに同じ識別子を割り当てない』（negligible probability）まで。確率そのものの評価は IIP-SSO01.cd / .ce、PRNG の seed は .cf、『1 オブジェクトの宣言はちょうど 1 つ』は .cc に分けた。いずれも BROWSER / AUTOMATED 観測では証明できないため testability が違う
   - ★ 連番であること自体は違反ではない（原文は一意性しか要求していない）。advisory に記録する
 - **参照先仕様**: `SAML2Prof#4.1`
@@ -1605,10 +1605,9 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
   - `v-167446311a` @Destination を対象の別エンドポイント（SLO 等）にした AuthnRequest → 破棄される
   - `v-64abf588f9` @Destination のホストだけを変えた AuthnRequest → 破棄される
   - `v-da31ee838d` 対照: 正しい @Destination → 受理される
-  - `v-33dc9f6043` 対照: @Destination を省略 → 受理される（Optional なので省略自体は違反ではない）
 - **対照（negative control）**:
   - ★ 悪意ある転送（malicious forwarding）への対策。対照がないと『常に破棄する実装』を PASS にする
-  - ★ 省略時に破棄する実装は誤り。省略ケースを必ず対にする
+  - ★ @Destination が Optional であることは、省略 message の受理義務を意味しない。省略時は本義務で verdict を付けず、binding と対象ポリシーの規則に委ねる
   - ★ HTTP-Redirect バインディングでは署名対象に @Destination が含まれる。改竄すると署名不正でも落ちるので、未署名要求でも試して理由を切り分ける
 - **参照先仕様**: `SAML2Prof#4.1`
 - **source_clauses**: `[0, 125)` `sha256:ff1057626aaa…`
@@ -1724,14 +1723,13 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 <details><summary><code>IIP-SSO01.ao</code> の詳細</summary>
 
 - **必要な variant**:
-  - `v-a758ac1f21` 対象が送る全 <Response>/@ID が xs:ID の字句規則に適合する
-  - `v-bb268f4cd7` 対象が送る全 <Assertion>/@ID が xs:ID の字句規則に適合する
   - `v-95fe3ba476` 連続する複数回の SSO で <Response>/@ID と <Assertion>/@ID がそれぞれ毎回異なる
   - `v-46bcb641e6` <Response>/@ID と、その中の <Assertion>/@ID が同じ値になっていない（別オブジェクトへの重複割当）
   - `v-90626e5e0f` 1 つの <Response> に複数 <Assertion> があるとき、それぞれの @ID が異なる
   - `v-5bf8052484` 並行する複数セッションでも衝突しない
 - **対照（negative control）**:
   - ★ 受動的な常時チェック
+  - ★ xs:ID の字句規則は schema conformance（IIP-SSO01.dv / .dw）で判定する。同じ字句違反を identifier uniqueness の違反にも数えない
   - ★ 訂正: 前版は『Assertion/@ID の一意性は IIP-SSO01.w が扱う』と書いていたが不正確だった。IIP-SSO01.w は **SP 側の replay 検出**であって、**IdP が SAML2Core 1.3.4 に従って Assertion ID を生成する義務**の代用にはならない。本義務に <Assertion>/@ID を含めた
   - ★ 確率の評価は IIP-SSO01.cd / .ce、PRNG の seed は .cf、『1 オブジェクトの宣言はちょうど 1 つ』は .cc
 - **参照先仕様**: `SAML2Prof#4.1`
@@ -1763,10 +1761,9 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
   - `v-65caf6b79d` @Destination を別エンティティの ACS にした <Response> → 破棄される
   - `v-1e4002fec2` @Destination のホストだけを変えた <Response> → 破棄される
   - `v-bb4a04aa9d` 対照: 正しい @Destination → 受理される
-  - `v-fdffaeb10e` 対照: @Destination を省略 → 受理される（Optional なので省略自体は違反ではない）
 - **対照（negative control）**:
   - ★ 悪意ある転送への対策。IIP-SSO01.o（Recipient 照合）と似ているが別要素・別規則。Recipient は bearer <SubjectConfirmationData>、Destination は <Response> のルート属性
-  - ★ 省略時に破棄する実装は誤り。省略ケースを必ず対にする
+  - ★ @Destination が Optional であることは、省略 response の受理義務を意味しない。省略時は本義務で verdict を付けず、binding と対象ポリシーの規則に委ねる
   - ★ 署名済み <Response> では @Destination も署名対象。改竄すると署名不正でも落ちるので、署名の有無を切り替えて理由を切り分ける
 - **参照先仕様**: `SAML2Prof#4.1`
 - **source_clauses**: `[0, 125)` `sha256:ff1057626aaa…`
@@ -3295,10 +3292,10 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 <details><summary><code>IIP-SSO01.dr</code> の詳細</summary>
 
 - **必要な variant**:
-  - `v-d7023c4b52` 対象が上流 Samlier-IdP へ送る AuthnRequest の @ID が xs:ID の字句規則に適合する
   - `v-433b556e33` 連続する 2 回のプロキシで上流への @ID が毎回異なる
   - `v-6f88e2941e` 上流への @ID が、元要求（下流 Samlier-SP → 対象）の @ID をそのまま流用していない
 - **対照（negative control）**:
+  - ★ xs:ID の字句規則は schema conformance（IIP-SSO01.dx）で判定する。同じ字句違反を identifier uniqueness の違反にも数えない
   - ★ IIP-SSO01.af は role が sp（SP が生成する要求）だけを対象にしている。プロキシ IdP も上流へ新しい AuthnRequest を生成するので、その @ID にも同じ規則が適用される
   - ★ 『元要求の @ID をそのまま使う』実装が典型的な違反。別のデータオブジェクトに同じ識別子を割り当てている
   - ★ 確率・seed の細目は IIP-SSO01.cd / .ce / .cf が role idp/sp で覆う
@@ -5273,10 +5270,10 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 <details><summary><code>IIP-SP14.aa</code> の詳細</summary>
 
 - **必要な variant**:
-  - `v-29e3e6642f` 対象 SP が発行する全 LogoutRequest / LogoutResponse の @ID が xs:ID の字句規則に適合する
   - `v-1f1d448dea` 連続・並行する SLO exchange と request / response 間で、別 message object に同じ @ID を再利用しない
 - **対照（negative control）**:
   - SP 発行 LogoutResponse は request consumption を実装した場合だけ観測される。観測されない方向を追加 capability として要求しない
+  - @ID の xs:ID 字句規則は IIP-SP14.as の schema conformance で判定する。同じ欠陥を uniqueness 違反にも数えない
   - 連番であること自体は違反ではない。確率に仕様外の絶対閾値を置かない
 - **参照先仕様**: `SAML2Core#3.2.1-3.2.2,#1.3.4`
 - **source_clauses**: `[0, 109)` `sha256:284c8f093605…`
@@ -5303,10 +5300,10 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
   - `v-b5947ffe80` 受信対応 SP へ誤 Destination の LogoutRequest → local session に適用しない
   - `v-7b29e6e938` 応答消費対応 SP へ誤 Destination の LogoutResponse → exchange の成功として扱わない
   - `v-874787df08` 各方向の対照: 正しい Destination → 通常処理へ進む
-  - `v-52a02e7c1e` 各方向の対照: Destination 省略 → 省略だけを理由に拒否しない
 - **対照（negative control）**:
   - request / response consumption は IIP-SP14.c / .c1 で独立に OPTIONAL。未実装方向は satisfied_with_note とし、他方向から推測しない
-- **参照先仕様**: `SAML2Core#3.2.1-3.2.2`
+  - Destination 省略 message の受理を本義務から要求しない。Core の Optional は受理義務ではなく、署名付き Redirect / POST では Binding が Destination を要求する
+- **参照先仕様**: `SAML2Core#3.2.1-3.2.2 + SAML2Bind#3.4.5.2,#3.5.5.2`
 - **source_clauses**: `[0, 109)` `sha256:284c8f093605…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
 
@@ -5347,6 +5344,7 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
   - `v-e72e1d89ad` 署名不正 LogoutResponse → exchange を error として処理・記録する
 - **対照（negative control）**:
   - ★ SHOULD_CLASS。内部エラー処理を観測できなければ not_verified。未実装の consumption 方向は satisfied_with_note
+  - CP2c で Asynchronous SLO の response 禁止を分解するまで、本義務の request fixture に aslo:Asynchronous を含めない
 - **参照先仕様**: `SAML2Core#3.2.1-3.2.2`
 - **source_clauses**: `[0, 109)` `sha256:284c8f093605…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
@@ -5368,10 +5366,11 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 <details><summary><code>IIP-SP14.ah</code> の詳細</summary>
 
 - **必要な variant**:
-  - `v-f65dd81664` 対象 SP が同意取得を示す @Consent を含めて発行した LogoutRequest / LogoutResponse → その message 自体に XML 署名がある
+  - `v-598ea669d6` 対象 SP が同意取得を示す @Consent を含めて発行した LogoutRequest / LogoutResponse → XML 署名または delivery binding が規定する message 署名があり、検証可能である
 - **対照（negative control）**:
   - @Consent を送らない、または unspecified の場合は satisfied_with_note。response 発行 capability を追加要求しない
-- **参照先仕様**: `SAML2Core#3.2.1-3.2.2`
+  - HTTP-Redirect では <ds:Signature> を除去して SigAlg / Signature のクエリ署名を付ける。XML 署名がないことだけを WARNING にしない
+- **参照先仕様**: `SAML2Core#3.2.1-3.2.2 + SAML2Bind#3.4.4.1`
 - **source_clauses**: `[0, 109)` `sha256:284c8f093605…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
 
@@ -5383,6 +5382,7 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
   - `v-b48f718987` 必須属性欠落等の invalid LogoutRequest → SAML LogoutResponse を返す場合、top-level @Value=Requester
 - **対照（negative control）**:
   - 原文は if it responds。HTTP error / 無応答を本 MUST の違反にしない。request consumption 未対応 SP は satisfied_with_note
+  - 未対応 version への SAML 応答は、より具体的な IIP-SP14.an の VersionMismatch を適用し、本義務の Requester を重ねない
 - **参照先仕様**: `SAML2Core#3.2.1`
 - **source_clauses**: `[0, 109)` `sha256:284c8f093605…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
@@ -5408,6 +5408,7 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
   - `v-62f5315930` 対照: @Version=2.0 の妥当な LogoutRequest → 通常処理へ進む
 - **対照（negative control）**:
   - request consumption は OPTIONAL。未対応 SP は satisfied_with_note。応答する場合の VersionMismatch は IIP-SP14.an
+  - 対応 major と同じで higher minor の request は MAY process / MAY reject の選択なので、どちらにも verdict を付けない
 - **参照先仕様**: `SAML2Core#4.1.3.1`
 - **source_clauses**: `[0, 109)` `sha256:284c8f093605…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
@@ -5458,6 +5459,7 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 - **対照（negative control）**:
   - IIP-SP14.c1 は LogoutResponse consumption を明示的に OPTIONAL とする。非対応 SP に response consumption capability を間接的に要求せず satisfied_with_note とする
   - response を消費する実装・Run では本 Core 規則を受動適用し、対応不能 version の request を発行した場合だけ violated
+  - Asynchronous SLO extension により response を要求しない request は実行時 scope 外。CP2c で extension の規則を判定する
 - **参照先仕様**: `SAML2Core#4.1.3.1`
 - **source_clauses**: `[0, 109)` `sha256:284c8f093605…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
@@ -6303,6 +6305,7 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 | `IIP-IDP17.ak` | SHOULD | idp | `ATTESTED` | — | full | responder の能力が不明なら、IdP 自身が対応する最高 request version に相手も対応すると仮定することが望ましい |
 | `IIP-IDP17.al` | MUST | idp | `BROWSER` | — | full | 許可外 transform を含む SLO XML 署名を受理するなら、message 内容が署名対象から除外されていないことを保証する |
 | `IIP-IDP17.am` | MUST | idp | `AUTOMATED` | — | full | IdP が発行する LogoutRequest / LogoutResponse を SAML protocol schema に適合させる |
+| `IIP-IDP17.an` | MUST | idp | `AUTOMATED` | — | full | IdP が発行する LogoutResponse の最上位 StatusCode に許可された top-level 値を使う |
 
 <details><summary><code>IIP-IDP17.a</code> の詳細</summary>
 
@@ -6313,7 +6316,7 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
   - ★ 他 session participant への伝播は IIP-IDP17.c が OPTIONAL と明示する。§4.4.3.1 / .2 の propagation SHOULD / 手順 3・4 を無条件の義務へ戻さない
   - ★ 基本フローは SP-initiated request の受信・session determination・元 requester への response。request binding と response binding の能力は IIP-IDP18 が別途判定する
 - **参照先仕様**: `SAML2Prof#4.4 + SAML2Core#3.7`
-- **注記**: CP2b で §4.4 全体と Errata E38、Core §3.7 と underlying request / response rules を actor 別に照合した。IdP-initiated 開始は permission、他参加者への propagation は IIP で明示的に OPTIONAL なので、IdP の必須 capability に含めない。Core の共通データ型・生成側 XML Signature profile・extension namespace・IdP 発行 response の top-level StatusCode は、全 SAML message を横断対象にする既存義務 IIP-SSO01.dz / .ea / .eb / .ec / .ed / .ee / .ef / .eg / .eh / .ei / .er / .eu / .ev / .ew / .ex / .ah / .ch が SLO message も受動検査するため二重計上しない。SLO の actor / direction で結果が変わる規則だけ .d 以降へ分解した。
+- **注記**: CP2b で §4.4 全体と Errata E38、Core §3.7 と underlying request / response rules を actor 別に照合した。IdP-initiated 開始は permission、他参加者への propagation は IIP で明示的に OPTIONAL なので、IdP の必須 capability に含めない。Core の共通データ型・生成側 XML Signature profile・extension namespace は、全 SAML message を横断対象にする既存義務 IIP-SSO01.dz / .ea / .eb / .ec / .ed / .ee / .ef / .eg / .eh / .ei / .er / .eu / .ev / .ew / .ex / .ah が SLO message も受動検査するため二重計上しない。IdP 発行 LogoutResponse の top-level StatusCode は IIP-IDP17.an で判定する。SLO の actor / direction で結果が変わる規則だけ .d 以降へ分解した。
 - **source_clauses**: `[0, 107)` `sha256:0649b5f4937d…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
 
@@ -6592,10 +6595,10 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 <details><summary><code>IIP-IDP17.v</code> の詳細</summary>
 
 - **必要な variant**:
-  - `v-b6c9aebca8` 対象 IdP 発行 LogoutResponse と、任意経路で発行した LogoutRequest の @ID が xs:ID の字句規則に適合する
   - `v-6fcb288d87` 連続・並行する SLO exchange と request / response 間で、別 message object に同じ @ID を再利用しない
 - **対照（negative control）**:
   - IdP 発行 LogoutRequest は optional capability。観測されない方向を要求しない。連番であること自体は違反ではない
+  - @ID の xs:ID 字句規則は IIP-IDP17.am の schema conformance で判定する。同じ欠陥を uniqueness 違反にも数えない
 - **参照先仕様**: `SAML2Core#3.2.1-3.2.2,#1.3.4`
 - **source_clauses**: `[0, 107)` `sha256:0649b5f4937d…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
@@ -6621,10 +6624,10 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
   - `v-d50f0e7ed9` 誤 Destination の LogoutRequest → IdP session に適用しない
   - `v-a3f96ca442` IdP が request を発行した optional 経路で誤 Destination の LogoutResponse → 成功として処理しない
   - `v-ac32870bef` 各観測方向の対照: 正しい Destination → 通常処理へ進む
-  - `v-1a4ea83e7d` 各観測方向の対照: Destination 省略 → 省略だけを理由に拒否しない
 - **対照（negative control）**:
   - LogoutRequest 受信は必須基本フロー。LogoutResponse 受信は IdP が response-bearing request を発行した場合だけの受動規則で、発行 capability を追加要求しない
-- **参照先仕様**: `SAML2Core#3.2.1-3.2.2`
+  - Destination 省略 message の受理を本義務から要求しない。Core の Optional は受理義務ではなく、署名付き Redirect / POST では Binding が Destination を要求する
+- **参照先仕様**: `SAML2Core#3.2.1-3.2.2 + SAML2Bind#3.4.5.2,#3.5.5.2`
 - **source_clauses**: `[0, 107)` `sha256:0649b5f4937d…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
 
@@ -6664,6 +6667,7 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
   - `v-0722042b0e` optional response-consumption 経路で署名不正 LogoutResponse → exchange を error として処理・記録する
 - **対照（negative control）**:
   - ★ SHOULD_CLASS。内部エラー処理を観測できなければ not_verified。LogoutResponse 受信方向が観測されなければ satisfied_with_note
+  - CP2c で Asynchronous SLO の response 禁止を分解するまで、本義務の request fixture に aslo:Asynchronous を含めない
 - **参照先仕様**: `SAML2Core#3.2.1-3.2.2`
 - **source_clauses**: `[0, 107)` `sha256:0649b5f4937d…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
@@ -6685,10 +6689,11 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 <details><summary><code>IIP-IDP17.ac</code> の詳細</summary>
 
 - **必要な variant**:
-  - `v-3984256328` 対象 IdP が同意取得を示す @Consent を含めて発行した LogoutRequest / LogoutResponse → その message 自体に XML 署名がある
+  - `v-b32e02b63d` 対象 IdP が同意取得を示す @Consent を含めて発行した LogoutRequest / LogoutResponse → XML 署名または delivery binding が規定する message 署名があり、検証可能である
 - **対照（negative control）**:
   - @Consent を送らない、または unspecified の場合は satisfied_with_note。LogoutRequest 発行 capability を追加要求しない
-- **参照先仕様**: `SAML2Core#3.2.1-3.2.2`
+  - HTTP-Redirect では <ds:Signature> を除去して SigAlg / Signature のクエリ署名を付ける。XML 署名がないことだけを WARNING にしない
+- **参照先仕様**: `SAML2Core#3.2.1-3.2.2 + SAML2Bind#3.4.4.1`
 - **source_clauses**: `[0, 107)` `sha256:0649b5f4937d…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
 
@@ -6700,6 +6705,7 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
   - `v-fd516c8478` 必須属性欠落等の invalid LogoutRequest → SAML LogoutResponse を返す場合、top-level @Value=Requester
 - **対照（negative control）**:
   - 原文は if it responds。HTTP error / 無応答を本 MUST の違反にしない
+  - 未対応 version への SAML 応答は、より具体的な IIP-IDP17.ah の VersionMismatch を適用し、本義務の Requester を重ねない
 - **参照先仕様**: `SAML2Core#3.2.1`
 - **source_clauses**: `[0, 107)` `sha256:0649b5f4937d…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
@@ -6713,6 +6719,7 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
   - `v-6ceba003dc` 対照: @Version=2.0 の妥当な LogoutRequest → 通常処理へ進む
 - **対照（negative control）**:
   - 応答する場合の VersionMismatch は IIP-IDP17.ah
+  - 対応 major と同じで higher minor の request は MAY process / MAY reject の選択なので、どちらにも verdict を付けない
 - **参照先仕様**: `SAML2Core#4.1.3.1`
 - **source_clauses**: `[0, 107)` `sha256:0649b5f4937d…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
@@ -6814,6 +6821,20 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
   - LogoutRequest 発行 capability 自体は OPTIONAL。観測されない場合は response 方向だけを判定する
   - 値の意味・一意性・UTC 表記は個別義務で判定し、schema pass だけで代用しない
 - **参照先仕様**: `SAML2Core#3.7.1-3.7.2 + SAML2P-xsd`
+- **source_clauses**: `[0, 107)` `sha256:0649b5f4937d…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-IDP17.an</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-b7874a1987` 対象 IdP 発行 LogoutResponse の最上位 @Value が Success / Requester / Responder / VersionMismatch のいずれかで、PartialLogout / AuthnFailed 等の二次コードを最上位に置かない
+- **対照（negative control）**:
+  - 成功・失敗の両経路に適用する。IIP-IDP17.e / .o / .s は状況に応じた値を判定し、本義務は top-level list の構文的制約を判定する
+  - Asynchronous request に response を要求しない。ただし通常の SP-initiated SLO では IIP-IDP17.a により LogoutResponse 発行 capability が必須であり、未観測を satisfied_with_note にしない
+  - subordinate status code の省略・独自 URI は MAY なので禁止しない
+- **参照先仕様**: `SAML2Core#3.2.2.2`
 - **source_clauses**: `[0, 107)` `sha256:0649b5f4937d…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
 
@@ -6962,8 +6983,8 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 
 ```
 g1_state       : PENDING_REVIEW
-obligations    : 427
-未承認         : 427
+obligations    : 428
+未承認         : 428
 未解決 open Q  : 9 ['IIP-MD05.a', 'IIP-MD05.b', 'IIP-MD05.c', 'IIP-MD05.d', 'IIP-MD05.e', 'IIP-MD05.f', 'IIP-MD06.a', 'IIP-IDP13.a', 'IIP-IDP17.b']
 ```
 
