@@ -3,11 +3,12 @@
   "$id": "https://samlier.example/schema/g1-variant-map-v1.json",
   "title": "Samlier G1 variant ID migration map",
   "type": "object",
-  "required": ["baseline_commit", "current_commit", "count", "mappings"],
+  "required": ["baseline_commit", "current_commit", "count", "one_to_one", "mappings"],
   "properties": {
     "baseline_commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
     "current_commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
     "count": { "type": "integer", "minimum": 0 },
+    "one_to_one": { "const": true },
     "mappings": {
       "type": "array",
       "items": {

@@ -6,7 +6,7 @@ putting rules that require case implementations in the same job would make G1 fa
 
 | Stage | When it runs | Network | What it checks |
 |---|---|---|---|
-| **`g1Check`** | Every PR (current main job) | Not required | Catalog structure only. Rules 1–6c-0 and 20d of [05 §5](../docs/05-test-definition-format.md) |
+| **`g1Check`** | Every PR (current main job) | Not required | English-canonical migration invariants, Japanese-residue scan, generated-document equality, and catalog structure. Rules 1–6c-0 and 20d of [05 §5](../docs/05-test-definition-format.md) |
 | **`specReconcile`** | Scheduled + before release | **Required** | Fetches source text and checks section/clause digests and terminology. Rules 5b-3, 5b-4, and 6c-1 |
 | **`releaseCheck`** | Before `release` / `publish` / `dockerPush` | Not required | **Rules requiring case implementations**: 7–19, 20b–20c, 21–28 |
 
@@ -23,12 +23,12 @@ tasks.named("dockerPush") { dependsOn(":specReconcile", ":releaseCheck") }
 - 6c / 6c-0: Presence and ranges of `source_spec` / `source_selector` / `source_section_digest` / `source_clause`
 - 6: `NOT_OBSERVABLE` obligations have a reason statement and no cases
 - 20d: Applicability of conditional obligations is evaluated before case execution
+- English-canonical migration: semantic equality with baseline commit `ca54c4b83ac1a3208591f03772b4cf52c62045d4`, one-to-one variant-ID mapping, and no `_ja` fields
+- Public-language policy: no Japanese characters in tracked public text outside the explicit allowlist
 
 ## Rules deferred to `releaseCheck` (become effective after G1 is complete)
 
 - ★ **Approval is not checked by looking at `coverage.yaml`**. Run the pinned-SHA `g1_ci_verify.sh`,
-  in the generated `build/spec-reconcile-report.json`
-  **`g1.complete == true`** and **`provenance.validator_source_kind == "external-pin"`**
   then verify **`g1.complete == true`** and **`provenance.validator_source_kind == "external-pin"`**
   in the generated `build/spec-reconcile-report.json` (`review` in `coverage.yaml` remains `PENDING_REVIEW` at all times).
 - 7: Every obligation other than `NOT_OBSERVABLE` has at least one test case
@@ -40,7 +40,7 @@ tasks.named("dockerPush") { dependsOn(":specReconcile", ":releaseCheck") }
 
 | job | trigger | Network | Content |
 |---|---|---|---|
-| `g1-check` | PR / push | Not required | `g1_docgen.py --check` + **`--structural-only`** (do not write an exclusion list on the CI side) |
+| `g1-check` | PR / push | Not required | Migration comparison + variant map + Japanese-residue scan + `g1_docgen.py --check` + **`--structural-only`** |
 | `spec-reconcile` | push / scheduled / manual | **Required** | Force-fetches and reconciles the source text and all <!--g1:specs-->25<!--/g1--> specifications |
 | `g1b-approval` | **Always runs** (no job condition) | Required | Validates signed approval. **Extracts the runner and dependencies from the pinned SHA and runs them in isolation**, then checks `g1.complete` / provenance / pin equality |
 
@@ -74,7 +74,7 @@ Without this, rewriting the workflow alone disables the entire gate.
 
 | Stage | Actual implementation | Status |
 |---|---|---|
-| `g1Check` | Structural checks in `tools/g1_validate.py --offline` (SR-15–SR-29, SR-36) + `tools/g1_docgen.py --check` | Passes |
+| `g1Check` | `g1_migration_validate.py --require-english-fields` + `g1_language_check.py` + structural checks + `g1_docgen.py --check` | Passes |
 | `specReconcile` | `tools/g1_validate.py` (**force-fetches** and reconciles source text and all <!--g1:specs-->25<!--/g1--> specifications) | **`totals.blocking_failures == 0`** (before approval, SR-30 / SR-31 remain FAIL). ★ Do not hard-code a PASS count because it changes whenever checks are added |
 | `releaseCheck` | Not implemented because there are 0 test cases (after G2 is complete) | Not run |
 

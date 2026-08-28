@@ -41,6 +41,10 @@ def obligations(catalog: dict[str, Any]) -> dict[str, dict[str, Any]]:
     }
 
 
+def requirements(catalog: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    return {requirement["id"]: requirement for requirement in catalog["requirements"]}
+
+
 def reference_shape(items: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
     return [
         {
@@ -74,6 +78,7 @@ def open_question_state(item: dict[str, Any]) -> bool:
 
 def invariant_shape(item: dict[str, Any]) -> dict[str, Any]:
     return {
+        "authored_by": item.get("authored_by"),
         "level": item.get("level"),
         "roles": item.get("roles"),
         "condition": item.get("condition"),
@@ -82,12 +87,37 @@ def invariant_shape(item: dict[str, Any]) -> dict[str, Any]:
             "configuration_failure_semantics"
         ),
         "level_assignment": item.get("level_assignment"),
+        "reference_derivation": item.get("reference_derivation"),
+        "references_spec": item.get("references_spec"),
         "source_clauses": item.get("source_clauses"),
         "reference_evidence": reference_shape(item.get("reference_evidence")),
         "linked_obligations": linked_shape(item.get("linked_obligations")),
+        "review": {
+            key: value
+            for key, value in (item.get("review") or {}).items()
+            if key != "obligation_digest"
+        },
         "required_variant_count": len(item.get("required_variants", [])),
         "control_count": len(item.get("controls", [])),
         "open_question": open_question_state(item),
+    }
+
+
+def requirement_shape(item: dict[str, Any]) -> dict[str, Any]:
+    """Return non-translatable requirement metadata."""
+    return {
+        key: value
+        for key, value in item.items()
+        if key not in {"obligations", "section_name"}
+    }
+
+
+def catalog_shape(item: dict[str, Any]) -> dict[str, Any]:
+    """Return non-translatable catalog metadata."""
+    return {
+        key: value
+        for key, value in item.items()
+        if key not in {"requirements", "schema_version", "generated_at", "catalog_digest"}
     }
 
 
@@ -105,25 +135,34 @@ def predicate_logic(item: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def english_field_errors(catalog: dict[str, Any], predicates: dict[str, Any]) -> list[str]:
+def forbidden_japanese_fields(value: Any, path: str = "$") -> list[str]:
     errors: list[str] = []
-    forbidden_suffixes = ("_ja",)
+    if isinstance(value, dict):
+        for key, child in value.items():
+            child_path = f"{path}.{key}"
+            if key.endswith("_ja"):
+                errors.append(f"{child_path}: forbidden Japanese field")
+            errors.extend(forbidden_japanese_fields(child, child_path))
+    elif isinstance(value, list):
+        for index, child in enumerate(value):
+            errors.extend(forbidden_japanese_fields(child, f"{path}[{index}]"))
+    return errors
+
+
+def english_field_errors(
+    catalog: dict[str, Any], specs: dict[str, Any], predicates: dict[str, Any]
+) -> list[str]:
+    errors: list[str] = []
+    errors.extend(forbidden_japanese_fields(catalog, "coverage"))
+    errors.extend(forbidden_japanese_fields(specs, "specs"))
+    errors.extend(forbidden_japanese_fields(predicates, "predicates"))
     for key, item in obligations(catalog).items():
-        for field in item:
-            if field.endswith(forbidden_suffixes):
-                errors.append(f"{key}: forbidden field {field}")
         if "summary_en" not in item:
             errors.append(f"{key}: summary_en is missing")
         for index, variant in enumerate(item.get("required_variants", []), start=1):
             if "description_en" not in variant:
                 errors.append(f"{key} variant {index}: description_en is missing")
-            for field in variant:
-                if field.endswith(forbidden_suffixes):
-                    errors.append(f"{key} variant {index}: forbidden field {field}")
     for key, item in predicates.get("predicates", {}).items():
-        for field in item:
-            if field.endswith(forbidden_suffixes):
-                errors.append(f"predicate {key}: forbidden field {field}")
         for required in ("description_en", "rationale_en"):
             if required not in item:
                 errors.append(f"predicate {key}: {required} is missing")
@@ -145,7 +184,37 @@ def main() -> int:
 
     old_obligations = obligations(old_catalog)
     new_obligations = obligations(new_catalog)
+    old_requirements = requirements(old_catalog)
+    new_requirements = requirements(new_catalog)
     errors: list[str] = []
+
+    if set(old_requirements) != set(new_requirements):
+        errors.append(
+            "requirement set differs: "
+            f"added={sorted(set(new_requirements) - set(old_requirements))} "
+            f"removed={sorted(set(old_requirements) - set(new_requirements))}"
+        )
+    changed_requirements = {
+        key: {
+            "baseline": requirement_shape(old_requirements[key]),
+            "current": requirement_shape(new_requirements[key]),
+        }
+        for key in sorted(set(old_requirements) & set(new_requirements))
+        if requirement_shape(old_requirements[key])
+        != requirement_shape(new_requirements[key])
+    }
+    if changed_requirements:
+        errors.append(
+            f"non-text requirement metadata changed: {sorted(changed_requirements)}"
+        )
+
+    changed_catalog = (
+        {"baseline": catalog_shape(old_catalog), "current": catalog_shape(new_catalog)}
+        if catalog_shape(old_catalog) != catalog_shape(new_catalog)
+        else {}
+    )
+    if changed_catalog:
+        errors.append("non-text catalog metadata changed")
 
     if set(old_obligations) != set(new_obligations):
         errors.append(
@@ -221,7 +290,7 @@ def main() -> int:
         )
 
     english_errors = (
-        english_field_errors(new_catalog, new_predicates)
+        english_field_errors(new_catalog, new_specs, new_predicates)
         if args.require_english_fields
         else []
     )
@@ -236,6 +305,11 @@ def main() -> int:
                     ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True
                 ).strip(),
                 "count": len(variant_rows),
+                "one_to_one": (
+                    len(variant_rows) == expected_variants
+                    and len(old_ids) == len(set(old_ids))
+                    and len(new_ids) == len(set(new_ids))
+                ),
                 "mappings": variant_rows,
             },
             ensure_ascii=False,
@@ -251,6 +325,8 @@ def main() -> int:
         "variants": len(variant_rows),
         "specs": len(new_specs["specs"]),
         "predicates": len(new_predicates["predicates"]),
+        "requirement_changes": changed_requirements,
+        "catalog_changes": changed_catalog,
         "normative_changes": changed,
         "english_field_errors": english_errors,
         "errors": errors,

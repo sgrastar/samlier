@@ -35,6 +35,10 @@ jobs:
           .venv/bin/pip install --require-hashes -r tools/requirements.lock
       - name: Check that docs/04 matches coverage.yaml
         run: .venv/bin/python tools/g1_docgen.py --check
+      - name: Check English-canonical migration invariants
+        run: .venv/bin/python tools/g1_migration_validate.py --require-english-fields
+      - name: Check tracked public files for Japanese residue
+        run: .venv/bin/python tools/g1_language_check.py
       - name: Structural validation
         run: |
           set -euo pipefail
@@ -50,6 +54,14 @@ jobs:
           print('checks:',r['totals']['checks'],'blocking:',r['totals']['blocking_failures'])
           sys.exit(1 if r['totals']['blocking_failures'] else 0)
           PY
+      - uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        if: always()
+        with:
+          name: g1-english-migration-reports
+          path: |
+            build/g1-migration-report.json
+            build/g1-variant-id-map.json
+            build/g1-language-report.json
 
   # ------------------------------------------------------------ specReconcile
   spec-reconcile:
