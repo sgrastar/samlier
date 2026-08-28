@@ -3460,3 +3460,55 @@ level / roles / condition と義務数 446 は維持する。修正版を同じ�
 レビュアーの非 finding 補足（ASLO sibling variant 間の trust 文言、response-emitted 規則の
 「返す場合」表現、IIP-IDP17.z の解釈 control）は誤判定経路を持たない。G2 の case definition で
 runtime scope を具体化するときの読み違い防止項目として保持する。
+
+---
+
+## G1b-CP3-Metadata — 2026-08-28 参照仕様 6 件と MDIOP 解釈の一括分解
+
+最後の open question 7 件（`IIP-MD05.a`〜`.f` / `IIP-MD06.a`）を、参照仕様の該当ページを
+画像確認し、同じページの抽出 text から RFC 2119 語・前置き・actor を全走査して分解した。
+`SAML2MD-xsd` は XML source を markup を保持したまま全行確認した。
+
+### 分解結果
+
+| 義務群 | 参照 | 分解後 | 主な判定対象 |
+|---|---|---:|---|
+| `IIP-MD05.a*` | SAML2Meta + Errata | 33 | metadata type semantics、extension namespace、期限/cache、indexed endpoint、KeyDescriptor use、metadata XML signature profile |
+| `IIP-MD05.b` | SAML2MD-xsd | 1（13 variants） | 全 global element family、choice/cardinality、任意要素・属性・extension point |
+| `IIP-MD05.c*` | SAML2MDIOP producer | 15 | current/future/expired/compromised key、1 key per descriptor、KeyValue/X509Certificate 表現 |
+| `IIP-MD05.d*` | MetaAttr | 10 | EntityAttributes scope、assertion profile、独立署名、statement cardinality |
+| `IIP-MD05.e*` | MetaAlgSupport | 12 | algorithm capability 表現、compatibility、preference、intersection、role precedence |
+| `IIP-MD05.f*` | MetaUI | 20 | UIInfo / DiscoHints の全要素、placement、language cardinality、CIDR、URL security、display precedence |
+| `IIP-MD06.a*` | SAML2MDIOP consumer | 12 | acceptance semantics、role-scoped key validity、PKIX/CRL/OCSP 非適用、public-key extraction |
+
+`IIP-MD05.g`、`IIP-MD06.b`、`IIP-MD06.c` は既存の直接 IIP 文のまま維持した。
+総義務数は 446 → **542**。open question は 7 → **0**。
+
+### 重複を避けた境界
+
+- `IIP-MD05.c*` は **MDIOP に適合する metadata 表現の生成・消費**、`IIP-MD06.a*` は
+  **受理後の runtime interpretation/application**。同じ鍵 fixture を使えても outcome の原因を混同しない
+- HTTP 定期取得・redirect は `IIP-MD02`、metadata signature trust establishment は `IIP-MD03`、
+  期限拒否 capability は `IIP-MD04`。SAML2Meta §4 の任意 DNS/well-known publication mechanism を
+  `IIP-MD05.a` の MUST capability に引き上げない
+- X.509 variation は `IIP-MD12.d` と observation を共有できるが、MD05 は表現の消費、MD06 は
+  runtime key interpretation、MD12 は certificate content を理由に拒否しない能力を判定する
+- MetaAlgSupport の `EntityDescriptor and/or role` は1つの選言 variant とし、配置別 required variant に
+  分けて AND にしない
+- E41 の ResponseLocation fallback は原文の **MAY** を保持し、IIP の broad MUST を理由に MUST へ引き上げない
+
+### 検出力上の注意
+
+- extension metadata を XML として parse して無視するだけでは PASS にしない。EntityAttributes / algorithm
+  support / UI metadata は read-back、実際の algorithm selection、discovery/login UI のいずれかで利用を確認する
+- publisher 固有の規則は、その optional content を対象が実際に発行した message 単位の runtime scope とする。
+  content が0件なら `satisfied_with_note` であり、発行能力そのものを勝手に MUST にしない
+- `MAY` で両結果が許される fixture（stale metadata の使用、未知 transform の安全な受理/拒否、TLS hostname
+  check 等）は単独 target verdict を付けず、強い義務の分岐材料または control fixture にする
+
+### 機械検証
+
+`g1_author.py` は 69 requirements / 542 obligations / errors 0。
+`g1_docgen.py --check` 一致、structural-only 43/44 PASS・blocking 0、network 再取得は
+61/62 PASS・blocking 0。残る FAIL は SR-31（全 542 obligations が未承認）のみで、SR-30 は解消した。
+本 checkpoint は authoring 完了であり、外部 reviewer の意味確認前なので G1b 承認ではない。

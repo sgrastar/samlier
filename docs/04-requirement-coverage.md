@@ -15,23 +15,23 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 | 指標 | 値 |
 |---|---|
 | 要件 | 69 |
-| 義務（obligation） | 446 |
-| うち MUST_CLASS | 339 |
-| うち SHOULD_CLASS | 87 |
-| うち MAY_CLASS | 20 |
+| 義務（obligation） | 542 |
+| うち MUST_CLASS | 401 |
+| うち SHOULD_CLASS | 112 |
+| うち MAY_CLASS | 29 |
 | 条件付き義務 | 105 |
-| IdP プロファイル | 317 義務（Core 190 / Full 127） |
-| SP プロファイル | 223 義務（Core 119 / Full 104） |
+| IdP プロファイル | 412 義務（Core 252 / Full 160） |
+| SP プロファイル | 318 義務（Core 181 / Full 137） |
 | 非規範（イタリック）スパン | 26 |
 
 **Testability**
 
 | 記号 | 意味 | 件数 |
 |---|---|---|
-| `AUTOMATED` | Suite と対象の直接通信で完結（ブラウザ不要） | 87 |
-| `BROWSER` | 利用者のブラウザが必要 | 205 |
-| `ATTESTED` | 対象内部の挙動を利用者が申告 | 50 |
-| `CONFIG` | 対象側の設定変更を依頼したうえで実行 | 103 |
+| `AUTOMATED` | Suite と対象の直接通信で完結（ブラウザ不要） | 96 |
+| `BROWSER` | 利用者のブラウザが必要 | 216 |
+| `ATTESTED` | 対象内部の挙動を利用者が申告 | 53 |
+| `CONFIG` | 対象側の設定変更を依頼したうえで実行 | 176 |
 | `NOT_OBSERVABLE` | 外部から原理的に検証不能。ケースを作らない | 1 |
 
 **判定に関する注意**
@@ -421,21 +421,552 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 | 義務 | Level | Role | Testability | 条件 | Core/Full | 要約 |
 |---|---|---|---|---|---|---|
 | `IIP-MD05.a` | MUST | idp/sp | `CONFIG` | — | core | SAML V2.0 Metadata（Errata 反映）に定義されたメタデータに対応 |
+| `IIP-MD05.a1` | MUST | idp/sp | `CONFIG` | — | core | 相互作用する全 entity の metadata entityID は一意である |
+| `IIP-MD05.a2` | MUST_NOT | idp/sp | `CONFIG` | — | core | 同一の metadata entityID を異なる entity に対応付けてはならない |
+| `IIP-MD05.a3` | MUST | idp/sp | `CONFIG` | — | core | metadata の拡張内容を各 extension point の規則どおり名前空間修飾する |
+| `IIP-MD05.a4` | MUST | idp/sp | `CONFIG` | — | core | 単一 entity の metadata root は EntityDescriptor、複数 entity は EntitiesDescriptor である |
+| `IIP-MD05.a5` | MUST | idp/sp | `CONFIG` | — | core | root の EntityDescriptor / EntitiesDescriptor は validUntil または cacheDuration を含む |
+| `IIP-MD05.a6` | RECOMMENDED | idp/sp | `CONFIG` | — | full | validUntil / cacheDuration は root metadata 要素だけに置くことが推奨される |
+| `IIP-MD05.a7` | RECOMMENDED | idp/sp | `CONFIG` | — | full | 同じ型の複数 role descriptor は protocolSupportEnumeration を重複させないことが推奨される |
+| `IIP-MD05.a8` | MUST | idp/sp | `CONFIG` | — | core | AdditionalMetadataLocation/@namespace は参照先文書 root の XML namespace と一致する |
+| `IIP-MD05.a9` | MUST | idp/sp | `CONFIG` | — | core | SAML V2.0 role の protocolSupportEnumeration は SAML V2.0 protocol namespace URI を含む |
+| `IIP-MD05.aa` | SHOULD | idp/sp | `CONFIG` | — | full | 同じ namespace を共有する将来 SAML 仕様は必要に応じ alternate protocol support identifier を提供することが望ましい |
+| `IIP-MD05.ab` | MUST | idp/sp | `CONFIG` | — | core | 単一方向の message だけを扱う endpoint では ResponseLocation を省略する |
+| `IIP-MD05.ac` | MUST | idp/sp | `CONFIG` | — | core | affiliation owner 自身が member の場合は AffiliateMember にもその識別子を含める |
+| `IIP-MD05.ad` | SHOULD | idp/sp | `CONFIG` | — | full | relying party は metadata 内の同一用途のどの鍵の使用も許容することが望ましい |
+| `IIP-MD05.ae` | SHOULD | idp/sp | `CONFIG` | — | full | 署名・暗号化する側は使用鍵を可能な限り具体的に示すことが望ましい |
+| `IIP-MD05.af` | RECOMMENDED | idp/sp | `CONFIG` | — | full | 直接の認証済み context がない場合は少なくとも metadata root を署名することが推奨される |
+| `IIP-MD05.ag` | MUST | idp/sp | `AUTOMATED` | — | core | SAML metadata の署名は enveloped signature である |
+| `IIP-MD05.ah` | SHOULD | idp/sp | `AUTOMATED` | — | full | metadata processor は RSA-SHA1 の署名・検証に対応することが望ましい |
+| `IIP-MD05.ai` | MUST | idp/sp | `AUTOMATED` | — | core | 署名された metadata 要素は identifier 属性値を持つ |
+| `IIP-MD05.aj` | MUST | idp/sp | `AUTOMATED` | — | core | metadata 署名は署名対象 ID への単一 same-document Reference を持ち、全内容を覆う |
+| `IIP-MD05.ak` | SHOULD | idp/sp | `AUTOMATED` | — | full | metadata 署名は SignedInfo と Transform の双方で Exclusive Canonicalization を使うことが望ましい |
+| `IIP-MD05.al` | SHOULD_NOT | idp/sp | `AUTOMATED` | — | full | metadata 署名に enveloped-signature / Exclusive C14N 以外の transform を含めないことが望ましい |
+| `IIP-MD05.am` | MAY | idp/sp | `AUTOMATED` | — | full | metadata 署名 verifier は許可外 transform を含む署名を拒否してよい |
+| `IIP-MD05.an` | MUST | idp/sp | `AUTOMATED` | — | core | 許可外 transform を受理する場合、署名対象 metadata の内容が除外されていないことを保証する |
+| `IIP-MD05.ao` | MAY | idp/sp | `AUTOMATED` | — | full | metadata 署名は ds:KeyInfo を省略してよい |
+| `IIP-MD05.ap` | MUST | idp/sp | `CONFIG` | — | core | nested metadata では parent/root と子の短い方の validUntil / cacheDuration を適用する |
+| `IIP-MD05.aq` | MUST | idp/sp | `CONFIG` | — | core | metadata cache は cacheDuration に基づき、instance 取得時刻を保持する |
+| `IIP-MD05.ar` | MUST | idp/sp | `CONFIG` | — | core | effective validUntil 到達時に metadata を invalid とみなす |
+| `IIP-MD05.as` | MUST_NOT | idp/sp | `CONFIG` | — | core | invalid になった metadata を使用してはならない |
+| `IIP-MD05.at` | MAY | idp/sp | `CONFIG` | — | full | cacheDuration を過ぎても明示的に invalid でない metadata は使用してよい |
+| `IIP-MD05.au` | MAY | idp/sp | `CONFIG` | — | full | ResponseLocation 省略時は response を Location で処理する |
+| `IIP-MD05.av` | MUST | idp/sp | `CONFIG` | — | core | 同一名の indexed endpoint 集合で index を一意にし、定義された順序で default を選ぶ |
+| `IIP-MD05.aw` | MUST | idp/sp | `CONFIG` | — | core | KeyDescriptor/@use を signing+TLS、encryption-key wrapping、省略時は両方として解釈する |
 | `IIP-MD05.b` | MUST | idp/sp | `CONFIG` | — | core | SAML V2.0 Metadata Schema に適合したメタデータに対応 |
 | `IIP-MD05.c` | MUST | idp/sp | `CONFIG` | — | core | SAML V2.0 Metadata Interoperability Profile に対応 |
+| `IIP-MD05.c1` | MUST | idp/sp | `CONFIG` | — | core | 対象が生成する MDIOP metadata は安全な通信要件の記述として自己完結する |
+| `IIP-MD05.c2` | MUST | idp/sp | `CONFIG` | — | core | 適合 metadata instance 内の全 role descriptor は MDIOP requirements を満たす |
+| `IIP-MD05.c3` | MUST | idp/sp | `CONFIG` | — | core | role について現在有効な全 cryptographic key を当該 role metadata に含める |
+| `IIP-MD05.c4` | MAY | idp/sp | `CONFIG` | — | full | rollover のため将来の signing / transport-authentication key を metadata に含めてよい |
+| `IIP-MD05.c5` | SHOULD | idp/sp | `ATTESTED` | — | full | rollover 完了後、使用終了した旧鍵を metadata から除去することが望ましい |
+| `IIP-MD05.c6` | MUST | idp/sp | `ATTESTED` | — | core | compromise された鍵を metadata から除去する |
+| `IIP-MD05.c7` | MUST_NOT | idp/sp | `ATTESTED` | — | core | metadata producer は consumer が PKIX / revocation service で鍵の有効性を確認することに依拠してはならない |
+| `IIP-MD05.c8` | MUST | idp/sp | `CONFIG` | — | core | role の各鍵を個別の KeyDescriptor に置き、適切な use を付ける |
+| `IIP-MD05.c9` | MUST | idp/sp | `CONFIG` | — | core | KeyInfo は KeyValue または単一 X509Certificate の少なくとも一方を含む |
+| `IIP-MD05.ca` | MUST | idp/sp | `CONFIG` | — | core | MDIOP の X509Data key representation は証明書を1つだけ含む |
+| `IIP-MD05.cb` | MUST | idp/sp | `CONFIG` | — | core | KeyValue と X509Certificate を併記する場合は同一鍵を表す |
+| `IIP-MD05.cc` | MAY | idp/sp | `CONFIG` | — | full | KeyName / X509SubjectName / X509IssuerSerial 等の追加 KeyInfo 表現を hint として含めてよい |
+| `IIP-MD05.cd` | MUST_NOT | idp/sp | `CONFIG` | — | core | 追加 KeyInfo hint を鍵識別の必須条件にしてはならない |
+| `IIP-MD05.ce` | RECOMMENDED | idp/sp | `CONFIG` | — | full | 鍵 container として metadata に含める証明書は期限内であることが推奨される |
 | `IIP-MD05.d` | MUST | idp/sp | `CONFIG` | — | core | Entity Attributes 拡張に対応 |
+| `IIP-MD05.d1` | MUST | idp/sp | `CONFIG` | — | core | EntityAttributes 内の Assertion を標準 SAML assertion rules に従って処理する |
+| `IIP-MD05.d2` | MUST_NOT | idp/sp | `CONFIG` | — | core | EntitiesDescriptor/Extensions の EntityAttributes に Assertion を含めてはならない |
+| `IIP-MD05.d3` | MUST_NOT | idp/sp | `CONFIG` | — | core | 1つの Extensions 内に EntityAttributes を複数置いてはならない |
+| `IIP-MD05.d4` | MUST | idp/sp | `CONFIG` | — | core | EntityAttributes assertion の Subject は entity format の NameID で、NameQualifier は enclosing entityID と対応する |
+| `IIP-MD05.d5` | MUST_NOT | idp/sp | `CONFIG` | — | core | EntityAttributes assertion の Subject に SubjectConfirmation を含めてはならない |
+| `IIP-MD05.d6` | MUST | idp/sp | `CONFIG` | — | core | EntityAttributes assertion は AttributeStatement をちょうど1つ含む |
+| `IIP-MD05.d7` | MUST_NOT | idp/sp | `CONFIG` | — | core | EntityAttributes assertion に他の statement type を含めてはならない |
+| `IIP-MD05.d8` | MUST | idp/sp | `CONFIG` | — | core | EntityAttributes assertion は metadata 親署名の継承ではなく独立して署名される |
+| `IIP-MD05.d9` | MAY | idp/sp | `CONFIG` | — | full | EntityAttributes assertion に Conditions 等の他の適法な assertion content を含めてよい |
 | `IIP-MD05.e` | MUST | idp/sp | `CONFIG` | — | core | Algorithm Support 拡張に対応 |
+| `IIP-MD05.e1` | SHOULD | idp/sp | `CONFIG` | — | full | 非対称 encryption KeyDescriptor は data encryption と key transport / agreement の双方の algorithm を示すことが望ましい |
+| `IIP-MD05.e2` | MUST | idp/sp | `CONFIG` | — | core | 列挙する key transport / agreement algorithm は関連 encryption key と互換である |
+| `IIP-MD05.e3` | SHOULD | idp/sp | `CONFIG` | — | full | symmetric-key KeyDescriptor は block / stream encryption algorithm を示すことが望ましい |
+| `IIP-MD05.e4` | MUST | idp/sp | `CONFIG` | — | core | 各 EncryptionMethod は Algorithm URI を含む |
+| `IIP-MD05.e5` | MUST | idp/sp | `CONFIG` | — | core | 同じ general type の複数 EncryptionMethod は entity の preference 順に並ぶ |
+| `IIP-MD05.e6` | SHOULD | idp/sp | `CONFIG` | — | full | entity は DigestMethod / SigningMethod capability を metadata に公開することが望ましい |
+| `IIP-MD05.e7` | MUST | idp/sp | `CONFIG` | — | core | 同じ型の複数 DigestMethod / SigningMethod は entity の preference 順に並ぶ |
+| `IIP-MD05.e8` | MUST | idp/sp | `CONFIG` | — | core | peer-aware な XML Signature / Encryption を行う consumer は metadata から共通 algorithm・key size・parameter を求める |
+| `IIP-MD05.e9` | SHOULD | idp/sp | `CONFIG` | — | full | metadata consumer は algorithm element を列挙順に調べることが望ましい |
+| `IIP-MD05.ea` | SHOULD | idp/sp | `CONFIG` | — | full | metadata consumer は列挙中で最初に対応する algorithm を選ぶことが望ましい |
+| `IIP-MD05.eb` | MUST | idp/sp | `CONFIG` | — | core | role level の signature algorithm metadata は entity level より優先し、両集合を結合しない |
 | `IIP-MD05.f` | MUST | idp/sp | `CONFIG` | — | core | Login and Discovery UI 拡張 (mdui) に対応 |
+| `IIP-MD05.f1` | MUST | idp/sp | `CONFIG` | — | core | UIInfo は role descriptor の Extensions 内に置く |
+| `IIP-MD05.f2` | MUST | idp/sp | `CONFIG` | — | core | UIInfo は少なくとも1つの child element を含む |
+| `IIP-MD05.f3` | MUST_NOT | idp/sp | `CONFIG` | — | core | 1つの Extensions 内に UIInfo を複数置いてはならない |
+| `IIP-MD05.f4` | MUST_NOT | idp/sp | `CONFIG` | — | core | 同一 role 内で同種の localized UIInfo child に同じ xml:lang を重複させてはならない |
+| `IIP-MD05.f5` | MUST | idp/sp | `BROWSER` | — | core | UI description は単独で意味が通り、追加 text を差し込む template にしない |
+| `IIP-MD05.f6` | SHOULD | sp | `BROWSER` | — | full | SP role の Description は提供 service を説明することが望ましい |
+| `IIP-MD05.f7` | SHOULD | idp | `BROWSER` | — | full | IdP role の Description は対象 user community を説明することが望ましい |
+| `IIP-MD05.f8` | SHOULD | idp/sp | `BROWSER` | — | full | 公開する logo は profile の UI usability guidance に従うことが望ましい |
+| `IIP-MD05.f9` | SHOULD | idp/sp | `BROWSER` | — | full | preferred language の logo がない場合、xml:lang なし logo を default として扱うことが望ましい |
+| `IIP-MD05.fa` | SHOULD | idp/sp | `BROWSER` | — | full | InformationURL の内容は Description より詳しい情報を提供することが望ましい |
+| `IIP-MD05.fb` | SHOULD_NOT | idp/sp | `BROWSER` | — | full | discovery hint だけで user 確認なしに IdP を確定選択しないことが望ましい |
+| `IIP-MD05.fc` | MUST | idp/sp | `CONFIG` | — | core | DiscoHints は IDPSSODescriptor の Extensions 内に置く |
+| `IIP-MD05.fd` | MUST | idp/sp | `CONFIG` | — | core | DiscoHints は少なくとも1つの child element を含む |
+| `IIP-MD05.fe` | MUST_NOT | idp/sp | `CONFIG` | — | core | 1つの Extensions 内に DiscoHints を複数置いてはならない |
+| `IIP-MD05.ff` | MUST | idp/sp | `CONFIG` | — | core | IPHint で IPv4 と IPv6 の両 CIDR block に対応する |
+| `IIP-MD05.fg` | MUST | idp/sp | `BROWSER` | — | core | metadata UI extension の URL を使用する際は XSS 防止の sanitize / encode を行う |
+| `IIP-MD05.fh` | SHOULD_NOT | idp/sp | `BROWSER` | — | full | metadata UI URL に https / http / data 以外の scheme を使わないことが望ましい |
+| `IIP-MD05.fi` | RECOMMENDED | idp/sp | `BROWSER` | — | full | metadata UI URL には HTTPS を使うことが推奨される |
+| `IIP-MD05.fj` | SHOULD | idp/sp | `BROWSER` | — | full | display name consumer は DisplayName → ServiceName → entityID / endpoint hostname の順に優先することが望ましい |
 | `IIP-MD05.g` | MUST_NOT | idp/sp | `CONFIG` | — | core | その他の拡張内容が存在してもメタデータの消費・利用を妨げてはならない |
 
 <details><summary><code>IIP-MD05.a</code> の詳細</summary>
 
 - **必要な variant**:
-  - `v-a1abd52b12` 基本 EntityDescriptor / RoleDescriptor 構造
+  - `v-5627167bd2` EntityDescriptor 直下に IDPSSODescriptor / SPSSODescriptor / AuthnAuthorityDescriptor / AttributeAuthorityDescriptor / PDPDescriptor をそれぞれ置く
+  - `v-2181953509` 抽象 RoleDescriptor の派生型を置く
+  - `v-0dfd31deea` AffiliationDescriptor を role descriptor 群の代わりに置く
+  - `v-e5cca30c6f` EntitiesDescriptor を 2 段以上にネストし、各階層の有効期限・拡張・署名を解釈する
+  - `v-85d602c875` Organization / ContactPerson / AdditionalMetadataLocation を含む
+  - `v-e491c3b995` KeyDescriptor / endpoint / NameIDFormat / AttributeProfile / AttributeConsumingService の意味を利用する
+- **対照（negative control）**:
+  - 構文上の受理だけで PASS にしない。endpoint・鍵・属性要求等を実際の相互運用に用いることを確認する
+  - SAML2Meta §4 の任意 publication mechanism（DNS / well-known location）を必須能力にしない。HTTP 取得は IIP-MD02、署名検証は IIP-MD03、期限拒否能力は IIP-MD04 が別に判定する
 - **設定不能時の意味**: `test_precondition`
 - **参照先仕様**: `SAML2Meta`
-- ⚠ **未解決**: 参照仕様 SAML2Meta の該当節を読んで規範内容を分解する。規範内容から対応を証明するに足る variant を起こす。現状は基本構造のスモーク 1 件のみ
 - **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.a1</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-afe47b72ce` 同一 deployment 内の 2 entity に異なる entityID を与える
+  - `v-eb09249612` 重複 entityID を持つ metadata を対照として拒否または競合扱いする
+- **対照（negative control）**:
+  - 単一 entity だけでは一意性を検証していない。secondary_peer を必ず含める
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `SAML2Meta`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[93, 159)` `sha256:1360c8fd9ba8…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.a2</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-30ae345fc2` 同じ entityID で鍵・endpoint が異なる 2 entity を同時に登録する
+- **対照（negative control）**:
+  - 上書き・併合して曖昧な状態を作る実装を satisfied にしない。明示的な置換操作は同時参照とは区別する
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `SAML2Meta`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[93, 159)` `sha256:1360c8fd9ba8…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.a3</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-19403cd8c5` EndpointType の非 SAML namespace 要素・属性
+  - `v-8ab80f06d0` root / role / Organization / ContactPerson / AffiliationDescriptor の非 SAML namespace extension
+  - `v-21ebac0b0a` Organization/Extensions に global element または SAML-defined namespace element を置く不正対照
+- **対照（negative control）**:
+  - 未知 extension の受理は IIP-MD05.g、ここでは namespace qualification と extension point の制約を判定する
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `SAML2Meta`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[93, 159)` `sha256:1360c8fd9ba8…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.a4</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-e1abcd898f` 単一 entity の EntityDescriptor root
+  - `v-6888d5d510` 複数 entity の EntitiesDescriptor root
+- **対照（negative control）**:
+  - 両形式の消費能力は IIP-MD02.c と同じ fixture を再利用できるが、本義務は SAML2Meta の構造意味を判定する
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `SAML2Meta`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[93, 159)` `sha256:1360c8fd9ba8…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.a5</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-8d4aa5e10b` EntityDescriptor root + validUntil
+  - `v-11024a7350` EntityDescriptor root + cacheDuration のみ
+  - `v-a03e63f844` EntitiesDescriptor root + validUntil
+  - `v-041c1ad992` EntitiesDescriptor root + cacheDuration のみ
+- **対照（negative control）**:
+  - IIP-MD04.a は validUntil 欠落を拒否できる能力を別に要求するが、SAML2Meta は cacheDuration-only root を許す。通常消費で常時拒否する実装を本義務で検出する
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `SAML2Meta`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[93, 159)` `sha256:1360c8fd9ba8…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.a6</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-12d01c5d9c` 対象が生成する metadata の root と子 role / entity の期限属性を検査
+- **対照（negative control）**:
+  - 子への配置自体は E76 が MAY として許すため、子に短い期限があるだけで violated にしない。推奨は不要な重複を避けることとして評価する
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `SAML2Meta`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[93, 159)` `sha256:1360c8fd9ba8…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.a7</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-841ccfd3f4` 対象が同型 role を複数発行する場合の protocolSupportEnumeration を比較
+- **対照（negative control）**:
+  - 同型 role が 0/1 個なら satisfied_with_note。重複の意味が別 profile で定義される場合はその profile の規則を優先する
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `SAML2Meta`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[93, 159)` `sha256:1360c8fd9ba8…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.a8</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-0964413640` 参照先 root namespace と一致
+  - `v-e245741e11` 異なる namespace の negative control
+- **対照（negative control）**:
+  - URL を取得できない場合は not_verified(additional_metadata_location_unreachable)。文字列比較だけで satisfied にしない
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `SAML2Meta`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[93, 159)` `sha256:1360c8fd9ba8…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.a9</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-a651b8458a` 対象が発行する全 SAML V2 role に urn:oasis:names:tc:SAML:2.0:protocol がある
+  - `v-186e57ba3e` 欠落 role の negative control
+- **対照（negative control）**:
+  - 非 SAML role にはこの URI を要求しない
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `SAML2Meta`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[93, 159)` `sha256:1360c8fd9ba8…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.aa</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-1bcf55d47b` 対象が同一 namespace の複数 protocol version/profile を公開する場合の識別子
+- **対照（negative control）**:
+  - 該当する将来仕様を対象が実装しない Run は satisfied_with_note。SAML 2.0 URI だけの通常 role を WARNING にしない
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `SAML2Meta`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[93, 159)` `sha256:1360c8fd9ba8…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.ab</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-438a98ca4f` ArtifactResolutionService
+  - `v-a551c9448c` SingleSignOnService
+  - `v-5c568d3b1f` NameIDMappingService
+- **対照（negative control）**:
+  - 3 element kind を個別に検査する。ResponseLocation 省略時、request/response endpoint では Location が response location になる E41 semantics も fixture で確認する
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `SAML2Meta`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[93, 159)` `sha256:1360c8fd9ba8…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.ac</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-3abb2dda88` owner も member の affiliation
+  - `v-e5a557b155` owner が member でない対照
+- **対照（negative control）**:
+  - owner が常に member であるとは仮定しない。非 member の owner に AffiliateMember を要求しない
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `SAML2Meta`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[93, 159)` `sha256:1360c8fd9ba8…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.ad</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-8a7ac38824` 同じ use=signing の第1鍵 / 第2鍵で署名
+  - `v-5f02c57cc8` use 省略の第1鍵 / 第2鍵で署名
+- **対照（negative control）**:
+  - IIP-MD07 の MUST（全鍵の消費・各鍵試行）の方が強い。結果は同じ fixture を共有し、本 SHOULD を別の追加失敗として二重報告しない集約設計にする
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `SAML2Meta`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[93, 159)` `sha256:1360c8fd9ba8…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.ae</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-19fa1a800c` 複数候補鍵があるとき、対象の ds:KeyInfo 等が使用鍵を識別可能にする
+- **対照（negative control）**:
+  - 候補鍵が1本だけなら satisfied_with_note。特定方法を X509Data に限定しない
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `SAML2Meta`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[93, 159)` `sha256:1360c8fd9ba8…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.af</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-036390e29c` 非認証 channel / intermediary 経由で対象が発行する metadata の root signature
+- **対照（negative control）**:
+  - 認証済み secure channel で publisher から直接得る context では非署名を WARNING にしない。context 不明なら not_verified
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `SAML2Meta`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[93, 159)` `sha256:1360c8fd9ba8…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.ag</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-1471b8cf79` 対象が発行する署名済み root / nested entity / role / affiliation
+- **対照（negative control）**:
+  - 署名が観測されない Run は satisfied_with_note。署名必須性は IIP-MD03 / IIP-MD05.af が別に判定する
+- **参照先仕様**: `SAML2Meta`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[93, 159)` `sha256:1360c8fd9ba8…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.ah</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-5c7f312fd7` RSA-SHA1 署名 metadata の検証能力
+  - `v-f0964b5611` 対象が metadata を署名する場合の RSA-SHA1 能力
+- **対照（negative control）**:
+  - IIP-ALG08.a により危殆化 algorithm を無効化する default policy は許される。能力あり・policy 無効は satisfied、能力なしは violated→WARNING、能力不明は not_verified
+- **参照先仕様**: `SAML2Meta`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[93, 159)` `sha256:1360c8fd9ba8…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.ai</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-6ca7078763` 署名された各 root / nested EntityDescriptor / RoleDescriptor / AffiliationDescriptor の @ID
+- **対照（negative control）**:
+  - 受動的に全 metadata signature を横断検査する
+- **参照先仕様**: `SAML2Meta`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[93, 159)` `sha256:1360c8fd9ba8…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.aj</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-73ece64a5a` ds:Reference が1個
+  - `v-3cb8c9b02a` @URI が # + signed element @ID
+  - `v-633e03c7af` 子要素を含む全 content が署名対象
+- **対照（negative control）**:
+  - 複数 Reference、空 URI、外部 URI、wrapping された別要素参照を negative control にする
+- **参照先仕様**: `SAML2Meta`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[93, 159)` `sha256:1360c8fd9ba8…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.ak</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-fe1090fdaf` CanonicalizationMethod
+  - `v-75da6152f9` Reference Transform
+- **対照（negative control）**:
+  - with comments / without comments の双方を許容する
+- **参照先仕様**: `SAML2Meta`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[93, 159)` `sha256:1360c8fd9ba8…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.al</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-0395c03bcb` 対象が発行する全 metadata signature の transform allowlist
+- **対照（negative control）**:
+  - 受信側は許可外 transform を拒否してもよい。その二択は IIP-MD05.am / .an で扱う
+- **参照先仕様**: `SAML2Meta`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[93, 159)` `sha256:1360c8fd9ba8…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.am</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-9021a3624f` 許可外だが内容を除外しない transform
+- **対照（negative control）**:
+  - 拒否・安全に受理の双方が許されるため、この variant 単独に target verdict を付けない。fixture 自己検証と IIP-MD05.an の分岐材料にする
+- **参照先仕様**: `SAML2Meta`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[93, 159)` `sha256:1360c8fd9ba8…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.an</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-4364d51c2c` 子 RoleDescriptor を除外する XPath
+  - `v-2e281d1bf7` endpoint を除外する XPath
+  - `v-eb78fdd9ab` KeyDescriptor を除外する XPath
+- **対照（negative control）**:
+  - 各 transform ごとに拒否→satisfied、受理かつ除外なし→satisfied、受理かつ除外あり→violated、確認不能→not_verified
+- **参照先仕様**: `SAML2Meta`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[93, 159)` `sha256:1360c8fd9ba8…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.ao</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-7ccfb4a148` 帯域外設定鍵で検証する、ds:KeyInfo なしの署名済み metadata
+- **対照（negative control）**:
+  - IIP-MD03.b の out-of-band key と組み合わせる。KeyInfo 必須の parser を検出する
+- **参照先仕様**: `SAML2Meta`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[93, 159)` `sha256:1360c8fd9ba8…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.ap</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-db2c59ac0f` parent が短い validUntil
+  - `v-cf720fdef9` child が短い validUntil
+  - `v-b61d48c280` parent が短い cacheDuration
+  - `v-39936c3e0f` child が短い cacheDuration
+- **対照（negative control）**:
+  - E76 の MAY は publisher が子に短い値を置く許可。consumer が長い方を採用してよいという意味ではない
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `SAML2Meta`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[93, 159)` `sha256:1360c8fd9ba8…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.aq</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-13b09f5a56` 取得時刻 + cacheDuration の直前/直後
+  - `v-b29f8ae3ad` parent cacheDuration が child より短い
+- **対照（negative control）**:
+  - cache expiration と metadata invalidity を混同しない。refresh 失敗だけで invalid と判定することは本義務の要求ではない
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `SAML2Meta`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[93, 159)` `sha256:1360c8fd9ba8…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.ar</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-3763db2752` root validUntil 到達
+  - `v-33acc6f77d` より早い parent validUntil 到達
+  - `v-5e576b90ef` より早い child validUntil 到達
+- **対照（negative control）**:
+  - 合理的 clock skew は IIP-G01 に従う
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `SAML2Meta`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[93, 159)` `sha256:1360c8fd9ba8…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.as</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-757c943d4d` 期限切れ metadata の endpoint / signing key / encryption key を使わない
+- **対照（negative control）**:
+  - 単に cacheDuration を過ぎただけの stale metadata は invalid ではない。IIP-MD05.at の MAY と対にする
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `SAML2Meta`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[93, 159)` `sha256:1360c8fd9ba8…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.at</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-0d5993de28` cacheDuration 経過・validUntil 未到達・refresh 一時失敗
+- **対照（negative control）**:
+  - 使用継続と停止の双方が許される。target verdict を一意に付けず、cache expiry を invalidity と誤って同一視する別判定の対照に使う
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `SAML2Meta`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[93, 159)` `sha256:1360c8fd9ba8…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.au</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-cbc06d216a` request と response の両方がある endpoint + ResponseLocation 省略
+  - `v-1212ffde98` ResponseLocation を明示した対照
+- **対照（negative control）**:
+  - 原文は『may be assumed』なので capability permission を MUST に引き上げない。単一 message direction の endpoint では ResponseLocation 自体が unused（IIP-MD05.ab）
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `SAML2Meta`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[93, 159)` `sha256:1360c8fd9ba8…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.av</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-78ad616eec` 最初の isDefault=true
+  - `v-09dd1e2625` true なしなら最初の isDefault 省略
+  - `v-f320752ac6` 省略なしならsequence先頭
+  - `v-38b0873649` 同じ親・同じ element name 内の index 重複 negative control
+- **対照（negative control）**:
+  - AssertionConsumerService と ArtifactResolutionService を1集合に混ぜない。E37 に従い element name + namespace ごとに評価する
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `SAML2Meta`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[93, 159)` `sha256:1360c8fd9ba8…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.aw</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-43cabe9b1e` use=signing で XML署名
+  - `v-9a67d14603` use=signing で TLS
+  - `v-cbed006395` use=encryption で鍵 wrapping
+  - `v-ce7334fef8` use 省略で署名/TLS と暗号の双方
+- **対照（negative control）**:
+  - use=signing を XML signature だけに狭めない。use=encryption を data encryption algorithm 自体の宣言と取り違えない
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `SAML2Meta`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[93, 159)` `sha256:1360c8fd9ba8…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
 
 </details>
@@ -443,10 +974,24 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 <details><summary><code>IIP-MD05.b</code> の詳細</summary>
 
 - **必要な variant**:
-  - `v-9fe94830c4` スキーマ上の任意要素を含む variant
+  - `v-0c4c0fe432` EntityDescriptor と、EntityDescriptor / EntitiesDescriptor を混在して再帰的に含む EntitiesDescriptor
+  - `v-f8d9cf4233` 標準 6 role descriptor と RoleDescriptor 派生型、AffiliationDescriptor の排他的な構造
+  - `v-f143f38d1d` Organization（多言語 Name / DisplayName / URL）と ContactPerson（全 contactType、複数 email / telephone）
+  - `v-94874b0a02` AdditionalMetadataLocation、非 SAML 名前空間の要素・属性拡張
+  - `v-e0c7d50e09` KeyDescriptor（use 省略 / signing / encryption、複数 EncryptionMethod）
+  - `v-730663e073` SSO 共通 endpoint 群と NameIDFormat
+  - `v-e09997bc3f` IDPSSODescriptor の全任意要素・WantAuthnRequestsSigned
+  - `v-c3210bc1c6` SPSSODescriptor の複数 AssertionConsumerService、AuthnRequestsSigned / WantAssertionsSigned
+  - `v-891fd2dd36` AttributeConsumingService（複数言語 ServiceName / Description、複数 RequestedAttribute、isRequired）
+  - `v-48632ef1c2` AuthnAuthority / PDP / AttributeAuthority の必須 endpoint と全任意子要素
+  - `v-cc28b3d674` AffiliationDescriptor の複数 AffiliateMember / KeyDescriptor
+  - `v-f1ec50873f` EndpointType の Binding / Location / ResponseLocation / 拡張と IndexedEndpointType の index / isDefault
+  - `v-c57bfd8b53` entityIDType の 1024 文字境界、localizedNameType / localizedURIType の必須 xml:lang
+- **対照（negative control）**:
+  - 任意要素を 1 種だけ含む smoke test にしない。全 global element family と choice の両側を fixture inventory で網羅する
+  - schema-invalid fixture を対照に置き、未知拡張を全拒否する実装とスキーマ検証をしない実装の両方を検出する
 - **設定不能時の意味**: `test_precondition`
 - **参照先仕様**: `SAML2MD-xsd`
-- ⚠ **未解決**: 参照仕様 SAML2MD-xsd の該当節を読んで規範内容を分解する。スキーマの任意要素・拡張点を列挙して variant にする
 - **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[160, 199)` `sha256:7843eb17ece7…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
 
@@ -455,10 +1000,206 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 <details><summary><code>IIP-MD05.c</code> の詳細</summary>
 
 - **必要な variant**:
-  - `v-8487f69009` MDIOP に沿った鍵記述
+  - `v-dd8bea067e` EntityDescriptor / EntitiesDescriptor の双方を root とする MDIOP metadata
+  - `v-070df4c115` KeyValue のみ、X509Certificate のみ、両方が同一鍵を表す KeyDescriptor
+  - `v-f345d335ef` signing / encryption / use 省略の KeyDescriptor と、同一用途の複数鍵
+  - `v-e5f01904c6` 期限切れ・not-yet-valid・任意 subject / issuer / extension / usage flag の証明書表現
+- **対照（negative control）**:
+  - 本義務群は MDIOP に適合する表現を生成・受理できることを扱う。受理後の鍵の runtime 解釈は IIP-MD06.a 群で一度だけ判定する
+  - 証明書の各 variation は IIP-MD12.d と同じ fixture を再利用できるが、MD05.c は MDIOP 表現の消費、MD12.d は証明書内容を理由に拒否しない能力を判定する
 - **設定不能時の意味**: `test_precondition`
 - **参照先仕様**: `SAML2MDIOP`
-- ⚠ **未解決**: 参照仕様 SAML2MDIOP の該当節を読んで規範内容を分解する。鍵解決規則を分解する（IIP-MD06.a と重複する範囲の整理も必要）
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[200, 256)` `sha256:889fb918741c…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.c1</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-b721f29d19` 対象 role の endpoint / protocol / signing / encryption / transport-authentication keys を metadata だけから解決できる
+- **対照（negative control）**:
+  - metadata で表現不能な local policy は対象外。表現可能なのに別設定だけに置く実装を検出する
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `SAML2MDIOP`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[200, 256)` `sha256:889fb918741c…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.c2</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-4f331b835b` 同一 EntityDescriptor 内の第1 role / 第2 role
+  - `v-3eae65fd64` nested EntitiesDescriptor 内の各 role
+- **対照（negative control）**:
+  - 最初の role だけを検査して PASS にしない。全 role を横断する
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `SAML2MDIOP`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[200, 256)` `sha256:889fb918741c…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.c3</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-29d9d2a23d` 現在の signing key
+  - `v-7e76932109` 現在の encryption key
+  - `v-1164703d36` mutual TLS 等の transport-authentication key（使用時）
+  - `v-288a943d55` 同一用途の複数 current keys
+- **対照（negative control）**:
+  - 対象の実際の key inventory と metadata を照合する。metadata だけ見て欠落なしとは証明できないため inventory が得られなければ not_verified
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `SAML2MDIOP`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[200, 256)` `sha256:889fb918741c…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.c4</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-d91a04aba2` 現用鍵と将来鍵を同時掲載する rollover metadata
+- **対照（negative control）**:
+  - 掲載する・しないの双方が許される。将来鍵を含む valid metadata を consumer が拒否しないことの fixture として使い、publisher に一意 verdict を付けない
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `SAML2MDIOP`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[200, 256)` `sha256:889fb918741c…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.c5</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-f054f7eb43` 完了済み rollover の旧鍵 inventory と発行 metadata を照合
+- **対照（negative control）**:
+  - まだ許容移行期間中の旧鍵を WARNING にしない。移行完了時刻が確認できなければ not_verified
+- **参照先仕様**: `SAML2MDIOP`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[200, 256)` `sha256:889fb918741c…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.c6</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-88efa7ed6b` compromise と標識した test key が次回発行 metadata から消える
+- **対照（negative control）**:
+  - 実鍵を compromise させない。隔離した test fixture / instrumented inventory で実施できなければ not_verified(compromise_workflow_not_testable)
+- **参照先仕様**: `SAML2MDIOP`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[200, 256)` `sha256:889fb918741c…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.c7</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-d37cc15202` compromised key の CRL/OCSP 掲載だけで metadata から除去しない構成がない
+- **対照（negative control）**:
+  - 外部から内部 reliance を証明できなければ attestation_unavailable で not_verified。CRL が存在するだけでは violated にしない
+- **参照先仕様**: `SAML2MDIOP`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[200, 256)` `sha256:889fb918741c…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.c8</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-b2ef372156` signing key
+  - `v-c52072263f` encryption key
+  - `v-2b2a04c0ab` TLS/transport authentication key（use=signing）
+  - `v-87046506f8` use 省略（両用途）
+- **対照（negative control）**:
+  - 1 KeyDescriptor に複数の異なる鍵を入れる output を検出する。use 省略は E62 により両用途なので違反にしない
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `SAML2MDIOP`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[200, 256)` `sha256:889fb918741c…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.c9</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-31f0ad4d65` KeyValue のみ
+  - `v-57dd66ec50` X509Data/X509Certificate のみ
+  - `v-6185fdff2b` 両方
+- **対照（negative control）**:
+  - KeyName だけの KeyInfo を negative control にする
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `SAML2MDIOP`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[200, 256)` `sha256:889fb918741c…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.ca</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-de50361ba4` X509Certificate 1個
+  - `v-ffb2776b84` X509Certificate 2個の negative control
+- **対照（negative control）**:
+  - schema 自体は複数 X509Certificate を許し得るため、schema validation だけで PASS にしない
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `SAML2MDIOP`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[200, 256)` `sha256:889fb918741c…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.cb</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-b46e990020` 同一 public key の KeyValue + certificate
+  - `v-99bad6284d` 異なる鍵の negative control
+- **対照（negative control）**:
+  - 文字列表現でなく canonical public-key value を比較する
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `SAML2MDIOP`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[200, 256)` `sha256:889fb918741c…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.cc</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-058e866bdb` KeyValue または X509Certificate に KeyName / X509SubjectName / X509IssuerSerial を併記
+- **対照（negative control）**:
+  - 追加 hint があっても消費できることを見る。publisher に hint 掲載を要求しない
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `SAML2MDIOP`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[200, 256)` `sha256:889fb918741c…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.cd</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-eaee5c2e2b` KeyValue のみで KeyName なし
+  - `v-cee048d6ee` X509Certificate のみで subject/issuer hint なし
+- **対照（negative control）**:
+  - 両基本表現を個別に試す。片方だけで PASS にしない
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `SAML2MDIOP`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[200, 256)` `sha256:889fb918741c…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.ce</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-189f4dcf60` 対象が生成する X509Certificate の NotBefore / NotAfter
+- **対照（negative control）**:
+  - 期限切れ証明書も profile-valid であり、consumer は拒否してはならない（MD12.d / MD06.aj）。publisher 側だけ WARNING 対象
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `SAML2MDIOP`
 - **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[200, 256)` `sha256:889fb918741c…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
 
@@ -467,10 +1208,142 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 <details><summary><code>IIP-MD05.d</code> の詳細</summary>
 
 - **必要な variant**:
-  - `v-b1ae256c32` mdattr:EntityAttributes を含む variant
+  - `v-e298996dc4` EntityDescriptor/Extensions の EntityAttributes に直接の Attribute を複数置き、各 Attribute に複数値・未知属性を含める
+  - `v-e2953021d5` EntityDescriptor/Extensions の EntityAttributes に profile 準拠の署名済み Assertion を置く
+  - `v-25ae6f1003` EntitiesDescriptor/Extensions の EntityAttributes に直接 Attribute を置き、全子 EntityDescriptor に束縛されることを利用する
+  - `v-da6f3bc48d` Conditions 等、Assertion profile が許す追加内容を含む
+- **対照（negative control）**:
+  - 拡張要素を無視して metadata 全体を受理しただけでは PASS にしない。属性を policy / discovery 等の read-back 経路で利用した証拠を得る
 - **設定不能時の意味**: `test_precondition`
 - **参照先仕様**: `MetaAttr`
-- ⚠ **未解決**: 参照仕様 MetaAttr の該当節を読んで規範内容を分解する。EntityAttributes の構造（複数属性・複数値・未知属性）を variant にする
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[257, 318)` `sha256:2dfa8c656abb…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.d1</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-3f01f41a53` 有効な署名・Conditions を持つ attribute assertion
+  - `v-eb4451bbd4` 署名不正 / 期限切れ Conditions の negative control
+- **対照（negative control）**:
+  - assertion の属性を読めるだけでなく、署名・Conditions 等の standard processing を行うことを確認する
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `MetaAttr`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[257, 318)` `sha256:2dfa8c656abb…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.d2</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-ac40c02178` EntitiesDescriptor + direct Attribute（valid）
+  - `v-80a2da2696` EntitiesDescriptor + Assertion（invalid）
+- **対照（negative control）**:
+  - EntityDescriptor scope では Assertion が許される。全 context で禁止しない
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `MetaAttr`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[257, 318)` `sha256:2dfa8c656abb…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.d3</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-2bc5b1c612` EntityAttributes 1個
+  - `v-0827ee7e0d` 同じ Extensions に2個の negative control
+- **対照（negative control）**:
+  - 別々の EntityDescriptor に1個ずつ置くことは許される
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `MetaAttr`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[257, 318)` `sha256:2dfa8c656abb…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.d4</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-6e85cc0870` Format=urn:oasis:names:tc:SAML:2.0:nameid-format:entity
+  - `v-4087483847` NameQualifier が enclosing EntityDescriptor/@entityID と一致
+- **対照（negative control）**:
+  - NameID の文字内容ではなく qualifier と enclosing entity の対応を検査する
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `MetaAttr`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[257, 318)` `sha256:2dfa8c656abb…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.d5</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-c1429b61a5` SubjectConfirmation なしの valid assertion
+  - `v-0a06d00dff` bearer / holder-of-key SubjectConfirmation の negative control
+- **対照（negative control）**:
+  - 両 Method を試し、特定 Method だけを弾く実装を見逃さない
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `MetaAttr`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[257, 318)` `sha256:2dfa8c656abb…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.d6</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-5f7ba0ed06` AttributeStatement 1個
+  - `v-9088b48f00` 0個 / 2個の negative control
+- **対照（negative control）**:
+  - AttributeStatement 内の Attribute / AttributeValue は複数を許容する
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `MetaAttr`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[257, 318)` `sha256:2dfa8c656abb…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.d7</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-7f421a554a` AuthnStatement
+  - `v-50938938ac` AuthzDecisionStatement
+  - `v-a6d4032bad` 未知の Statement 派生型
+- **対照（negative control）**:
+  - Conditions / Advice 等は statement ではなく MAY で許容されるため拒否理由にしない
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `MetaAttr`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[257, 318)` `sha256:2dfa8c656abb…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.d8</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-5f37e9f45a` Assertion 自身の署名 + 親 metadata 署名
+  - `v-032acfdee7` 親だけ署名した negative control
+- **対照（negative control）**:
+  - 親署名の有無にかかわらず Assertion 自身の ds:Signature を確認する
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `MetaAttr`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[257, 318)` `sha256:2dfa8c656abb…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.d9</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-538de5bcd1` Conditions
+  - `v-6fd223051d` Advice
+  - `v-7384a2d125` Issuer 等の標準 content
+- **対照（negative control）**:
+  - 全て受理できる能力を親 MUST の fixture で確認する。publisher に optional content の出力を要求しない
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `MetaAttr`
 - **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[257, 318)` `sha256:2dfa8c656abb…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
 
@@ -479,10 +1352,170 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 <details><summary><code>IIP-MD05.e</code> の詳細</summary>
 
 - **必要な variant**:
-  - `v-1bfe5128d6` alg:DigestMethod / alg:SigningMethod を含む variant
+  - `v-287ee97a97` EntityDescriptor level と role level の DigestMethod / SigningMethod
+  - `v-dfae7030a6` SigningMethod の MinKeySize / MaxKeySize と任意 algorithm-specific extension
+  - `v-7ee52e9262` KeyDescriptor の複数 EncryptionMethod（block/stream、key transport/agreement、KeySize、任意 algorithm-specific content）
+  - `v-c03c76b1d1` 各 algorithm type が欠落した metadata（欠落を非対応と解釈しない）
+- **対照（negative control）**:
+  - extension を XML として読めるだけで PASS にしない。対象が実際に選択した algorithm と metadata の優先順・intersection を照合する
+  - ある algorithm type の要素が存在しないことは『非対応』ではなく情報なしを意味する。欠落時は consumer 自身が対応する任意 algorithm を選べる
 - **設定不能時の意味**: `test_precondition`
 - **参照先仕様**: `SAML2MetaAlgSup`
-- ⚠ **未解決**: 参照仕様 SAML2MetaAlgSup の該当節を読んで規範内容を分解する。alg:DigestMethod / SigningMethod / EncryptionMethod の配置規則を分解する
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[319, 387)` `sha256:c5226e0be20d…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.e1</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-a3e7c8b021` Block/Stream EncryptionMethod
+  - `v-f1aa3a6f82` Key Transport/Key Agreement EncryptionMethod
+- **対照（negative control）**:
+  - 原文は各 category の少なくとも1つを求める。個別 algorithm の全列挙を要求しない
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `SAML2MetaAlgSup`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[319, 387)` `sha256:c5226e0be20d…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.e2</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-7125c6f168` RSA key + RSA-OAEP
+  - `v-5682b897a8` EC key + compatible key agreement
+  - `v-4bcea24b9b` RSA key + EC-only algorithm の negative control
+- **対照（negative control）**:
+  - algorithm URI の存在だけでなく key type / size / parameters と照合する
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `SAML2MetaAlgSup`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[319, 387)` `sha256:c5226e0be20d…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.e3</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-33f8fced7b` shared-secret / password を表す KeyDescriptor と Block/Stream EncryptionMethod
+- **対照（negative control）**:
+  - 対象が symmetric-key KeyDescriptor を生成・消費しない Run は satisfied_with_note。非対称 key にこの義務を課さない
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `SAML2MetaAlgSup`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[319, 387)` `sha256:c5226e0be20d…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.e4</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-0d1cc7296c` block/stream
+  - `v-f2326bb9ef` key transport
+  - `v-f0296809bc` key agreement の各 EncryptionMethod
+- **対照（negative control）**:
+  - schema validation と semantic use の両方を確認する
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `SAML2MetaAlgSup`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[319, 387)` `sha256:c5226e0be20d…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.e5</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-84865ad4a2` 同じ type の2 algorithm を順序入替し、対象の選択が先頭に追従する
+- **対照（negative control）**:
+  - 1 algorithm だけなら satisfied_with_note。強度順を Samlier が独自に決めず、publisher の列挙順を preference として扱う
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `SAML2MetaAlgSup`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[319, 387)` `sha256:c5226e0be20d…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.e6</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-a09ce571d8` EntityDescriptor level または role level（または双方）の少なくとも一方に DigestMethod と SigningMethod の双方を掲載
+- **対照（negative control）**:
+  - 原文の and/or を level ごとの required variant に分けない。G2 で連言化すると、EntityDescriptor level だけに正しく掲載する実装を WARNING にしてしまう
+  - 本 SHOULD は publisher 側。要素欠落時に consumer が『非対応』と解釈してはならない規則は親 IIP-MD05.e で別に確認する
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `SAML2MetaAlgSup`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[319, 387)` `sha256:c5226e0be20d…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.e7</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-230381cead` DigestMethod 2個の順序
+  - `v-fc2a1fc71c` SigningMethod 2個の順序
+- **対照（negative control）**:
+  - 両 element type を個別に試す
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `SAML2MetaAlgSup`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[319, 387)` `sha256:c5226e0be20d…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.e8</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-68d4430af5` signature algorithm intersection
+  - `v-e17ab3d848` digest algorithm intersection
+  - `v-0757d67517` encryption algorithm intersection
+  - `v-dffb3c2b60` key-size / algorithm-specific parameter intersection
+- **対照（negative control）**:
+  - peer knowledge を使わない operation は scope 外で satisfied_with_note。local support だけで選び peer metadata を無視する実装を検出する
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `SAML2MetaAlgSup`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[319, 387)` `sha256:c5226e0be20d…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.e9</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-217108390d` 先頭が非対応・2番目が対応
+  - `v-f0b5bf5bab` 先頭と2番目の双方が対応
+- **対照（negative control）**:
+  - 全て非対応の場合は local policy に従う failure でよい。無条件に先頭を使う実装を PASS にしない
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `SAML2MetaAlgSup`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[319, 387)` `sha256:c5226e0be20d…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.ea</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-b2e2d67b85` 対応順 A,B と B,A を入れ替え、選択も入れ替わる
+- **対照（negative control）**:
+  - subject to local policy である。local policy が先頭 algorithm を禁止する場合は次の許可 algorithm 選択を violated にしない
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `SAML2MetaAlgSup`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[319, 387)` `sha256:c5226e0be20d…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.eb</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-b725b4730b` EntityDescriptor と role の DigestMethod が競合
+  - `v-118821431b` EntityDescriptor と role の SigningMethod が競合
+- **対照（negative control）**:
+  - role に当該 type が存在する場合だけ entity-level 同 type を無視する。DigestMethod だけ role にある場合、SigningMethod の entity-level 情報まで消さない
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `SAML2MetaAlgSup`
 - **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[319, 387)` `sha256:c5226e0be20d…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
 
@@ -491,10 +1524,276 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 <details><summary><code>IIP-MD05.f</code> の詳細</summary>
 
 - **必要な variant**:
-  - `v-c57012a3f1` mdui:UIInfo を含む variant
+  - `v-ad6fc4430f` UIInfo の DisplayName / Description / Keywords / Logo / InformationURL / PrivacyStatementURL を全て含む多言語 metadata
+  - `v-d153d14cea` UIInfo 内の未知名前空間 extension
+  - `v-3da59d7a3d` DiscoHints の IPv4 CIDR / IPv6 CIDR / DomainHint / geo URI と未知名前空間 extension
+  - `v-2c662c3d9c` 同じ種類を異なる xml:lang で複数含む
+- **対照（negative control）**:
+  - extension を無視して metadata 全体を受理しただけでは PASS にしない。対象の discovery / login UI または read-back 面で値が利用可能であることを確認する
 - **設定不能時の意味**: `test_precondition`
 - **参照先仕様**: `MetaUi`
-- ⚠ **未解決**: 参照仕様 MetaUi の該当節を読んで規範内容を分解する。mdui:UIInfo / mdui:DiscoHints の要素を列挙して variant にする
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[388, 465)` `sha256:62b5f48cfcc2…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.f1</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-8b5611a25b` IDPSSODescriptor/Extensions
+  - `v-3ed7c655aa` SPSSODescriptor/Extensions
+  - `v-03e6635d5d` EntityDescriptor/Extensions の invalid control
+- **対照（negative control）**:
+  - UIInfo の出力自体は任意。観測された各 UIInfo の placement を検査し、0件なら satisfied_with_note
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `MetaUi`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[388, 465)` `sha256:62b5f48cfcc2…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.f2</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-730af11720` 各標準 child を1個含む
+  - `v-3736fecf4a` 未知 namespace extension だけを1個含む
+  - `v-749dd84ca7` 空 UIInfo の invalid control
+- **対照（negative control）**:
+  - schema の choice minOccurs=0 だけを見て空を許容しない。本文の MUST が優先する
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `MetaUi`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[388, 465)` `sha256:62b5f48cfcc2…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.f3</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-f31c89d623` UIInfo 1個
+  - `v-76d78f959c` 同じ Extensions に2個の invalid control
+- **対照（negative control）**:
+  - 別 role に1個ずつ置くことは許される
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `MetaUi`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[388, 465)` `sha256:62b5f48cfcc2…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.f4</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-04ced06b0f` DisplayName
+  - `v-76a7ab58cb` Description
+  - `v-031866c9a2` Keywords
+  - `v-4b17fd9580` InformationURL
+  - `v-fd200afe0e` PrivacyStatementURL の同言語重複
+- **対照（negative control）**:
+  - 5 element type を個別に試す。異なる element type が同じ xml:lang を持つことは許される
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `MetaUi`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[388, 465)` `sha256:62b5f48cfcc2…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.f5</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-0fdd856d91` 完全な説明文
+  - `v-1deeb6b353` This service offers $description のような placeholder を含む invalid output
+- **対照（negative control）**:
+  - 自然言語内容の妥当性は完全自動判定しない。明示 placeholder は検出し、曖昧なら not_verified(description_standalone_undetermined)
+- **参照先仕様**: `MetaUi`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[388, 465)` `sha256:62b5f48cfcc2…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.f6</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-12174eebb4` 対象 SP が発行する mdui:Description の内容
+- **対照（negative control）**:
+  - Description を発行しない Run は satisfied_with_note。Organization の説明だけを service description と同一視しない
+- **参照先仕様**: `MetaUi`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[388, 465)` `sha256:62b5f48cfcc2…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.f7</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-90b45cafb0` 対象 IdP が発行する mdui:Description の内容
+- **対照（negative control）**:
+  - Description を発行しない Run は satisfied_with_note。内容が判定不能なら not_verified
+- **参照先仕様**: `MetaUi`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[388, 465)` `sha256:62b5f48cfcc2…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.f8</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-0ba8308b50` appropriate な透明背景
+  - `v-b6d0cd9ba1` PNG または GIF
+  - `v-371110f8d4` HTTPS URL
+- **対照（negative control）**:
+  - 原文の1つの SHOULD に属する3項目。対象が Logo を発行しない Run は satisfied_with_note。『appropriate』を機械的な絶対条件にしない
+- **参照先仕様**: `MetaUi`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[388, 465)` `sha256:62b5f48cfcc2…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.f9</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-dea71420ee` preferred language あり
+  - `v-8f62b50608` preferred language なし + xml:lang なし fallback
+- **対照（negative control）**:
+  - consumer が logo を表示しない Run は satisfied_with_note。任意の logo を選べる一般 MAY と、fallback SHOULD を混同しない
+- **参照先仕様**: `MetaUi`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[388, 465)` `sha256:62b5f48cfcc2…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.fa</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-a12ec9f340` Description と InformationURL の取得 content を比較
+- **対照（negative control）**:
+  - URL が到達不能または内容比較が不可能なら not_verified。URL 不在は satisfied_with_note
+- **参照先仕様**: `MetaUi`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[388, 465)` `sha256:62b5f48cfcc2…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.fb</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-bc96509dee` IPHint だけが一致
+  - `v-62eb4fde1f` DomainHint だけが一致
+  - `v-3f83a60f4c` GeolocationHint だけが一致
+- **対照（negative control）**:
+  - 各 hint type で user selection/confirmation が残ることを見る。対象に discovery UI がなければ satisfied_with_note
+- **参照先仕様**: `MetaUi`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[388, 465)` `sha256:62b5f48cfcc2…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.fc</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-6869a8d502` IDPSSODescriptor/Extensions
+  - `v-0fa4ebd855` SPSSODescriptor/Extensions / EntityDescriptor/Extensions の invalid control
+- **対照（negative control）**:
+  - DiscoHints の出力自体は任意。観測された各 DiscoHints の placement を検査し、0件なら satisfied_with_note
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `MetaUi`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[388, 465)` `sha256:62b5f48cfcc2…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.fd</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-84e647f016` IPHint / DomainHint / GeolocationHint
+  - `v-9e6c5430d1` 未知 namespace extension だけ
+  - `v-e31ca92386` 空 DiscoHints の invalid control
+- **対照（negative control）**:
+  - schema の choice minOccurs=0 だけを見て空を許容しない
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `MetaUi`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[388, 465)` `sha256:62b5f48cfcc2…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.fe</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-253f9c089d` DiscoHints 1個
+  - `v-08b4358cba` 同じ Extensions に2個の invalid control
+- **対照（negative control）**:
+  - 別 IdP role に1個ずつ置くことは許される
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `MetaUi`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[388, 465)` `sha256:62b5f48cfcc2…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.ff</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-b585406ac3` 192.0.2.0/24
+  - `v-03de6977e2` 2001:db8::/32
+- **対照（negative control）**:
+  - 両 address family を個別に試す。IPv4 だけで PASS にしない
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `MetaUi`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[388, 465)` `sha256:62b5f48cfcc2…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.fg</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-705f9b8317` Logo data/http URL の script-capable payload
+  - `v-b817179685` InformationURL / PrivacyStatementURL の quote・angle bracket・javascript-like payload
+- **対照（negative control）**:
+  - URL を単に保存する parser ではなく、UI に使用した時だけ実行時 scope。実行しない Run は satisfied_with_note
+- **参照先仕様**: `MetaUi`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[388, 465)` `sha256:62b5f48cfcc2…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.fh</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-f2ecd531e3` https
+  - `v-c23b13d16d` http
+  - `v-31528ff2d4` data
+  - `v-de283f3ab6` javascript / file の negative control
+- **対照（negative control）**:
+  - data scheme は原文が明示的に許すため一律拒否を要求しない。consumer が URL を利用しない Run は satisfied_with_note
+- **参照先仕様**: `MetaUi`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[388, 465)` `sha256:62b5f48cfcc2…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.fi</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-2436aa9236` 対象が生成する Logo / InformationURL / PrivacyStatementURL
+- **対照（negative control）**:
+  - http/data は IIP-MD05.fh の許容 scheme だが本義務では WARNING 対象になり得る。禁止と推奨を混同しない
+- **参照先仕様**: `MetaUi`
+- **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[388, 465)` `sha256:62b5f48cfcc2…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD05.fj</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-257ef28bad` 3候補すべて存在
+  - `v-460117de9a` DisplayName 欠落
+  - `v-510684449a` DisplayName / ServiceName 欠落
+- **対照（negative control）**:
+  - display name に依存しない implementation は satisfied_with_note。OrganizationDisplayName の optional migration support を必須にしない
+- **参照先仕様**: `MetaUi`
 - **source_clauses**: `[0, 92)` `sha256:7dfacaaae6f1…` , `[388, 465)` `sha256:62b5f48cfcc2…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
 
@@ -520,17 +1819,191 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 | 義務 | Level | Role | Testability | 条件 | Core/Full | 要約 |
 |---|---|---|---|---|---|---|
 | `IIP-MD06.a` | MUST | idp/sp | `CONFIG` | — | core | Metadata Interoperability Profile に従ってメタデータを解釈・適用する |
+| `IIP-MD06.a1` | MUST | idp/sp | `CONFIG` | — | core | consumer は EntityDescriptor / EntitiesDescriptor の両 root と全 nested entity を処理する |
+| `IIP-MD06.a2` | MUST | idp/sp | `CONFIG` | — | core | 各 KeyDescriptor の鍵を containing role の context で valid として扱う |
+| `IIP-MD06.a3` | MUST | idp/sp | `CONFIG` | — | core | role の signing key で検証できる署名・transport session を valid として扱う |
+| `IIP-MD06.a4` | MAY | idp/sp | `CONFIG` | — | full | metadata の encryption key を containing entity 宛の暗号化に使用してよい |
+| `IIP-MD06.a5` | MUST_NOT | idp/sp | `CONFIG` | — | core | metadata 受理後、鍵の acceptance / runtime validity に追加条件を課してはならない |
+| `IIP-MD06.a6` | MUST_NOT | idp/sp | `CONFIG` | — | core | 受理済み metadata key に PKIX path validation / CRL / OCSP 等を適用してはならない |
+| `IIP-MD06.a7` | MUST | idp/sp | `CONFIG` | — | core | consumer は KeyValue と X509Certificate の KeyInfo 表現の双方に対応する |
+| `IIP-MD06.a8` | MUST | idp/sp | `CONFIG` | — | core | consumer は X509Certificate 表現から public key を抽出する |
+| `IIP-MD06.a9` | MUST_NOT | idp/sp | `CONFIG` | — | core | consumer は鍵識別の補助以外に certificate の public key 外情報を解釈・利用してはならない |
+| `IIP-MD06.aa` | MAY | idp/sp | `CONFIG` | — | full | TLS server authentication では server certificate name check を維持してよい |
+| `IIP-MD06.ab` | MUST | idp/sp | `CONFIG` | — | core | 受理した metadata は supersede されるまで operational behavior 上 true として扱う |
 | `IIP-MD06.b` | MUST | idp/sp | `CONFIG` | — | core | メタデータが利用可能な任意数の SAML ピアと、追加入力・個別設定なしで相互運用できる |
 | `IIP-MD06.c` | MUST | idp/sp | `ATTESTED` | — | core | メタデータのみから署名・暗号処理の規則を導出でき、追加の信頼要件を課されない |
 
 <details><summary><code>IIP-MD06.a</code> の詳細</summary>
 
 - **必要な variant**:
-  - `v-36f04a6457` MDIOP の鍵解決規則に従うか（PKIX 検証を課していないか）
+  - `v-b7adfe0cd0` 受理した metadata だけで endpoint・binding・鍵・profile support を provision する
+- **対照（negative control）**:
+  - metadata が表せない local policy の存在は違反にしない。metadata が表す情報に追加の trust requirement を課す経路を検出する
+  - 追加の peer 固有設定なしで default policy の範囲で相互運用する義務は、IIP-MD06.b の明示文で一度だけ判定する
+  - 本義務群は受理後の解釈・適用だけを扱う。MDIOP-shaped XML の構造受理は IIP-MD05.c 群で判定する
 - **設定不能時の意味**: `test_precondition`
 - **参照先仕様**: `SAML2MDIOP`
-- **注記**: trust store に関する記述（As an example, a separate trust store must not be required…）はイタリック＝非規範。義務にしない。
-- ⚠ **未解決**: 参照仕様 SAML2MDIOP の該当節を読んで規範内容を分解する。「解釈と適用」の規範内容を分解する。証明書の扱いは MD12.d と重複しないよう整理する
+- **注記**: trust store に関する IIP の例示段落（As an example ...）はイタリック＝非規範なので独立義務にしない。ただし MDIOP §2.6 自身の大文字 MUST / MUST NOT は IIP-MD06.a の参照取り込みとして規範。
+- **source_clauses**: `[0, 151)` `sha256:85cd4426cdc6…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD06.a1</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-5bee9ee17d` EntityDescriptor root
+  - `v-eec93d57ae` EntitiesDescriptor root
+  - `v-92a935b647` 2段以上 nested EntitiesDescriptor の各 EntityDescriptor
+- **対照（negative control）**:
+  - IIP-MD02.c/.d と fixture を共有できるが、本義務は MDIOP 解釈を各 nested entity に適用したことを endpoint / key use で確認する
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `SAML2MDIOP`
+- **source_clauses**: `[0, 151)` `sha256:85cd4426cdc6…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD06.a2</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-edfd31e0af` 同じ entity の role A / role B に異なる鍵
+  - `v-52f6a08b4b` use=signing / encryption / omitted
+- **対照（negative control）**:
+  - role A の鍵を role B へ越境させず、role A では追加 PKIX 条件なしに利用する。valid の意味を全 role 共通 trust に広げない
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `SAML2MDIOP`
+- **source_clauses**: `[0, 151)` `sha256:85cd4426cdc6…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD06.a3</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-a0716aee94` XML signature
+  - `v-db467340b5` TLS server authentication
+  - `v-dab570050c` mutual TLS peer authentication（使用時）
+- **対照（negative control）**:
+  - TLS を使わない target は TLS variant が satisfied_with_note。XML signature と TLS を選言にせず、実際に使用する各 path を検査する
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `SAML2MDIOP`
+- **source_clauses**: `[0, 151)` `sha256:85cd4426cdc6…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD06.a4</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-a7c8174963` Assertion / NameID / Attribute / data-encryption key の暗号化に metadata key を使用
+- **対照（negative control）**:
+  - 使用しない local policy も適合。受理できる能力は IIP-MD07 / MD08 等の強い義務で別に判定する
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `SAML2MDIOP`
+- **source_clauses**: `[0, 151)` `sha256:85cd4426cdc6…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD06.a5</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-6686262764` metadata key と runtime key の値が一致するが certificate serial / issuer / validity / usage が異なる
+  - `v-8752a0fdc5` KeyValue 表現
+- **対照（negative control）**:
+  - metadata 受理前の trust establishment は scope 外。受理後の runtime key comparison に限定する
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `SAML2MDIOP`
+- **source_clauses**: `[0, 151)` `sha256:85cd4426cdc6…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD06.a6</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-8edb69fd14` 未知 CA
+  - `v-30fa0854b6` 失効済み certificate
+  - `v-3669c27472` CRL/OCSP 到達不能
+  - `v-47ba8f587f` critical extension
+- **対照（negative control）**:
+  - IIP-MD12.d と同じ certificate fixture を再利用する。ここでは runtime key acceptance の追加検査を判定し、同じ失敗を2件の独立原因として誇張表示しない
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `SAML2MDIOP`
+- **source_clauses**: `[0, 151)` `sha256:85cd4426cdc6…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD06.a7</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-50a3c25b37` ds:KeyValue
+  - `v-6544cef276` ds:X509Data/ds:X509Certificate
+- **対照（negative control）**:
+  - 両形式を個別に試す。片方だけで PASS にしない
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `SAML2MDIOP`
+- **source_clauses**: `[0, 151)` `sha256:85cd4426cdc6…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD06.a8</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-007d7a87d1` metadata certificate と runtime certificate は異なるが public key は同じ
+  - `v-7fb736e15d` 同じ subject/issuer だが public key は異なる negative control
+- **対照（negative control）**:
+  - certificate object equality ではなく SubjectPublicKeyInfo 相当の鍵値比較を証明する
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `SAML2MDIOP`
+- **source_clauses**: `[0, 151)` `sha256:85cd4426cdc6…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD06.a9</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-df054c6206` 期限切れ / not-yet-valid
+  - `v-7d71adfa4c` 任意 subject / issuer
+  - `v-a1ec7f69cb` critical / non-critical extension
+  - `v-fa7e5a922c` KeyUsage / ExtendedKeyUsage
+- **対照（negative control）**:
+  - IIP-MD12.d と observation を共有するが、こちらは MDIOP runtime interpretation。証明書情報を key candidate の照合 hint として使うこと自体は許される
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `SAML2MDIOP`
+- **source_clauses**: `[0, 151)` `sha256:85cd4426cdc6…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD06.aa</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-2eab5d8361` 同一 public key + hostname 一致
+  - `v-0026c55279` 同一 public key + hostname 不一致
+- **対照（negative control）**:
+  - hostname 不一致を拒否する・しないの双方が許されるため一意 verdict を付けない。metadata certificate 自体の subject name validation に拡張しない
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `SAML2MDIOP`
+- **source_clauses**: `[0, 151)` `sha256:85cd4426cdc6…`
+- **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
+
+</details>
+
+<details><summary><code>IIP-MD06.ab</code> の詳細</summary>
+
+- **必要な variant**:
+  - `v-26db3ebc2f` 受理済み endpoint / binding / key / profile support を実際の処理に反映
+  - `v-0c92297fe8` 新しい metadata で同じ entity の値を変更し旧情報を置換
+- **対照（negative control）**:
+  - metadata の trust 検証が完了する前は scope 外。明示的に受理した後だけ評価する
+  - 新旧 metadata を併合して conflict する旧 endpoint / key を残し続ける実装を検出する。ただし rollover として新旧鍵が同時掲載された場合は両方を保持する
+- **設定不能時の意味**: `test_precondition`
+- **参照先仕様**: `SAML2MDIOP`
 - **source_clauses**: `[0, 151)` `sha256:85cd4426cdc6…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
 
@@ -7252,9 +8725,9 @@ https://kantarainitiative.github.io/SAMLprofiles/fedinterop.html
 
 ```
 g1_state       : PENDING_REVIEW
-obligations    : 446
-未承認         : 446
-未解決 open Q  : 7 ['IIP-MD05.a', 'IIP-MD05.b', 'IIP-MD05.c', 'IIP-MD05.d', 'IIP-MD05.e', 'IIP-MD05.f', 'IIP-MD06.a']
+obligations    : 542
+未承認         : 542
+未解決 open Q  : 0
 ```
 
 作成者は `reviewer` / `approved_at` を埋めていません。
