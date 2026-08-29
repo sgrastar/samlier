@@ -63,6 +63,7 @@ val releasePolicyUnitTest = tasks.register<Exec>("releasePolicyUnitTest") {
     commandLine(
         python.get(), "-m", "unittest",
         "tools/tests/test_release_check.py", "dev/keycloak/test_smoke.py",
+        "dev/keycloak/test_prepare_smoke_apple.py",
     )
 }
 

@@ -60,10 +60,10 @@ public final class ApprovedBrowserCaseRegistry {
         var value = new StringBuilder()
                 .append("Use a real browser as the SAML user agent for approved case ")
                 .append(definition.id())
-                .append(". Complete every applicable instruction and required control before marking the browser step complete.\n\nInstructions:\n");
+                .append(". Complete every applicable target instruction before marking the browser step complete.\n\nInstructions:\n");
         definition.variantPlan().forEach(item -> value.append("- ").append(item.instructionEn()).append('\n'));
-        value.append("\nRequired controls:\n");
-        definition.controls().forEach(item -> value.append("- ").append(item.descriptionEn()).append('\n'));
+        // G2 controls prove the Suite's oracle against baseline and mutant fixtures. They are not
+        // additional actions to perform against the real target represented by this Run.
         return value.toString();
     }
 

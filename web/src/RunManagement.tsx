@@ -1,7 +1,11 @@
 import { FormEvent, useEffect, useState } from 'react'
 import { api, type PendingInteraction, type Plan } from './api'
 
-export function RunManagement({ runId, csrfToken }: { runId: string; csrfToken?: string }) {
+export function RunManagement({ runId, csrfToken, focusCaseId }: {
+  runId: string
+  csrfToken?: string
+  focusCaseId?: string
+}) {
   const [interactions, setInteractions] = useState<PendingInteraction[]>([])
   const [error, setError] = useState('')
   const [busy, setBusy] = useState('')
@@ -10,6 +14,9 @@ export function RunManagement({ runId, csrfToken }: { runId: string; csrfToken?:
   const [plan, setPlan] = useState<Plan>()
   const [notice, setNotice] = useState('')
   const [mode, setMode] = useState<'selfhosted' | 'hosted'>('selfhosted')
+  const visibleInteractions = focusCaseId
+    ? interactions.filter(interaction => interaction.caseId === focusCaseId)
+    : interactions
 
   const refresh = async () => {
     const [nextInteractions, run, plans, health] = await Promise.all([
@@ -176,8 +183,11 @@ export function RunManagement({ runId, csrfToken }: { runId: string; csrfToken?:
       <a className="button" href={`/p/${plan.plan.id}/start/m0-roundtrip?run=${runId}`}>Start IdP round trip</a>
     </div>}
     {plan && profile.startsWith('SP') && <p>Start login at the target SP after importing the Test Peer metadata.</p>}
-    {interactions.length === 0 ? <p className="quiet-success">No pending interactions.</p> :
-      <div className="interaction-list">{interactions.map(interaction => <article key={interaction.caseId} className="interaction">
+    {focusCaseId && <div className="actions"><a className="button" href={`/manage/${runId}`}>Back to Run management</a></div>}
+    {visibleInteractions.length === 0 ? <p className="quiet-success">
+      {focusCaseId ? `No pending interaction for ${focusCaseId}.` : 'No pending interactions.'}
+    </p> :
+      <div className="interaction-list">{visibleInteractions.map(interaction => <article key={interaction.caseId} className="interaction">
         <header><strong>{interaction.caseId}</strong><span>{interaction.kind}</span></header>
         {interaction.promptEn && <pre>{resolvePrompt(interaction.promptEn, planId, runId)}</pre>}
         {interaction.kind === 'BROWSER' && <div className="actions">

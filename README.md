@@ -49,6 +49,14 @@ Self-hosted results are local, self-declared exports. They cannot be uploaded an
 
 `dev/keycloak/prepare-smoke.sh` starts the pinned Keycloak fixture and Samlier image, imports the generated Test Peer metadata, creates a Run, completes the Keycloak login and SAML POST, and fails unless the Run reaches `COMPLETED` with round-trip evidence. Set `SAMLIER_SMOKE_MANUAL=1` to print the browser URL instead. Continue from the Run management page to execute M1–M3 evidence workflows. The smoke round trip alone is an operational check, not a conformance determination.
 
+On macOS, the same acceptance fixture can run with Apple Container instead of Docker:
+
+```bash
+python3 dev/keycloak/prepare-smoke-apple.py --manual
+```
+
+The launcher builds the current checkout, records the actual OCI image digest in the Run, starts both services on an isolated Apple Container network, and uses Keycloak's network address for target metadata retrieval. Use `--no-build` only when the named local image already represents the checkout being tested.
+
 ## Project status and design
 
 The requirements catalog and role-specific case design are protected by signed G1/G2 approval records. The implementation registry is tested against all approved case IDs so a missing case fails the build. See [the design index](docs/README.md), [the G2 design](docs/12-g2-test-design.md), [the roadmap](docs/01-scope-and-roadmap.md), and [the implementation rules](AGENTS.md).

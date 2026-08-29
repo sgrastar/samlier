@@ -4,15 +4,34 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 COMPOSE=(docker compose -f "$ROOT/dev/keycloak/compose.yml")
 
-UP_MODE=(--build)
+BUILD_IMAGE=1
 if [[ "${1:-}" == "--no-build" ]]; then
-  UP_MODE=(--no-build)
+  BUILD_IMAGE=0
 elif [[ $# -gt 0 ]]; then
   echo "usage: $0 [--no-build]" >&2
   exit 2
 fi
 
-"${COMPOSE[@]}" up -d "${UP_MODE[@]}"
+SAMLIER_IMAGE="${SAMLIER_IMAGE:-samlier:keycloak-smoke}"
+export SAMLIER_IMAGE
+PROVIDED_IMAGE_DIGEST="${SAMLIER_IMAGE_DIGEST:-}"
+# Compose resolves required environment substitutions even for `build`.
+# This value is never used to start Samlier; it is replaced with the inspected digest below.
+export SAMLIER_IMAGE_DIGEST="${PROVIDED_IMAGE_DIGEST:-pending-image-build}"
+if [[ "$BUILD_IMAGE" == "1" ]]; then
+  "${COMPOSE[@]}" build samlier
+fi
+
+ACTUAL_IMAGE_DIGEST="$(docker image inspect --format '{{.Id}}' "$SAMLIER_IMAGE")"
+if [[ -n "$PROVIDED_IMAGE_DIGEST" && "$PROVIDED_IMAGE_DIGEST" != "$ACTUAL_IMAGE_DIGEST" ]]; then
+  echo "SAMLIER_IMAGE_DIGEST does not match $SAMLIER_IMAGE" >&2
+  echo "expected: $ACTUAL_IMAGE_DIGEST" >&2
+  echo "provided: $PROVIDED_IMAGE_DIGEST" >&2
+  exit 2
+fi
+export SAMLIER_IMAGE_DIGEST="$ACTUAL_IMAGE_DIGEST"
+
+"${COMPOSE[@]}" up -d --no-build
 
 for _ in $(seq 1 90); do
   if curl -fsS http://localhost:8080/api/health >/dev/null \

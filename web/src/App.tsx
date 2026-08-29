@@ -23,9 +23,11 @@ export function App() {
   if (reportRunId) return <ResultReport runId={reportRunId} />
   const manageRunId = window.location.pathname.match(/^\/manage\/(run_[0-9A-HJKMNP-TV-Z]{26})$/)?.[1]
   if (manageRunId) return <ManagementBootstrap runId={manageRunId} />
-  const browserRunId = window.location.pathname.match(/^\/browser\/(run_[0-9A-HJKMNP-TV-Z]{26})\/[A-Za-z0-9-]+$/)?.[1]
+  const browserMatch = window.location.pathname.match(/^\/browser\/(run_[0-9A-HJKMNP-TV-Z]{26})\/([A-Za-z0-9-]+)$/)
+  const browserRunId = browserMatch?.[1]
   if (browserRunId) return <main className="report"><RunManagement
     runId={browserRunId}
+    focusCaseId={browserMatch?.[2]}
     csrfToken={window.sessionStorage.getItem(`samlier.csrf.${browserRunId}`) ?? undefined}
   /></main>
 

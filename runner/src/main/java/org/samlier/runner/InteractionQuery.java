@@ -1,5 +1,6 @@
 package org.samlier.runner;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import java.net.URI;
 import java.time.Instant;
 import java.util.List;
@@ -14,6 +15,7 @@ public interface InteractionQuery {
             String promptKey,
             String promptEn,
             URI startUrl,
+            @JsonFormat(shape = JsonFormat.Shape.STRING)
             Instant expiresAt,
             List<String> answerValues) {
         public PendingInteraction {
