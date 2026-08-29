@@ -175,4 +175,8 @@ export const api = {
     request<unknown>(`/api/runs/${runId}/cases/${caseId}/browser-complete`, {
       method: 'POST', body: '{}', headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : {},
     }),
+  startMilestone: (runId: string, milestone: 'M2' | 'M3', csrfToken?: string) =>
+    request<unknown>(`/api/runs/${runId}/milestones/${milestone}/start`, {
+      method: 'POST', headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : {},
+    }),
 }

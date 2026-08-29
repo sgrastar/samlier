@@ -21,16 +21,22 @@ public final class ApprovedBrowserCaseRegistry {
     private ApprovedBrowserCaseRegistry() {}
 
     public static TestCaseRegistry create(CaseDefinitionCatalog definitions, URI publicBase) {
+        return create(definitions, publicBase, Milestone.M1);
+    }
+
+    public static TestCaseRegistry create(
+            CaseDefinitionCatalog definitions, URI publicBase, Milestone milestone) {
         Objects.requireNonNull(definitions, "definitions");
         Objects.requireNonNull(publicBase, "publicBase");
+        Objects.requireNonNull(milestone, "milestone");
         var cases = new ArrayList<BrowserEvidenceTestCase>();
         definitions.cases().stream()
-                .filter(value -> value.milestone() == Milestone.M1)
+                .filter(value -> value.milestone() == milestone)
                 .filter(value -> value.mode() == ExecutionMode.BROWSER)
                 .map(value -> createCase(value, publicBase))
                 .forEach(cases::add);
         var registry = new TestCaseRegistry(cases);
-        CaseImplementationAudit.requireExact(definitions, registry, Milestone.M1, ExecutionMode.BROWSER);
+        CaseImplementationAudit.requireExact(definitions, registry, milestone, ExecutionMode.BROWSER);
         return registry;
     }
 

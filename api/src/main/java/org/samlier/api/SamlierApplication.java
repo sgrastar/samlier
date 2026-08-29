@@ -91,6 +91,7 @@ public final class SamlierApplication {
             AttestationRoutes.register(javalin, m1::attest);
             ConfigurationRoutes.register(javalin, m1::configure);
             BrowserCompletionRoutes.register(javalin, m1::completeBrowser);
+            MilestoneRoutes.register(javalin, m1::startMilestone);
             if (config.mode() == AppConfig.Mode.HOSTED) {
                 ManagementSessionRoutes.register(javalin, config.publicBaseUrl(), m1::exchange);
                 javalin.routes.before("/api/runs/{id}/quick-check", ctx ->
@@ -111,6 +112,11 @@ public final class SamlierApplication {
                                 ctx.cookie(ManagementSessionRoutes.COOKIE_NAME),
                                 ctx.header("X-CSRF-Token")));
                 javalin.routes.before("/api/runs/{id}/cases/{caseId}/browser-complete", ctx ->
+                        m1.authorizeMutation(
+                                ctx.pathParam("id"),
+                                ctx.cookie(ManagementSessionRoutes.COOKIE_NAME),
+                                ctx.header("X-CSRF-Token")));
+                javalin.routes.before("/api/runs/{id}/milestones/{milestone}/start", ctx ->
                         m1.authorizeMutation(
                                 ctx.pathParam("id"),
                                 ctx.cookie(ManagementSessionRoutes.COOKIE_NAME),

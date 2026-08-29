@@ -20,15 +20,20 @@ public final class ApprovedConfigCaseRegistry {
     private ApprovedConfigCaseRegistry() {}
 
     public static TestCaseRegistry create(CaseDefinitionCatalog definitions) {
+        return create(definitions, Milestone.M1);
+    }
+
+    public static TestCaseRegistry create(CaseDefinitionCatalog definitions, Milestone milestone) {
         Objects.requireNonNull(definitions, "definitions");
+        Objects.requireNonNull(milestone, "milestone");
         var cases = new ArrayList<ConfigurationGateTestCase>();
         definitions.cases().stream()
-                .filter(value -> value.milestone() == Milestone.M1)
+                .filter(value -> value.milestone() == milestone)
                 .filter(value -> value.mode() == ExecutionMode.CONFIG)
                 .map(ApprovedConfigCaseRegistry::createCase)
                 .forEach(cases::add);
         var registry = new TestCaseRegistry(cases);
-        CaseImplementationAudit.requireExact(definitions, registry, Milestone.M1, ExecutionMode.CONFIG);
+        CaseImplementationAudit.requireExact(definitions, registry, milestone, ExecutionMode.CONFIG);
         return registry;
     }
 

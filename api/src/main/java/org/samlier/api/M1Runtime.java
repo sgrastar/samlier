@@ -3,6 +3,8 @@ package org.samlier.api;
 import java.net.URI;
 import java.time.Clock;
 import java.util.Locale;
+import java.util.Map;
+import java.util.List;
 import org.samlier.core.casedef.CaseDefinitionCatalogMapper;
 import org.samlier.core.evaluation.CoverageCatalogMapper;
 import org.samlier.core.evaluation.PredicateCatalogMapper;
@@ -29,6 +31,7 @@ import org.samlier.runner.cases.CachedTargetSigningCertificateProvider;
 import org.samlier.runner.cases.ApprovedAttestedCaseRegistry;
 import org.samlier.runner.cases.ApprovedConfigCaseRegistry;
 import org.samlier.runner.cases.ApprovedBrowserCaseRegistry;
+import org.samlier.runner.cases.M2AutomatedCaseRegistry;
 import org.samlier.runner.result.DefaultResultContextProvider;
 import org.samlier.runner.result.EvaluationArtifactDigests;
 import org.samlier.runner.result.ResultDocumentContext;
@@ -44,7 +47,7 @@ import org.samlier.store.SqliteCaseExecutionRepository;
 import org.samlier.store.SqliteDatabase;
 import org.samlier.store.SqliteRunAccessGrantRepository;
 
-/** M1 composition kept outside the G2-protected HTTP root so its boundaries remain independently testable. */
+/** Phase 1 execution composition kept outside the HTTP root so its boundaries remain independently testable. */
 final class M1Runtime {
     private final AppConfig config;
     private final QuickCheckService quickCheck;
@@ -55,9 +58,7 @@ final class M1Runtime {
     private final RunRepository runs;
     private final TranscriptRecorder transcript;
     private final Clock clock;
-    private final ApprovedCaseStarter attestedStarter;
-    private final ApprovedCaseStarter configStarter;
-    private final ApprovedCaseStarter browserStarter;
+    private final Map<org.samlier.core.casedef.CaseDefinitionCatalog.Milestone, List<ApprovedCaseStarter>> starters;
     private final PendingInteractionService pendingInteractions;
     private final AttestationService attestations;
     private final ConfigurationService configurations;
@@ -73,9 +74,7 @@ final class M1Runtime {
             RunRepository runs,
             TranscriptRecorder transcript,
             Clock clock,
-            ApprovedCaseStarter attestedStarter,
-            ApprovedCaseStarter configStarter,
-            ApprovedCaseStarter browserStarter,
+            Map<org.samlier.core.casedef.CaseDefinitionCatalog.Milestone, List<ApprovedCaseStarter>> starters,
             PendingInteractionService pendingInteractions,
             AttestationService attestations,
             ConfigurationService configurations,
@@ -89,9 +88,7 @@ final class M1Runtime {
         this.runs = runs;
         this.transcript = transcript;
         this.clock = clock;
-        this.attestedStarter = attestedStarter;
-        this.configStarter = configStarter;
-        this.browserStarter = browserStarter;
+        this.starters = Map.copyOf(starters);
         this.pendingInteractions = pendingInteractions;
         this.attestations = attestations;
         this.configurations = configurations;
@@ -122,24 +119,56 @@ final class M1Runtime {
         var applicability = new CatalogApplicabilityProvider(
                 coverage, predicates,
                 new PersistedApplicabilityInputProvider(new SqliteApplicabilityInputRepository(database, json)));
-        var attestedRegistry = ApprovedAttestedCaseRegistry.create(definitions);
-        var configRegistry = ApprovedConfigCaseRegistry.create(definitions);
-        var browserRegistry = ApprovedBrowserCaseRegistry.create(definitions, config.publicBaseUrl());
+        var m1Attested = ApprovedAttestedCaseRegistry.create(definitions);
+        var m1Config = ApprovedConfigCaseRegistry.create(definitions);
+        var m1Browser = ApprovedBrowserCaseRegistry.create(definitions, config.publicBaseUrl());
+        var m2Attested = ApprovedAttestedCaseRegistry.create(
+                definitions, org.samlier.core.casedef.CaseDefinitionCatalog.Milestone.M2);
+        var m2Config = ApprovedConfigCaseRegistry.create(
+                definitions, org.samlier.core.casedef.CaseDefinitionCatalog.Milestone.M2);
+        var m2Browser = ApprovedBrowserCaseRegistry.create(
+                definitions, config.publicBaseUrl(),
+                org.samlier.core.casedef.CaseDefinitionCatalog.Milestone.M2);
+        var m2Automated = M2AutomatedCaseRegistry.create(runId -> {
+            var run = runs.find(runId).orElseThrow(() -> new IllegalArgumentException("Unknown Run"));
+            try {
+                return metadataCache.get(run.planId());
+            } catch (org.samlier.store.StoreException unavailable) {
+                return null;
+            }
+        });
+        var m3Attested = ApprovedAttestedCaseRegistry.create(
+                definitions, org.samlier.core.casedef.CaseDefinitionCatalog.Milestone.M3);
+        var m3Config = ApprovedConfigCaseRegistry.create(
+                definitions, org.samlier.core.casedef.CaseDefinitionCatalog.Milestone.M3);
+        var m3Browser = ApprovedBrowserCaseRegistry.create(
+                definitions, config.publicBaseUrl(),
+                org.samlier.core.casedef.CaseDefinitionCatalog.Milestone.M3);
         var interactiveRegistry = org.samlier.runner.TestCaseRegistry.merge(
-                attestedRegistry, configRegistry, browserRegistry);
+                m1Attested, m1Config, m1Browser,
+                m2Attested, m2Config, m2Browser,
+                m3Attested, m3Config, m3Browser);
         var executionService = new CaseExecutionService(caseExecutions);
         var caseContexts = (org.samlier.runner.CaseContextProvider) runId -> caseContext(
                 runId, plans, runs, transcript, clock);
-        var attestedStarter = new ApprovedCaseStarter(
-                coverage, definitions, attestedRegistry, executionService, applicability);
-        var configStarter = new ApprovedCaseStarter(
-                coverage, definitions, configRegistry, executionService, applicability);
-        var browserStarter = new ApprovedCaseStarter(
-                coverage, definitions, browserRegistry, executionService, applicability);
+        var starters = Map.of(
+                org.samlier.core.casedef.CaseDefinitionCatalog.Milestone.M1, List.of(
+                        new ApprovedCaseStarter(coverage, definitions, m1Attested, executionService, applicability),
+                        new ApprovedCaseStarter(coverage, definitions, m1Config, executionService, applicability),
+                        new ApprovedCaseStarter(coverage, definitions, m1Browser, executionService, applicability)),
+                org.samlier.core.casedef.CaseDefinitionCatalog.Milestone.M2, List.of(
+                        new ApprovedCaseStarter(coverage, definitions, m2Automated, executionService, applicability),
+                        new ApprovedCaseStarter(coverage, definitions, m2Attested, executionService, applicability),
+                        new ApprovedCaseStarter(coverage, definitions, m2Config, executionService, applicability),
+                        new ApprovedCaseStarter(coverage, definitions, m2Browser, executionService, applicability)),
+                org.samlier.core.casedef.CaseDefinitionCatalog.Milestone.M3, List.of(
+                        new ApprovedCaseStarter(coverage, definitions, m3Attested, executionService, applicability),
+                        new ApprovedCaseStarter(coverage, definitions, m3Config, executionService, applicability),
+                        new ApprovedCaseStarter(coverage, definitions, m3Browser, executionService, applicability)));
         var pendingInteractions = new PendingInteractionService(caseExecutions, interactiveRegistry);
         var attestations = new AttestationService(interactiveRegistry, executionService, caseContexts);
-        var configurations = new ConfigurationService(configRegistry, executionService, caseContexts);
-        var browserCompletions = new BrowserCompletionService(browserRegistry, executionService, caseContexts);
+        var configurations = new ConfigurationService(interactiveRegistry, executionService, caseContexts);
+        var browserCompletions = new BrowserCompletionService(interactiveRegistry, executionService, caseContexts);
         var evaluator = new RunEvaluationService(
                 coverage, plans, runs,
                 new CaseRunProjection(caseExecutions, definitions.byId().keySet()), applicability,
@@ -165,7 +194,7 @@ final class M1Runtime {
                 config.publicBaseUrl(), runs, new SqliteRunAccessGrantRepository(database), clock);
         return new M1Runtime(
                 config, quickCheck, results, artifacts, access, plans, runs, transcript, clock,
-                attestedStarter, configStarter, browserStarter, pendingInteractions, attestations,
+                starters, pendingInteractions, attestations,
                 configurations, browserCompletions);
     }
 
@@ -173,9 +202,7 @@ final class M1Runtime {
         var value = quickCheck.execute(runId);
         var run = requireRun(runId);
         var plan = requirePlan(run);
-        attestedStarter.startApplicable(run, plan, caseContext(run, plan));
-        configStarter.startApplicable(run, plan, caseContext(run, plan));
-        browserStarter.startApplicable(run, plan, caseContext(run, plan));
+        startInteractive(run, plan, org.samlier.core.casedef.CaseDefinitionCatalog.Milestone.M1);
         if (results != null) results.generate(runId);
         return value;
     }
@@ -203,6 +230,16 @@ final class M1Runtime {
         var result = browserCompletions.complete(runId, caseId);
         if (results != null) results.generate(runId);
         return result;
+    }
+
+    java.util.List<org.samlier.core.caseexec.CaseExecution> startMilestone(
+            String runId, String milestoneName) {
+        var milestone = parseMilestone(milestoneName);
+        var run = requireRun(runId);
+        var plan = requirePlan(run);
+        var started = startInteractive(run, plan, milestone);
+        if (results != null) results.generate(runId);
+        return started;
     }
 
     byte[] requireResult(String runId) {
@@ -243,6 +280,29 @@ final class M1Runtime {
     private org.samlier.core.caseexec.CaseContext caseContext(String runId) {
         var run = requireRun(runId);
         return caseContext(run, requirePlan(run));
+    }
+
+    private java.util.List<org.samlier.core.caseexec.CaseExecution> startInteractive(
+            TestRun run,
+            org.samlier.core.plan.TestPlan plan,
+            org.samlier.core.casedef.CaseDefinitionCatalog.Milestone milestone) {
+        if (run.status() != org.samlier.core.run.RunStatus.COMPLETED) {
+            throw new IllegalArgumentException("Milestone execution requires a completed baseline SSO round trip");
+        }
+        var context = caseContext(run, plan);
+        var started = new java.util.ArrayList<org.samlier.core.caseexec.CaseExecution>();
+        starters.getOrDefault(milestone, List.of()).forEach(starter ->
+                started.addAll(starter.startApplicable(run, plan, context)));
+        return List.copyOf(started);
+    }
+
+    private org.samlier.core.casedef.CaseDefinitionCatalog.Milestone parseMilestone(String value) {
+        try {
+            return org.samlier.core.casedef.CaseDefinitionCatalog.Milestone.valueOf(
+                    value.toUpperCase(Locale.ROOT));
+        } catch (RuntimeException invalid) {
+            throw new IllegalArgumentException("Unknown implementation milestone: " + value, invalid);
+        }
     }
 
     private org.samlier.core.caseexec.CaseContext caseContext(

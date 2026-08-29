@@ -17,6 +17,7 @@ import org.samlier.runner.CaseImplementationAudit;
 import org.samlier.runner.cases.ApprovedAttestedCaseRegistry;
 import org.samlier.runner.cases.ApprovedConfigCaseRegistry;
 import org.samlier.runner.cases.ApprovedBrowserCaseRegistry;
+import org.samlier.runner.cases.M2AutomatedCaseRegistry;
 import org.samlier.runner.cases.AttestedOutcomeTestCase;
 import org.samlier.core.casedef.CaseDefinitionCatalog.ExecutionMode;
 import org.samlier.core.casedef.CaseDefinitionCatalog.Milestone;
@@ -49,6 +50,15 @@ class CatalogDocumentsTest {
         var browser = ApprovedBrowserCaseRegistry.create(cases, java.net.URI.create("https://suite.example"));
         assertEquals(151, browser.ids().size());
         CaseImplementationAudit.requireExact(cases, browser, Milestone.M1, ExecutionMode.BROWSER);
+        assertEquals(12, ApprovedAttestedCaseRegistry.create(cases, Milestone.M2).ids().size());
+        assertEquals(214, ApprovedConfigCaseRegistry.create(cases, Milestone.M2).ids().size());
+        assertEquals(20, ApprovedBrowserCaseRegistry.create(
+                cases, java.net.URI.create("https://suite.example"), Milestone.M2).ids().size());
+        assertEquals(12, M2AutomatedCaseRegistry.create(runId -> null).ids().size());
+        assertEquals(11, ApprovedAttestedCaseRegistry.create(cases, Milestone.M3).ids().size());
+        assertEquals(9, ApprovedConfigCaseRegistry.create(cases, Milestone.M3).ids().size());
+        assertEquals(83, ApprovedBrowserCaseRegistry.create(
+                cases, java.net.URI.create("https://suite.example"), Milestone.M3).ids().size());
         assertFalse(digests.compositeDigest().isBlank());
         assertArrayEquals(Files.readAllBytes(repositoryRoot().resolve("tests/coverage.yaml")),
                 documents.bytes("tests/coverage.yaml"));

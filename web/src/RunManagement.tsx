@@ -72,9 +72,24 @@ export function RunManagement({ runId, csrfToken }: { runId: string; csrfToken?:
     }
   }
 
+  const startMilestone = async (milestone: 'M2' | 'M3') => {
+    setBusy(milestone)
+    setError('')
+    try {
+      await api.startMilestone(runId, milestone, csrfToken)
+      await refresh()
+    } catch (cause) {
+      setError((cause as Error).message)
+    } finally {
+      setBusy('')
+    }
+  }
+
   return <section className="management panel">
     <div className="section-heading"><div><p className="eyebrow">Evidence workflow</p><h2>Pending interactions</h2></div><div className="actions">
       <button disabled={busy === 'quick-check'} onClick={() => void startM1()}>Start or resume M1</button>
+      <button disabled={busy === 'M2'} onClick={() => void startMilestone('M2')}>Start or resume M2</button>
+      <button disabled={busy === 'M3'} onClick={() => void startMilestone('M3')}>Start or resume M3</button>
       <button onClick={() => void refresh()}>Refresh</button>
     </div></div>
     {error && <aside role="alert">{error}</aside>}
