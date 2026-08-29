@@ -22,7 +22,6 @@ public final class SamlCbcEncryptedAssertionSignatureCase {
     SamlCbcEncryptedAssertionSignatureCase(
             List<X509Certificate> targetSigningCertificates, XmlSignatureVerifier verifier) {
         this.targetSigningCertificates = List.copyOf(targetSigningCertificates);
-        if (this.targetSigningCertificates.isEmpty()) throw new IllegalArgumentException("targetSigningCertificates must not be empty");
         this.verifier = java.util.Objects.requireNonNull(verifier, "verifier");
     }
 
@@ -33,17 +32,20 @@ public final class SamlCbcEncryptedAssertionSignatureCase {
     private PassiveXmlCaseSupport.Inspection inspect(org.w3c.dom.Document document) {
         var observed = 0;
         var violations = new ArrayList<String>();
+        var unverifiable = new ArrayList<String>();
         var responses = document.getElementsByTagNameNS(PROTOCOL, "Response");
         for (var responseIndex = 0; responseIndex < responses.getLength(); responseIndex++) {
             var response = (Element) responses.item(responseIndex);
             if (!containsCbcEncryptedAssertion(response)) continue;
             observed++;
-            if (targetSigningCertificates.stream().noneMatch(
+            if (targetSigningCertificates.isEmpty()) {
+                unverifiable.add("{" + PROTOCOL + "}Response/ds:Signature#target-key-unavailable");
+            } else if (targetSigningCertificates.stream().noneMatch(
                     certificate -> verifier.hasValidEnvelopedSignature(response, certificate))) {
                 violations.add("{" + PROTOCOL + "}Response/ds:Signature");
             }
         }
-        return new PassiveXmlCaseSupport.Inspection(observed, violations);
+        return new PassiveXmlCaseSupport.Inspection(observed, violations, unverifiable);
     }
 
     private boolean containsCbcEncryptedAssertion(Element response) {

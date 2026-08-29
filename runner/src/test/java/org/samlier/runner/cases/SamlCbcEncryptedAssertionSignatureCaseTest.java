@@ -37,6 +37,17 @@ class SamlCbcEncryptedAssertionSignatureCaseTest {
                 """);
     }
 
+    @Test
+    void missingTargetVerificationKeyIsNotAFalseViolation() {
+        var outcome = new SamlCbcEncryptedAssertionSignatureCase(
+                List.of(), new org.samlier.saml.crypto.XmlSignatureVerifier()).evaluate(List.of(
+                new TargetTranscriptMessages.Message(
+                        "message", unsignedResponse("http://www.w3.org/2001/04/xmlenc#aes256-cbc")
+                        .getBytes(StandardCharsets.UTF_8))));
+
+        assertEquals(Outcome.NOT_VERIFIED, outcome.outcome());
+    }
+
     private String signedResponse(PlanCredentials credentials, String algorithm) {
         var document = SecureXml.parse(unsignedResponse(algorithm).getBytes(StandardCharsets.UTF_8));
         var response = document.getDocumentElement();
