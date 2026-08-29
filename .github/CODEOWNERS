@@ -20,6 +20,12 @@
 # ★ Dependencies. Included as trust anchors because they determine the code executed before signature verification.
 /tools/requirements.txt       @sgrastar
 /tools/requirements.lock      @sgrastar
+/gradle/                      @sgrastar
+/build.gradle.kts             @sgrastar
+/settings.gradle.kts          @sgrastar
+/saml/build.gradle.kts        @sgrastar
+/api/build.gradle.kts         @sgrastar
+/peer/build.gradle.kts        @sgrastar
 
 # G2 design gate and signed approval verifier
 /tools/g2_validate.py         @sgrastar
