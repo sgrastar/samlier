@@ -62,6 +62,15 @@ class RepositoryLaunchConfigurationTest(unittest.TestCase):
         dockerfile = (launcher.ROOT / "Dockerfile").read_text()
         self.assertNotIn('VOLUME ["/data"]', dockerfile)
 
+    def test_local_runtime_data_is_excluded_from_the_build_context(self) -> None:
+        ignored = {
+            line.strip()
+            for line in (launcher.ROOT / ".dockerignore").read_text().splitlines()
+            if line.strip() and not line.lstrip().startswith("#")
+        }
+        self.assertIn("data", ignored)
+        self.assertIn(".data", ignored)
+
     def test_compose_requires_image_digest(self) -> None:
         compose = (launcher.ROOT / "dev/keycloak/compose.yml").read_text()
         self.assertIn("SAMLIER_IMAGE_DIGEST:", compose)
