@@ -20,6 +20,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.samlier.core.caseexec.CaseExecution;
 import org.samlier.core.caseexec.CaseExecutionRepository;
+import org.samlier.core.caseexec.CaseIds;
 import org.samlier.core.caseexec.OutboundAction;
 import org.samlier.core.caseexec.OutboxEntry;
 import org.samlier.core.caseexec.OutboxStatus;
@@ -32,10 +33,11 @@ class AutomatedCaseRegistryTest {
     @Test
     void registryExactlyMatchesEveryApprovedM1AutomatedCase() throws Exception {
         var registry = AutomatedCaseRegistry.create(dependencies());
-        var approved = approvedAutomatedCaseIds();
+        var approved = approvedAutomatedCases();
 
         assertEquals(67, approved.size());
-        assertEquals(approved, registry.ids());
+        assertEquals(approved.keySet(), registry.ids());
+        approved.forEach((caseId, obligation) -> assertEquals(obligation, CaseIds.obligationKey(caseId), caseId));
         assertTrue(registry.forRole(TargetRole.IDP).stream().allMatch(testCase -> testCase.role() == TargetRole.IDP));
         assertTrue(registry.forRole(TargetRole.SP).stream().allMatch(testCase -> testCase.role() == TargetRole.SP));
     }
@@ -82,30 +84,39 @@ class AutomatedCaseRegistryTest {
                         URI.create("https://suite.example/acs"), Duration.ofMinutes(2), true, true, true));
     }
 
-    private Set<String> approvedAutomatedCaseIds() throws Exception {
+    private Map<String, String> approvedAutomatedCases() throws Exception {
         var catalog = locateCasesYaml();
-        var selected = new java.util.LinkedHashSet<String>();
+        var selected = new LinkedHashMap<String, String>();
         String id = null;
+        String obligation = null;
         String mode = null;
         String milestone = null;
         for (var line : Files.readAllLines(catalog)) {
             if (line.startsWith("- id: ")) {
-                addIfAutomated(selected, id, mode, milestone);
+                addIfAutomated(selected, id, obligation, mode, milestone);
                 id = line.substring("- id: ".length()).trim();
+                obligation = null;
                 mode = null;
                 milestone = null;
+            } else if (id != null && line.startsWith("  obligation: ")) {
+                obligation = line.substring("  obligation: ".length()).trim();
             } else if (id != null && line.startsWith("  mode: ")) {
                 mode = line.substring("  mode: ".length()).trim();
             } else if (id != null && line.startsWith("  milestone: ")) {
                 milestone = line.substring("  milestone: ".length()).trim();
             }
         }
-        addIfAutomated(selected, id, mode, milestone);
-        return Set.copyOf(selected);
+        addIfAutomated(selected, id, obligation, mode, milestone);
+        return Map.copyOf(selected);
     }
 
-    private void addIfAutomated(Set<String> selected, String id, String mode, String milestone) {
-        if (id != null && "AUTOMATED".equals(mode) && "M1".equals(milestone)) selected.add(id);
+    private void addIfAutomated(
+            Map<String, String> selected, String id, String obligation, String mode, String milestone) {
+        if (id != null && "AUTOMATED".equals(mode) && "M1".equals(milestone)) {
+            if (obligation == null || selected.putIfAbsent(id, obligation) != null) {
+                throw new IllegalStateException("Invalid approved case catalog entry: " + id);
+            }
+        }
     }
 
     private Path locateCasesYaml() {

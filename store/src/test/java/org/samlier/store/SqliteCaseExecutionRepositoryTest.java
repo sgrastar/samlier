@@ -75,6 +75,20 @@ class SqliteCaseExecutionRepositoryTest {
     }
 
     @Test
+    void listsOnlyTheRequestedRunsExecutionsInStableCaseOrder() {
+        var later = running(CaseState.initial());
+        var earlier = new CaseExecution(
+                RUN_ID, "IIP-G02-a-idp-01", 0, CaseExecutionStatus.RUNNING,
+                CaseState.initial(), null, null, NOW);
+        assertTrue(repository.apply(-1, later, List.of()));
+        assertTrue(repository.apply(-1, earlier, List.of()));
+
+        assertEquals(List.of("IIP-G02-a-idp-01", CASE_ID),
+                repository.list(RUN_ID).stream().map(CaseExecution::caseId).toList());
+        assertTrue(repository.list("run_99999999999999999999999999").isEmpty());
+    }
+
+    @Test
     void rejectsAnActionIdCollisionAndRollsBackTheStateChange() {
         var initial = new CaseState("send", Map.of("attempt", 1));
         var action = action(initial, new byte[] {1}, OutboundKind.AUTHN_REQUEST, false);
