@@ -52,6 +52,7 @@ class RunAccessServiceTest {
                 .contains(accessToken));
 
         var first = service.exchange(run.id(), accessToken);
+        assertTrue(service.authorizeSession(first.sessionToken()).equals(run.id()));
         service.authorize(run.id(), first.sessionToken());
         service.authorizeMutation(run.id(), first.sessionToken(), first.csrfToken());
         assertThrows(SecurityException.class, () ->
@@ -59,6 +60,7 @@ class RunAccessServiceTest {
 
         var second = service.exchange(run.id(), accessToken);
         assertNotEquals(first.sessionToken(), second.sessionToken());
+        assertThrows(SecurityException.class, () -> service.authorizeSession(first.sessionToken()));
         assertThrows(SecurityException.class, () -> service.authorize(run.id(), first.sessionToken()));
         service.revoke(run.id());
         assertThrows(SecurityException.class, () -> service.exchange(run.id(), accessToken));

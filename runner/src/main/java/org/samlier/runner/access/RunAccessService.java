@@ -49,10 +49,17 @@ public final class RunAccessService implements ManagementSessionExecutor {
     }
 
     public void authorize(String runId, String sessionToken) {
+        if (!runId.equals(authorizeSession(sessionToken))) throw denied();
+    }
+
+    /** Resolves a valid session without exposing or persisting the raw credential. */
+    public String authorizeSession(String sessionToken) {
         validToken(sessionToken);
-        var grant = grants.find(runId).orElseThrow(RunAccessService::denied);
+        var sessionHash = hash(sessionToken);
+        var grant = grants.findBySessionTokenHash(sessionHash).orElseThrow(RunAccessService::denied);
         if (grant.revoked() || grant.sessionTokenHash() == null
-                || !constantTimeEquals(grant.sessionTokenHash(), hash(sessionToken))) throw denied();
+                || !constantTimeEquals(grant.sessionTokenHash(), sessionHash)) throw denied();
+        return grant.runId();
     }
 
     public void authorizeMutation(String runId, String sessionToken, String csrfToken) {

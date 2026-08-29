@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useState } from 'react'
-import { api, type PendingInteraction } from './api'
+import { api, type PendingInteraction, type Plan } from './api'
 
 export function RunManagement({ runId, csrfToken }: { runId: string; csrfToken?: string }) {
   const [interactions, setInteractions] = useState<PendingInteraction[]>([])
@@ -7,6 +7,7 @@ export function RunManagement({ runId, csrfToken }: { runId: string; csrfToken?:
   const [busy, setBusy] = useState('')
   const [planId, setPlanId] = useState('')
   const [profile, setProfile] = useState('')
+  const [plan, setPlan] = useState<Plan>()
   const [notice, setNotice] = useState('')
   const [mode, setMode] = useState<'selfhosted' | 'hosted'>('selfhosted')
 
@@ -16,7 +17,9 @@ export function RunManagement({ runId, csrfToken }: { runId: string; csrfToken?:
     ])
     setInteractions(nextInteractions)
     setPlanId(run.planId)
-    setProfile(plans.find(value => value.plan.id === run.planId)?.plan.profile ?? '')
+    const selectedPlan = plans.find(value => value.plan.id === run.planId)
+    setPlan(selectedPlan)
+    setProfile(selectedPlan?.plan.profile ?? '')
     setMode(health.mode)
   }
 
@@ -82,6 +85,20 @@ export function RunManagement({ runId, csrfToken }: { runId: string; csrfToken?:
     }
   }
 
+  const runPreflight = async () => {
+    setBusy('preflight')
+    setError('')
+    try {
+      const report = await api.preflight(runId, csrfToken)
+      setNotice(`Preflight completed: ${JSON.stringify(report)}`)
+      await refresh()
+    } catch (cause) {
+      setError((cause as Error).message)
+    } finally {
+      setBusy('')
+    }
+  }
+
   const startMilestone = async (milestone: 'M2' | 'M3') => {
     setBusy(milestone)
     setError('')
@@ -127,7 +144,18 @@ export function RunManagement({ runId, csrfToken }: { runId: string; csrfToken?:
   }
 
   return <section className="management panel">
+    {plan && <section className="peer-registration">
+      <p className="eyebrow">Test Peer registration</p>
+      <h2>{plan.plan.name}</h2>
+      <dl>
+        <dt>Entity ID</dt><dd><code>{plan.entityId}</code></dd>
+        <dt>Metadata</dt><dd><a href={plan.metadataUrl}>{plan.metadataUrl}</a></dd>
+        <dt>MDQ</dt><dd><code>{plan.mdqUrl}</code></dd>
+        <dt>Secondary IdP metadata</dt><dd><a href={plan.secondaryIdpMetadataUrl}>{plan.secondaryIdpMetadataUrl}</a></dd>
+      </dl>
+    </section>}
     <div className="section-heading"><div><p className="eyebrow">Evidence workflow</p><h2>Pending interactions</h2></div><div className="actions">
+      <button disabled={busy === 'preflight'} onClick={() => void runPreflight()}>Run preflight</button>
       <button disabled={busy === 'quick-check'} onClick={() => void startM1()}>Start or resume M1</button>
       <button disabled={busy === 'M2'} onClick={() => void startMilestone('M2')}>Start or resume M2</button>
       <button disabled={busy === 'M3'} onClick={() => void startMilestone('M3')}>Start or resume M3</button>
@@ -144,6 +172,10 @@ export function RunManagement({ runId, csrfToken }: { runId: string; csrfToken?:
         <button type="submit">Run seven ECP probes before M3</button>
       </fieldset>
     </form>}
+    {plan && profile.startsWith('IDP') && <div className="actions">
+      <a className="button" href={`/p/${plan.plan.id}/start/m0-roundtrip?run=${runId}`}>Start IdP round trip</a>
+    </div>}
+    {plan && profile.startsWith('SP') && <p>Start login at the target SP after importing the Test Peer metadata.</p>}
     {interactions.length === 0 ? <p className="quiet-success">No pending interactions.</p> :
       <div className="interaction-list">{interactions.map(interaction => <article key={interaction.caseId} className="interaction">
         <header><strong>{interaction.caseId}</strong><span>{interaction.kind}</span></header>

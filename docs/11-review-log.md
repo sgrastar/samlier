@@ -1,5 +1,16 @@
 # 11. Design Review Log
 
+## R-HOSTED-01 — Hosted Plan API authorization
+
+An independent release audit found that the per-Run management session protected result and evidence routes
+but not the Test Plan CRUD, Run creation, Run detail, preflight, or SSE routes. An anonymous caller could list
+target entity IDs and metadata source locations, read `testUserHint`, mutate another Plan, and create Runs.
+
+The Hosted Plan-creation request now also creates the initial Run and returns its one-time management URL. All later
+Plan and Run administrative reads are scoped through the session token to that Run's Plan, mutations require
+the matching CSRF token, and Plan API views omit both `testUserHint` and the target metadata source. Cross-Plan,
+missing-cookie, and missing-CSRF paths are covered by end-to-end HTTP regression tests.
+
 ## R1 — 2026-08-25 Review of the Judgment Model and Coverage Definition
 
 **Conclusion**: All 9 findings were valid. Of these, 3 findings (the misreading of the RFC2119 levels in Finding 4) were corrected after re-fetching and cross-checking the

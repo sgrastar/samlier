@@ -34,6 +34,8 @@ export function App() {
   const [runs, setRuns] = useState<Run[]>([])
   const [input, setInput] = useState(initialInput)
   const [message, setMessage] = useState('')
+  const [mode, setMode] = useState<'selfhosted' | 'hosted'>('selfhosted')
+  const [managementUrl, setManagementUrl] = useState<string>()
   const selected = useMemo(() => plans.find((plan) => plan.plan.id === selectedId), [plans, selectedId])
 
   const refreshPlans = async () => {
@@ -42,7 +44,16 @@ export function App() {
     if (!selectedId && value[0]) setSelectedId(value[0].plan.id)
   }
 
-  useEffect(() => { void refreshPlans().catch(error => setMessage(error.message)) }, [])
+  useEffect(() => {
+    void api.health().then(async health => {
+      setMode(health.mode)
+      try {
+        await refreshPlans()
+      } catch (error) {
+        if (health.mode === 'selfhosted') throw error
+      }
+    }).catch(error => setMessage(error.message))
+  }, [])
   useEffect(() => {
     if (!selectedId) return
     void api.runs(selectedId).then(setRuns).catch(error => setMessage(error.message))
@@ -51,24 +62,32 @@ export function App() {
   const create = async (event: FormEvent) => {
     event.preventDefault()
     try {
-      const plan = await api.createPlan(input)
-      setPlans(current => [plan, ...current])
-      setSelectedId(plan.plan.id)
+      const created = await api.createPlan(input)
+      setPlans(current => [created.plan, ...current])
+      setSelectedId(created.plan.plan.id)
+      setRuns(created.initialRun ? [created.initialRun.run] : [])
+      setManagementUrl(created.initialRun?.managementUrl ?? undefined)
       setInput(initialInput)
-      setMessage('Test Plan created. Register its metadata in the target before starting a Run.')
+      setMessage(created.initialRun?.managementUrl
+        ? 'Test Plan and initial Run created. Save the protected management link shown below.'
+        : 'Test Plan created. Register its metadata in the target before starting a Run.')
     } catch (error) { setMessage((error as Error).message) }
   }
 
   const createRun = async () => {
     if (!selected) return
     try {
-      const created = await api.createRun(selected.plan.id)
+      const csrfToken = runs.map(run => window.sessionStorage.getItem(`samlier.csrf.${run.id}`)).find(Boolean) ?? undefined
+      const created = await api.createRun(selected.plan.id, csrfToken)
       setRuns(current => [created.run, ...current])
-      const report = await api.preflight(created.run.id)
-      setMessage(created.managementUrl
-        ? `Save this management URL now; it is shown only once: ${created.managementUrl}`
-        : `Preflight completed: ${JSON.stringify(report)}`)
-      setRuns(await api.runs(selected.plan.id))
+      setManagementUrl(created.managementUrl ?? undefined)
+      if (created.managementUrl) {
+        setMessage('Run created. Save the protected management link shown below.')
+      } else {
+        const report = await api.preflight(created.run.id)
+        setMessage(`Preflight completed: ${JSON.stringify(report)}`)
+        setRuns(await api.runs(selected.plan.id))
+      }
     } catch (error) { setMessage((error as Error).message) }
   }
 
@@ -80,6 +99,11 @@ export function App() {
     </header>
 
     {message && <aside role="status">{message}</aside>}
+    {managementUrl && <aside role="status" className="management-link">
+      <strong>One-time management link</strong>
+      <p>Save this link before opening it. The secret fragment is removed from browser history during exchange.</p>
+      <a href={managementUrl}>Open protected Run</a>
+    </aside>}
 
     <section className="grid">
       <form onSubmit={create} className="panel">
@@ -121,7 +145,7 @@ export function App() {
         <dt>Secondary IdP entity ID</dt><dd><code>{selected.secondaryIdpEntityId}</code></dd>
         <dt>Secondary IdP metadata</dt><dd><a href={selected.secondaryIdpMetadataUrl}>{selected.secondaryIdpMetadataUrl}</a></dd>
       </dl>
-      <div className="actions"><button onClick={createRun}>Create Run and preflight</button></div>
+      {mode === 'selfhosted' && <div className="actions"><button onClick={createRun}>Create Run and preflight</button></div>}
       <h3>Runs</h3>
       {runs.map(run => <article className="run" key={run.id}>
         <div><strong>{run.status}</strong><small>{run.id}</small></div><span>{run.targetToSuiteReachability}</span>

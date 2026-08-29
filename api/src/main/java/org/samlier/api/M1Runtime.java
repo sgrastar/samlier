@@ -318,6 +318,26 @@ final class M1Runtime {
         if (config.mode() == AppConfig.Mode.HOSTED) access.authorizeMutation(runId, sessionToken, csrfToken);
     }
 
+    java.util.List<org.samlier.core.plan.TestPlan> authorizedPlans(String sessionToken) {
+        if (config.mode() != AppConfig.Mode.HOSTED) return plans.list();
+        var run = requireRun(access.authorizeSession(sessionToken));
+        return java.util.List.of(requirePlan(run));
+    }
+
+    void authorizePlan(String planId, String sessionToken) {
+        if (config.mode() != AppConfig.Mode.HOSTED) return;
+        var run = requireRun(access.authorizeSession(sessionToken));
+        if (!run.planId().equals(planId)) throw new SecurityException("Access denied");
+    }
+
+    void authorizePlanMutation(String planId, String sessionToken, String csrfToken) {
+        if (config.mode() != AppConfig.Mode.HOSTED) return;
+        var runId = access.authorizeSession(sessionToken);
+        var run = requireRun(runId);
+        if (!run.planId().equals(planId)) throw new SecurityException("Access denied");
+        access.authorizeMutation(runId, sessionToken, csrfToken);
+    }
+
     String issueManagementUrl(TestRun run) {
         return config.mode() == AppConfig.Mode.HOSTED ? access.issue(run.id()).managementUrl().toString() : null;
     }

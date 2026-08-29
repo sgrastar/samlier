@@ -24,12 +24,15 @@ final class ApiModels {
             boolean authorizedTarget) {}
 
     record PlanView(
-            TestPlan plan,
+            PlanSummary plan,
             String entityId,
             String metadataUrl,
             String mdqUrl,
             String secondaryIdpEntityId,
             String secondaryIdpMetadataUrl) {}
+    record PlanSummary(String id, String name, PlanProfile profile, TargetSummary target) {}
+    record TargetSummary(TargetKind kind, String entityId) {}
+    record PlanCreated(PlanView plan, RunCreated initialRun) {}
     record RunCreated(org.samlier.core.run.TestRun run, String managementUrl) {}
     record ErrorView(String error, String message) {}
 }

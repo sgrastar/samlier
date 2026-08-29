@@ -118,6 +118,37 @@ public final class SamlierApplication {
             EcpProbeRoutes.register(javalin, ecpProbe::execute);
             if (config.mode() == AppConfig.Mode.HOSTED) {
                 ManagementSessionRoutes.register(javalin, config.publicBaseUrl(), m1::exchange);
+                javalin.routes.before("/api/plans/{id}", ctx -> {
+                    if (ctx.method().name().equals("GET")) {
+                        m1.authorizePlan(
+                                ctx.pathParam("id"), ctx.cookie(ManagementSessionRoutes.COOKIE_NAME));
+                    } else {
+                        m1.authorizePlanMutation(
+                                ctx.pathParam("id"),
+                                ctx.cookie(ManagementSessionRoutes.COOKIE_NAME),
+                                ctx.header("X-CSRF-Token"));
+                    }
+                });
+                javalin.routes.before("/api/plans/{id}/runs", ctx -> {
+                    if (ctx.method().name().equals("GET")) {
+                        m1.authorizePlan(
+                                ctx.pathParam("id"), ctx.cookie(ManagementSessionRoutes.COOKIE_NAME));
+                    } else {
+                        m1.authorizePlanMutation(
+                                ctx.pathParam("id"),
+                                ctx.cookie(ManagementSessionRoutes.COOKIE_NAME),
+                                ctx.header("X-CSRF-Token"));
+                    }
+                });
+                javalin.routes.before("/api/runs/{id}", ctx ->
+                        m1.authorize(ctx.pathParam("id"), ctx.cookie(ManagementSessionRoutes.COOKIE_NAME)));
+                javalin.routes.before("/api/runs/{id}/preflight", ctx ->
+                        m1.authorizeMutation(
+                                ctx.pathParam("id"),
+                                ctx.cookie(ManagementSessionRoutes.COOKIE_NAME),
+                                ctx.header("X-CSRF-Token")));
+                javalin.routes.before("/api/runs/{id}/events", ctx ->
+                        m1.authorize(ctx.pathParam("id"), ctx.cookie(ManagementSessionRoutes.COOKIE_NAME)));
                 javalin.routes.before("/api/runs/{id}/quick-check", ctx ->
                         m1.authorizeMutation(
                                 ctx.pathParam("id"),
@@ -202,7 +233,9 @@ public final class SamlierApplication {
         javalin.routes.get("/assets/{file}", SamlierApplication::serveAsset);
         javalin.routes.get("/api/health", ctx -> ctx.json(Map.of(
                 "status", "ok", "version", "0.1.0", "mode", config.mode().name().toLowerCase())));
-        javalin.routes.get("/api/plans", ctx -> ctx.json(plans.list().stream()
+        javalin.routes.get("/api/plans", ctx -> ctx.json((config.mode() == AppConfig.Mode.HOSTED
+                        ? m1.authorizedPlans(ctx.cookie(ManagementSessionRoutes.COOKIE_NAME))
+                        : plans.list()).stream()
                 .map(plan -> view(config, plan)).toList()));
         javalin.routes.post("/api/plans", ctx -> {
             if (config.mode() == AppConfig.Mode.HOSTED) {
@@ -212,7 +245,12 @@ public final class SamlierApplication {
             var now = clock.instant();
             var plan = fromWrite(Identifiers.newId("plan"), request, now, now);
             plans.save(plan);
-            ctx.status(HttpStatus.CREATED).json(view(config, plan));
+            ApiModels.RunCreated initialRun = null;
+            if (config.mode() == AppConfig.Mode.HOSTED) {
+                var run = runService.create(plan.id());
+                initialRun = new ApiModels.RunCreated(run, m1.issueManagementUrl(run));
+            }
+            ctx.status(HttpStatus.CREATED).json(new ApiModels.PlanCreated(view(config, plan), initialRun));
         });
         javalin.routes.get("/api/plans/{id}", ctx -> ctx.json(view(config, requirePlan(plans, ctx.pathParam("id")))));
         javalin.routes.put("/api/plans/{id}", ctx -> {
@@ -395,7 +433,10 @@ public final class SamlierApplication {
     private static ApiModels.PlanView view(AppConfig config, TestPlan plan) {
         var entityId = peerEntityId(config, plan);
         var secondaryEntityId = secondaryIdpEntityId(config, plan);
-        return new ApiModels.PlanView(plan, entityId, entityId + "/metadata",
+        var summary = new ApiModels.PlanSummary(
+                plan.id(), plan.name(), plan.profile(),
+                new ApiModels.TargetSummary(plan.target().kind(), plan.target().entityId()));
+        return new ApiModels.PlanView(summary, entityId, entityId + "/metadata",
                 config.peerBaseUrl().resolve("/mdq/" + java.net.URLEncoder.encode(entityId, StandardCharsets.UTF_8)).toString(),
                 secondaryEntityId, secondaryEntityId + "/metadata");
     }

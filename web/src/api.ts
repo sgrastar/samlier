@@ -27,6 +27,11 @@ export interface RunCreated {
   managementUrl: string | null
 }
 
+export interface PlanCreated {
+  plan: Plan
+  initialRun: RunCreated | null
+}
+
 export interface PublicResult {
   schemaVersion: '1'
   run: {
@@ -148,12 +153,16 @@ function camelize(value: unknown): unknown {
 export const api = {
   health: () => request<Health>('/api/health'),
   plans: () => request<Plan[]>('/api/plans'),
-  createPlan: (input: PlanInput) => request<Plan>('/api/plans', { method: 'POST', body: JSON.stringify(input) }),
+  createPlan: (input: PlanInput) => request<PlanCreated>('/api/plans', { method: 'POST', body: JSON.stringify(input) }),
   deletePlan: (id: string) => request<void>(`/api/plans/${id}`, { method: 'DELETE' }),
   runs: (planId: string) => request<Run[]>(`/api/plans/${planId}/runs`),
   run: (runId: string) => request<Run>(`/api/runs/${runId}`),
-  createRun: (planId: string) => request<RunCreated>(`/api/plans/${planId}/runs`, { method: 'POST' }),
-  preflight: (runId: string) => request<Record<string, unknown>>(`/api/runs/${runId}/preflight`, { method: 'POST' }),
+  createRun: (planId: string, csrfToken?: string) => request<RunCreated>(`/api/plans/${planId}/runs`, {
+    method: 'POST', headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : {},
+  }),
+  preflight: (runId: string, csrfToken?: string) => request<Record<string, unknown>>(`/api/runs/${runId}/preflight`, {
+    method: 'POST', headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : {},
+  }),
   transcript: (runId: string) => request<unknown[]>(`/api/runs/${runId}/transcript`),
   quickCheck: (runId: string, csrfToken?: string) => request<unknown>(`/api/runs/${runId}/quick-check`, {
     method: 'POST', headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : {},

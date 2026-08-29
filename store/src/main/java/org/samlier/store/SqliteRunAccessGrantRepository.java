@@ -34,6 +34,26 @@ public final class SqliteRunAccessGrantRepository implements RunAccessGrantRepos
     }
 
     @Override
+    public Optional<RunAccessGrant> findBySessionTokenHash(String sessionTokenHash) {
+        try (var connection = database.open();
+             var statement = connection.prepareStatement("""
+                     SELECT run_id, access_token_hash, session_token_hash, csrf_token_hash, updated_at, revoked
+                     FROM run_access_grants WHERE session_token_hash = ?
+                     """)) {
+            statement.setString(1, sessionTokenHash);
+            try (var rows = statement.executeQuery()) {
+                if (!rows.next()) return Optional.empty();
+                return Optional.of(new RunAccessGrant(
+                        rows.getString("run_id"), rows.getString("access_token_hash"),
+                        rows.getString("session_token_hash"), rows.getString("csrf_token_hash"),
+                        Instant.parse(rows.getString("updated_at")), rows.getBoolean("revoked")));
+            }
+        } catch (SQLException error) {
+            throw new StoreException("Could not find Run access grant by session", error);
+        }
+    }
+
+    @Override
     public void save(RunAccessGrant grant) {
         try (var connection = database.open();
              var statement = connection.prepareStatement("""

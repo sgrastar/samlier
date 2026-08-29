@@ -345,6 +345,12 @@ POST /p/{plan}/idp/slo/soap         Test IdP: SOAP SLO
 GET  /p/{plan}/start/{caseId}       Starting point for browser operation (user clicks)
 ```
 
+In Hosted mode, `POST /api/plans` creates the initial Run in the same request and returns its one-time management URL.
+Every other Plan endpoint, Run details, preflight, and Run events require the HttpOnly management session;
+mutations additionally require the matching CSRF token. `GET /api/plans` returns only the Plan associated
+with the caller's current Run session. Plan responses never include `test_user_hint` or the target metadata
+source location.
+
 > Replacing metadata with `?variant=` is essential for verifying IIP-MD03 / MD04.
 > However, **switching the variant does not necessarily mean that the target immediately refreshes its cache**, so
 > manage the variant in the Suite's state as “the current distribution state of the Test Plan,” and insert an interactive step instructing the user to “reload the target's metadata.”

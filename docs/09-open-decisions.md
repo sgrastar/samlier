@@ -155,7 +155,10 @@ If, in the future, another project wants to reuse only the test definitions,
 
 ### Phase 1
 
-Display the administrative secret URL only once when creating a Run. Use it for publication and deletion.
+Display the administrative secret URL only once when creating a Run. In Hosted mode, the Test Plan creation
+request also creates the initial Run so that the caller receives a credential before any Plan or Run can be
+listed or mutated. Creating later Runs and reading or changing the Plan require a valid session belonging
+to an existing Run in that Plan. Use the secret URL for evidence management, publication, and deletion.
 This provides the lowest barrier to use. Counter bot activity with rate limiting (per IP) + Turnstile or equivalent.
 
 #### ★ Handling the secret (incorporating review finding 11)
