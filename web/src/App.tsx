@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { api, type Plan, type PlanInput, type Profile, type Run } from './api'
+import { ResultReport } from './ResultReport'
 
 const initialInput: PlanInput = {
   name: '',
@@ -15,6 +16,9 @@ const initialInput: PlanInput = {
 }
 
 export function App() {
+  const reportRunId = window.location.pathname.match(/^\/reports\/(run_[0-9A-HJKMNP-TV-Z]{26})$/)?.[1]
+  if (reportRunId) return <ResultReport runId={reportRunId} />
+
   const [plans, setPlans] = useState<Plan[]>([])
   const [selectedId, setSelectedId] = useState<string>()
   const [runs, setRuns] = useState<Run[]>([])
@@ -60,7 +64,7 @@ export function App() {
     <header>
       <p className="eyebrow">SAML CONFORMANCE TEST SUITE</p>
       <h1>Samlier</h1>
-      <p className="lede">M0 skeleton: issue a Test Peer, inspect reachability, and prove one normal SSO round trip. No conformance verdicts are produced yet.</p>
+      <p className="lede">Run evidence-backed SAML interoperability checks, review unresolved obligations, and export a traceable result. Operational quick checks remain separate from conformance results.</p>
     </header>
 
     {message && <aside role="status">{message}</aside>}
@@ -102,6 +106,7 @@ export function App() {
         <div><strong>{run.status}</strong><small>{run.id}</small></div><span>{run.targetToSuiteReachability}</span>
         {selected.plan.profile.startsWith('IDP') && <a className="button" href={`/p/${selected.plan.id}/start/m0-roundtrip?run=${run.id}`}>Start IdP round trip</a>}
         {selected.plan.profile.startsWith('SP') && <p>Start login at the target SP after importing the Test Peer metadata.</p>}
+        {run.status === 'COMPLETED' && <a href={`/reports/${run.id}`}>Open result</a>}
       </article>)}
     </section>}
   </main>

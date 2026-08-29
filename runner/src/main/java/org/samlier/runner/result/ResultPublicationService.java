@@ -7,7 +7,7 @@ import org.samlier.core.result.RunArtifactRepository;
 import org.samlier.runner.RunEvaluationService;
 
 /** Generates and atomically persists the single authoritative public result for a Run. */
-public final class ResultPublicationService {
+public final class ResultPublicationService implements ResultArtifactQuery {
     private final CoverageCatalog catalog;
     private final RunEvaluationService evaluation;
     private final ResultContextProvider contexts;
@@ -38,6 +38,7 @@ public final class ResultPublicationService {
         return bytes.clone();
     }
 
+    @Override
     public byte[] require(String runId) {
         return artifacts.findResult(runId)
                 .orElseThrow(() -> new IllegalArgumentException("Result artifact has not been generated"));
