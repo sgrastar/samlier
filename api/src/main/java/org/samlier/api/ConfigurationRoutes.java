@@ -6,7 +6,7 @@ import java.util.Objects;
 import java.util.Set;
 import org.samlier.runner.ConfigurationExecutor;
 
-/** Isolated configuration route pending reapproval of the G2-protected application composition root. */
+/** Isolated route for the fixed common configuration-answer vocabulary. */
 public final class ConfigurationRoutes {
     private ConfigurationRoutes() {}
 

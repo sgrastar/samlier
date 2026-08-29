@@ -15,6 +15,8 @@ import org.samlier.core.evaluation.PredicateCatalogMapper;
 import org.samlier.runner.result.EvaluationArtifactDigests;
 import org.samlier.runner.CaseImplementationAudit;
 import org.samlier.runner.cases.ApprovedAttestedCaseRegistry;
+import org.samlier.runner.cases.ApprovedConfigCaseRegistry;
+import org.samlier.runner.cases.ApprovedBrowserCaseRegistry;
 import org.samlier.runner.cases.AttestedOutcomeTestCase;
 import org.samlier.core.casedef.CaseDefinitionCatalog.ExecutionMode;
 import org.samlier.core.casedef.CaseDefinitionCatalog.Milestone;
@@ -41,6 +43,12 @@ class CatalogDocumentsTest {
                 firstAttestation.options().stream().map(value -> value.value()).toList());
         assertTrue(firstAttestation.promptEn().contains("SPProvidedID"));
         assertTrue(firstAttestation.promptEn().contains("Counterexample to avoid"));
+        var config = ApprovedConfigCaseRegistry.create(cases);
+        assertEquals(65, config.ids().size());
+        CaseImplementationAudit.requireExact(cases, config, Milestone.M1, ExecutionMode.CONFIG);
+        var browser = ApprovedBrowserCaseRegistry.create(cases, java.net.URI.create("https://suite.example"));
+        assertEquals(151, browser.ids().size());
+        CaseImplementationAudit.requireExact(cases, browser, Milestone.M1, ExecutionMode.BROWSER);
         assertFalse(digests.compositeDigest().isBlank());
         assertArrayEquals(Files.readAllBytes(repositoryRoot().resolve("tests/coverage.yaml")),
                 documents.bytes("tests/coverage.yaml"));

@@ -5,6 +5,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Objects;
 import java.util.Set;
 import org.samlier.core.caseexec.TestCase;
 import org.samlier.core.plan.TargetRole;
@@ -39,5 +40,15 @@ public final class TestCaseRegistry {
 
     public Set<String> ids() {
         return cases.keySet();
+    }
+
+    public List<TestCase> all() {
+        return cases.values().stream().sorted(java.util.Comparator.comparing(TestCase::id)).toList();
+    }
+
+    public static TestCaseRegistry merge(TestCaseRegistry... registries) {
+        var values = new java.util.ArrayList<TestCase>();
+        for (var registry : registries) values.addAll(Objects.requireNonNull(registry, "registry").all());
+        return new TestCaseRegistry(values);
     }
 }

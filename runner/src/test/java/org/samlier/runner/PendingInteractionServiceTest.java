@@ -27,14 +27,25 @@ import org.samlier.core.plan.TargetRole;
 import org.samlier.runner.InteractionQuery.Kind;
 import org.samlier.runner.cases.AttestationOption;
 import org.samlier.runner.cases.AttestedOutcomeTestCase;
+import org.samlier.runner.cases.ConfigurationGateTestCase;
+import org.samlier.runner.cases.BrowserEvidenceTestCase;
+import org.samlier.core.caseexec.ConfigurationFailureSemantics;
 
 class PendingInteractionServiceTest {
     private static final Instant EXPIRES = Instant.parse("2026-08-29T04:00:00Z");
 
     @Test
     void exposesOnlySafePromptDataAndServerDefinedAnswerValues() {
-        var browser = passiveCase("IIP-SSO01-a-sp-01", TargetRole.SP);
-        var config = passiveCase("IIP-MD01-a-sp-01", TargetRole.SP);
+        var browserEvidence = new AttestedOutcomeTestCase(
+                "IIP-SSO01-a-sp-01", TargetRole.SP, "browser.evidence", Duration.ofMinutes(5),
+                List.of(AttestationOption.of("satisfied", Outcome.SATISFIED, "satisfied")));
+        var browser = new BrowserEvidenceTestCase(
+                browserEvidence, URI.create("https://suite.example"), "Complete both browser controls.",
+                Duration.ofMinutes(5));
+        var config = new ConfigurationGateTestCase(
+                passiveCase("IIP-MD01-a-sp-01", TargetRole.SP), "configuration.md01",
+                "Refresh the target metadata.", Duration.ofMinutes(5),
+                ConfigurationFailureSemantics.TEST_PRECONDITION);
         var attested = new AttestedOutcomeTestCase(
                 "IIP-G02-c-sp-01", TargetRole.SP, "attestation.g02", "Review approved evidence.",
                 Duration.ofMinutes(5),
@@ -59,9 +70,11 @@ class PendingInteractionServiceTest {
         assertEquals(3, pending.size());
         assertEquals(Kind.BROWSER, pending.get(0).kind());
         assertEquals(URI.create("https://suite.example/start"), pending.get(0).startUrl());
+        assertEquals("Complete both browser controls.", pending.get(0).promptEn());
         assertEquals(List.of(
                 "confirmed", "capability_absent", "target_config_unavailable", "capability_undetermined"),
                 pending.get(1).answerValues());
+        assertEquals("Refresh the target metadata.", pending.get(1).promptEn());
         assertEquals(List.of("preserved", "truncated"), pending.get(2).answerValues());
         assertEquals("Review approved evidence.", pending.get(2).promptEn());
         assertEquals(EXPIRES, pending.get(2).expiresAt());

@@ -5,7 +5,9 @@ import java.util.List;
 import java.util.Objects;
 import org.samlier.core.caseexec.CaseExecutionRepository;
 import org.samlier.core.caseexec.CaseExecutionStatus;
-import org.samlier.runner.cases.AttestedOutcomeTestCase;
+import org.samlier.runner.cases.AttestationPrompt;
+import org.samlier.runner.cases.ConfigurationPrompt;
+import org.samlier.runner.cases.BrowserPrompt;
 
 /** Projects persisted user waits without exposing restart state or any client-writable outcome. */
 public final class PendingInteractionService implements InteractionQuery {
@@ -27,17 +29,27 @@ public final class PendingInteractionService implements InteractionQuery {
         for (var execution : executions.list(runId)) {
             var wait = execution.waitCondition();
             if (execution.status() == CaseExecutionStatus.WAITING_BROWSER) {
+                var testCase = registry.require(execution.caseId());
+                if (!(testCase instanceof BrowserPrompt browser)) {
+                    throw new IllegalStateException(
+                            "Browser case does not expose server-defined instructions: " + execution.caseId());
+                }
                 result.add(new PendingInteraction(
-                        execution.caseId(), Kind.BROWSER, null, null,
-                        wait.startUrl(), wait.expiresAt(), List.of()));
+                        execution.caseId(), Kind.BROWSER, null, browser.browserInstructionsEn(),
+                        wait.startUrl(), wait.expiresAt(), List.of("completed")));
             } else if (execution.status() == CaseExecutionStatus.WAITING_CONFIG) {
+                var testCase = registry.require(execution.caseId());
+                if (!(testCase instanceof ConfigurationPrompt configuration)) {
+                    throw new IllegalStateException(
+                            "Configuration case does not expose server-defined instructions: " + execution.caseId());
+                }
                 result.add(new PendingInteraction(
-                        execution.caseId(), Kind.CONFIGURATION, wait.promptKey(), wait.promptKey(),
+                        execution.caseId(), Kind.CONFIGURATION, wait.promptKey(), configuration.instructionEn(),
                         null, wait.expiresAt(),
                         CONFIGURATION_ANSWERS));
             } else if (execution.status() == CaseExecutionStatus.WAITING_ATTESTATION) {
                 var testCase = registry.require(execution.caseId());
-                if (!(testCase instanceof AttestedOutcomeTestCase attested)) {
+                if (!(testCase instanceof AttestationPrompt attested)) {
                     throw new IllegalStateException(
                             "Attestation case does not expose server-defined options: " + execution.caseId());
                 }

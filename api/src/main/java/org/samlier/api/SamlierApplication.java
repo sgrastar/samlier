@@ -89,11 +89,28 @@ public final class SamlierApplication {
             ResultRoutes.register(javalin, m1::requireResult);
             InteractionRoutes.register(javalin, m1::pending);
             AttestationRoutes.register(javalin, m1::attest);
+            ConfigurationRoutes.register(javalin, m1::configure);
+            BrowserCompletionRoutes.register(javalin, m1::completeBrowser);
             if (config.mode() == AppConfig.Mode.HOSTED) {
                 ManagementSessionRoutes.register(javalin, config.publicBaseUrl(), m1::exchange);
+                javalin.routes.before("/api/runs/{id}/quick-check", ctx ->
+                        m1.authorizeMutation(
+                                ctx.pathParam("id"),
+                                ctx.cookie(ManagementSessionRoutes.COOKIE_NAME),
+                                ctx.header("X-CSRF-Token")));
                 javalin.routes.before("/api/runs/{id}/interactions", ctx ->
                         m1.authorize(ctx.pathParam("id"), ctx.cookie(ManagementSessionRoutes.COOKIE_NAME)));
                 javalin.routes.before("/api/runs/{id}/cases/{caseId}/attest", ctx ->
+                        m1.authorizeMutation(
+                                ctx.pathParam("id"),
+                                ctx.cookie(ManagementSessionRoutes.COOKIE_NAME),
+                                ctx.header("X-CSRF-Token")));
+                javalin.routes.before("/api/runs/{id}/cases/{caseId}/configure", ctx ->
+                        m1.authorizeMutation(
+                                ctx.pathParam("id"),
+                                ctx.cookie(ManagementSessionRoutes.COOKIE_NAME),
+                                ctx.header("X-CSRF-Token")));
+                javalin.routes.before("/api/runs/{id}/cases/{caseId}/browser-complete", ctx ->
                         m1.authorizeMutation(
                                 ctx.pathParam("id"),
                                 ctx.cookie(ManagementSessionRoutes.COOKIE_NAME),
@@ -126,6 +143,7 @@ public final class SamlierApplication {
         javalin.routes.get("/", SamlierApplication::serveIndex);
         javalin.routes.get("/reports/{run}", SamlierApplication::serveIndex);
         javalin.routes.get("/manage/{run}", SamlierApplication::serveIndex);
+        javalin.routes.get("/browser/{run}/{caseId}", SamlierApplication::serveIndex);
         javalin.routes.get("/assets/{file}", SamlierApplication::serveAsset);
         javalin.routes.get("/api/health", ctx -> ctx.json(Map.of(
                 "status", "ok", "version", "0.1.0-SNAPSHOT", "mode", config.mode().name().toLowerCase())));

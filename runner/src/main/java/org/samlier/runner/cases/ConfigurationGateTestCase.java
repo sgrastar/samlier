@@ -16,12 +16,13 @@ import org.samlier.core.evaluation.Outcome;
 import org.samlier.core.plan.TargetRole;
 
 /** Adds the common approved configuration branch in front of a concrete observation case. */
-public final class ConfigurationGateTestCase implements TestCase {
+public final class ConfigurationGateTestCase implements TestCase, AttestationPrompt, ConfigurationPrompt {
     private static final String WAITING_PHASE = "await-configuration";
     private static final int MAX_NOTE_LENGTH = 4_000;
 
     private final TestCase delegate;
     private final String instructionKey;
+    private final String instructionEn;
     private final Duration ttl;
     private final ConfigurationFailureSemantics semantics;
 
@@ -30,8 +31,18 @@ public final class ConfigurationGateTestCase implements TestCase {
             String instructionKey,
             Duration ttl,
             ConfigurationFailureSemantics semantics) {
+        this(delegate, instructionKey, instructionKey, ttl, semantics);
+    }
+
+    public ConfigurationGateTestCase(
+            TestCase delegate,
+            String instructionKey,
+            String instructionEn,
+            Duration ttl,
+            ConfigurationFailureSemantics semantics) {
         this.delegate = Objects.requireNonNull(delegate, "delegate");
         this.instructionKey = text(instructionKey, "instructionKey");
+        this.instructionEn = text(instructionEn, "instructionEn");
         this.ttl = Objects.requireNonNull(ttl, "ttl");
         if (ttl.isZero() || ttl.isNegative()) throw new IllegalArgumentException("ttl must be positive");
         this.semantics = Objects.requireNonNull(semantics, "semantics");
@@ -40,7 +51,16 @@ public final class ConfigurationGateTestCase implements TestCase {
     @Override public String id() { return delegate.id(); }
     @Override public TargetRole role() { return delegate.role(); }
     public String instructionKey() { return instructionKey; }
+    @Override public String instructionEn() { return instructionEn; }
     public ConfigurationFailureSemantics semantics() { return semantics; }
+    @Override public String promptEn() {
+        if (delegate instanceof AttestationPrompt prompt) return prompt.promptEn();
+        throw new IllegalStateException("Configuration delegate has no attestation prompt: " + id());
+    }
+    @Override public List<AttestationOption> options() {
+        if (delegate instanceof AttestationPrompt prompt) return prompt.options();
+        throw new IllegalStateException("Configuration delegate has no attestation options: " + id());
+    }
 
     @Override
     public CaseStep start(CaseContext context) {

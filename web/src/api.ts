@@ -151,6 +151,9 @@ export const api = {
   createRun: (planId: string) => request<RunCreated>(`/api/plans/${planId}/runs`, { method: 'POST' }),
   preflight: (runId: string) => request<Record<string, unknown>>(`/api/runs/${runId}/preflight`, { method: 'POST' }),
   transcript: (runId: string) => request<unknown[]>(`/api/runs/${runId}/transcript`),
+  quickCheck: (runId: string, csrfToken?: string) => request<unknown>(`/api/runs/${runId}/quick-check`, {
+    method: 'POST', headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : {},
+  }),
   result: async (runId: string) => camelize(
     await request<unknown>(`/api/runs/${runId}/result.json`),
   ) as PublicResult,
@@ -162,5 +165,14 @@ export const api = {
     request<unknown>(`/api/runs/${runId}/cases/${caseId}/attest`, {
       method: 'POST', body: JSON.stringify({ value, note }),
       headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : {},
+    }),
+  configure: (runId: string, caseId: string, value: string, note: string, csrfToken?: string) =>
+    request<unknown>(`/api/runs/${runId}/cases/${caseId}/configure`, {
+      method: 'POST', body: JSON.stringify({ value, note }),
+      headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : {},
+    }),
+  completeBrowser: (runId: string, caseId: string, csrfToken?: string) =>
+    request<unknown>(`/api/runs/${runId}/cases/${caseId}/browser-complete`, {
+      method: 'POST', body: '{}', headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : {},
     }),
 }

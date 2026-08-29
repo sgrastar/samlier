@@ -14,6 +14,8 @@ import org.samlier.core.transcript.TranscriptRecorder;
 import org.samlier.runner.CaseRunProjection;
 import org.samlier.runner.ApprovedCaseStarter;
 import org.samlier.runner.AttestationService;
+import org.samlier.runner.ConfigurationService;
+import org.samlier.runner.BrowserCompletionService;
 import org.samlier.runner.CatalogApplicabilityProvider;
 import org.samlier.runner.CaseExecutionService;
 import org.samlier.runner.DefaultCaseContext;
@@ -25,6 +27,8 @@ import org.samlier.runner.RunEvaluationService;
 import org.samlier.runner.access.RunAccessService;
 import org.samlier.runner.cases.CachedTargetSigningCertificateProvider;
 import org.samlier.runner.cases.ApprovedAttestedCaseRegistry;
+import org.samlier.runner.cases.ApprovedConfigCaseRegistry;
+import org.samlier.runner.cases.ApprovedBrowserCaseRegistry;
 import org.samlier.runner.result.DefaultResultContextProvider;
 import org.samlier.runner.result.EvaluationArtifactDigests;
 import org.samlier.runner.result.ResultDocumentContext;
@@ -52,8 +56,12 @@ final class M1Runtime {
     private final TranscriptRecorder transcript;
     private final Clock clock;
     private final ApprovedCaseStarter attestedStarter;
+    private final ApprovedCaseStarter configStarter;
+    private final ApprovedCaseStarter browserStarter;
     private final PendingInteractionService pendingInteractions;
     private final AttestationService attestations;
+    private final ConfigurationService configurations;
+    private final BrowserCompletionService browserCompletions;
 
     private M1Runtime(
             AppConfig config,
@@ -66,8 +74,12 @@ final class M1Runtime {
             TranscriptRecorder transcript,
             Clock clock,
             ApprovedCaseStarter attestedStarter,
+            ApprovedCaseStarter configStarter,
+            ApprovedCaseStarter browserStarter,
             PendingInteractionService pendingInteractions,
-            AttestationService attestations) {
+            AttestationService attestations,
+            ConfigurationService configurations,
+            BrowserCompletionService browserCompletions) {
         this.config = config;
         this.quickCheck = quickCheck;
         this.results = results;
@@ -78,8 +90,12 @@ final class M1Runtime {
         this.transcript = transcript;
         this.clock = clock;
         this.attestedStarter = attestedStarter;
+        this.configStarter = configStarter;
+        this.browserStarter = browserStarter;
         this.pendingInteractions = pendingInteractions;
         this.attestations = attestations;
+        this.configurations = configurations;
+        this.browserCompletions = browserCompletions;
     }
 
     static M1Runtime create(
@@ -107,13 +123,23 @@ final class M1Runtime {
                 coverage, predicates,
                 new PersistedApplicabilityInputProvider(new SqliteApplicabilityInputRepository(database, json)));
         var attestedRegistry = ApprovedAttestedCaseRegistry.create(definitions);
+        var configRegistry = ApprovedConfigCaseRegistry.create(definitions);
+        var browserRegistry = ApprovedBrowserCaseRegistry.create(definitions, config.publicBaseUrl());
+        var interactiveRegistry = org.samlier.runner.TestCaseRegistry.merge(
+                attestedRegistry, configRegistry, browserRegistry);
         var executionService = new CaseExecutionService(caseExecutions);
         var caseContexts = (org.samlier.runner.CaseContextProvider) runId -> caseContext(
                 runId, plans, runs, transcript, clock);
         var attestedStarter = new ApprovedCaseStarter(
                 coverage, definitions, attestedRegistry, executionService, applicability);
-        var pendingInteractions = new PendingInteractionService(caseExecutions, attestedRegistry);
-        var attestations = new AttestationService(attestedRegistry, executionService, caseContexts);
+        var configStarter = new ApprovedCaseStarter(
+                coverage, definitions, configRegistry, executionService, applicability);
+        var browserStarter = new ApprovedCaseStarter(
+                coverage, definitions, browserRegistry, executionService, applicability);
+        var pendingInteractions = new PendingInteractionService(caseExecutions, interactiveRegistry);
+        var attestations = new AttestationService(interactiveRegistry, executionService, caseContexts);
+        var configurations = new ConfigurationService(configRegistry, executionService, caseContexts);
+        var browserCompletions = new BrowserCompletionService(browserRegistry, executionService, caseContexts);
         var evaluator = new RunEvaluationService(
                 coverage, plans, runs,
                 new CaseRunProjection(caseExecutions, definitions.byId().keySet()), applicability,
@@ -139,7 +165,8 @@ final class M1Runtime {
                 config.publicBaseUrl(), runs, new SqliteRunAccessGrantRepository(database), clock);
         return new M1Runtime(
                 config, quickCheck, results, artifacts, access, plans, runs, transcript, clock,
-                attestedStarter, pendingInteractions, attestations);
+                attestedStarter, configStarter, browserStarter, pendingInteractions, attestations,
+                configurations, browserCompletions);
     }
 
     QuickCheckService.QuickCheckResult quickCheck(String runId) {
@@ -147,6 +174,8 @@ final class M1Runtime {
         var run = requireRun(runId);
         var plan = requirePlan(run);
         attestedStarter.startApplicable(run, plan, caseContext(run, plan));
+        configStarter.startApplicable(run, plan, caseContext(run, plan));
+        browserStarter.startApplicable(run, plan, caseContext(run, plan));
         if (results != null) results.generate(runId);
         return value;
     }
@@ -159,6 +188,19 @@ final class M1Runtime {
     org.samlier.runner.AttestationExecutor.Result attest(
             String runId, String caseId, String value, String note) {
         var result = attestations.attest(runId, caseId, value, note);
+        if (results != null) results.generate(runId);
+        return result;
+    }
+
+    org.samlier.runner.ConfigurationExecutor.Result configure(
+            String runId, String caseId, String value, String note) {
+        var result = configurations.answer(runId, caseId, value, note);
+        if (results != null) results.generate(runId);
+        return result;
+    }
+
+    org.samlier.runner.BrowserCompletionExecutor.Result completeBrowser(String runId, String caseId) {
+        var result = browserCompletions.complete(runId, caseId);
         if (results != null) results.generate(runId);
         return result;
     }

@@ -4,7 +4,7 @@ import io.javalin.config.JavalinConfig;
 import java.util.Objects;
 import org.samlier.runner.QuickCheckExecutor;
 
-/** Isolated route registration; the signed G2 application composition root remains untouched. */
+/** Starts the approved M1 execution slice after the baseline SSO round trip. */
 public final class QuickCheckRoutes {
     private QuickCheckRoutes() {}
 

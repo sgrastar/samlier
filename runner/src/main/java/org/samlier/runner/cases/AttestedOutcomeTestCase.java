@@ -22,7 +22,7 @@ import org.samlier.core.plan.TargetRole;
  * <p>The answer-to-outcome mapping is fixed by the server-side case definition. The caller submits
  * only an option value and cannot manufacture an Outcome or Verdict.
  */
-public final class AttestedOutcomeTestCase implements TestCase {
+public final class AttestedOutcomeTestCase implements TestCase, AttestationPrompt {
     private static final String WAITING_PHASE = "await-attestation";
     private static final int MAX_NOTE_LENGTH = 4_000;
 
