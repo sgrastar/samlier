@@ -1,0 +1,16 @@
+.git
+.github
+.gradle
+.venv
+**/build
+**/node_modules
+build
+data
+scratchpad
+Dockerfile*
+docs
+tools
+schema
+*.db
+*.db-shm
+*.db-wal

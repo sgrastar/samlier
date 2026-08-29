@@ -1,0 +1,117 @@
+name: G2
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  g2-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b
+        with: { python-version: '3.14' }
+      - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654
+        with: { distribution: temurin, java-version: '21', cache: gradle }
+      - name: Install hash-pinned validator dependencies
+        run: |
+          python3 -m venv .venv
+          .venv/bin/pip install --require-hashes -r tools/requirements.lock
+      - name: Configure signing-key allowlist
+        env:
+          G2_ALLOWED_SIGNERS: ${{ vars.G2_ALLOWED_SIGNERS }}
+        run: |
+          set -euo pipefail
+          test -n "$G2_ALLOWED_SIGNERS" || { echo "G2_ALLOWED_SIGNERS is empty" >&2; exit 2; }
+          printf '%s\n' "$G2_ALLOWED_SIGNERS" > /tmp/g2-allowed-signers
+          git config gpg.format ssh
+          git config gpg.ssh.allowedSignersFile /tmp/g2-allowed-signers
+      - name: Validate G2 design and feasibility evidence
+        run: |
+          rm -f build/g2-report.json
+          .venv/bin/python tools/g2_validate.py
+          ./gradlew check --no-daemon
+      - uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882
+        if: always()
+        with: { name: g2-design-report, path: build/g2-report.json }
+
+  # Never add a job-level condition. Before approval, this required gate fails closed.
+  g2b-approval:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b
+        with: { python-version: '3.14' }
+      - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654
+        with: { distribution: temurin, java-version: '21', cache: gradle }
+      - name: Validate immutable G2 tools pin
+        env:
+          G2_TOOLS_COMMIT: ${{ vars.G2_TOOLS_COMMIT }}
+        run: |
+          set -euo pipefail
+          [[ "$G2_TOOLS_COMMIT" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$(git rev-parse --verify --quiet "${G2_TOOLS_COMMIT}^{commit}")" == "$G2_TOOLS_COMMIT" ]]
+      - name: Install dependencies from pinned commit
+        env:
+          G2_TOOLS_COMMIT: ${{ vars.G2_TOOLS_COMMIT }}
+        run: |
+          mkdir -p /tmp/g2-pin
+          git show "$G2_TOOLS_COMMIT:tools/requirements.lock" > /tmp/g2-pin/requirements.lock
+          python3 -m venv /tmp/g2-pin/venv
+          /tmp/g2-pin/venv/bin/pip install --require-hashes -r /tmp/g2-pin/requirements.lock
+      - name: Configure signing-key allowlist
+        env:
+          G2_ALLOWED_SIGNERS: ${{ vars.G2_ALLOWED_SIGNERS }}
+        run: |
+          set -euo pipefail
+          test -n "$G2_ALLOWED_SIGNERS" || { echo "G2_ALLOWED_SIGNERS is empty" >&2; exit 2; }
+          printf '%s\n' "$G2_ALLOWED_SIGNERS" > /tmp/g2-allowed-signers
+          git config gpg.format ssh
+          git config gpg.ssh.allowedSignersFile /tmp/g2-allowed-signers
+      - name: Run externally pinned trusted verifier
+        env:
+          G2_TOOLS_COMMIT: ${{ vars.G2_TOOLS_COMMIT }}
+        run: |
+          set -euo pipefail
+          TMP=$(mktemp -d); mkdir -p "$TMP/tools"
+          for file in tools/g2_trusted_verify.py tools/g2_validate.py; do
+            git show "$G2_TOOLS_COMMIT:$file" > "$TMP/$file"
+          done
+          env -u PYTHONPATH -u G2_VALIDATOR_COMMIT -u G2_RUNNER_COMMIT \
+            G2_REPO_ROOT="$PWD" \
+            G2_RUNNER_COMMIT="$G2_TOOLS_COMMIT" \
+            G2_VALIDATOR_COMMIT="$G2_TOOLS_COMMIT" \
+            /tmp/g2-pin/venv/bin/python -I "$TMP/tools/g2_trusted_verify.py"
+      - name: Require complete approval and pinned provenance
+        env:
+          G2_TOOLS_COMMIT: ${{ vars.G2_TOOLS_COMMIT }}
+        run: |
+          /tmp/g2-pin/venv/bin/python - <<'PY'
+          import json, os
+          report = json.load(open('build/g2-report.json'))
+          provenance = report['provenance']
+          assert report['g2']['complete'] is True
+          assert provenance['validator_source_kind'] == 'external-pin'
+          assert provenance['validator_source'] == os.environ['G2_TOOLS_COMMIT']
+          assert provenance['runner_source'] == os.environ['G2_TOOLS_COMMIT']
+          PY
+      - name: Re-run feasibility evidence from the pinned target
+        env:
+          G2_TOOLS_COMMIT: ${{ vars.G2_TOOLS_COMMIT }}
+        run: |
+          set -euo pipefail
+          TARGET=$(mktemp -d)
+          git archive "$G2_TOOLS_COMMIT" | tar -x -C "$TARGET"
+          cd "$TARGET"
+          ./gradlew :saml:test --tests org.samlier.saml.G2FeasibilitySpikeTest --no-daemon
+          ./gradlew :peer:test --tests org.samlier.peer.PeerG2FeasibilityTest --no-daemon
+      - uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882
+        if: always()
+        with: { name: g2-approval-report, path: build/g2-report.json }

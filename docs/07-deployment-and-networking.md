@@ -142,7 +142,7 @@ The image is the same, with features enabled by `SAMLIER_MODE=hosted`.
 | Rate limiting / concurrent execution limits | Abuse prevention |
 | Prohibit outbound connections to private IP addresses | SSRF protection ([08](08-suite-security.md)) |
 | Public result storage | Shared URLs |
-| Administrative access | Phase 1 uses **a per-Run secret URL** (no authentication). Add OIDC login through Authrim in the future. [09 D-09](09-open-decisions.md) |
+| Administrative access | Phase 1 uses **a per-Run secret URL** (no account login). A Hosted Plan-creation request also creates the initial Run; all subsequent Plan and Run reads or mutations require that Run session. Add OIDC login through Authrim in the future. [09 D-09](09-open-decisions.md) |
 | Automatic deletion after the retention period | |
 
 self-hosted has no authentication (it is intended for use within a trusted network).

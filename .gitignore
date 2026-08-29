@@ -6,6 +6,7 @@ build/*
 # The canonical copy is the CI artifact uploaded by .github/workflows/g1.yml.
 out/
 .gradle/
+**/build/
 bin/
 
 # Original-text cache fetched by :specReconcile; exclude it from both the
@@ -19,6 +20,7 @@ dist/
 
 # Runtime data (SQLite / generated keys / Transcript)
 data/
+.data/
 *.db
 *.db-wal
 *.db-shm

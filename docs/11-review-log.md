@@ -1,5 +1,28 @@
 # 11. Design Review Log
 
+## R-HOSTED-01 — Hosted Plan API authorization
+
+An independent release audit found that the per-Run management session protected result and evidence routes
+but not the Test Plan CRUD, Run creation, Run detail, preflight, or SSE routes. An anonymous caller could list
+target entity IDs and metadata source locations, read `testUserHint`, mutate another Plan, and create Runs.
+
+The Hosted Plan-creation request now also creates the initial Run and returns its one-time management URL. All later
+Plan and Run administrative reads are scoped through the session token to that Run's Plan, mutations require
+the matching CSRF token, and Plan API views omit both `testUserHint` and the target metadata source. Cross-Plan,
+missing-cookie, and missing-CSRF paths are covered by end-to-end HTTP regression tests.
+
+A follow-up review found that initial Run creation bypassed the existing one-active-Run-per-target check and that
+separate Plan, Run, and access-grant writes could leave an unreachable Plan after a partial failure. Hosted
+provisioning now performs the active-target check and all three writes under one SQLite `BEGIN IMMEDIATE`
+transaction. Concurrent requests for the same entity ID serialize, exactly one succeeds, and any child-write
+failure rolls the Plan back. Repository tests cover successful persistence, active/terminal state transitions,
+rollback, and concurrent creation; the HTTP test includes a duplicate-target negative control.
+
+The same invariant also applies to Plan updates: Hosted mode refuses a target entity-ID change while that Plan has
+a non-terminal Run. The update and Run-creation paths take the same immediate SQLite write lock, and Run creation
+re-reads the current Plan inside that transaction. This closes the race where a stale pre-transaction Plan could
+be checked under its old target while a concurrent update moved it to an occupied target.
+
 ## R1 — 2026-08-25 Review of the Judgment Model and Coverage Definition
 
 **Conclusion**: All 9 findings were valid. Of these, 3 findings (the misreading of the RFC2119 levels in Finding 4) were corrected after re-fetching and cross-checking the
@@ -3577,3 +3600,92 @@ This changes signed evidence ranges and obligation digests, but not the verdict 
 ### Baseline Exception Discipline
 
 The allowed semantic departures from baseline `ca54c4b83ac1a3208591f03772b4cf52c62045d4` are recorded in `tools/g1-semantic-exceptions.yaml`. Each entry includes the source, counterexample, and correction. The migration validator rejects unlisted changed fields, stale exception entries, and exception references to unknown obligations. The manifest remains `REQUIRES_G1B_REVIEW`; it does not authorize or substitute for signed approval.
+
+---
+
+## G1b Approval-Boundary Amendment — 2026-08-29
+
+The first signed G1 approval compared the complete file sets under `tests/` and
+`tools/` with the approval commit. That prevented any approved later gate from
+adding its own artifacts: the planned `tests/cases.yaml`, `tests/mutants/*.yaml`,
+and `tools/g2_validate.py` would invalidate G1 even though they do not alter the
+G1 catalogs.
+
+The approval boundary is now the explicit `PROTECTED_PATHS` list. It retains the
+three normative catalogs, the G1 approval record, all G1 validators and extraction
+logic, the migration exception manifest, and all G1 schemas. Additions outside
+that list do not affect G1 approval. Changing a protected byte still invalidates
+approval.
+
+The former whole-directory check also served as a defense against Python import
+shadowing. To preserve that property without claiming ownership of future-stage
+files, direct execution of `g1_validate.py` now restarts under `python -I` before
+any third-party import and removes the script directory from `sys.path`. Trusted
+and CI entry points continue to extract the validator from a pinned commit and
+execute it in isolated mode. The G1 catalog content and obligation digests are
+unchanged; the amended validator must nevertheless receive a new signed approval
+because it is itself a protected G1 artifact.
+
+---
+
+## G2 Consolidated Design Review Corrections — 2026-08-29
+
+The first complete G2 review found that full variant-set coverage alone did not
+prove executable detection power. The correction retained every approved G1
+meaning and changed only G2 design, evidence, and approval enforcement.
+
+- Explicitly non-evaluative MAY/OPTIONAL choices now use informational fixtures
+  and mutant waivers; no unreachable `violated` outcome is manufactured.
+- Variant plans and logical groups preserve `all_of`, `one_of`, and
+  `one_of_available`, including the alternatives in `IIP-IDP12.d` and the
+  available read-back paths in `IIP-G02.c`.
+- Mutants now carry structured observation contracts. The `IIP-IDP16.a`
+  mutation is restricted to ECP so the linked Web Browser SSO obligation remains
+  unchanged.
+- Universal accept/reject controls apply only to explicit receiver decisions,
+  not to every producer, CONFIG, ATTESTED, passive, or informational case.
+- Baseline conditions are derived from fixture inputs. A fifth proxy IdP
+  baseline separates mutually exclusive classifications, all baselines retain
+  MDQ capability, and role/profile/condition precedence is fixed.
+- SLO cases that terminate state declare the effect and use a fresh isolated
+  session. Missing observation opportunities remain `not_verified`.
+- Every feasibility assertion maps one-to-one to an executable production-
+  boundary test; test-local fakes no longer count as evidence.
+- G2 approval binds G1 inputs, the complete fixture tree, build inputs,
+  feasibility boundaries, schemas, validators, and CI. Approval CI reruns tests
+  from the externally pinned target.
+
+These changes do not approve G2 and do not begin M1. Independent signed review
+remains the next gate.
+
+### G2 Consolidated Review Follow-up
+
+The independent re-review found four remaining detection-power defects. They
+were corrected before G2 approval:
+
+- A mutant triggered by one member of a multi-member `one_of` group now declares
+  every member in `executor.mutation_variants` and makes the complete group
+  nonconforming. Mutating one permitted alternative while preserving another
+  cannot establish a violation.
+- Eight additional MAY/OPTIONAL obligations whose approved G1 controls explicitly
+  prohibit a target violation were moved to informational controls and mutant
+  waivers. G2 no longer invents `violated` for unsupported or omitted optional
+  behavior.
+- The final cross-check included `IIP-MD03.e` and `IIP-MD05.au`. Making every
+  key-container alternative unavailable under `.e` would violate the separate
+  key-configuration capability while claiming `all_others` remained unchanged;
+  declining the optional ResponseLocation assumption under `.au` is likewise
+  not a unique violation of that permission.
+- Variant treatment is derived and validated against the approved G1 text; the
+  non-evaluative variants are no longer presented to M1 as verdict inputs.
+- Seven target-initiated SLO cases again require a fresh authenticated session.
+  The session is an observation prerequisite, not an assertion that the case is
+  destructive.
+- A cache-disabled Gradle run exposed missing verification entries for resolved
+  transitive POM and module metadata. The missing SHA-256 values were added to
+  `gradle/verification-metadata.xml`; a subsequent strict refresh completed the
+  full build and test suite without lenient verification.
+
+The validator now rejects incomplete `one_of` mutation sets, treatment drift,
+and missing session prerequisites for the reviewed target-initiated SLO set.
+These changes still do not approve G2 or begin M1.

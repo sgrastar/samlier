@@ -1,0 +1,151 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://samlier.dev/schema/cases-v1.json",
+  "title": "Samlier G2 case design catalog",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "g2_state", "catalog_commit", "authored_by", "cases"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "g2_state": {"const": "PENDING_REVIEW"},
+    "catalog_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "authored_by": {"type": "string", "minLength": 1},
+    "cases": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/case"}
+    }
+  },
+  "$defs": {
+    "control": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "fixture", "description_en", "on_failure"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]+$"},
+        "kind": {"enum": ["positive", "negative", "informational"]},
+        "fixture": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]+$"},
+        "description_en": {"type": "string", "minLength": 20},
+        "on_failure": {"const": "control_failed"}
+      }
+    },
+    "case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id", "authored_by", "obligation", "obligation_digest", "role", "mode",
+        "milestone", "covers_variants", "variant_scopes", "variant_plan", "variant_groups", "controls",
+        "counterexample_en", "interpretation_constraints", "requires",
+        "destroys_session", "universal_control_applicability", "detected_by_mutants", "baseline", "case_digest", "review"
+      ],
+      "properties": {
+        "id": {"type": "string", "pattern": "^IIP-[A-Z]+[0-9]{2}-[a-z]{1,2}[0-9]?-(idp|sp)-01$"},
+        "authored_by": {"type": "string", "minLength": 1},
+        "obligation": {"type": "string", "pattern": "^IIP-[A-Z]+[0-9]{2}\\.[a-z]{1,2}[0-9]?$"},
+        "obligation_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "role": {"enum": ["idp", "sp"]},
+        "mode": {"enum": ["AUTOMATED", "BROWSER", "ATTESTED", "CONFIG"]},
+        "configuration_failure_semantics": {"enum": ["normative_capability", "test_precondition"]},
+        "milestone": {"enum": ["M1", "M2", "M3"]},
+        "covers_variants": {
+          "type": "array", "minItems": 1, "uniqueItems": true,
+          "items": {"type": "string", "pattern": "^IIP-[A-Z]+[0-9]{2}\\.[a-z]{1,2}[0-9]?#v-[0-9a-f]{10}$"}
+        },
+        "variant_scopes": {
+          "type": "object", "minProperties": 1,
+          "additionalProperties": {"enum": ["owner_condition", "linked_condition"]}
+        },
+        "variant_plan": {
+          "type": "array", "minItems": 1,
+          "items": {
+            "type": "object", "additionalProperties": false,
+            "required": ["reference", "applicability", "treatment", "instruction_en"],
+            "properties": {
+              "reference": {"type": "string", "pattern": "^IIP-[A-Z]+[0-9]{2}\\.[a-z]{1,2}[0-9]?#v-[0-9a-f]{10}$"},
+              "applicability": {"enum": ["owner_condition", "linked_condition"]},
+              "treatment": {"enum": ["verdict", "control", "informational", "out_of_scope"]},
+              "instruction_en": {"type": "string", "minLength": 1}
+            }
+          }
+        },
+        "variant_groups": {
+          "type": "array", "minItems": 1,
+          "items": {
+            "type": "object", "additionalProperties": false,
+            "required": ["id", "kind", "members", "rationale_en"],
+            "properties": {
+              "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]+$"},
+              "kind": {"enum": ["all_of", "one_of", "one_of_available"]},
+              "members": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string"}},
+              "rationale_en": {"type": "string", "minLength": 20}
+            }
+          }
+        },
+        "controls": {
+          "type": "array", "minItems": 1, "items": {"$ref": "#/$defs/control"}
+        },
+        "control_waiver_en": {"type": "string", "minLength": 20},
+        "counterexample_en": {"type": "string", "minLength": 80},
+        "interpretation_constraints": {
+          "type": "array", "items": {"type": "string", "minLength": 1}
+        },
+        "requires": {
+          "type": "object", "additionalProperties": false,
+          "required": ["passed_cases", "session"],
+          "properties": {
+            "passed_cases": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+            "session": {"enum": ["none", "required", "any"]},
+            "setup_fixture": {"const": "fresh-authenticated-session"}
+          }
+        },
+        "destroys_session": {"type": "boolean"},
+        "session_effect_reason_en": {"type": "string", "minLength": 30},
+        "universal_control_applicability": {
+          "type": "object", "additionalProperties": false,
+          "required": ["accept_everything", "reject_everything", "rationale_en"],
+          "properties": {
+            "accept_everything": {"enum": ["changes", "not_applicable"]},
+            "reject_everything": {"enum": ["changes", "not_applicable"]},
+            "rationale_en": {"type": "string", "minLength": 30}
+          }
+        },
+        "detected_by_mutants": {
+          "type": "array", "uniqueItems": true,
+          "items": {"type": "string", "pattern": "^mut-iip-[a-z]+[0-9]{2}-[a-z]{1,2}[0-9]?-(idp|sp)$"}
+        },
+        "mutant_waiver": {
+          "type": "object", "additionalProperties": false,
+          "required": ["reason_en", "alternative_control_fixture"],
+          "properties": {
+            "reason_en": {"type": "string", "minLength": 30},
+            "alternative_control_fixture": {"type": "string", "minLength": 1}
+          }
+        },
+        "baseline": {"enum": ["sp-full-slo-enc", "sp-core-minimal", "idp-full", "idp-core-no-ecp", "idp-proxy"]},
+        "case_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "review": {
+          "type": "object", "additionalProperties": false,
+          "required": ["state", "reviewer", "approved_at"],
+          "properties": {
+            "state": {"const": "PENDING_REVIEW"},
+            "reviewer": {"type": ["string", "null"]},
+            "approved_at": {"type": ["string", "null"]}
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"mode": {"const": "CONFIG"}}},
+          "then": {"required": ["configuration_failure_semantics"]},
+          "else": {"not": {"required": ["configuration_failure_semantics"]}}
+        },
+        {
+          "anyOf": [
+            {"properties": {"detected_by_mutants": {"minItems": 1}}},
+            {"required": ["mutant_waiver"]}
+          ]
+        }
+      ]
+    }
+  }
+}

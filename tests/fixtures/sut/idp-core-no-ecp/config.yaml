@@ -1,0 +1,156 @@
+schema_version: 1
+role: idp
+profile: idp-core
+features:
+  mdq: true
+  assertion_encryption: false
+  single_logout: false
+  cbc: false
+  supported_settings: false
+  name_identifier_management: false
+  sessionindex_scheme: assertion_id
+  random_id_generation: false
+  authnrequest_proxying: false
+  idplist_getcomplete: false
+  idp_initiated_sso: false
+  metadata_driven_acs: false
+  relaystate_as_url: false
+  allowcreate_specific_use: false
+  artifact_binding: false
+  encrypted_nameid: false
+  proxy_idp: false
+  ecp: false
+target:
+  kind: saml_implementation
+  upstream_kind: saml
+  relaystate_privacy: required
+  slo_relaystate_privacy: required
+controlled_inputs:
+  peer_declares_algorithm_support: false
+conditions:
+  claims_mdq_support: 'TRUE'
+  derives_url_from_relaystate: 'FALSE'
+  emits_idplist_getcomplete: 'FALSE'
+  not_token_translation_proxy: 'TRUE'
+  peer_declares_algorithm_support: 'FALSE'
+  proxies_to_non_saml_provider: 'FALSE'
+  proxy_allowcreate_general_interoperability_case: 'FALSE'
+  reissues_foreign_persistent_identifier: 'FALSE'
+  setting_supported_by_implementation: 'FALSE'
+  supports_artifact_binding: 'FALSE'
+  supports_authnrequest_proxying: 'FALSE'
+  supports_cbc: 'FALSE'
+  supports_encrypted_nameid: 'FALSE'
+  supports_name_identifier_management: 'FALSE'
+  supports_outbound_encryption: 'FALSE'
+  supports_slo_idp: 'FALSE'
+  supports_unsolicited_responses: 'FALSE'
+  unsolicited_acs_from_metadata: 'FALSE'
+  uses_random_identifier_generation: 'FALSE'
+  uses_small_integer_sessionindex: 'FALSE'
+condition_evidence:
+  claims_mdq_support:
+    result: 'TRUE'
+    declared_inputs:
+      declared_features.mdq: true
+    controlled_inputs: {}
+  derives_url_from_relaystate:
+    result: 'FALSE'
+    declared_inputs:
+      declared_features.relaystate_as_url: false
+    controlled_inputs: {}
+  emits_idplist_getcomplete:
+    result: 'FALSE'
+    declared_inputs:
+      declared_features.idplist_getcomplete: false
+    controlled_inputs: {}
+  not_token_translation_proxy:
+    result: 'TRUE'
+    declared_inputs:
+      target.kind: saml_implementation
+    controlled_inputs: {}
+  peer_declares_algorithm_support:
+    result: 'FALSE'
+    declared_inputs: {}
+    controlled_inputs:
+      suite.peer_declares_algorithm_support: false
+  proxies_to_non_saml_provider:
+    result: 'FALSE'
+    declared_inputs:
+      target.upstream_kind: saml
+    controlled_inputs: {}
+  proxy_allowcreate_general_interoperability_case:
+    result: 'FALSE'
+    declared_inputs:
+      declared_features.authnrequest_proxying: false
+      declared_features.allowcreate_specific_use: false
+    controlled_inputs: {}
+  reissues_foreign_persistent_identifier:
+    result: 'FALSE'
+    declared_inputs:
+      declared_features.proxy_idp: false
+    controlled_inputs: {}
+  setting_supported_by_implementation:
+    result: 'FALSE'
+    declared_inputs:
+      declared_features.supported_settings: false
+    controlled_inputs: {}
+  supports_artifact_binding:
+    result: 'FALSE'
+    declared_inputs:
+      declared_features.artifact_binding: false
+    controlled_inputs: {}
+  supports_authnrequest_proxying:
+    result: 'FALSE'
+    declared_inputs:
+      declared_features.authnrequest_proxying: false
+    controlled_inputs: {}
+  supports_cbc:
+    result: 'FALSE'
+    declared_inputs:
+      declared_features.cbc: false
+    controlled_inputs: {}
+  supports_encrypted_nameid:
+    result: 'FALSE'
+    declared_inputs:
+      declared_features.encrypted_nameid: false
+    controlled_inputs: {}
+  supports_name_identifier_management:
+    result: 'FALSE'
+    declared_inputs:
+      declared_features.name_identifier_management: false
+    controlled_inputs: {}
+  supports_outbound_encryption:
+    result: 'FALSE'
+    declared_inputs:
+      declared_features.assertion_encryption: false
+    controlled_inputs: {}
+  supports_slo_idp:
+    result: 'FALSE'
+    declared_inputs:
+      declared_features.single_logout: false
+    controlled_inputs: {}
+  supports_unsolicited_responses:
+    result: 'FALSE'
+    declared_inputs:
+      declared_features.idp_initiated_sso: false
+    controlled_inputs: {}
+  unsolicited_acs_from_metadata:
+    result: 'FALSE'
+    declared_inputs:
+      declared_features.idp_initiated_sso: false
+      declared_features.metadata_driven_acs: false
+    controlled_inputs: {}
+  uses_random_identifier_generation:
+    result: 'FALSE'
+    declared_inputs:
+      declared_features.random_id_generation: false
+    controlled_inputs: {}
+  uses_small_integer_sessionindex:
+    result: 'FALSE'
+    declared_inputs:
+      declared_features.sessionindex_scheme: assertion_id
+    controlled_inputs: {}
+interaction:
+  browser: true
+  attestation: true

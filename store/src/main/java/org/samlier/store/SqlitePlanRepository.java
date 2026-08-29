@@ -1,0 +1,71 @@
+package org.samlier.store;
+
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import org.samlier.core.plan.PlanRepository;
+import org.samlier.core.plan.TestPlan;
+
+public final class SqlitePlanRepository implements PlanRepository {
+    private final SqliteDatabase database;
+    private final JsonCodec json;
+
+    public SqlitePlanRepository(SqliteDatabase database, JsonCodec json) {
+        this.database = database;
+        this.json = json;
+    }
+
+    @Override
+    public List<TestPlan> list() {
+        var plans = new ArrayList<TestPlan>();
+        try (var connection = database.open();
+             var statement = connection.prepareStatement("SELECT document_json FROM plans ORDER BY created_at DESC");
+             var rows = statement.executeQuery()) {
+            while (rows.next()) plans.add(json.read(rows.getString(1), TestPlan.class));
+            return List.copyOf(plans);
+        } catch (SQLException e) {
+            throw new StoreException("Could not list plans", e);
+        }
+    }
+
+    @Override
+    public Optional<TestPlan> find(String id) {
+        try (var connection = database.open();
+             var statement = connection.prepareStatement("SELECT document_json FROM plans WHERE id = ?")) {
+            statement.setString(1, id);
+            try (var rows = statement.executeQuery()) {
+                return rows.next() ? Optional.of(json.read(rows.getString(1), TestPlan.class)) : Optional.empty();
+            }
+        } catch (SQLException e) {
+            throw new StoreException("Could not load plan", e);
+        }
+    }
+
+    @Override
+    public void save(TestPlan plan) {
+        var sql = """
+                INSERT INTO plans(id, document_json, created_at, updated_at) VALUES(?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET document_json=excluded.document_json, updated_at=excluded.updated_at
+                """;
+        try (var connection = database.open(); var statement = connection.prepareStatement(sql)) {
+            statement.setString(1, plan.id());
+            statement.setString(2, json.write(plan));
+            statement.setString(3, plan.createdAt().toString());
+            statement.setString(4, plan.updatedAt().toString());
+            statement.executeUpdate();
+        } catch (SQLException e) {
+            throw new StoreException("Could not save plan", e);
+        }
+    }
+
+    @Override
+    public boolean delete(String id) {
+        try (var connection = database.open(); var statement = connection.prepareStatement("DELETE FROM plans WHERE id = ?")) {
+            statement.setString(1, id);
+            return statement.executeUpdate() == 1;
+        } catch (SQLException e) {
+            throw new StoreException("Could not delete plan", e);
+        }
+    }
+}

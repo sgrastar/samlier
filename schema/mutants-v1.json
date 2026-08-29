@@ -1,0 +1,134 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://samlier.dev/schema/mutants-v1.json",
+  "title": "Samlier G2 mutant design artifacts",
+  "$defs": {
+    "outcome": {"enum": ["satisfied", "satisfied_with_note", "violated", "indeterminate", "inconsistent", "not_verified", "not_applicable"]},
+    "expected": {
+      "type": "object", "additionalProperties": false, "required": ["outcome"],
+      "properties": {"outcome": {"$ref": "#/$defs/outcome"}, "reason_code": {"type": "string"}}
+    },
+    "baseline": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "role", "profile", "declared_features", "target", "controlled_inputs", "condition_results", "condition_evidence", "config_fixture", "interaction"],
+      "properties": {
+        "id": {"type": "string"}, "role": {"enum": ["idp", "sp"]},
+        "profile": {"enum": ["idp-core", "idp-full", "sp-core", "sp-full"]},
+        "declared_features": {"type": "object", "additionalProperties": {"type": ["boolean", "string"]}},
+        "target": {"type": "object", "additionalProperties": {"type": ["boolean", "string"]}},
+        "controlled_inputs": {"type": "object", "additionalProperties": {"type": ["boolean", "string"]}},
+        "condition_results": {"type": "object", "additionalProperties": {"enum": ["TRUE", "FALSE"]}},
+        "condition_evidence": {"type": "object", "additionalProperties": {
+          "type": "object", "additionalProperties": false,
+          "required": ["result", "declared_inputs", "controlled_inputs"],
+          "properties": {
+            "result": {"enum": ["TRUE", "FALSE"]},
+            "declared_inputs": {"type": "object"},
+            "controlled_inputs": {"type": "object"}
+          }
+        }},
+        "config_fixture": {"type": "string"},
+        "interaction": {
+          "type": "object", "additionalProperties": false,
+          "required": ["allow_browser_steps", "allow_attestation"],
+          "properties": {"allow_browser_steps": {"type": "boolean"}, "allow_attestation": {"type": "boolean"}}
+        }
+      }
+    },
+    "mutant": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "authored_by", "base", "target_role", "injected_violation_en", "executor", "expected_changes", "unchanged_required", "mutant_digest"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^mut-iip-[a-z]+[0-9]{2}-[a-z]{1,2}[0-9]?-(idp|sp)$"},
+        "authored_by": {"type": "string", "minLength": 1},
+        "base": {"type": "string"}, "target_role": {"enum": ["idp", "sp"]},
+        "injected_violation_en": {"type": "string", "minLength": 30},
+        "executor": {
+          "type": "object", "additionalProperties": false,
+          "required": ["kind", "adapter", "mutation_point", "trigger_variant", "trigger_en", "operation", "expected_behavior_en", "observation"],
+          "properties": {
+            "kind": {"const": "declarative-sut-mutation"},
+            "adapter": {"enum": ["idp-mutant-target", "sp-mutant-target"]},
+            "mutation_point": {"type": "string"},
+            "trigger_variant": {"type": "string", "pattern": "^IIP-[A-Z]+[0-9]{2}\\.[a-z]{1,2}[0-9]?#v-[0-9a-f]{10}$"},
+            "mutation_variants": {
+              "type": "array", "minItems": 2, "uniqueItems": true,
+              "items": {"type": "string", "pattern": "^IIP-[A-Z]+[0-9]{2}\\.[a-z]{1,2}[0-9]?#v-[0-9a-f]{10}$"}
+            },
+            "trigger_en": {"type": "string", "minLength": 1},
+            "operation": {"enum": ["invert_normative_behavior", "emit_prohibited_behavior", "remove_required_capability", "emit_nonconforming_evidence"]},
+            "expected_behavior_en": {"type": "string", "minLength": 20},
+            "observation": {
+              "type": "object", "additionalProperties": false,
+              "required": ["evidence_kind", "surface_en", "signal_en", "baseline_evidence_en", "mutated_evidence_en", "unavailable_outcome", "isolation_en"],
+              "properties": {
+                "evidence_kind": {"enum": ["transcript", "browser_and_transcript", "configuration_and_transcript", "attestation_or_instrumented_trace"]},
+                "surface_en": {"type": "string", "minLength": 30},
+                "signal_en": {"type": "string", "minLength": 30},
+                "baseline_evidence_en": {"type": "string", "minLength": 30},
+                "mutated_evidence_en": {"type": "string", "minLength": 30},
+                "unavailable_outcome": {"const": "not_verified"},
+                "isolation_en": {"type": "string", "minLength": 50}
+              }
+            }
+          }
+        },
+        "expected_changes": {"type": "object", "minProperties": 1, "additionalProperties": {"$ref": "#/$defs/expected"}},
+        "unchanged_required": {"const": "all_others"},
+        "mutant_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+      }
+    }
+  },
+  "oneOf": [
+    {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "baselines", "outcomes"],
+      "properties": {
+        "schema_version": {"const": 1},
+        "baselines": {"type": "array", "minItems": 5, "items": {"$ref": "#/$defs/baseline"}},
+        "outcomes": {
+          "type": "object", "minProperties": 5,
+          "additionalProperties": {"type": "object", "additionalProperties": {"$ref": "#/$defs/expected"}}
+        }
+      }
+    },
+    {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "mutants"],
+      "properties": {"schema_version": {"const": 1}, "mutants": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/mutant"}}}
+    },
+    {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "control_mutants", "alternative_fixtures"],
+      "properties": {
+        "schema_version": {"const": 1},
+        "control_mutants": {
+          "type": "array", "minItems": 2,
+          "items": {
+            "type": "object", "additionalProperties": false,
+            "required": ["id", "bases", "behavior_en", "must_change_cases", "unchanged_rule"],
+            "properties": {
+              "id": {"enum": ["reject-everything", "accept-everything"]},
+              "bases": {"type": "array", "minItems": 5, "uniqueItems": true, "items": {"type": "string"}},
+              "behavior_en": {"type": "string", "minLength": 20},
+              "must_change_cases": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string"}},
+              "unchanged_rule": {"const": "baseline_for_all_others"}
+            }
+          }
+        },
+        "alternative_fixtures": {
+          "type": "array", "items": {
+            "type": "object", "additionalProperties": false,
+            "required": ["id", "case", "kind", "expected_outcome", "description_en"],
+            "properties": {
+              "id": {"type": "string"}, "case": {"type": "string"},
+              "kind": {"const": "informational-choice"},
+              "expected_outcome": {"const": "satisfied_with_note"},
+              "description_en": {"type": "string", "minLength": 30}
+            }
+          }
+        }
+      }
+    }
+  ]
+}

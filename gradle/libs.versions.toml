@@ -1,0 +1,30 @@
+[versions]
+bouncycastle = "1.85"
+commons-lang3 = "3.18.0"
+httpcore5 = "5.4.3"
+jackson = "2.22.2"
+javalin = "7.2.3"
+junit = "6.1.3"
+opensaml = "5.2.3"
+sqlite = "3.53.4.0"
+xmlsec = "4.0.4"
+
+[libraries]
+bcpkix = { module = "org.bouncycastle:bcpkix-jdk18on", version.ref = "bouncycastle" }
+bcprov = { module = "org.bouncycastle:bcprov-jdk18on", version.ref = "bouncycastle" }
+commons-lang3 = { module = "org.apache.commons:commons-lang3", version.ref = "commons-lang3" }
+httpcore5 = { module = "org.apache.httpcomponents.core5:httpcore5", version.ref = "httpcore5" }
+httpcore5-h2 = { module = "org.apache.httpcomponents.core5:httpcore5-h2", version.ref = "httpcore5" }
+jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jackson" }
+jackson-jsr310 = { module = "com.fasterxml.jackson.datatype:jackson-datatype-jsr310", version.ref = "jackson" }
+jackson-yaml = { module = "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml", version.ref = "jackson" }
+javalin = { module = "io.javalin:javalin-bundle", version.ref = "javalin" }
+junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
+junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
+junit-launcher = { module = "org.junit.platform:junit-platform-launcher" }
+opensaml-core-api = { module = "org.opensaml:opensaml-core-api", version.ref = "opensaml" }
+opensaml-core-impl = { module = "org.opensaml:opensaml-core-impl", version.ref = "opensaml" }
+opensaml-saml-api = { module = "org.opensaml:opensaml-saml-api", version.ref = "opensaml" }
+opensaml-saml-impl = { module = "org.opensaml:opensaml-saml-impl", version.ref = "opensaml" }
+sqlite = { module = "org.xerial:sqlite-jdbc", version.ref = "sqlite" }
+xmlsec = { module = "org.apache.santuario:xmlsec", version.ref = "xmlsec" }

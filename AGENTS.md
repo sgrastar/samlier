@@ -79,7 +79,11 @@ Make operationally useful observations **advisory** (`affects_verdict: false`)
 ### 7. Do not create cases without controls
 
 If an implementation can satisfy the expected value while failing the obligation, that case has no detection power.
-Always pair positive / negative controls ([G2 in docs/01](docs/01-scope-and-roadmap.md)).
+Pair positive / negative controls for every evaluative case ([G2 in docs/01](docs/01-scope-and-roadmap.md)).
+For an explicitly non-evaluative MAY/OPTIONAL choice, use an informational fixture plus
+`control_waiver_en` and `mutant_waiver`; never fabricate an unreachable `violated` outcome.
+If a mutant targets a `one_of` variant group, it must make every member of that group
+nonconforming in the same fixture. Mutating only one permitted alternative has no detection power.
 
 **Cover expanded `linked_obligations` as well.** A link with `kind: inherit_variants` means
 “also cover the linked obligation's `required_variants`,” and must be expanded **transitively**.
@@ -121,6 +125,10 @@ python3 -m venv .venv
 
 # After approval
 G1_TOOLS_COMMIT=<40-digit SHA> PY=.venv/bin/python tools/g1_ci_verify.sh
+
+# During G2 / after G2 approval
+.venv/bin/python tools/g2_validate.py
+G2_TOOLS_COMMIT=<40-digit SHA> PY=.venv/bin/python tools/g2_ci_verify.sh
 ```
 
 If `--structural-only` reports a blocking violation, **do not include that change**.
@@ -131,9 +139,9 @@ If `--structural-only` reports a blocking violation, **do not include that chang
 
 ```
 G1a ✅ Catalog creation
-G1b ⏳ Review of obligation meaning (source-text comparison and signed approval by someone other than the author)
-M0     Skeleton implementation        ← May begin after G1b. 0 tests.
-G2  ⏳ Test design       ← Case definitions, controls, mutants. Reviewed by someone other than the author.
+G1b ✅ Review of obligation meaning (source-text comparison and signed approval by someone other than the author)
+M0  ✅ Skeleton implementation. 0 verdict cases.
+G2  ⏳ Test design       ← Authored and validated; signed independent review remains required.
 M1〜   Verdict case implementation   ← ★ After G2 is complete.
 ```
 

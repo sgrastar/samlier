@@ -1,0 +1,29 @@
+services:
+  samlier:
+    image: ${SAMLIER_IMAGE:-samlier:keycloak-smoke}
+    build:
+      context: ../..
+    environment:
+      SAMLIER_MODE: selfhosted
+      SAMLIER_PUBLIC_BASE_URL: http://localhost:8080
+      SAMLIER_PEER_BASE_URL: http://localhost:8080
+      SAMLIER_DATA_DIR: /data
+    ports:
+      - "8080:8080"
+    volumes:
+      - samlier-data:/data
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.7.2@sha256:9d1f1b2b7261ff53c66cb1092dfcdc34a5fb77e81f9e6a6e75b8b6a795de8067
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_HOSTNAME: http://localhost:8180
+    ports:
+      - "8180:8080"
+    volumes:
+      - ./realm-samlier.json:/opt/keycloak/data/import/realm-samlier.json:ro
+
+volumes:
+  samlier-data:

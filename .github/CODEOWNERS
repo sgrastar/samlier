@@ -20,6 +20,34 @@
 # ★ Dependencies. Included as trust anchors because they determine the code executed before signature verification.
 /tools/requirements.txt       @sgrastar
 /tools/requirements.lock      @sgrastar
+/gradle/                      @sgrastar
+/build.gradle.kts             @sgrastar
+/settings.gradle.kts          @sgrastar
+/saml/build.gradle.kts        @sgrastar
+/api/build.gradle.kts         @sgrastar
+/peer/build.gradle.kts        @sgrastar
+
+# G2 design gate and signed approval verifier
+/tools/g2_validate.py         @sgrastar
+/tools/g2_trusted_verify.py   @sgrastar
+/tools/g2_ci_verify.sh        @sgrastar
+/tools/release_check.py       @sgrastar
+/tools/tests/test_release_check.py @sgrastar
+/.github/workflows/g2.yml     @sgrastar
+/Dockerfile                   @sgrastar
+/.dockerignore                @sgrastar
+/dev/keycloak/                @sgrastar
 
 # Approved artifacts
 /tests/                       @sgrastar
+
+# Production boundaries and executable evidence bound by G2 approval
+/saml/src/main/java/org/samlier/saml/binding/       @sgrastar
+/saml/src/main/java/org/samlier/saml/ecp/           @sgrastar
+/saml/src/main/java/org/samlier/saml/logout/        @sgrastar
+/saml/src/main/java/org/samlier/saml/metadata/MetadataVariantRegistry.java @sgrastar
+/saml/src/main/java/org/samlier/saml/raw/BytePreservingRawMessageBuilder.java @sgrastar
+/peer/src/main/java/org/samlier/peer/PeerIdentity.java @sgrastar
+/api/src/main/java/org/samlier/api/SamlierApplication.java @sgrastar
+/saml/src/test/java/org/samlier/saml/G2FeasibilitySpikeTest.java @sgrastar
+/peer/src/test/java/org/samlier/peer/PeerG2FeasibilityTest.java @sgrastar

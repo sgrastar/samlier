@@ -1,0 +1,11 @@
+schema_version: 1
+id: fresh-authenticated-session
+purpose_en: Establish a new browser SSO session immediately before an interactive SLO case.
+steps:
+  - Start from a browser context with no target or peer session cookies.
+  - Complete the baseline's conforming Web Browser SSO setup for the case role.
+  - Record the assertion identifier, principal identifier, SessionIndex values, and both peer session handles.
+  - Hand the isolated session context to exactly one SLO case and do not reuse it after that case.
+on_failure:
+  outcome: not_verified
+  reason_code: session_setup_failed

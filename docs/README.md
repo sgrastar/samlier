@@ -1,6 +1,6 @@
 # Samlier — SAML Conformance Test Suite
 
-**Design documentation** / Created: 2026-08-25 / Status: Draft (Phase 1 design in progress)
+**Design documentation** / Created: 2026-08-25 / Status: v0.1 implementation complete; operational reference runs remain release evidence
 
 An OSS tool that allows anyone to verify any SAML IdP / SP implementation under the same conditions, based on requirements in published specifications.
 It aims to be the SAML equivalent of the OIDF Conformance Suite.
@@ -19,15 +19,15 @@ It aims to be the SAML equivalent of the OIDF Conformance Suite.
 | Reference implementation results | **Published as version-pinned samples**. Run in CI, but do not publish continuously |
 | Build / repository | **Gradle (Kotlin DSL)** / **single repository** |
 | Quoting specification source text | **ID + original summary + link to the original-text anchor**. Do not reproduce the full text (inquiry to Kantara in parallel) |
-| Languages | **English only**. Provide only `ja` keys in test-definition YAML; `en` is mandatory in CI |
+| Languages | **English only**. Public test-definition YAML uses English fields only; legacy `ja` fields are rejected in CI |
 | Requirements catalog | **`tests/coverage.yaml` is authoritative**; the tables in `04` are generated from it |
 
-**The only remaining undecided item is D-15 (Hosted-version operations: domain, hosting provider, and cost responsibility), and it is sufficient to decide it before starting M4.**
+**D-15 (the operator, domain, provider, retention enforcement, and cost of an official Hosted deployment) remains an operational deployment decision.**
 See [09-open-decisions.md](09-open-decisions.md) for the decision history.
 
 ## Status of Design Gate G1
 
-**Creation phase complete; awaiting review (`PENDING_REVIEW`)**
+**G1 and G2 are approved by signed records. The `PENDING_REVIEW` fields inside authored catalogs remain unchanged by design; approval evidence lives outside the reviewed target commit.**
 
 | Artifact | Contents |
 |---|---|
@@ -50,15 +50,15 @@ The author has not filled in `reviewer` / `approved_at`.
 ## Gates Until Implementation
 
 ```
-G1a  Catalog creation             ✅ Complete (PENDING_REVIEW)
+G1a  Catalog creation             ✅ Complete
   ↓
-G1b  Review obligation meaning    ⏳ Someone other than the author compares the original text with coverage.yaml and creates a signed approval record
+G1b  Review obligation meaning    ✅ Signed approval complete
   ↓                               Verification: G1_TOOLS_COMMIT=<SHA> tools/g1_ci_verify.sh
-M0   Skeleton implementation       May begin after G1b (Test Peer / Transcript / Preflight. 0 tests)
+M0   Skeleton implementation      ✅ Peer, transcript, preflight, API, and UI skeleton
   ↓
-G2   Test design                  ⏳ Assign <!--g1:case_target-->543<!--/g1--> obligations to case IDs and define control cases, counterexamples, and mutants
+G2   Test design                  ✅ Role-specific cases, controls, counterexamples, mutants, and feasibility spikes have signed independent approval
   ↓                               Also include the verification infrastructure (schema / g2_validate / approvals/g2.yaml / CI)
-M1–  Implementation of evaluation cases  ★ After G2 is complete
+M1–M4 Evaluation and publication ✅ Approved cases, evidence workflows, protocol probes, result JSON, report HTML, and hosted publication controls are implemented
 ```
 
 The conventions for implementation agents (such as Codex) are in [`AGENTS.md`](../AGENTS.md).
@@ -87,6 +87,7 @@ not by differences in reference-implementation results ([00 §5](00-concept.md))
 | 09 | [open-decisions.md](09-open-decisions.md) | Decision log (D-01–D-15) |
 | 10 | [memo-review.md](10-memo-review.md) | Review results for the original concept memo (contradictions, omissions, improvements) |
 | 11 | [review-log.md](11-review-log.md) | Design review records and resulting changes |
+| 12 | [g2-test-design.md](12-g2-test-design.md) | G2 case, mutant, feasibility, and signed-approval design |
 
 ## 30-Second Summary
 

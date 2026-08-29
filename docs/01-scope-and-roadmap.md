@@ -108,14 +108,14 @@ Because the first release will take longer, internal milestones make progress vi
 
 | M | Contents | Completion guideline |
 |---|---|---|
-| **G1a** Creation ✅ | Read all <!--g1:requirements-->69<!--/g1--> requirements through the end of their original sections and decompose them into <!--g1:obligations-->544<!--/g1--> obligations. Create `tests/{specs,coverage,predicates}.yaml` and `docs/04` (generated artifact). | **Complete (PENDING_REVIEW)** |
-| **G1b** Approval ⏳ | **Someone other than the author** directly compares the source with `coverage.yaml` and approves all obligations in **signed `tests/approvals/g1.yaml`** (outside the commit under approval). Do not edit `coverage.yaml`. | `g1_ci_verify.sh` returns `g1.complete == true` |
-| **G2** Test design ⏳ | **Assign <!--g1:case_target-->543<!--/g1--> obligations to case IDs** and define coverage of `required_variants` and positive/negative controls. **Someone other than the author reviews the design** ([G2 details](#-design-gate-g2--test-design)). | Prevent “the obligations are correct but the cases have no detection power.” |
-| **M0** Skeleton | Test Peer metadata issuance, Transcript Recorder, Preflight, Test Plan CRUD, SSE. Even with zero tests, reach the point where “SSO with Keycloak completes one round trip.” | The Suite functions as a SAML counterpart. |
-| **M1** SSO core | Common SSO / Algorithms + IdP/SP SSO requirements. Implement verdict vocabulary, evidence ladder, and attestation UI. **Requires G2 completion.** | “Quick execution” mode is complete. Verify detection power with **mutant peers** ([00 §5](00-concept.md)). |
-| **M2** Metadata | Metadata distribution / MDQ / variants from the Suite (IIP-MD01–12). `WAITING_CONFIG` step. | Tests requiring target reconfiguration can run. |
-| **M3** SLO + ECP + remainder | IIP-SP14–17 / IIP-IDP13–21. ECP is automated by acting as an **ECP client + SP** using only the back channel ([02 §3.7](02-architecture.md)). Also add the `secondary_peer` (second Test IdP) for IIP-SP05. | Zero `NOT_VERIFIED(not_implemented)` results. |
-| **M4** Publication | Freeze result JSON v1, `report.html`, Hosted version, sharing URL, pre-publication scrubbing. | **v0.1 release** |
+| **G1a** Creation ✅ | Read all <!--g1:requirements-->69<!--/g1--> requirements through the end of their original sections and decompose them into <!--g1:obligations-->544<!--/g1--> obligations. Create `tests/{specs,coverage,predicates}.yaml` and `docs/04` (generated artifact). | Complete; authored state remains `PENDING_REVIEW` because approval is external. |
+| **G1b** Approval ✅ | **Someone other than the author** directly compares the source with `coverage.yaml` and approves all obligations in **signed `tests/approvals/g1.yaml`** (outside the commit under approval). Do not edit `coverage.yaml`. | `g1_ci_verify.sh` returns `g1.complete == true`. |
+| **G2** Test design ✅ | **Assign <!--g1:case_target-->543<!--/g1--> obligations to case IDs** and define coverage of `required_variants` and positive/negative controls. **Someone other than the author reviews the design** ([G2 details](#-design-gate-g2--test-design)). | Signed independent approval protects the complete design and implementation boundary. |
+| **M0** Skeleton ✅ | Test Peer metadata issuance, Transcript Recorder, Preflight, Test Plan CRUD, SSE. Even with zero tests, reach the point where “SSO with Keycloak completes one round trip.” | The Suite functions as a SAML counterpart. |
+| **M1** SSO core ✅ | Common SSO / Algorithms + IdP/SP SSO requirements. Implement verdict vocabulary, evidence ladder, and attestation UI. **Requires G2 completion.** | Quick execution and exact implementation-registry audits are implemented. |
+| **M2** Metadata ✅ | Metadata distribution / MDQ / variants from the Suite (IIP-MD01–12). `WAITING_CONFIG` step. | Tests requiring target reconfiguration can run. |
+| **M3** SLO + ECP + remainder ✅ | IIP-SP14–17 / IIP-IDP13–21. ECP is automated by acting as an **ECP client + SP** using only the back channel ([02 §3.7](02-architecture.md)). Also add the `secondary_peer` (second Test IdP) for IIP-SP05. | ECP, SAML-EC, channel-binding, SLO, and secondary-peer paths are implemented without `not_implemented` placeholders. |
+| **M4** Publication ✅ | Freeze result JSON v1, `report.html`, Hosted version, sharing URL, pre-publication scrubbing. | Implementation complete; official Hosted operations and reference-run publication are release operations. |
 
 > **Run against a mutant peer at least once at M1** ([00 §5](00-concept.md)).
 > The worst pattern is discovering after everything is built that there is no detection power.
@@ -195,12 +195,14 @@ It does not change when reordered; editing the description changes it (= the var
 ### Pass criteria
 
 - [ ] **All <!--g1:case_target-->543<!--/g1--> obligations are assigned to at least one case** (verified in CI).
-- [ ] Each obligation’s **`required_variants` is completely covered by `covers_variants`**.
+- [ ] Each obligation’s **`required_variants` is completely covered by `covers_variants`**, with
+      `variant_groups` preserving `all_of` / `one_of` / `one_of_available` semantics.
 - [ ] **Expanded `linked_obligations` are also covered** — the variant set obtained by **transitively expanding** links with `kind: inherit_variants` is the denominator ([03 §Link semantics](03-test-model.md) L1). Apply each link's `variant_applicability` rule while scheduling the imported variants (L2).
       Covering the destination’s variants **does not cover the linked obligation itself** (L4).
       Refer to them with the qualified form `<obligation key>#<variant ID>` (L3).
-- [ ] Each case has both a **positive control and a negative control**
-      (if only one exists, record the reason in `control_waiver_en`).
+- [ ] Each evaluative case has both a **positive control and a negative control**.
+      An explicitly non-evaluative MAY/OPTIONAL choice instead has an informational fixture,
+      `control_waiver_en`, and `mutant_waiver`; it must not invent a `violated` outcome.
 - [ ] Each case includes a **`counterexample_en`** (an implementation that passes without satisfying the obligation).
       If one cannot be written, redesign the case because it has no detection power.
 - [ ] ★ Each obligation is **detected by an executable mutant or has a waiver**

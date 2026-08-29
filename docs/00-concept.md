@@ -177,8 +177,8 @@ Map these to `detected_by_mutants` in `tests/cases.yaml` during G2.
 | `ignore-force-authn` | idp-full | Ignore `ForceAuthn` | IIP-IDP06.a |
 | `no-error-response` | idp-full | Return no Response on error | IIP-IDP05.a / IIP-SSO03.b |
 | `single-acs-only` | idp-full | Support only one ACS | IIP-IDP12.a |
-| `reject-everything` | Every baseline | Reject everything | **Every case with a positive control changes**; `MUST_NOT` obligations remain at baseline |
-| `accept-everything` | Every baseline | Accept everything | **Every case with a negative control changes** |
+| `reject-everything` | Every baseline | Reject every protocol input | Only cases whose positive control requires an explicit receiver acceptance change |
+| `accept-everything` | Every baseline | Accept every protocol input | Only cases whose negative control requires an explicit receiver rejection change |
 
 `reject-everything` / `accept-everything` are **control mutants that validate the controls themselves**.
 
@@ -189,8 +189,8 @@ Map these to `detected_by_mutants` in `tests/cases.yaml` during G2.
 - [ ] Each mutant explicitly specifies `base`.
 - [ ] For each mutant, the obligations in `expected_changes` **change as specified**.
 - [ ] For each mutant, **all other obligations match the baseline**.
-- [ ] With `reject-everything`, **every case with a positive control** changes.
-- [ ] With `accept-everything`, **every case with a negative control** changes.
+- [ ] With `reject-everything`, every case explicitly classified as a receiver-acceptance decision changes.
+- [ ] With `accept-everything`, every case explicitly classified as a receiver-rejection decision changes.
 - [ ] **Every obligation is detected by at least one mutant or has `mutant_waiver`**
       ([G2 pass criteria](01-scope-and-roadmap.md)).
 - [ ] Control failures are treated as `control_failed` and do not become target FAIL results.

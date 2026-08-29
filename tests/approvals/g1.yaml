@@ -1,4 +1,4 @@
-target_commit: 0bb5f1694266c9ac7cf291edd5435cee45cd15ba
+target_commit: 090703e07d7894cb90297cb862e3de38575dd7a0
 artifact_digests:
   tests/coverage.yaml: sha256:8a3a20188ae66802997826af2117d342fc72707cd3310ff2be0f8f9a610e4393
   tests/specs.yaml: sha256:acee5ce8c348fbc5e02f77bd2f5b8703a632dd69aea857b14b97812ff6cc39d9
@@ -2185,3 +2185,4 @@ approvals:
   obligation_digest: sha256:fe23cdba71abb2026df21b540741e2e6cda03c33cb9de7be2695f2ebc337544f
   reviewer: hoshina@gmail.com
   approved_at: '2026-08-29T06:49:09+09:00'
+

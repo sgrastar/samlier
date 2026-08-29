@@ -8,13 +8,13 @@ putting rules that require case implementations in the same job would make G1 fa
 |---|---|---|---|
 | **`g1Check`** | Every PR (current main job) | Not required | English-canonical migration invariants, Japanese-residue scan, generated-document equality, and catalog structure. Rules 1–6c-0 and 20d of [05 §5](../docs/05-test-definition-format.md) |
 | **`specReconcile`** | Scheduled + before release | **Required** | Fetches source text and checks section/clause digests and terminology. Rules 5b-3, 5b-4, and 6c-1 |
-| **`releaseCheck`** | Before `release` / `publish` / `dockerPush` | Not required | **Rules requiring case implementations**: 7–19, 20b–20c, 21–28 |
+| **`releaseCheck`** | Every release-candidate PR and before container publication | **Required** for source reconciliation | Signed G1/G2 trusted verification, source reconciliation, implementation tests, generated artifacts, and rules 7–28 |
 
-```
-tasks.named("release")    { dependsOn(":specReconcile", ":releaseCheck") }
-tasks.named("publish")    { dependsOn(":specReconcile", ":releaseCheck") }
-tasks.named("dockerPush") { dependsOn(":specReconcile", ":releaseCheck") }
-```
+The root Gradle `releaseCheck` task depends on the complete `check` task and runs
+`tools/release_check.py`. The release checker invokes the externally pinned G1 and G2 trusted
+verifiers; the G1 verifier force-fetches and reconciles every source specification. The container
+job depends on this release gate. Any future `release`, `publish`, or `dockerPush` task must depend
+on `releaseCheck` rather than duplicating or bypassing it.
 
 ## Rules included in `g1Check` (must pass during the G1 creation phase)
 
@@ -77,7 +77,7 @@ Without this, rewriting the workflow alone disables the entire gate.
 |---|---|---|
 | `g1Check` | migration comparison + JSON Schema enforcement + language/legacy-field checks + structural checks + `g1_docgen.py --check` | Passes |
 | `specReconcile` | `tools/g1_validate.py` (**force-fetches** and reconciles source text and all <!--g1:specs-->25<!--/g1--> specifications) | **`totals.blocking_failures == 0`** (before approval, SR-30 / SR-31 remain FAIL). ★ Do not hard-code a PASS count because it changes whenever checks are added |
-| `releaseCheck` | Not implemented because there are 0 test cases (after G2 is complete) | Not run |
+| `releaseCheck` | Root Gradle task + `tools/release_check.py`; runs all implementation tests, English/generated checks, network G1 reconciliation, and externally pinned G1/G2 approval verification | Implemented; emits `build/release-check-report.json` and fails unless both gates are complete with pinned provenance |
 
 `checks[]` in `build/spec-reconcile-report.json` distinguishes blocking checks using
 `totals.blocking_failures`. **SR-30 (open question remains) and SR-31 (not approved)
@@ -124,7 +124,7 @@ The validator (**SR-38**) verifies:
 |---|---|
 | Approval record is committed | `git log -1 -- tests/approvals/g1.yaml` |
 | **Current values of protected files match A** | `git show <A>:<path>` and byte comparison |
-| **The `tests/` file set matches A** | `git ls-tree -r A tests` |
+| **Every explicitly protected G1 path matches A** | `git show <A>:<path>` and byte comparison |
 | **That commit is signed** | `git verify-commit` |
 | **The canonical copy is the signed commit's contents** (not the working tree) | `git show <C_sig>:tests/approvals/g1.yaml` |
 | Working tree matches signed contents | Digest comparison |
@@ -145,8 +145,16 @@ tools/g1_migration_validate.py  tools/g1_schema_validate.py  tools/g1_language_c
 tools/g1-semantic-exceptions.yaml  schema/g1-*.json
 ```
 
-It also verifies that the **file set under `tests/`** matches A (detecting additions and deletions).
-Without this, one could rewrite coverage after A and pass simply by recomputing `obligation_digest`.
+The approval boundary is deliberately path-scoped. Later-gate artifacts such as
+`tests/cases.yaml`, `tests/mutants/*.yaml`, and `tools/g2_validate.py` may coexist
+without invalidating G1. The three normative catalogs and every G1 verifier,
+schema, exception manifest, and approval record remain explicitly protected.
+
+Direct validator execution restarts with `python -I` before importing PyYAML and
+removes its own `tools/` directory from `sys.path`. This prevents a later-stage
+module such as `tools/yaml.py` from shadowing a trusted dependency. Whole-directory
+file-set equality is therefore neither the trust boundary nor a substitute for
+the explicit protected-path list.
 
 **The validator itself is included among the protected paths**, but that is not sufficient.
 **If a modified validator is executed, it will not report its own modification** (the limit of self-inspection).
@@ -231,8 +239,26 @@ so merely placing an untracked `tools/yaml.py` runs arbitrary code before signat
 The runner removes its own directory from `sys.path` at startup,
 and the extracted validator never puts `tools/` on `sys.path`
 (`g1_extract` loads it with `importlib` using an explicit path).
-Together with **SR-40** (no untracked `.py` in `tools/`) and
-**matching the `tools/` file set**, this detects the shim's installation itself.
+Together with **SR-40** (no untracked or uncommitted `.py` in `tools/`) and the
+explicit protected-path comparison, this prevents an unreviewed shim from
+participating in G1 verification while allowing committed later-gate tools to coexist.
+
+## G2 design and approval
+
+`tools/g2_validate.py` validates the role-specific case catalog, exact stable-ID
+variant expansion, controls, counterexamples, dependency graph, baseline outcome
+matrix, mutant all-others oracle, and named feasibility tests. Its report is
+`build/g2-report.json` and remains `PENDING_REVIEW` until every case digest is in a
+signed `tests/approvals/g2.yaml` record.
+
+The G2 trust protocol mirrors G1: target commit C contains no approval record;
+signed commit A adds only `tests/approvals/g2.yaml`; CI extracts the trusted runner
+and validator from the immutable `G2_TOOLS_COMMIT`. The workflow must verify
+`g2.complete == true` and external-pin provenance before enabling M1. It then
+extracts that same immutable target into an isolated directory and reruns the
+SAML and peer feasibility tests under Java 21. The signed artifact manifest
+includes the approved G1 inputs, the complete fixture tree, build/dependency
+inputs, and every production boundary used as feasibility evidence.
 
 **Explicit limits** (the validator makes no stronger claim):
 
