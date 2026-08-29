@@ -129,6 +129,7 @@ class AutomatedCaseRunnerTest {
             @Override public TargetRole targetRole() { return TargetRole.IDP; }
             @Override public Clock clock() { return Clock.fixed(NOW, ZoneOffset.UTC); }
             @Override public TestPlan.Parameters parameters() { return plan.parameters(); }
+            @Override public TestPlan.Interaction interaction() { return plan.interaction(); }
             @Override public Reachability reachability() { return Reachability.UNKNOWN; }
             @Override public TranscriptRecorder transcript() { return transcript; }
             @Override public boolean transcriptComplete() { return complete; }

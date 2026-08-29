@@ -180,6 +180,7 @@ class CaseExecutionServiceTest {
             @Override public TargetRole targetRole() { return TargetRole.IDP; }
             @Override public Clock clock() { return Clock.fixed(NOW, ZoneOffset.UTC); }
             @Override public TestPlan.Parameters parameters() { return parameters; }
+            @Override public TestPlan.Interaction interaction() { return TestPlan.Interaction.defaults(); }
             @Override public Reachability reachability() { return Reachability.UNKNOWN; }
             @Override public TranscriptRecorder transcript() { return transcript; }
             @Override public boolean transcriptComplete() { return false; }

@@ -59,6 +59,7 @@ class InboundCaseRouterTest {
         executions = new CaseExecutionService(repository);
         context = new DefaultCaseContext(
                 RUN_ID, TargetRole.IDP, Clock.fixed(NOW, ZoneOffset.UTC), plan.parameters(),
+                plan.interaction(),
                 Reachability.CONFIRMED, new FileTranscriptRecorder(database, json, directory), false);
     }
 

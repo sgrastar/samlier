@@ -73,6 +73,7 @@ class DtdFreeTranscriptCaseTest {
                     @Override public TargetRole targetRole() { return TargetRole.IDP; }
                     @Override public Clock clock() { return Clock.fixed(now, ZoneOffset.UTC); }
                     @Override public TestPlan.Parameters parameters() { return plan.parameters(); }
+                    @Override public TestPlan.Interaction interaction() { return plan.interaction(); }
                     @Override public Reachability reachability() { return run.targetToSuiteReachability(); }
                     @Override public org.samlier.core.transcript.TranscriptRecorder transcript() { return transcript; }
                     @Override public boolean transcriptComplete() { return true; }

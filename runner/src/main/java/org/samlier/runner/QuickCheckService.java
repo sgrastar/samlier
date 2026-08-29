@@ -81,6 +81,7 @@ public final class QuickCheckService implements QuickCheckExecutor {
                 inactiveProbe(plan.id())));
         var context = new DefaultCaseContext(
                 run.id(), plan.profile().role(), clock, plan.parameters(),
+                plan.interaction(),
                 run.targetToSuiteReachability(), transcript, true);
         var snapshot = new AutomatedCaseRunner(registry, new CaseExecutionService(caseExecutions))
                 .startReady(run.id(), plan.profile(), context);

@@ -113,6 +113,7 @@ class CaseTimeoutServiceTest {
     private DefaultCaseContext context(Instant now) {
         return new DefaultCaseContext(
                 RUN_ID, TargetRole.IDP, Clock.fixed(now, ZoneOffset.UTC), plan.parameters(),
+                plan.interaction(),
                 Reachability.UNKNOWN, transcript, false);
     }
 }

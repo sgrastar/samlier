@@ -14,6 +14,7 @@ public record DefaultCaseContext(
         TargetRole targetRole,
         Clock clock,
         TestPlan.Parameters parameters,
+        TestPlan.Interaction interaction,
         Reachability reachability,
         TranscriptRecorder transcript,
         boolean transcriptComplete) implements CaseContext {
@@ -23,6 +24,7 @@ public record DefaultCaseContext(
         Objects.requireNonNull(targetRole, "targetRole");
         Objects.requireNonNull(clock, "clock");
         Objects.requireNonNull(parameters, "parameters");
+        Objects.requireNonNull(interaction, "interaction");
         Objects.requireNonNull(reachability, "reachability");
         Objects.requireNonNull(transcript, "transcript");
     }

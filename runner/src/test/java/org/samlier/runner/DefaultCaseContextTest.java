@@ -16,9 +16,11 @@ class DefaultCaseContextTest {
     void rejectsAnIncompleteRuntimeContext() {
         assertThrows(IllegalArgumentException.class, () -> new DefaultCaseContext(
                 "", TargetRole.IDP, Clock.systemUTC(), TestPlan.Parameters.defaults(),
+                TestPlan.Interaction.defaults(),
                 Reachability.UNKNOWN, transcript(), false));
         assertThrows(NullPointerException.class, () -> new DefaultCaseContext(
                 "run", null, Clock.systemUTC(), TestPlan.Parameters.defaults(),
+                TestPlan.Interaction.defaults(),
                 Reachability.UNKNOWN, transcript(), false));
     }
 

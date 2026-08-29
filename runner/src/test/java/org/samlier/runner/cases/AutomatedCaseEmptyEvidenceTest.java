@@ -73,6 +73,7 @@ class AutomatedCaseEmptyEvidenceTest {
         var runner = new AutomatedCaseRunner(registry, new CaseExecutionService(executions));
         var context = new DefaultCaseContext(
                 RUN_ID, TargetRole.IDP, Clock.fixed(NOW, ZoneOffset.UTC), plan.parameters(),
+                plan.interaction(),
                 Reachability.CONFIRMED, transcript, true);
 
         var snapshot = runner.startReady(RUN_ID, plan.profile(), context);
@@ -120,6 +121,7 @@ class AutomatedCaseEmptyEvidenceTest {
         var runner = new AutomatedCaseRunner(registry, new CaseExecutionService(executions));
         var context = new DefaultCaseContext(
                 RUN_ID, TargetRole.SP, Clock.fixed(NOW, ZoneOffset.UTC), plan.parameters(),
+                plan.interaction(),
                 Reachability.CONFIRMED, transcript, true);
 
         var snapshot = runner.startReady(RUN_ID, plan.profile(), context);

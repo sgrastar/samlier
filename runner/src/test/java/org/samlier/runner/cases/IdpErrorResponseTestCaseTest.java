@@ -123,6 +123,9 @@ class IdpErrorResponseTestCaseTest {
             @Override public TargetRole targetRole() { return TargetRole.IDP; }
             @Override public Clock clock() { return Clock.fixed(Instant.parse("2026-08-29T00:00:00Z"), ZoneOffset.UTC); }
             @Override public org.samlier.core.plan.TestPlan.Parameters parameters() { return null; }
+            @Override public org.samlier.core.plan.TestPlan.Interaction interaction() {
+                return org.samlier.core.plan.TestPlan.Interaction.defaults();
+            }
             @Override public org.samlier.core.run.Reachability reachability() { return null; }
             @Override public org.samlier.core.transcript.TranscriptRecorder transcript() { return null; }
             @Override public boolean transcriptComplete() { return false; }

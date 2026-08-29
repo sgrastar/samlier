@@ -11,6 +11,7 @@ public interface CaseContext {
     TargetRole targetRole();
     Clock clock();
     TestPlan.Parameters parameters();
+    TestPlan.Interaction interaction();
     Reachability reachability();
     TranscriptRecorder transcript();
     boolean transcriptComplete();
