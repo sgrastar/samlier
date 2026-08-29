@@ -348,6 +348,9 @@ GET  /p/{plan}/start/{caseId}       Starting point for browser operation (user c
 In Hosted mode, `POST /api/plans` creates the Plan, initial Run, and hashed access grant atomically and returns its
 one-time management URL. The same transaction rejects creation while any non-terminal Run exists for that target
 entity ID, including when requests race.
+While a Plan has a non-terminal Run, Hosted mode also rejects changing that Plan's target entity ID. Plan updates
+and Run provisioning share the same immediate SQLite write lock, so a concurrent update cannot move an active Run
+onto an already occupied target after the provisioning check.
 Every other Plan endpoint, Run details, preflight, and Run events require the HttpOnly management session;
 mutations additionally require the matching CSRF token. `GET /api/plans` returns only the Plan associated
 with the caller's current Run session. Plan responses never include `test_user_hint` or the target metadata

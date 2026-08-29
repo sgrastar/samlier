@@ -66,10 +66,79 @@ class SqliteHostedRunProvisionerTest {
         fixture.runs.save(run(firstRun.id(), firstPlan.id(), RunStatus.COMPLETED));
 
         var nextRun = run("run_next", firstPlan.id(), RunStatus.CREATED);
-        assertTrue(fixture.provisioner.createRun(
-                firstPlan, nextRun, grant(nextRun.id(), 'b')));
+        assertTrue(fixture.provisioner.createRun(nextRun, grant(nextRun.id(), 'b')));
         assertEquals(nextRun, fixture.runs.find(nextRun.id()).orElseThrow());
         assertEquals(1, fixture.plans.list().size());
+    }
+
+    @Test
+    void preventsRetargetingAPlanWithAnActiveRunButAllowsOtherEdits() {
+        var fixture = fixture();
+        var plan = plan("plan_active", "https://first.example/idp");
+        var run = run("run_active", plan.id(), RunStatus.CREATED);
+        assertTrue(fixture.provisioner.createPlanWithInitialRun(plan, run, grant(run.id(), 'a')));
+
+        var renamed = new TestPlan(
+                plan.id(), "Renamed", plan.profile(), plan.target(), plan.suiteMetadataDelivery(),
+                plan.declaredFeatures(), plan.parameters(), plan.interaction(), plan.createdAt(), Instant.ofEpochSecond(1));
+        assertTrue(fixture.provisioner.updatePlanUnlessActiveRetarget(renamed));
+        assertEquals("Renamed", fixture.plans.find(plan.id()).orElseThrow().name());
+
+        var retargeted = plan(plan.id(), "https://second.example/idp");
+        assertFalse(fixture.provisioner.updatePlanUnlessActiveRetarget(retargeted));
+        assertEquals(plan.target().entityId(), fixture.plans.find(plan.id()).orElseThrow().target().entityId());
+    }
+
+    @Test
+    void permitsRetargetingAfterThePlansRunBecomesTerminal() {
+        var fixture = fixture();
+        var plan = plan("plan_terminal", "https://first.example/idp");
+        var run = run("run_terminal", plan.id(), RunStatus.CREATED);
+        assertTrue(fixture.provisioner.createPlanWithInitialRun(plan, run, grant(run.id(), 'a')));
+        fixture.runs.save(run(run.id(), plan.id(), RunStatus.ABORTED));
+
+        var retargeted = plan(plan.id(), "https://second.example/idp");
+        assertTrue(fixture.provisioner.updatePlanUnlessActiveRetarget(retargeted));
+        assertEquals(retargeted.target().entityId(),
+                fixture.plans.find(plan.id()).orElseThrow().target().entityId());
+    }
+
+    @Test
+    void serializesRetargetingAgainstRunCreationUsingTheCurrentStoredTarget() throws Exception {
+        var fixture = fixture();
+        var occupied = plan("plan_occupied", "https://occupied.example/idp");
+        var occupiedRun = run("run_occupied", occupied.id(), RunStatus.CREATED);
+        assertTrue(fixture.provisioner.createPlanWithInitialRun(
+                occupied, occupiedRun, grant(occupiedRun.id(), 'a')));
+
+        var candidate = plan("plan_candidate", "https://free.example/idp");
+        fixture.plans.save(candidate);
+        var retargeted = plan(candidate.id(), occupied.target().entityId());
+        var candidateRun = run("run_candidate", candidate.id(), RunStatus.CREATED);
+        var ready = new CountDownLatch(2);
+        var start = new CountDownLatch(1);
+        try (var executor = Executors.newFixedThreadPool(2)) {
+            var update = executor.submit(() -> {
+                ready.countDown();
+                assertTrue(start.await(2, TimeUnit.SECONDS));
+                return fixture.provisioner.updatePlanUnlessActiveRetarget(retargeted);
+            });
+            var create = executor.submit(() -> {
+                ready.countDown();
+                assertTrue(start.await(2, TimeUnit.SECONDS));
+                return fixture.provisioner.createRun(candidateRun, grant(candidateRun.id(), 'b'));
+            });
+            assertTrue(ready.await(2, TimeUnit.SECONDS));
+            start.countDown();
+
+            assertEquals(1, (update.get() ? 1 : 0) + (create.get() ? 1 : 0));
+        }
+        var storedCandidate = fixture.plans.find(candidate.id()).orElseThrow();
+        if (fixture.runs.find(candidateRun.id()).isPresent()) {
+            assertEquals(candidate.target().entityId(), storedCandidate.target().entityId());
+        } else {
+            assertEquals(retargeted.target().entityId(), storedCandidate.target().entityId());
+        }
     }
 
     @Test

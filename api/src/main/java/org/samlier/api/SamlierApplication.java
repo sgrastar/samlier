@@ -267,7 +267,15 @@ public final class SamlierApplication {
             var existing = requirePlan(plans, ctx.pathParam("id"));
             var updated = fromWrite(existing.id(), ctx.bodyAsClass(ApiModels.PlanWrite.class),
                     existing.createdAt(), clock.instant());
-            plans.save(updated);
+            if (config.mode() == AppConfig.Mode.HOSTED) {
+                if (!hostedRunProvisioner.updatePlanUnlessActiveRetarget(updated)) {
+                    ctx.status(HttpStatus.CONFLICT).json(new ApiModels.ErrorView(
+                            "active_run_conflict", "A Plan with an active Run cannot change target entity ID"));
+                    return;
+                }
+            } else {
+                plans.save(updated);
+            }
             ctx.json(view(config, updated));
         });
         javalin.routes.delete("/api/plans/{id}", ctx -> {
@@ -283,7 +291,7 @@ public final class SamlierApplication {
                 hostedRateLimiter.requireAllowed("create-run", ctx.ip(), 20, Duration.ofHours(1));
                 run = runService.prepare(requestedPlan.id());
                 var access = m1.prepareManagementAccess(run);
-                if (!hostedRunProvisioner.createRun(requestedPlan, run, access.grant())) {
+                if (!hostedRunProvisioner.createRun(run, access.grant())) {
                     throw new HostedRateLimiter.RateLimitExceeded(
                             "Another Run against this target is already active");
                 }

@@ -54,7 +54,27 @@ class HostedPlanAccessTest {
 
             var second = createPlan(client, base, "Second", "https://second.example/idp",
                     "https://second.example/metadata", "another-secret");
-            var secondPlanId = json.readTree(second.body()).at("/plan/plan/id").asText();
+            var secondJson = json.readTree(second.body());
+            var secondPlanId = secondJson.at("/plan/plan/id").asText();
+            var secondRunId = secondJson.at("/initialRun/run/id").asText();
+            var secondManagementUrl = URI.create(secondJson.at("/initialRun/managementUrl").asText());
+            var secondExchange = request(client, base, "POST", "/api/manage/session",
+                    "{\"runId\":\"" + secondRunId + "\",\"token\":\""
+                            + secondManagementUrl.getFragment().substring(2) + "\"}",
+                    null, null, appOrigin);
+            assertEquals(200, secondExchange.statusCode(), secondExchange.body());
+            var secondCookie = secondExchange.headers().firstValue("Set-Cookie").orElseThrow().split(";", 2)[0];
+            var secondCsrf = json.readTree(secondExchange.body()).path("csrfToken").asText();
+            var retarget = request(client, base, "PUT", "/api/plans/" + secondPlanId,
+                    planBody("Second", "https://first.internal.example/idp",
+                            "https://second.example/metadata", "another-secret"),
+                    secondCookie, secondCsrf, null);
+            assertEquals(409, retarget.statusCode(), retarget.body());
+            var unchangedSecond = request(client, base, "GET", "/api/plans/" + secondPlanId,
+                    null, secondCookie, null, null);
+            assertEquals(200, unchangedSecond.statusCode(), unchangedSecond.body());
+            assertTrue(unchangedSecond.body().contains("https://second.example/idp"));
+            assertFalse(unchangedSecond.body().contains("https://first.internal.example/idp"));
 
             assertDenied(client, base, "GET", "/api/plans", null, null, null);
             assertDenied(client, base, "GET", "/api/plans/" + planId, null, null, null);

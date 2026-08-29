@@ -18,6 +18,11 @@ transaction. Concurrent requests for the same entity ID serialize, exactly one s
 failure rolls the Plan back. Repository tests cover successful persistence, active/terminal state transitions,
 rollback, and concurrent creation; the HTTP test includes a duplicate-target negative control.
 
+The same invariant also applies to Plan updates: Hosted mode refuses a target entity-ID change while that Plan has
+a non-terminal Run. The update and Run-creation paths take the same immediate SQLite write lock, and Run creation
+re-reads the current Plan inside that transaction. This closes the race where a stale pre-transaction Plan could
+be checked under its old target while a concurrent update moved it to an occupied target.
+
 ## R1 — 2026-08-25 Review of the Judgment Model and Coverage Definition
 
 **Conclusion**: All 9 findings were valid. Of these, 3 findings (the misreading of the RFC2119 levels in Finding 4) were corrected after re-fetching and cross-checking the

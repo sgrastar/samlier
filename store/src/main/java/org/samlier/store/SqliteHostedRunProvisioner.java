@@ -3,6 +3,7 @@ package org.samlier.store;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Objects;
+import java.util.Optional;
 import org.samlier.core.access.RunAccessGrant;
 import org.samlier.core.plan.TestPlan;
 import org.samlier.core.run.TestRun;
@@ -21,22 +22,55 @@ public final class SqliteHostedRunProvisioner {
         return provision(plan, run, grant, true);
     }
 
-    public boolean createRun(TestPlan plan, TestRun run, RunAccessGrant grant) {
-        return provision(plan, run, grant, false);
+    public boolean createRun(TestRun run, RunAccessGrant grant) {
+        return provision(null, run, grant, false);
+    }
+
+    /**
+     * Updates a Plan atomically with Run creation. A target entity ID cannot change while
+     * that Plan has a non-terminal Run; other Plan edits remain allowed.
+     */
+    public boolean updatePlanUnlessActiveRetarget(TestPlan updated) {
+        try (var connection = database.open()) {
+            execute(connection, "BEGIN IMMEDIATE");
+            try {
+                var existing = findPlan(connection, updated.id())
+                        .orElseThrow(() -> new IllegalArgumentException("Unknown Test Plan"));
+                var changesTarget = !existing.target().entityId().equals(updated.target().entityId());
+                if (changesTarget && hasActiveRunForPlan(connection, updated.id())) {
+                    execute(connection, "ROLLBACK");
+                    return false;
+                }
+                updatePlan(connection, updated);
+                execute(connection, "COMMIT");
+                return true;
+            } catch (SQLException error) {
+                rollback(connection, error);
+                throw error;
+            } catch (RuntimeException error) {
+                rollback(connection, error);
+                throw error;
+            }
+        } catch (SQLException error) {
+            throw new StoreException("Could not update Hosted Plan", error);
+        }
     }
 
     private boolean provision(TestPlan plan, TestRun run, RunAccessGrant grant, boolean insertPlan) {
-        if (!run.planId().equals(plan.id()) || !grant.runId().equals(run.id())) {
+        if ((insertPlan && (plan == null || !run.planId().equals(plan.id())))
+                || !grant.runId().equals(run.id())) {
             throw new IllegalArgumentException("Provisioning records do not belong together");
         }
         try (var connection = database.open()) {
             execute(connection, "BEGIN IMMEDIATE");
             try {
-                if (hasActiveRunForTarget(connection, plan.target().entityId())) {
+                var currentPlan = insertPlan ? plan : findPlan(connection, run.planId())
+                        .orElseThrow(() -> new IllegalArgumentException("Unknown Test Plan"));
+                if (hasActiveRunForTarget(connection, currentPlan.target().entityId())) {
                     execute(connection, "ROLLBACK");
                     return false;
                 }
-                if (insertPlan) insertPlan(connection, plan);
+                if (insertPlan) insertPlan(connection, currentPlan);
                 insertRun(connection, run);
                 insertGrant(connection, grant);
                 execute(connection, "COMMIT");
@@ -50,6 +84,17 @@ public final class SqliteHostedRunProvisioner {
             }
         } catch (SQLException error) {
             throw new StoreException("Could not provision Hosted Run", error);
+        }
+    }
+
+    private Optional<TestPlan> findPlan(Connection connection, String id) throws SQLException {
+        try (var statement = connection.prepareStatement("SELECT document_json FROM plans WHERE id = ?")) {
+            statement.setString(1, id);
+            try (var rows = statement.executeQuery()) {
+                return rows.next()
+                        ? Optional.of(json.read(rows.getString(1), TestPlan.class))
+                        : Optional.empty();
+            }
         }
     }
 
@@ -67,6 +112,19 @@ public final class SqliteHostedRunProvisioner {
         }
     }
 
+    private boolean hasActiveRunForPlan(Connection connection, String planId) throws SQLException {
+        try (var statement = connection.prepareStatement("""
+                SELECT 1 FROM runs
+                WHERE plan_id = ? AND status NOT IN ('COMPLETED', 'ABORTED')
+                LIMIT 1
+                """)) {
+            statement.setString(1, planId);
+            try (var rows = statement.executeQuery()) {
+                return rows.next();
+            }
+        }
+    }
+
     private void insertPlan(Connection connection, TestPlan plan) throws SQLException {
         try (var statement = connection.prepareStatement(
                 "INSERT INTO plans(id, document_json, created_at, updated_at) VALUES(?, ?, ?, ?)")) {
@@ -75,6 +133,16 @@ public final class SqliteHostedRunProvisioner {
             statement.setString(3, plan.createdAt().toString());
             statement.setString(4, plan.updatedAt().toString());
             statement.executeUpdate();
+        }
+    }
+
+    private void updatePlan(Connection connection, TestPlan plan) throws SQLException {
+        try (var statement = connection.prepareStatement(
+                "UPDATE plans SET document_json = ?, updated_at = ? WHERE id = ?")) {
+            statement.setString(1, json.write(plan));
+            statement.setString(2, plan.updatedAt().toString());
+            statement.setString(3, plan.id());
+            if (statement.executeUpdate() != 1) throw new IllegalArgumentException("Unknown Test Plan");
         }
     }
 
