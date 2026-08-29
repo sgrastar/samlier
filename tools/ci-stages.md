@@ -8,13 +8,13 @@ putting rules that require case implementations in the same job would make G1 fa
 |---|---|---|---|
 | **`g1Check`** | Every PR (current main job) | Not required | English-canonical migration invariants, Japanese-residue scan, generated-document equality, and catalog structure. Rules 1–6c-0 and 20d of [05 §5](../docs/05-test-definition-format.md) |
 | **`specReconcile`** | Scheduled + before release | **Required** | Fetches source text and checks section/clause digests and terminology. Rules 5b-3, 5b-4, and 6c-1 |
-| **`releaseCheck`** | Before `release` / `publish` / `dockerPush` | Not required | **Rules requiring case implementations**: 7–19, 20b–20c, 21–28 |
+| **`releaseCheck`** | Every release-candidate PR and before container publication | **Required** for source reconciliation | Signed G1/G2 trusted verification, source reconciliation, implementation tests, generated artifacts, and rules 7–28 |
 
-```
-tasks.named("release")    { dependsOn(":specReconcile", ":releaseCheck") }
-tasks.named("publish")    { dependsOn(":specReconcile", ":releaseCheck") }
-tasks.named("dockerPush") { dependsOn(":specReconcile", ":releaseCheck") }
-```
+The root Gradle `releaseCheck` task depends on the complete `check` task and runs
+`tools/release_check.py`. The release checker invokes the externally pinned G1 and G2 trusted
+verifiers; the G1 verifier force-fetches and reconciles every source specification. The container
+job depends on this release gate. Any future `release`, `publish`, or `dockerPush` task must depend
+on `releaseCheck` rather than duplicating or bypassing it.
 
 ## Rules included in `g1Check` (must pass during the G1 creation phase)
 
@@ -77,7 +77,7 @@ Without this, rewriting the workflow alone disables the entire gate.
 |---|---|---|
 | `g1Check` | migration comparison + JSON Schema enforcement + language/legacy-field checks + structural checks + `g1_docgen.py --check` | Passes |
 | `specReconcile` | `tools/g1_validate.py` (**force-fetches** and reconciles source text and all <!--g1:specs-->25<!--/g1--> specifications) | **`totals.blocking_failures == 0`** (before approval, SR-30 / SR-31 remain FAIL). ★ Do not hard-code a PASS count because it changes whenever checks are added |
-| `releaseCheck` | Not implemented because there are 0 test cases (after G2 is complete) | Not run |
+| `releaseCheck` | Root Gradle task + `tools/release_check.py`; runs all implementation tests, English/generated checks, network G1 reconciliation, and externally pinned G1/G2 approval verification | Implemented; emits `build/release-check-report.json` and fails unless both gates are complete with pinned provenance |
 
 `checks[]` in `build/spec-reconcile-report.json` distinguishes blocking checks using
 `totals.blocking_failures`. **SR-30 (open question remains) and SR-31 (not approved)

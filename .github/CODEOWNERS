@@ -31,7 +31,12 @@
 /tools/g2_validate.py         @sgrastar
 /tools/g2_trusted_verify.py   @sgrastar
 /tools/g2_ci_verify.sh        @sgrastar
+/tools/release_check.py       @sgrastar
+/tools/tests/test_release_check.py @sgrastar
 /.github/workflows/g2.yml     @sgrastar
+/Dockerfile                   @sgrastar
+/.dockerignore                @sgrastar
+/dev/keycloak/                @sgrastar
 
 # Approved artifacts
 /tests/                       @sgrastar

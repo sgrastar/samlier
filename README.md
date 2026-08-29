@@ -20,6 +20,11 @@ SAMLIER_DATA_DIR="$PWD/data" ./gradlew :api:run
 
 Open <http://localhost:8080>. Runtime state, generated Test Peer keys, cached target metadata, and transcripts are stored below `SAMLIER_DATA_DIR`.
 
+Before publishing a release or container, configure the immutable G1/G2 tool pins and SSH
+allowed-signers file, then run `./gradlew releaseCheck`. This gate force-reconciles the source
+specifications, validates both signed approvals through externally pinned verifiers, and runs the
+complete backend and web test suite. Container publication must not bypass this task.
+
 Generated Test Peer private keys are stored unencrypted below that directory. They are test-only keys and must never be trusted by production systems. Run Samlier only against systems you own or are authorized to test.
 
 ## Run with Docker
@@ -42,7 +47,7 @@ Self-hosted results are local, self-declared exports. They cannot be uploaded an
 
 ## Keycloak smoke test
 
-`dev/keycloak/prepare-smoke.sh` starts the pinned Keycloak fixture and Samlier image, imports the generated Test Peer metadata, creates a Run, and prints the browser start URL. Complete the login with the fixture credentials printed by the script; the baseline Run must finish as `COMPLETED`. Continue from the Run management page to execute M1–M3 evidence workflows. The smoke round trip alone is an operational check, not a conformance determination.
+`dev/keycloak/prepare-smoke.sh` starts the pinned Keycloak fixture and Samlier image, imports the generated Test Peer metadata, creates a Run, completes the Keycloak login and SAML POST, and fails unless the Run reaches `COMPLETED` with round-trip evidence. Set `SAMLIER_SMOKE_MANUAL=1` to print the browser URL instead. Continue from the Run management page to execute M1–M3 evidence workflows. The smoke round trip alone is an operational check, not a conformance determination.
 
 ## Project status and design
 

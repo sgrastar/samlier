@@ -23,6 +23,15 @@ jobs:
         run: |
           python3 -m venv .venv
           .venv/bin/pip install --require-hashes -r tools/requirements.lock
+      - name: Configure signing-key allowlist
+        env:
+          G2_ALLOWED_SIGNERS: ${{ vars.G2_ALLOWED_SIGNERS }}
+        run: |
+          set -euo pipefail
+          test -n "$G2_ALLOWED_SIGNERS" || { echo "G2_ALLOWED_SIGNERS is empty" >&2; exit 2; }
+          printf '%s\n' "$G2_ALLOWED_SIGNERS" > /tmp/g2-allowed-signers
+          git config gpg.format ssh
+          git config gpg.ssh.allowedSignersFile /tmp/g2-allowed-signers
       - name: Validate G2 design and feasibility evidence
         run: |
           rm -f build/g2-report.json
@@ -61,8 +70,9 @@ jobs:
         env:
           G2_ALLOWED_SIGNERS: ${{ vars.G2_ALLOWED_SIGNERS }}
         run: |
+          set -euo pipefail
+          test -n "$G2_ALLOWED_SIGNERS" || { echo "G2_ALLOWED_SIGNERS is empty" >&2; exit 2; }
           printf '%s\n' "$G2_ALLOWED_SIGNERS" > /tmp/g2-allowed-signers
-          test -s /tmp/g2-allowed-signers
           git config gpg.format ssh
           git config gpg.ssh.allowedSignersFile /tmp/g2-allowed-signers
       - name: Run externally pinned trusted verifier

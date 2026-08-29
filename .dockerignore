@@ -9,7 +9,6 @@ data
 scratchpad
 Dockerfile*
 docs
-tests
 tools
 schema
 *.db

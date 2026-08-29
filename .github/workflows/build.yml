@@ -26,9 +26,67 @@ jobs:
       - name: Check backend and web application
         run: ./gradlew check --no-daemon
 
+  release-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
+        with: { python-version: '3.14' }
+      - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+      - uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
+        with:
+          node-version: '24.11.1'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Install hash-pinned validator dependencies
+        run: |
+          python3 -m venv .venv
+          .venv/bin/pip install --require-hashes -r tools/requirements.lock
+      - name: Configure signing-key allowlist
+        env:
+          G1_ALLOWED_SIGNERS: ${{ vars.G1_ALLOWED_SIGNERS }}
+          G2_ALLOWED_SIGNERS: ${{ vars.G2_ALLOWED_SIGNERS }}
+        run: |
+          set -euo pipefail
+          test -n "$G1_ALLOWED_SIGNERS" || { echo "G1_ALLOWED_SIGNERS is empty" >&2; exit 2; }
+          test -n "$G2_ALLOWED_SIGNERS" || { echo "G2_ALLOWED_SIGNERS is empty" >&2; exit 2; }
+          printf '%s\n%s\n' "$G1_ALLOWED_SIGNERS" "$G2_ALLOWED_SIGNERS" > /tmp/release-allowed-signers
+          git config gpg.format ssh
+          git config gpg.ssh.allowedSignersFile /tmp/release-allowed-signers
+      - name: Run fail-closed release gate
+        env:
+          G1_TOOLS_COMMIT: ${{ vars.G1_TOOLS_COMMIT }}
+          G2_TOOLS_COMMIT: ${{ vars.G2_TOOLS_COMMIT }}
+          G1_SIGNER_MAP: ${{ vars.G1_SIGNER_MAP }}
+        run: ./gradlew releaseCheck --no-daemon
+      - uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        if: always()
+        with:
+          name: release-check-reports
+          path: |
+            build/release-check-report.json
+            build/spec-reconcile-report.json
+            build/g2-report.json
+
   container:
+    needs: release-check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Build container image
         run: docker build --tag samlier:ci .
+      - name: Run pinned Keycloak SAML round trip
+        env:
+          SAMLIER_IMAGE: samlier:ci
+        run: dev/keycloak/prepare-smoke.sh --no-build
+      - name: Capture container logs
+        if: failure()
+        run: docker compose -f dev/keycloak/compose.yml logs --no-color
+      - name: Stop smoke environment
+        if: always()
+        run: docker compose -f dev/keycloak/compose.yml down --volumes --remove-orphans

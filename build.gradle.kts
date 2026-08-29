@@ -1,6 +1,7 @@
 import org.gradle.api.plugins.JavaPlugin
 import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.tasks.testing.Test
+import org.gradle.api.tasks.Exec
 import org.gradle.jvm.toolchain.JavaLanguageVersion
 
 plugins {
@@ -40,4 +41,37 @@ tasks.named("check") {
         ":api:check",
         ":web:check",
     )
+}
+
+val releasePolicyCheck = tasks.register<Exec>("releasePolicyCheck") {
+    description = "Verifies signed G1/G2 approvals and all release policy artifacts."
+    group = "verification"
+    workingDir(rootDir)
+    val python = providers.environmentVariable("PY")
+        .orElse(layout.projectDirectory.file(".venv/bin/python").asFile.absolutePath)
+    commandLine(python.get(), "tools/release_check.py")
+    outputs.file(layout.buildDirectory.file("release-check-report.json"))
+    outputs.upToDateWhen { false }
+    mustRunAfter(tasks.named("check"))
+}
+
+val releasePolicyUnitTest = tasks.register<Exec>("releasePolicyUnitTest") {
+    description = "Runs unit tests for the fail-closed release policy checker."
+    group = "verification"
+    workingDir(rootDir)
+    val python = providers.environmentVariable("PY").orElse("python3")
+    commandLine(
+        python.get(), "-m", "unittest",
+        "tools/tests/test_release_check.py", "dev/keycloak/test_smoke.py",
+    )
+}
+
+tasks.named("check") {
+    dependsOn(releasePolicyUnitTest)
+}
+
+tasks.register("releaseCheck") {
+    description = "Runs the complete fail-closed verification required before a release or container publication."
+    group = "verification"
+    dependsOn(tasks.named("check"), releasePolicyCheck)
 }

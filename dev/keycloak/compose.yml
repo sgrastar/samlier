@@ -1,5 +1,6 @@
 services:
   samlier:
+    image: ${SAMLIER_IMAGE:-samlier:keycloak-smoke}
     build:
       context: ../..
     environment:
