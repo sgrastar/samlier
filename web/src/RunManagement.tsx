@@ -105,7 +105,7 @@ export function RunManagement({ runId, csrfToken }: { runId: string; csrfToken?:
     try {
       await api.ecpProbe(runId, String(data.get('username') ?? ''), String(data.get('password') ?? ''), csrfToken)
       form.reset()
-      setNotice('ECP exchange recorded. M3 can now evaluate the ECP transcript.')
+      setNotice('The baseline ECP exchange, five channel-binding controls, and the SAML-EC session-key probe were recorded. M3 can now evaluate the transcript.')
     } catch (cause) {
       setError((cause as Error).message)
     } finally {
@@ -137,11 +137,11 @@ export function RunManagement({ runId, csrfToken }: { runId: string; csrfToken?:
     {notice && <aside role="status">{notice}</aside>}
     {profile === 'IDP_FULL' && <form className="interaction" onSubmit={event => void runEcpProbe(event)}>
       <fieldset disabled={busy === 'ecp-probe'}>
-        <legend>ECP HTTP Basic probe</legend>
+        <legend>ECP, channel-binding, and SAML-EC probes</legend>
         <p>Credentials are held in memory for this send only. They are never written to case state, the outbox, or the transcript.</p>
         <label>Username<input required name="username" autoComplete="username" /></label>
         <label>Password<input required name="password" type="password" autoComplete="current-password" /></label>
-        <button type="submit">Run ECP probe before M3</button>
+        <button type="submit">Run seven ECP probes before M3</button>
       </fieldset>
     </form>}
     {interactions.length === 0 ? <p className="quiet-success">No pending interactions.</p> :

@@ -1,6 +1,7 @@
 package org.samlier.saml.metadata;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.net.URI;
@@ -73,5 +74,26 @@ class MetadataServiceTest {
         assertEquals(0, signature.getElementsByTagNameNS(MetadataService.DS, "KeyInfo").getLength());
         assertTrue(document.getElementsByTagNameNS(MetadataService.DS, "KeyInfo").getLength() > 0,
                 "metadata role KeyDescriptors remain intact");
+    }
+
+    @Test
+    void secondaryIdpUsesADistinctEntityAndSigningKey() throws Exception {
+        var clock = Clock.fixed(Instant.parse("2026-08-29T00:00:00Z"), ZoneOffset.UTC);
+        var keyStore = new FilePlanKeyStore(directory, clock);
+        var plan = SamlTestFixtures.idpPlan();
+        var xml = new MetadataService(URI.create("https://peer.example"), keyStore, new XmlSigner(), clock)
+                .generateSecondaryIdp(plan);
+        var document = SecureXml.parse(xml);
+        var root = document.getDocumentElement();
+        root.setIdAttribute("ID", true);
+        assertEquals("https://peer.example/p/plan_0123456789ABCDEFGHJKMNPQRS/idp/secondary",
+                root.getAttribute("entityID"));
+        assertEquals(0, document.getElementsByTagNameNS(MetadataService.MD, "SPSSODescriptor").getLength());
+        assertEquals(1, document.getElementsByTagNameNS(MetadataService.MD, "IDPSSODescriptor").getLength());
+        var secondary = keyStore.getOrCreate(plan.id(), "secondary-idp").certificate();
+        assertNotEquals(keyStore.getOrCreate(plan.id()).certificate(), secondary);
+        var signatureElement = (org.w3c.dom.Element) document
+                .getElementsByTagNameNS(MetadataService.DS, "Signature").item(0);
+        assertTrue(new XMLSignature(signatureElement, "").checkSignatureValue(secondary));
     }
 }

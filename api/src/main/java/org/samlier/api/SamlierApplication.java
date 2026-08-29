@@ -10,6 +10,7 @@ import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.time.Clock;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.LinkedHashMap;
@@ -77,6 +78,8 @@ public final class SamlierApplication {
                 metadataParser, new OutboundPolicy(config.outboundAllowPrivate()), clock, json.mapper());
         var spPeer = new SpPeerService(plans, runs, runService, metadataCache, metadataParser, saml, transcript, clock);
         var idpPeer = new IdpPeerService(plans, runs, runService, metadataCache, metadataParser, saml, transcript, clock);
+        var secondaryIdpPeer = new IdpPeerService(
+                plans, runs, runService, metadataCache, metadataParser, saml, transcript, clock, true);
         var sloPeer = new SloPeerService(plans, runs, metadataCache, metadataParser, saml, transcript, clock);
         var caseExecutions = new SqliteCaseExecutionRepository(database, json);
         var ephemeralCredentials = new InMemoryEphemeralCredentialProvider();
@@ -91,6 +94,7 @@ public final class SamlierApplication {
         var m1 = M1Runtime.create(
                 config, database, json, plans, runs, transcript, transcript, metadataCache,
                 metadataParser, keyStore, caseExecutions, clock);
+        var hostedRateLimiter = new HostedRateLimiter(clock);
 
         return Javalin.create(javalin -> {
             javalin.startup.showJavalinBanner = false;
@@ -163,7 +167,7 @@ public final class SamlierApplication {
                         m1.authorize(ctx.pathParam("id"), ctx.cookie(ManagementSessionRoutes.COOKIE_NAME)));
             }
             routes(javalin, config, plans, runs, transcript, eventBus, runService, preflight,
-                    metadata, spPeer, idpPeer, sloPeer, m1, clock);
+                    metadata, spPeer, idpPeer, secondaryIdpPeer, sloPeer, m1, hostedRateLimiter, clock);
             javalin.routes.exception(MisdirectedRequest.class, (error, ctx) ->
                     ctx.status(421).json(new ApiModels.ErrorView("misdirected_request", error.getMessage())));
             javalin.routes.exception(IllegalArgumentException.class, (error, ctx) -> {
@@ -172,6 +176,9 @@ public final class SamlierApplication {
             javalin.routes.exception(SecurityException.class, (error, ctx) ->
                     ctx.status(HttpStatus.FORBIDDEN)
                             .json(new ApiModels.ErrorView("access_denied", "Access denied")));
+            javalin.routes.exception(HostedRateLimiter.RateLimitExceeded.class, (error, ctx) ->
+                    ctx.status(HttpStatus.TOO_MANY_REQUESTS)
+                            .json(new ApiModels.ErrorView("rate_limited", error.getMessage())));
             javalin.routes.exception(Exception.class, (error, ctx) -> {
                 error.printStackTrace();
                 ctx.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -185,8 +192,9 @@ public final class SamlierApplication {
                                org.samlier.core.transcript.TranscriptRecorder transcript,
                                RunEventBus eventBus, RunService runService, PreflightService preflight,
                                MetadataService metadata, SpPeerService spPeer, IdpPeerService idpPeer,
+                               IdpPeerService secondaryIdpPeer,
                                SloPeerService sloPeer,
-                               M1Runtime m1, Clock clock) {
+                               M1Runtime m1, HostedRateLimiter hostedRateLimiter, Clock clock) {
         javalin.routes.get("/", SamlierApplication::serveIndex);
         javalin.routes.get("/reports/{run}", SamlierApplication::serveIndex);
         javalin.routes.get("/manage/{run}", SamlierApplication::serveIndex);
@@ -197,6 +205,9 @@ public final class SamlierApplication {
         javalin.routes.get("/api/plans", ctx -> ctx.json(plans.list().stream()
                 .map(plan -> view(config, plan)).toList()));
         javalin.routes.post("/api/plans", ctx -> {
+            if (config.mode() == AppConfig.Mode.HOSTED) {
+                hostedRateLimiter.requireAllowed("create-plan", ctx.ip(), 10, Duration.ofHours(1));
+            }
             var request = ctx.bodyAsClass(ApiModels.PlanWrite.class);
             var now = clock.instant();
             var plan = fromWrite(Identifiers.newId("plan"), request, now, now);
@@ -217,6 +228,19 @@ public final class SamlierApplication {
         });
         javalin.routes.get("/api/plans/{id}/runs", ctx -> ctx.json(runs.listForPlan(ctx.pathParam("id"))));
         javalin.routes.post("/api/plans/{id}/runs", ctx -> {
+            if (config.mode() == AppConfig.Mode.HOSTED) {
+                hostedRateLimiter.requireAllowed("create-run", ctx.ip(), 20, Duration.ofHours(1));
+                var requestedPlan = requirePlan(plans, ctx.pathParam("id"));
+                var activeForTarget = plans.list().stream()
+                        .filter(candidate -> candidate.target().entityId().equals(requestedPlan.target().entityId()))
+                        .flatMap(candidate -> runs.listForPlan(candidate.id()).stream())
+                        .anyMatch(candidate -> candidate.status() != RunStatus.COMPLETED
+                                && candidate.status() != RunStatus.ABORTED);
+                if (activeForTarget) {
+                    throw new HostedRateLimiter.RateLimitExceeded(
+                            "Another Run against this target is already active");
+                }
+            }
             var run = runService.create(ctx.pathParam("id"));
             ctx.status(HttpStatus.CREATED).json(new ApiModels.RunCreated(run, m1.issueManagementUrl(run)));
         });
@@ -255,9 +279,18 @@ public final class SamlierApplication {
         });
         javalin.routes.get("/mdq/<entityId>", ctx -> {
             var entityId = URLDecoder.decode(ctx.pathParam("entityId"), StandardCharsets.UTF_8);
-            var plan = plans.list().stream().filter(candidate -> peerEntityId(config, candidate).equals(entityId))
+            var plan = plans.list().stream().filter(candidate ->
+                            peerEntityId(config, candidate).equals(entityId)
+                                    || secondaryIdpEntityId(config, candidate).equals(entityId))
                     .findFirst().orElseThrow(() -> new IllegalArgumentException("Unknown entityID"));
-            ctx.contentType("application/samlmetadata+xml").result(metadata.generate(plan));
+            var payload = secondaryIdpEntityId(config, plan).equals(entityId)
+                    ? metadata.generateSecondaryIdp(plan)
+                    : metadata.generate(plan);
+            ctx.contentType("application/samlmetadata+xml").result(payload);
+        });
+        javalin.routes.get("/p/{plan}/idp/secondary/metadata", ctx -> {
+            var plan = requirePlan(plans, ctx.pathParam("plan"));
+            ctx.contentType("application/samlmetadata+xml").result(metadata.generateSecondaryIdp(plan));
         });
         javalin.routes.get("/p/{plan}/start/m0-roundtrip", ctx ->
                 ctx.redirect(spPeer.start(ctx.pathParam("plan"), requiredQuery(ctx, "run")).toString()));
@@ -269,6 +302,8 @@ public final class SamlierApplication {
         });
         javalin.routes.get("/p/{plan}/idp/sso", ctx -> serveIdp(ctx, idpPeer));
         javalin.routes.post("/p/{plan}/idp/sso", ctx -> serveIdp(ctx, idpPeer));
+        javalin.routes.get("/p/{plan}/idp/secondary/sso", ctx -> serveIdp(ctx, secondaryIdpPeer));
+        javalin.routes.post("/p/{plan}/idp/secondary/sso", ctx -> serveIdp(ctx, secondaryIdpPeer));
         for (var role : List.of("sp", "idp")) {
             javalin.routes.get("/p/{plan}/" + role + "/slo", ctx ->
                     serveSlo(ctx, sloPeer, SloPeerService.Transport.FRONT_CHANNEL));
@@ -346,6 +381,10 @@ public final class SamlierApplication {
     private static TestPlan fromWrite(String id, ApiModels.PlanWrite request,
                                       java.time.Instant createdAt, java.time.Instant updatedAt) {
         if (request == null) throw new IllegalArgumentException("JSON body is required");
+        if (!request.authorizedTarget()) {
+            throw new IllegalArgumentException(
+                    "Confirm that you own or are authorized to test the target before creating the Test Plan");
+        }
         return new TestPlan(id, request.name(), request.profile(),
                 new TestPlan.Target(request.targetKind(), request.targetEntityId(),
                         new TestPlan.MetadataSource(request.metadataSourceKind(), request.metadataSourceLocation())),
@@ -355,12 +394,18 @@ public final class SamlierApplication {
 
     private static ApiModels.PlanView view(AppConfig config, TestPlan plan) {
         var entityId = peerEntityId(config, plan);
+        var secondaryEntityId = secondaryIdpEntityId(config, plan);
         return new ApiModels.PlanView(plan, entityId, entityId + "/metadata",
-                config.peerBaseUrl().resolve("/mdq/" + java.net.URLEncoder.encode(entityId, StandardCharsets.UTF_8)).toString());
+                config.peerBaseUrl().resolve("/mdq/" + java.net.URLEncoder.encode(entityId, StandardCharsets.UTF_8)).toString(),
+                secondaryEntityId, secondaryEntityId + "/metadata");
     }
 
     private static String peerEntityId(AppConfig config, TestPlan plan) {
         return org.samlier.peer.PeerIdentity.primary(config.peerBaseUrl(), plan.id()).toString();
+    }
+
+    private static String secondaryIdpEntityId(AppConfig config, TestPlan plan) {
+        return org.samlier.peer.PeerIdentity.secondaryIdp(config.peerBaseUrl(), plan.id()).toString();
     }
 
     private static TestPlan requirePlan(PlanRepository plans, String id) {

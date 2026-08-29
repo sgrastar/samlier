@@ -45,13 +45,21 @@ public final class FilePlanKeyStore {
     }
 
     public synchronized PlanCredentials getOrCreate(String planId) {
+        return getOrCreate(planId, "primary");
+    }
+
+    public synchronized PlanCredentials getOrCreate(String planId, String keyAlias) {
+        if (keyAlias == null || !keyAlias.matches("[a-z][a-z0-9-]{0,31}")) {
+            throw new IllegalArgumentException("Invalid key alias");
+        }
         var planDirectory = safePlanDirectory(planId);
+        if (!"primary".equals(keyAlias)) planDirectory = planDirectory.resolve(keyAlias);
         var keyPath = planDirectory.resolve("signing-key.pk8");
         var certificatePath = planDirectory.resolve("signing-certificate.der");
         try {
             if (!Files.exists(keyPath) || !Files.exists(certificatePath)) {
                 Files.createDirectories(planDirectory);
-                generate(planId, keyPath, certificatePath);
+                generate(planId, keyAlias, keyPath, certificatePath);
             }
             var privateKey = KeyFactory.getInstance("RSA")
                     .generatePrivate(new PKCS8EncodedKeySpec(Files.readAllBytes(keyPath)));
@@ -63,12 +71,13 @@ public final class FilePlanKeyStore {
         }
     }
 
-    private void generate(String planId, Path keyPath, Path certificatePath) throws Exception {
+    private void generate(String planId, String keyAlias, Path keyPath, Path certificatePath) throws Exception {
         var generator = KeyPairGenerator.getInstance("RSA");
         generator.initialize(3072, new SecureRandom());
         var pair = generator.generateKeyPair();
         var now = clock.instant();
-        var name = new X500Name("CN=samlier test key (DO NOT TRUST),OU=" + planId + ",O=samlier");
+        var name = new X500Name("CN=samlier " + keyAlias + " test key (DO NOT TRUST),OU="
+                + planId + ",O=samlier");
         var certificateBuilder = new JcaX509v3CertificateBuilder(
                 name,
                 new BigInteger(160, new SecureRandom()).abs(),

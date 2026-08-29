@@ -10,6 +10,8 @@ export interface Plan {
   entityId: string
   metadataUrl: string
   mdqUrl: string
+  secondaryIdpEntityId: string
+  secondaryIdpMetadataUrl: string
 }
 
 export interface Run {
@@ -100,6 +102,7 @@ export interface PlanInput {
   declaredFeatures: Record<string, boolean>
   parameters: { clockSkewToleranceSeconds: number; metadataRefreshWaitSeconds: number; testUserHint: string }
   interaction: { allowBrowserSteps: boolean; allowAttestation: boolean }
+  authorizedTarget: boolean
 }
 
 export interface ManagementSession {

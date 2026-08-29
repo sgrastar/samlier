@@ -15,6 +15,7 @@ const initialInput: PlanInput = {
   declaredFeatures: {},
   parameters: { clockSkewToleranceSeconds: 180, metadataRefreshWaitSeconds: 300, testUserHint: '' },
   interaction: { allowBrowserSteps: true, allowAttestation: true },
+  authorizedTarget: false,
 }
 
 export function App() {
@@ -96,6 +97,9 @@ export function App() {
         <label>Suite metadata delivery<select value={input.suiteMetadataDelivery} onChange={e => setInput({ ...input, suiteMetadataDelivery: e.target.value as PlanInput['suiteMetadataDelivery'] })}>
           <option value="MANUAL">Manual</option><option value="HTTP_URL">HTTP URL</option><option value="MDQ">MDQ</option>
         </select></label>
+        <label className="radio"><input required type="checkbox" checked={input.authorizedTarget}
+          onChange={e => setInput({ ...input, authorizedTarget: e.target.checked })} />
+          I own or am authorized to test this target.</label>
         <button type="submit">Create plan</button>
       </form>
 
@@ -110,7 +114,13 @@ export function App() {
 
     {selected && <section className="panel detail">
       <div><p className="eyebrow">ACTIVE TEST PEER</p><h2>{selected.plan.name}</h2></div>
-      <dl><dt>Entity ID</dt><dd><code>{selected.entityId}</code></dd><dt>Metadata</dt><dd><a href={selected.metadataUrl}>{selected.metadataUrl}</a></dd><dt>MDQ</dt><dd><code>{selected.mdqUrl}</code></dd></dl>
+      <dl>
+        <dt>Entity ID</dt><dd><code>{selected.entityId}</code></dd>
+        <dt>Metadata</dt><dd><a href={selected.metadataUrl}>{selected.metadataUrl}</a></dd>
+        <dt>MDQ</dt><dd><code>{selected.mdqUrl}</code></dd>
+        <dt>Secondary IdP entity ID</dt><dd><code>{selected.secondaryIdpEntityId}</code></dd>
+        <dt>Secondary IdP metadata</dt><dd><a href={selected.secondaryIdpMetadataUrl}>{selected.secondaryIdpMetadataUrl}</a></dd>
+      </dl>
       <div className="actions"><button onClick={createRun}>Create Run and preflight</button></div>
       <h3>Runs</h3>
       {runs.map(run => <article className="run" key={run.id}>

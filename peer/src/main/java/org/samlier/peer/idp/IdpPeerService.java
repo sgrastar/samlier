@@ -28,10 +28,18 @@ public final class IdpPeerService {
     private final SamlProtocolService saml;
     private final TranscriptRecorder transcript;
     private final Clock clock;
+    private final boolean secondary;
 
     public IdpPeerService(PlanRepository plans, RunRepository runs, RunService runService,
                           MetadataCache metadataCache, TargetMetadataParser metadataParser,
                           SamlProtocolService saml, TranscriptRecorder transcript, Clock clock) {
+        this(plans, runs, runService, metadataCache, metadataParser, saml, transcript, clock, false);
+    }
+
+    public IdpPeerService(PlanRepository plans, RunRepository runs, RunService runService,
+                          MetadataCache metadataCache, TargetMetadataParser metadataParser,
+                          SamlProtocolService saml, TranscriptRecorder transcript, Clock clock,
+                          boolean secondary) {
         this.plans = plans;
         this.runs = runs;
         this.runService = runService;
@@ -40,6 +48,7 @@ public final class IdpPeerService {
         this.saml = saml;
         this.transcript = transcript;
         this.clock = clock;
+        this.secondary = secondary;
     }
 
     public SamlProtocolService.ResponseMessage consume(
@@ -78,7 +87,9 @@ public final class IdpPeerService {
                     .orElseThrow(() -> new SamlException("Target metadata has no AssertionConsumerService"))
                     .location();
         }
-        var response = saml.buildResponse(plan, request, acs, "samlier-m0-user");
+        var response = secondary
+                ? saml.buildSecondaryIdpResponse(plan, request, acs, "samlier-m0-user")
+                : saml.buildResponse(plan, request, acs, "samlier-m0-user");
         transcript.record(new TranscriptInput(run.id(), Direction.OUTBOUND, clock.instant(), response.id(), "POST",
                 acs.toString(), null, Map.of(), new byte[0], "application/x-www-form-urlencoded", null,
                 response.xml(), Map.of("type", "Response", "id", response.id(), "destination", acs.toString())));

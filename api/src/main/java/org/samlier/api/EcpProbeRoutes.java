@@ -2,13 +2,15 @@ package org.samlier.api;
 
 import io.javalin.config.JavalinConfig;
 import java.util.Objects;
-import org.samlier.runner.outbox.EcpProbeService;
 
 final class EcpProbeRoutes {
     private EcpProbeRoutes() {}
 
     @FunctionalInterface
-    interface Executor { EcpProbeService.Result execute(String runId, String username, String password); }
+    interface Executor {
+        java.util.List<org.samlier.runner.outbox.EcpProbeService.Result> execute(
+                String runId, String username, String password);
+    }
 
     static void register(JavalinConfig javalin, Executor executor) {
         Objects.requireNonNull(javalin, "javalin");

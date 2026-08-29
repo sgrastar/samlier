@@ -34,18 +34,26 @@ public final class EcpProbeService {
     }
 
     public Result execute(String runId, URI endpoint, byte[] envelope, byte[] ephemeralCredential) {
+        return execute(runId, FIXTURE_ID, endpoint, envelope, ephemeralCredential);
+    }
+
+    public Result execute(
+            String runId, String fixtureId, URI endpoint, byte[] envelope, byte[] ephemeralCredential) {
+        if (fixtureId == null || !fixtureId.matches("fixture-ecp-[a-z0-9-]+")) {
+            throw new IllegalArgumentException("Invalid ECP fixture ID");
+        }
         Objects.requireNonNull(endpoint, "endpoint");
         if (envelope == null || envelope.length == 0) throw new IllegalArgumentException("envelope must not be empty");
         if (ephemeralCredential == null || ephemeralCredential.length == 0) {
             throw new IllegalArgumentException("credential must not be empty");
         }
-        var actionId = ActionIds.derive(runId, FIXTURE_ID, PHASE, 0);
+        var actionId = ActionIds.derive(runId, fixtureId, PHASE, 0);
         var action = new OutboundAction(actionId, OutboundKind.ECP_SOAP, envelope, endpoint, true);
-        var existing = repository.find(runId, FIXTURE_ID);
+        var existing = repository.find(runId, fixtureId);
         if (existing.isEmpty()) {
             var execution = new CaseExecution(
-                    runId, FIXTURE_ID, 0, CaseExecutionStatus.RUNNING,
-                    new CaseState(PHASE, Map.of("fixture", "ecp-http-basic")),
+                    runId, fixtureId, 0, CaseExecutionStatus.RUNNING,
+                    new CaseState(PHASE, Map.of("fixture", fixtureId)),
                     null, null, clock.instant());
             repository.apply(-1, execution, List.of(action));
         }

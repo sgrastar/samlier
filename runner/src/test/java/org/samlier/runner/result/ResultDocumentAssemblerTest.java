@@ -36,6 +36,18 @@ import org.samlier.core.run.TestRun;
 class ResultDocumentAssemblerTest {
     private static final Instant NOW = Instant.parse("2026-08-29T14:00:00Z");
 
+    @org.junit.jupiter.api.Test
+    void redactsOnlyInternalHttpEntityIdentifiers() {
+        org.junit.jupiter.api.Assertions.assertEquals("redacted:internal-target",
+                ResultDocumentAssembler.publicEntityId("https://idp.internal/entity"));
+        org.junit.jupiter.api.Assertions.assertEquals("redacted:internal-target",
+                ResultDocumentAssembler.publicEntityId("https://192.168.1.5/entity"));
+        org.junit.jupiter.api.Assertions.assertEquals("https://idp.example/entity",
+                ResultDocumentAssembler.publicEntityId("https://idp.example/entity"));
+        org.junit.jupiter.api.Assertions.assertEquals("urn:example:idp",
+                ResultDocumentAssembler.publicEntityId("urn:example:idp"));
+    }
+
     @Test
     void assemblesEveryAuthoritativeSectionWithoutPublishingUserHints() throws Exception {
         var fixture = fixture();

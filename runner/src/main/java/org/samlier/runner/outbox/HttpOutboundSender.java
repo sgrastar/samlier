@@ -18,6 +18,7 @@ import org.samlier.core.transcript.TranscriptRecorder;
 
 /** The only production boundary that performs HTTP for persisted outbox intents. */
 public final class HttpOutboundSender implements OutboundSender {
+    private static final int MAX_RESPONSE_BYTES = 1024 * 1024;
     private final HttpClient client;
     private final TranscriptRecorder transcript;
     private final Clock clock;
@@ -61,16 +62,23 @@ public final class HttpOutboundSender implements OutboundSender {
                 .header("Authorization", authorization)
                 .POST(HttpRequest.BodyPublishers.ofByteArray(action.payload()))
                 .build();
-        var response = client.send(request, HttpResponse.BodyHandlers.ofByteArray());
+        var response = client.send(request, HttpResponse.BodyHandlers.ofInputStream());
+        byte[] responseBody;
+        try (var body = response.body()) {
+            responseBody = body.readNBytes(MAX_RESPONSE_BYTES + 1);
+        }
+        if (responseBody.length > MAX_RESPONSE_BYTES) {
+            throw new java.io.IOException("ECP response exceeds 1 MiB");
+        }
         var responseHeaders = new LinkedHashMap<String, List<String>>();
         response.headers().map().forEach((name, values) -> responseHeaders.put(name, List.copyOf(values)));
         var responseContentType = response.headers().firstValue("content-type").orElse(null);
         var inbound = transcript.record(new TranscriptInput(
                 runId, Direction.INBOUND, clock.instant(), action.actionId(), "POST",
-                action.target().toString(), response.statusCode(), responseHeaders, response.body(),
-                responseContentType, null, response.body(),
+                action.target().toString(), response.statusCode(), responseHeaders, responseBody,
+                responseContentType, null, responseBody,
                 Map.of("type", "EcpSoapResponse", "request_transcript", outbound.id())));
         return new SendResult(false,
-                Map.of("http_status", response.statusCode(), "response_bytes", response.body().length), inbound.id());
+                Map.of("http_status", response.statusCode(), "response_bytes", responseBody.length), inbound.id());
     }
 }

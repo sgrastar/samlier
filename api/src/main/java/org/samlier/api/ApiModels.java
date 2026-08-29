@@ -20,9 +20,16 @@ final class ApiModels {
             MetadataDeliveryKind suiteMetadataDelivery,
             Map<String, Boolean> declaredFeatures,
             TestPlan.Parameters parameters,
-            TestPlan.Interaction interaction) {}
+            TestPlan.Interaction interaction,
+            boolean authorizedTarget) {}
 
-    record PlanView(TestPlan plan, String entityId, String metadataUrl, String mdqUrl) {}
+    record PlanView(
+            TestPlan plan,
+            String entityId,
+            String metadataUrl,
+            String mdqUrl,
+            String secondaryIdpEntityId,
+            String secondaryIdpMetadataUrl) {}
     record RunCreated(org.samlier.core.run.TestRun run, String managementUrl) {}
     record ErrorView(String error, String message) {}
 }

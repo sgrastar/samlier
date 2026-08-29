@@ -3,6 +3,7 @@ package org.samlier.runner.outbox;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.sun.net.httpserver.HttpServer;
 import java.net.InetSocketAddress;
@@ -75,6 +76,31 @@ class HttpOutboundSenderTest {
             assertTrue(outbound.headers().get("Authorization").getFirst().contains("redacted: Basic"));
             assertFalse(outbound.headers().toString().contains("YWxpY2U6c2VjcmV0"));
             assertEquals(result.transcriptEntryId(), inbound.id());
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    void rejectsAnOversizedResponseBeforeRecordingIt() throws Exception {
+        var server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/ecp", exchange -> {
+            exchange.getRequestBody().readAllBytes();
+            var response = new byte[1024 * 1024 + 1];
+            exchange.sendResponseHeaders(200, response.length);
+            exchange.getResponseBody().write(response);
+            exchange.close();
+        });
+        server.start();
+        try {
+            var recorder = recorder();
+            var sender = new HttpOutboundSender(HttpClient.newHttpClient(), recorder, Clock.fixed(NOW, ZoneOffset.UTC));
+            var action = new OutboundAction("action_0123456789abcdef0123456789abcdea", OutboundKind.ECP_SOAP,
+                    "<Envelope/>".getBytes(StandardCharsets.UTF_8),
+                    URI.create("http://127.0.0.1:" + server.getAddress().getPort() + "/ecp"), true);
+            assertThrows(java.io.IOException.class,
+                    () -> sender.send(RUN_ID, action, "alice:secret".getBytes(StandardCharsets.UTF_8)));
+            assertEquals(1, recorder.list(RUN_ID).size(), "only the redacted outbound entry is retained");
         } finally {
             server.stop(0);
         }

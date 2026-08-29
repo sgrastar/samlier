@@ -39,6 +39,33 @@ public final class MetadataService {
         return generate(plan, Variant.BASELINE, null);
     }
 
+    public byte[] generateSecondaryIdp(TestPlan plan) {
+        var credentials = keyStore.getOrCreate(plan.id(), "secondary-idp");
+        var document = SecureXml.newDocument();
+        var root = element(document, MD, "md:EntityDescriptor");
+        root.setAttributeNS(XMLConstants.XMLNS_ATTRIBUTE_NS_URI, "xmlns:md", MD);
+        root.setAttributeNS(XMLConstants.XMLNS_ATTRIBUTE_NS_URI, "xmlns:ds", DS);
+        root.setAttribute("ID", "_" + plan.id() + "_secondary_idp");
+        root.setAttribute("entityID", endpoint(plan, "/idp/secondary"));
+        root.setAttribute("validUntil", DateTimeFormatter.ISO_INSTANT.format(clock.instant().plus(Duration.ofDays(14))));
+        document.appendChild(root);
+
+        var idp = element(document, MD, "md:IDPSSODescriptor");
+        idp.setAttribute("protocolSupportEnumeration", "urn:oasis:names:tc:SAML:2.0:protocol");
+        idp.setAttribute("WantAuthnRequestsSigned", "false");
+        keyDescriptor(document, idp, credentials.certificate(), "signing");
+        service(document, idp, "SingleSignOnService", REDIRECT,
+                endpoint(plan, "/idp/secondary/sso"), null, false);
+        service(document, idp, "SingleSignOnService", POST,
+                endpoint(plan, "/idp/secondary/sso"), null, false);
+        nameIdFormat(document, idp, "urn:oasis:names:tc:SAML:2.0:nameid-format:persistent");
+        nameIdFormat(document, idp, "urn:oasis:names:tc:SAML:2.0:nameid-format:transient");
+        root.appendChild(idp);
+
+        signer.sign(root, credentials, idp, XmlSigner.SignatureOptions.standard());
+        return SecureXml.serialize(document);
+    }
+
     public byte[] generate(TestPlan plan, Variant variant, String runId) {
         var credentials = keyStore.getOrCreate(plan.id());
         var document = SecureXml.newDocument();

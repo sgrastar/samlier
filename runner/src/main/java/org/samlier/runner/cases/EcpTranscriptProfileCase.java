@@ -1,10 +1,13 @@
 package org.samlier.runner.cases;
 
 import java.security.cert.X509Certificate;
+import java.security.PrivateKey;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
+import java.util.LinkedHashSet;
+import java.util.Set;
 import org.samlier.core.evaluation.CaseOutcome;
 import org.samlier.core.evaluation.EvidenceRef;
 import org.samlier.core.evaluation.Outcome;
@@ -13,6 +16,8 @@ import org.samlier.core.transcript.TranscriptContentReader;
 import org.samlier.core.transcript.TranscriptEntry;
 import org.samlier.core.transcript.TranscriptRecorder;
 import org.samlier.saml.crypto.XmlSignatureVerifier;
+import org.samlier.saml.crypto.SamlElementDecrypter;
+import org.samlier.saml.crypto.SamlXmlDecrypter;
 import org.samlier.saml.normal.SecureXml;
 import org.w3c.dom.Element;
 
@@ -36,11 +41,25 @@ public final class EcpTranscriptProfileCase {
     private static final String NEXT = "http://schemas.xmlsoap.org/soap/actor/next";
     private final Rule rule;
     private final List<X509Certificate> verificationKeys;
+    private final PrivateKey decryptionKey;
+    private final SamlElementDecrypter decrypter;
     private final XmlSignatureVerifier verifier = new XmlSignatureVerifier();
 
     public EcpTranscriptProfileCase(Rule rule, List<X509Certificate> verificationKeys) {
+        this(rule, verificationKeys, null, new SamlXmlDecrypter());
+    }
+
+    public EcpTranscriptProfileCase(
+            Rule rule, List<X509Certificate> verificationKeys, PrivateKey decryptionKey) {
+        this(rule, verificationKeys, decryptionKey, new SamlXmlDecrypter());
+    }
+
+    EcpTranscriptProfileCase(Rule rule, List<X509Certificate> verificationKeys,
+                             PrivateKey decryptionKey, SamlElementDecrypter decrypter) {
         this.rule = java.util.Objects.requireNonNull(rule, "rule");
         this.verificationKeys = List.copyOf(verificationKeys == null ? List.of() : verificationKeys);
+        this.decryptionKey = decryptionKey;
+        this.decrypter = java.util.Objects.requireNonNull(decrypter, "decrypter");
     }
 
     public CaseOutcome evaluate(String runId, TranscriptRecorder recorder, TranscriptContentReader content) {
@@ -59,7 +78,7 @@ public final class EcpTranscriptProfileCase {
             case BEARER_CONFIRMATION -> bearer(requests, responses);
             case CHANNEL_BINDINGS -> channelBindings(requests, responses);
             case HTTP_BASIC -> httpBasic(requests, responses);
-            case GENERATED_KEY -> generatedKey(responses);
+            case GENERATED_KEY -> generatedKey(requests, responses);
         };
     }
 
@@ -168,19 +187,56 @@ public final class EcpTranscriptProfileCase {
     }
 
     private CaseOutcome channelBindings(List<Envelope> requests, List<Envelope> responses) {
-        var requestValues = bindingValues(requests);
-        if (requestValues.isEmpty()) return notVerified("ecp_channel_binding_probe_not_observed");
-        var scoped = responses.stream().filter(value -> has(value.document(), PROTOCOL, "Response")).toList();
-        if (scoped.isEmpty()) return notVerified("ecp_channel_binding_response_not_observed");
+        var channelRequests = requests.stream().filter(value ->
+                !bindings(value.document(), BindingLocation.REQUEST_EXTENSION).isEmpty()
+                        || !bindings(value.document(), BindingLocation.SOAP_HEADER).isEmpty()).toList();
+        if (channelRequests.isEmpty()) return notVerified("ecp_channel_binding_probe_not_observed");
+        var observedScenarios = new LinkedHashSet<ChannelScenario>();
         var invalid = new ArrayList<String>();
-        for (var response : scoped) {
-            var header = values(response.document(), CB, "ChannelBindings", true);
-            var advice = values(response.document(), CB, "ChannelBindings", false);
-            if (header.isEmpty() || advice.isEmpty()
-                    || header.stream().noneMatch(requestValues::contains)
-                    || advice.stream().noneMatch(requestValues::contains)) invalid.add(response.reference());
+        for (var request : channelRequests) {
+            var extensions = bindings(request.document(), BindingLocation.REQUEST_EXTENSION);
+            var headers = bindings(request.document(), BindingLocation.SOAP_HEADER);
+            var signed = has(request.document(), "http://www.w3.org/2000/09/xmldsig#", "Signature");
+            var match = extensions.stream().anyMatch(headers::contains);
+            var scenario = scenario(extensions, headers, signed, match);
+            observedScenarios.add(scenario);
+            var response = responses.stream()
+                    .filter(value -> request.entry().correlationId().equals(value.entry().correlationId()))
+                    .findFirst().orElse(null);
+            if (response == null || !has(response.document(), PROTOCOL, "Response")) {
+                invalid.add(request.reference() + "#missing-error-or-success-response");
+                continue;
+            }
+            if (scenario == ChannelScenario.MATCHED_SIGNED) {
+                var responseHeaders = bindings(response.document(), BindingLocation.SOAP_HEADER);
+                var responseAdvice = bindings(response.document(), BindingLocation.ASSERTION_ADVICE);
+                if (!success(response.document())
+                        || responseHeaders.stream().noneMatch(extensions::contains)
+                        || responseAdvice.stream().noneMatch(extensions::contains)) {
+                    invalid.add(response.reference() + "#matched-binding-not-returned-in-both-locations");
+                }
+            } else if (success(response.document())) {
+                invalid.add(response.reference() + "#channel-binding-error-required");
+            }
         }
-        return outcome(scoped, invalid, "ecp.channel-bindings");
+        var required = Set.of(
+                ChannelScenario.MATCHED_SIGNED,
+                ChannelScenario.MATCHED_UNSIGNED,
+                ChannelScenario.MISMATCHED,
+                ChannelScenario.REQUEST_ONLY,
+                ChannelScenario.HEADER_ONLY);
+        var evidence = new ArrayList<Envelope>(channelRequests);
+        responses.stream().filter(value -> channelRequests.stream().anyMatch(request ->
+                request.entry().correlationId().equals(value.entry().correlationId()))).forEach(evidence::add);
+        if (!invalid.isEmpty()) return outcome(evidence, invalid, "ecp.channel-bindings");
+        if (!observedScenarios.containsAll(required)) {
+            return new CaseOutcome(Outcome.NOT_VERIFIED, "ecp_channel_binding_variants_incomplete",
+                    "ecp.channel-bindings.incomplete", "ecp.channel-bindings.incomplete", evidence(evidence),
+                    Map.of("observed_scenarios", observedScenarios.stream().map(Enum::name).sorted().toList(),
+                            "missing_scenarios", required.stream().filter(value -> !observedScenarios.contains(value))
+                                    .map(Enum::name).sorted().toList()));
+        }
+        return outcome(evidence, List.of(), "ecp.channel-bindings");
     }
 
     private CaseOutcome httpBasic(List<Envelope> requests, List<Envelope> responses) {
@@ -191,35 +247,82 @@ public final class EcpTranscriptProfileCase {
         return exchangeCompletion(requests, responses);
     }
 
-    private CaseOutcome generatedKey(List<Envelope> responses) {
-        if (responses.isEmpty()) return notVerified("saml_ec_response_not_observed");
+    private CaseOutcome generatedKey(List<Envelope> requests, List<Envelope> responses) {
+        var samlEcRequests = requests.stream()
+                .filter(value -> has(value.document(), SAML_EC, "SessionKey")).toList();
+        if (samlEcRequests.isEmpty()) return notVerified("saml_ec_session_key_probe_not_observed");
         var invalid = new ArrayList<String>();
         var observed = 0;
-        for (var response : responses) {
+        var undecryptable = new ArrayList<EvidenceRef>();
+        var scopedResponses = new ArrayList<Envelope>();
+        for (var request : samlEcRequests) {
+            var response = responses.stream()
+                    .filter(value -> request.entry().correlationId().equals(value.entry().correlationId()))
+                    .findFirst().orElse(null);
+            if (response == null) {
+                invalid.add(request.reference() + "#saml-ec-response-missing");
+                continue;
+            }
+            scopedResponses.add(response);
             var keys = response.document().getElementsByTagNameNS(SAML_EC, "GeneratedKey");
-            if (keys.getLength() == 0) continue;
-            observed += keys.getLength();
-            var headerCopy = false;
-            var adviceCopy = false;
+            var headerValues = new ArrayList<String>();
+            var visibleAdviceValues = new ArrayList<String>();
             for (var index = 0; index < keys.getLength(); index++) {
                 var key = (Element) keys.item(index);
-                headerCopy |= ancestor(key, SOAP, "Header");
-                adviceCopy |= ancestor(key, ASSERTION, "Advice");
+                if (ancestor(key, SOAP, "Header")) headerValues.add(key.getTextContent().strip());
+                if (ancestor(key, ASSERTION, "Advice")) visibleAdviceValues.add(key.getTextContent().strip());
+            }
+            if (headerValues.isEmpty() && visibleAdviceValues.isEmpty()) {
+                invalid.add(response.reference() + "#GeneratedKey-missing");
+                continue;
+            }
+            observed += headerValues.size() + visibleAdviceValues.size();
+            for (var value : headerValues) {
                 try {
-                    if (Base64.getDecoder().decode(key.getTextContent().strip()).length < 16) {
+                    if (Base64.getDecoder().decode(value).length < 16) {
                         invalid.add(response.reference() + "#GeneratedKey-too-short");
                     }
                 } catch (IllegalArgumentException malformed) {
                     invalid.add(response.reference() + "#GeneratedKey-not-base64");
                 }
             }
-            if (!headerCopy || !adviceCopy
-                    || response.document().getElementsByTagNameNS(ASSERTION, "EncryptedAssertion").getLength() == 0) {
-                invalid.add(response.reference() + "#GeneratedKey-placement-or-encryption");
+            var encrypted = response.document().getElementsByTagNameNS(ASSERTION, "EncryptedAssertion");
+            if (headerValues.isEmpty() || encrypted.getLength() == 0) {
+                invalid.add(response.reference() + "#GeneratedKey-header-or-encryption-missing");
+                continue;
+            }
+            if (decryptionKey == null) {
+                undecryptable.add(new EvidenceRef("transcript", response.reference() + "#EncryptedAssertion"));
+                continue;
+            }
+            var adviceValues = new ArrayList<String>();
+            var decrypted = false;
+            for (var index = 0; index < encrypted.getLength(); index++) {
+                try {
+                    var assertion = decrypter.decrypt((Element) encrypted.item(index), decryptionKey);
+                    decrypted = true;
+                    var generated = assertion.getElementsByTagNameNS(SAML_EC, "GeneratedKey");
+                    for (var keyIndex = 0; keyIndex < generated.getLength(); keyIndex++) {
+                        var key = (Element) generated.item(keyIndex);
+                        if (ancestor(key, ASSERTION, "Advice")) adviceValues.add(key.getTextContent().strip());
+                    }
+                } catch (RuntimeException unavailable) {
+                    undecryptable.add(new EvidenceRef(
+                            "transcript", response.reference() + "#EncryptedAssertion[" + index + "]"));
+                }
+            }
+            if (decrypted && headerValues.stream().noneMatch(adviceValues::contains)) {
+                invalid.add(response.reference() + "#GeneratedKey-advice-copy-missing-or-different");
             }
         }
-        if (observed == 0) return notVerified("saml_ec_generated_key_not_observed");
-        return outcome(responses, invalid, "saml-ec.generated-key");
+        if (invalid.isEmpty() && !undecryptable.isEmpty()) {
+            return new CaseOutcome(Outcome.NOT_VERIFIED, "encrypted_content_not_decryptable",
+                    "saml-ec.generated-key.not-decrypted", "saml-ec.generated-key.not-decrypted",
+                    List.copyOf(undecryptable), Map.of("undecrypted_assertions", undecryptable.size()));
+        }
+        var evidence = new ArrayList<Envelope>(samlEcRequests);
+        evidence.addAll(scopedResponses);
+        return outcome(evidence, invalid, "saml-ec.generated-key");
     }
 
     private CaseOutcome informational(List<Envelope> messages, String code) {
@@ -247,15 +350,34 @@ public final class EcpTranscriptProfileCase {
         return verificationKeys.stream().anyMatch(certificate -> verifier.hasValidEnvelopedSignature(element, certificate));
     }
 
-    private List<String> bindingValues(List<Envelope> messages) {
-        var result = new ArrayList<String>();
-        messages.forEach(value -> {
-            var nodes = value.document().getElementsByTagNameNS(CB, "ChannelBindings");
-            for (var index = 0; index < nodes.getLength(); index++) {
-                result.add(((Element) nodes.item(index)).getTextContent().strip());
-            }
-        });
-        return result;
+    private ChannelScenario scenario(List<BindingValue> extensions, List<BindingValue> headers,
+                                     boolean signed, boolean match) {
+        if (extensions.isEmpty()) return ChannelScenario.HEADER_ONLY;
+        if (headers.isEmpty()) return ChannelScenario.REQUEST_ONLY;
+        if (!match) return ChannelScenario.MISMATCHED;
+        return signed ? ChannelScenario.MATCHED_SIGNED : ChannelScenario.MATCHED_UNSIGNED;
+    }
+
+    private List<BindingValue> bindings(org.w3c.dom.Document document, BindingLocation location) {
+        var result = new ArrayList<BindingValue>();
+        var nodes = document.getElementsByTagNameNS(CB, "ChannelBindings");
+        for (var index = 0; index < nodes.getLength(); index++) {
+            var element = (Element) nodes.item(index);
+            var included = switch (location) {
+                case SOAP_HEADER -> ancestor(element, SOAP, "Header");
+                case REQUEST_EXTENSION -> ancestor(element, PROTOCOL, "Extensions");
+                case ASSERTION_ADVICE -> ancestor(element, ASSERTION, "Advice");
+            };
+            if (included) result.add(new BindingValue(element.getAttribute("Type"), element.getTextContent().strip()));
+        }
+        return List.copyOf(result);
+    }
+
+    private boolean success(org.w3c.dom.Document document) {
+        var response = first(document, PROTOCOL, "Response");
+        var status = direct(response, PROTOCOL, "Status");
+        var code = direct(status, PROTOCOL, "StatusCode");
+        return code != null && "urn:oasis:names:tc:SAML:2.0:status:Success".equals(code.getAttribute("Value"));
     }
     private String responseConsumer(List<Envelope> requests) {
         var paosValue = requests.stream().map(value -> first(value.document(), PAOS, "Request"))
@@ -320,4 +442,7 @@ public final class EcpTranscriptProfileCase {
         return null;
     }
     private record Envelope(TranscriptEntry entry, org.w3c.dom.Document document, String reference) {}
+    private record BindingValue(String type, String value) {}
+    private enum BindingLocation { SOAP_HEADER, REQUEST_EXTENSION, ASSERTION_ADVICE }
+    private enum ChannelScenario { MATCHED_SIGNED, MATCHED_UNSIGNED, MISMATCHED, REQUEST_ONLY, HEADER_ONLY }
 }

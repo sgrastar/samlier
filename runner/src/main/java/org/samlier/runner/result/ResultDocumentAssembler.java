@@ -111,7 +111,7 @@ public final class ResultDocumentAssembler {
                         context.profileSpec().levelDefinitionNote()),
                 new ResultDocument.TargetView(
                         context.target().product(), context.target().declaredBy(), false,
-                        plan.target().entityId(), context.target().metadataDigest(), plan.profile().role(),
+                        publicEntityId(plan.target().entityId()), context.target().metadataDigest(), plan.profile().role(),
                         plan.target().kind()),
                 new ResultDocument.ConfigurationView(
                         plan.suiteMetadataDelivery(), run.targetToSuiteReachability(), plan.declaredFeatures(),
@@ -225,6 +225,39 @@ public final class ResultDocumentAssembler {
 
     private static String profileId(TestPlan plan) {
         return plan.profile().name().toLowerCase(Locale.ROOT).replace('_', '-');
+    }
+
+    static String publicEntityId(String value) {
+        try {
+            var uri = java.net.URI.create(value);
+            var host = uri.getHost();
+            if (host == null || host.isBlank()) return value;
+            var normalized = host.toLowerCase(Locale.ROOT);
+            if (normalized.equals("localhost") || !normalized.contains(".")
+                    || normalized.endsWith(".localhost") || normalized.endsWith(".local")
+                    || normalized.endsWith(".internal") || privateIpv4(normalized)
+                    || normalized.equals("::1") || normalized.startsWith("fc") || normalized.startsWith("fd")
+                    || normalized.matches("fe[89ab][0-9a-f:].*")) {
+                return "redacted:internal-target";
+            }
+            return value;
+        } catch (IllegalArgumentException malformed) {
+            return value;
+        }
+    }
+
+    private static boolean privateIpv4(String host) {
+        var parts = host.split("\\.");
+        if (parts.length != 4) return false;
+        try {
+            var first = Integer.parseInt(parts[0]);
+            var second = Integer.parseInt(parts[1]);
+            return first == 10 || first == 127 || first == 0 || (first == 169 && second == 254)
+                    || (first == 172 && second >= 16 && second <= 31)
+                    || (first == 192 && second == 168);
+        } catch (NumberFormatException ignored) {
+            return false;
+        }
     }
 
     private static boolean unresolved(Verdict verdict) {

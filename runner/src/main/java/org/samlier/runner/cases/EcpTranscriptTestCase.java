@@ -19,21 +19,25 @@ public final class EcpTranscriptTestCase implements TestCase {
     private final String id;
     private final TranscriptContentReader content;
     private final Function<String, List<X509Certificate>> certificates;
+    private final SamlDecryptionKeyProvider decryptionKeys;
 
     public EcpTranscriptTestCase(
             String id,
             TranscriptContentReader content,
-            Function<String, List<X509Certificate>> certificates) {
+            Function<String, List<X509Certificate>> certificates,
+            SamlDecryptionKeyProvider decryptionKeys) {
         if (!RULES.containsKey(id)) throw new IllegalArgumentException("Unapproved ECP case: " + id);
         this.id = id;
         this.content = Objects.requireNonNull(content, "content");
         this.certificates = Objects.requireNonNull(certificates, "certificates");
+        this.decryptionKeys = Objects.requireNonNull(decryptionKeys, "decryptionKeys");
     }
     @Override public String id() { return id; }
     @Override public TargetRole role() { return TargetRole.IDP; }
     @Override public CaseStep start(CaseContext context) {
         return new CaseStep.Finish(new EcpTranscriptProfileCase(
-                RULES.get(id), certificates.apply(context.runId())).evaluate(
+                RULES.get(id), certificates.apply(context.runId()),
+                decryptionKeys.keyFor(context.runId()).orElse(null)).evaluate(
                 context.runId(), context.transcript(), content));
     }
     @Override public CaseStep resume(CaseContext context, CaseState state, CaseEvent event) {

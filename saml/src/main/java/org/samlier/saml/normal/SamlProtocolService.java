@@ -54,11 +54,30 @@ public final class SamlProtocolService {
 
     public AuthnRequestMessage buildEcpAuthnRequest(
             TestPlan plan, URI destination, URI responseConsumer, String relayState) {
-        return buildAuthnRequest(plan, destination, relayState, responseConsumer, MetadataService.PAOS);
+        return buildAuthnRequest(plan, destination, relayState, responseConsumer, MetadataService.PAOS, null, false);
+    }
+
+    public AuthnRequestMessage buildEcpChannelBindingAuthnRequest(
+            TestPlan plan, URI destination, URI responseConsumer, String relayState,
+            String channelBindingType, String channelBindingValue, boolean signed) {
+        if (channelBindingType == null || channelBindingType.isBlank()) {
+            throw new IllegalArgumentException("channelBindingType must not be blank");
+        }
+        if (channelBindingValue == null || channelBindingValue.isBlank()) {
+            throw new IllegalArgumentException("channelBindingValue must not be blank");
+        }
+        return buildAuthnRequest(plan, destination, relayState, responseConsumer, MetadataService.PAOS,
+                new ChannelBinding(channelBindingType, channelBindingValue), signed);
     }
 
     private AuthnRequestMessage buildAuthnRequest(
             TestPlan plan, URI destination, String relayState, URI responseConsumer, String protocolBinding) {
+        return buildAuthnRequest(plan, destination, relayState, responseConsumer, protocolBinding, null, false);
+    }
+
+    private AuthnRequestMessage buildAuthnRequest(
+            TestPlan plan, URI destination, String relayState, URI responseConsumer, String protocolBinding,
+            ChannelBinding channelBinding, boolean signed) {
         var document = SecureXml.newDocument();
         var request = element(document, PROTOCOL, "samlp:AuthnRequest");
         declareSamlNamespaces(request);
@@ -72,7 +91,20 @@ public final class SamlProtocolService {
         var issuer = element(document, ASSERTION, "saml:Issuer");
         issuer.setTextContent(peerEndpoint(plan, ""));
         request.appendChild(issuer);
+        Element extensions = null;
+        if (channelBinding != null) {
+            extensions = element(document, PROTOCOL, "samlp:Extensions");
+            var binding = element(document,
+                    "urn:oasis:names:tc:SAML:protocol:ext:channel-binding", "cb:ChannelBindings");
+            binding.setAttributeNS(XMLConstants.XMLNS_ATTRIBUTE_NS_URI, "xmlns:cb",
+                    "urn:oasis:names:tc:SAML:protocol:ext:channel-binding");
+            binding.setAttribute("Type", channelBinding.type());
+            binding.setTextContent(channelBinding.value());
+            extensions.appendChild(binding);
+            request.appendChild(extensions);
+        }
         document.appendChild(request);
+        if (signed) signer.sign(request, keyStore.getOrCreate(plan.id()), extensions);
         var xml = SecureXml.serialize(document);
         reader.read(xml);
         var encoded = url(Base64.getEncoder().encodeToString(deflate(xml)));
@@ -126,6 +158,17 @@ public final class SamlProtocolService {
     }
 
     public ResponseMessage buildResponse(TestPlan plan, DecodedMessage request, URI acs, String subjectValue) {
+        return buildResponse(plan, request, acs, subjectValue, peerEndpoint(plan, ""), "primary");
+    }
+
+    public ResponseMessage buildSecondaryIdpResponse(
+            TestPlan plan, DecodedMessage request, URI acs, String subjectValue) {
+        return buildResponse(plan, request, acs, subjectValue,
+                peerEndpoint(plan, "/idp/secondary"), "secondary-idp");
+    }
+
+    private ResponseMessage buildResponse(TestPlan plan, DecodedMessage request, URI acs, String subjectValue,
+                                          String issuerValue, String keyAlias) {
         var requestRoot = request.parsed().document().getDocumentElement();
         var requestId = requestRoot.getAttribute("ID");
         var now = clock.instant();
@@ -141,7 +184,7 @@ public final class SamlProtocolService {
         document.appendChild(response);
 
         var issuer = element(document, ASSERTION, "saml:Issuer");
-        issuer.setTextContent(peerEndpoint(plan, ""));
+        issuer.setTextContent(issuerValue);
         response.appendChild(issuer);
         var status = element(document, PROTOCOL, "samlp:Status");
         var statusCode = element(document, PROTOCOL, "samlp:StatusCode");
@@ -154,7 +197,7 @@ public final class SamlProtocolService {
         assertion.setAttribute("Version", "2.0");
         assertion.setAttribute("IssueInstant", instant(now));
         var assertionIssuer = element(document, ASSERTION, "saml:Issuer");
-        assertionIssuer.setTextContent(peerEndpoint(plan, ""));
+        assertionIssuer.setTextContent(issuerValue);
         assertion.appendChild(assertionIssuer);
 
         var subject = element(document, ASSERTION, "saml:Subject");
@@ -193,7 +236,7 @@ public final class SamlProtocolService {
         assertion.appendChild(authnStatement);
         response.appendChild(assertion);
 
-        signer.sign(assertion, keyStore.getOrCreate(plan.id()), subject);
+        signer.sign(assertion, keyStore.getOrCreate(plan.id(), keyAlias), subject);
         var xml = SecureXml.serialize(document);
         reader.read(xml);
         return new ResponseMessage(response.getAttribute("ID"), xml,
@@ -294,6 +337,7 @@ public final class SamlProtocolService {
     }
 
     public record AuthnRequestMessage(String id, byte[] xml, URI redirect, String relayState) {}
+    private record ChannelBinding(String type, String value) {}
     public record RawDecodedMessage(byte[] xml, String relayState) {
         public RawDecodedMessage { xml = xml.clone(); }
         @Override public byte[] xml() { return xml.clone(); }

@@ -164,6 +164,10 @@ final class M1Runtime {
                     var plan = plans.find(run.planId()).orElseThrow(() -> new IllegalStateException("Run has no Test Plan"));
                     try { return targetCertificates.certificatesFor(plan); }
                     catch (RuntimeException unavailable) { return List.of(); }
+                },
+                runId -> {
+                    var run = runs.find(runId).orElseThrow(() -> new IllegalArgumentException("Unknown Run"));
+                    return java.util.Optional.of(keys.getOrCreate(run.planId()).privateKey());
                 });
         var interactiveRegistry = org.samlier.runner.TestCaseRegistry.merge(
                 m1Attested, m1Config, m1Browser,
@@ -264,7 +268,7 @@ final class M1Runtime {
                 && plan.profile() == org.samlier.core.plan.PlanProfile.IDP_FULL
                 && caseExecutions.find(run.id(), org.samlier.runner.outbox.EcpProbeService.FIXTURE_ID).isEmpty()) {
             throw new IllegalArgumentException(
-                    "Run the ECP HTTP Basic probe before starting M3 for an IdP Full Profile Run");
+                    "Run the ECP, channel-binding, and SAML-EC probes before starting M3 for an IdP Full Profile Run");
         }
         var started = startInteractive(run, plan, milestone);
         if (results != null) results.generate(runId);

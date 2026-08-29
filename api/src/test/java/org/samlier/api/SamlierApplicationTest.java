@@ -42,9 +42,17 @@ class SamlierApplicationTest {
                       "suiteMetadataDelivery":"HTTP_URL",
                       "declaredFeatures":{},
                       "parameters":{"clockSkewToleranceSeconds":180,"metadataRefreshWaitSeconds":300,"testUserHint":""},
-                      "interaction":{"allowBrowserSteps":true,"allowAttestation":true}
+                      "interaction":{"allowBrowserSteps":true,"allowAttestation":true},
+                      "authorizedTarget":true
                     }
                     """;
+            var unauthorized = client.send(HttpRequest.newBuilder(base.resolve("/api/plans"))
+                            .header("Content-Type", "application/json")
+                            .POST(HttpRequest.BodyPublishers.ofString(
+                                    requestBody.replace("\"authorizedTarget\":true", "\"authorizedTarget\":false")))
+                            .build(), HttpResponse.BodyHandlers.ofString());
+            assertEquals(400, unauthorized.statusCode());
+            assertTrue(unauthorized.body().contains("authorized to test"));
             var created = client.send(HttpRequest.newBuilder(base.resolve("/api/plans"))
                             .header("Content-Type", "application/json")
                             .POST(HttpRequest.BodyPublishers.ofString(requestBody)).build(),
@@ -52,6 +60,8 @@ class SamlierApplicationTest {
             assertEquals(201, created.statusCode(), created.body());
             var planId = created.body().replaceFirst("(?s).*\"id\":\"(plan_[0-9A-Z]+)\".*", "$1");
             assertTrue(planId.matches("plan_[0-9A-HJKMNP-TV-Z]{26}"));
+            assertTrue(created.body().contains("\"secondaryIdpEntityId\":\"http://127.0.0.1:8080/p/"
+                    + planId + "/idp/secondary\""));
 
             var createdRun = client.send(HttpRequest.newBuilder(base.resolve("/api/plans/" + planId + "/runs"))
                             .header("Content-Type", "application/json")
@@ -74,6 +84,15 @@ class SamlierApplicationTest {
             assertTrue(metadata.body().contains("<ds:Signature"));
             assertTrue(metadata.body().contains("<md:SPSSODescriptor"));
             assertTrue(metadata.body().contains("<md:IDPSSODescriptor"));
+
+            var secondaryMetadata = client.send(HttpRequest.newBuilder(base.resolve(
+                            "/p/" + planId + "/idp/secondary/metadata")).build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, secondaryMetadata.statusCode());
+            assertTrue(secondaryMetadata.body().contains("entityID=\"http://127.0.0.1:8080/p/"
+                    + planId + "/idp/secondary\""));
+            assertTrue(secondaryMetadata.body().contains("<md:IDPSSODescriptor"));
+            assertFalse(secondaryMetadata.body().contains("<md:SPSSODescriptor"));
 
             var variant = client.send(HttpRequest.newBuilder(base.resolve(
                             "/p/" + planId + "/metadata?variant=no-key-info&run=" + runId)).build(),

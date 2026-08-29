@@ -3,6 +3,9 @@ package org.samlier.api;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.List;
 import java.util.Objects;
 import org.samlier.core.plan.PlanProfile;
 import org.samlier.core.plan.PlanRepository;
@@ -45,7 +48,7 @@ final class EcpProbeRuntime {
         this.probes = Objects.requireNonNull(probes, "probes");
     }
 
-    EcpProbeService.Result execute(String runId, String username, String password) {
+    List<EcpProbeService.Result> execute(String runId, String username, String password) {
         if (username == null || username.isBlank() || username.contains(":")) {
             throw new IllegalArgumentException("HTTP Basic username must be non-blank and must not contain ':'");
         }
@@ -66,21 +69,72 @@ final class EcpProbeRuntime {
                         "Target metadata has no SOAP SingleSignOnService for ECP"));
         var responseConsumer = URI.create(peerBase.resolve("/p/" + plan.id() + "/sp/paos")
                 + "?run=" + java.net.URLEncoder.encode(run.id(), StandardCharsets.UTF_8));
-        var request = saml.buildEcpAuthnRequest(plan, endpoint, responseConsumer, "ecp-" + run.id());
-        var envelope = envelopes.baseline(request.xml());
         var userBytes = username.getBytes(StandardCharsets.UTF_8);
         var passwordBytes = password.getBytes(StandardCharsets.UTF_8);
         var credential = new byte[userBytes.length + 1 + passwordBytes.length];
         System.arraycopy(userBytes, 0, credential, 0, userBytes.length);
         credential[userBytes.length] = ':';
         System.arraycopy(passwordBytes, 0, credential, userBytes.length + 1, passwordBytes.length);
+        var allocatedEnvelopes = new ArrayList<byte[]>();
         try {
-            return probes.execute(run.id(), endpoint, envelope, credential);
+            var results = new ArrayList<EcpProbeService.Result>();
+            var baseline = saml.buildEcpAuthnRequest(plan, endpoint, responseConsumer, "ecp-" + run.id());
+            var baselineEnvelope = envelopes.baseline(baseline.xml());
+            allocatedEnvelopes.add(baselineEnvelope);
+            results.add(probes.execute(run.id(), endpoint, baselineEnvelope, credential));
+
+            var bindingA = channelBinding(run.id(), "a");
+            var bindingB = channelBinding(run.id(), "b");
+            results.add(channelProbe(plan, run.id(), endpoint, responseConsumer, credential,
+                    "fixture-ecp-channel-binding-match-signed", bindingA, bindingA, true, allocatedEnvelopes));
+            results.add(channelProbe(plan, run.id(), endpoint, responseConsumer, credential,
+                    "fixture-ecp-channel-binding-match-unsigned", bindingA, bindingA, false, allocatedEnvelopes));
+            results.add(channelProbe(plan, run.id(), endpoint, responseConsumer, credential,
+                    "fixture-ecp-channel-binding-mismatch", bindingA, bindingB, true, allocatedEnvelopes));
+            results.add(channelProbe(plan, run.id(), endpoint, responseConsumer, credential,
+                    "fixture-ecp-channel-binding-request-only", bindingA, null, true, allocatedEnvelopes));
+            var noExtension = saml.buildEcpAuthnRequest(
+                    plan, endpoint, responseConsumer, "ecp-channel-header-only-" + run.id());
+            var headerOnly = envelopes.channelBinding(noExtension.xml(), "tls-server-end-point", bindingA);
+            allocatedEnvelopes.add(headerOnly);
+            results.add(probes.execute(run.id(), "fixture-ecp-channel-binding-header-only",
+                    endpoint, headerOnly, credential));
+            var samlEcRequest = saml.buildEcpAuthnRequest(
+                    plan, endpoint, responseConsumer, "saml-ec-session-key-" + run.id());
+            var samlEcEnvelope = envelopes.samlEcSessionKey(samlEcRequest.xml());
+            allocatedEnvelopes.add(samlEcEnvelope);
+            results.add(probes.execute(run.id(), "fixture-ecp-saml-ec-session-key",
+                    endpoint, samlEcEnvelope, credential));
+            return List.copyOf(results);
         } finally {
             Arrays.fill(userBytes, (byte) 0);
             Arrays.fill(passwordBytes, (byte) 0);
             Arrays.fill(credential, (byte) 0);
-            Arrays.fill(envelope, (byte) 0);
+            allocatedEnvelopes.forEach(value -> Arrays.fill(value, (byte) 0));
+        }
+    }
+
+    private EcpProbeService.Result channelProbe(
+            org.samlier.core.plan.TestPlan plan, String runId, URI endpoint, URI responseConsumer,
+            byte[] credential, String fixtureId, String requestValue, String headerValue, boolean signed,
+            List<byte[]> allocatedEnvelopes) {
+        var request = saml.buildEcpChannelBindingAuthnRequest(
+                plan, endpoint, responseConsumer, fixtureId + "-" + runId,
+                "tls-server-end-point", requestValue, signed);
+        var envelope = headerValue == null
+                ? envelopes.baseline(request.xml())
+                : envelopes.channelBinding(request.xml(), "tls-server-end-point", headerValue);
+        allocatedEnvelopes.add(envelope);
+        return probes.execute(runId, fixtureId, endpoint, envelope, credential);
+    }
+
+    private String channelBinding(String runId, String discriminator) {
+        try {
+            var digest = java.security.MessageDigest.getInstance("SHA-256");
+            return Base64.getEncoder().encodeToString(
+                    digest.digest((runId + ":" + discriminator).getBytes(StandardCharsets.UTF_8)));
+        } catch (java.security.NoSuchAlgorithmException impossible) {
+            throw new IllegalStateException(impossible);
         }
     }
 }

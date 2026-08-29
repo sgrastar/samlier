@@ -35,25 +35,76 @@ class EcpTranscriptProfileCaseTest {
     }
 
     @Test
-    void channelBindingsMustAppearInBothRequiredOutputLocations() {
-        assertEquals(Outcome.SATISFIED, fixture(request(), response(true, true, true)).evaluate(
+    void channelBindingsExerciseAllFiveRequiredScenarios() {
+        assertEquals(Outcome.SATISFIED, fixture(channelBindingScenario(true)).evaluate(
                 EcpTranscriptProfileCase.Rule.CHANNEL_BINDINGS));
-        assertEquals(Outcome.VIOLATED, fixture(request(), response(true, false, true)).evaluate(
+        assertEquals(Outcome.VIOLATED, fixture(channelBindingScenario(false)).evaluate(
                 EcpTranscriptProfileCase.Rule.CHANNEL_BINDINGS));
+    }
+
+    private Soap[] channelBindingScenario(boolean includeAdviceCopy) {
+        return new Soap[] {
+                channelRequest("matched-signed-request", "match", "match", true),
+                channelResponse("matched-signed-response", "matched-signed", true, true, includeAdviceCopy),
+                channelRequest("matched-unsigned-request", "match", "match", false),
+                channelResponse("matched-unsigned-response", "matched-unsigned", false, false, false),
+                channelRequest("mismatch-request", "request", "header", true),
+                channelResponse("mismatch-response", "mismatch", false, false, false),
+                channelRequest("request-only-request", "request", null, true),
+                channelResponse("request-only-response", "request-only", false, false, false),
+                channelRequest("header-only-request", null, "header", false),
+                channelResponse("header-only-response", "header-only", false, false, false)
+        };
+    }
+
+    private Soap channelRequest(String id, String extensionValue, String headerValue, boolean signed) {
+        var correlation = id.replace("-request", "");
+        var header = headerValue == null ? "" : "<cb:ChannelBindings Type=\"tls-server-end-point\">"
+                + headerValue + "</cb:ChannelBindings>";
+        var extension = extensionValue == null ? "" : "<samlp:Extensions><cb:ChannelBindings "
+                + "Type=\"tls-server-end-point\">" + extensionValue + "</cb:ChannelBindings></samlp:Extensions>";
+        var signature = signed ? "<ds:Signature/>" : "";
+        return new Soap(id, correlation, Direction.OUTBOUND, """
+                <S:Envelope xmlns:S="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol"
+                  xmlns:cb="urn:oasis:names:tc:SAML:protocol:ext:channel-binding"
+                  xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
+                  <S:Header>%s</S:Header>
+                  <S:Body><samlp:AuthnRequest>%s%s</samlp:AuthnRequest></S:Body>
+                </S:Envelope>
+                """.formatted(header, signature, extension), Map.of());
+    }
+
+    private Soap channelResponse(String id, String correlation, boolean success,
+                                 boolean headerCopy, boolean adviceCopy) {
+        var header = headerCopy ? "<cb:ChannelBindings Type=\"tls-server-end-point\">match</cb:ChannelBindings>" : "";
+        var advice = adviceCopy ? "<saml:Assertion><saml:Advice><cb:ChannelBindings "
+                + "Type=\"tls-server-end-point\">match</cb:ChannelBindings></saml:Advice></saml:Assertion>" : "";
+        var status = success ? "urn:oasis:names:tc:SAML:2.0:status:Success"
+                : "urn:oasis:names:tc:SAML:2.0:status:Responder";
+        return new Soap(id, correlation, Direction.INBOUND, """
+                <S:Envelope xmlns:S="http://schemas.xmlsoap.org/soap/envelope/"
+                  xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol"
+                  xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion"
+                  xmlns:cb="urn:oasis:names:tc:SAML:protocol:ext:channel-binding">
+                  <S:Header>%s</S:Header>
+                  <S:Body><samlp:Response><samlp:Status><samlp:StatusCode Value="%s"/></samlp:Status>%s</samlp:Response></S:Body>
+                </S:Envelope>
+                """.formatted(header, status, advice), Map.of());
     }
 
     @Test
     void samlEcRequiresBothCopiesSufficientKeyMaterialAndEncryptedAssertion() {
-        assertEquals(Outcome.SATISFIED, fixture(request(), response(true, true, true)).evaluate(
+        assertEquals(Outcome.SATISFIED, fixture(samlEcRequest(), response(true, true, true)).evaluate(
                 EcpTranscriptProfileCase.Rule.GENERATED_KEY));
-        assertEquals(Outcome.VIOLATED, fixture(request(), response(true, true, false)).evaluate(
+        assertEquals(Outcome.VIOLATED, fixture(samlEcRequest(), response(true, true, false)).evaluate(
                 EcpTranscriptProfileCase.Rule.GENERATED_KEY));
     }
 
     private Fixture fixture(Soap... values) { return new Fixture(List.of(values)); }
 
     private Soap request() {
-        return new Soap("request", Direction.OUTBOUND, """
+        return new Soap("request", "corr", Direction.OUTBOUND, """
                 <S:Envelope xmlns:S="http://schemas.xmlsoap.org/soap/envelope/"
                     xmlns:paos="urn:liberty:paos:2003-08"
                     xmlns:cb="urn:oasis:names:tc:SAML:protocol:ext:channel-binding">
@@ -61,6 +112,17 @@ class EcpTranscriptProfileCaseTest {
                     <paos:Request responseConsumerURL="https://suite.example/paos"/>
                     <cb:ChannelBindings>binding</cb:ChannelBindings>
                   </S:Header>
+                  <S:Body><request/></S:Body>
+                </S:Envelope>
+                """, Map.of("Authorization", List.of("<redacted: Basic, 20 bytes>")));
+    }
+
+    private Soap samlEcRequest() {
+        return new Soap("saml-ec-request", "corr", Direction.OUTBOUND, """
+                <S:Envelope xmlns:S="http://schemas.xmlsoap.org/soap/envelope/"
+                    xmlns:samlec="urn:ietf:params:xml:ns:samlec">
+                  <S:Header><samlec:SessionKey S:actor="http://schemas.xmlsoap.org/soap/actor/next"
+                    S:mustUnderstand="1"><samlec:EncType>17</samlec:EncType></samlec:SessionKey></S:Header>
                   <S:Body><request/></S:Body>
                 </S:Envelope>
                 """, Map.of("Authorization", List.of("<redacted: Basic, 20 bytes>")));
@@ -74,7 +136,7 @@ class EcpTranscriptProfileCaseTest {
         var assertion = encrypted
                 ? "<saml:EncryptedAssertion/><saml:Assertion ID=\"_a\"><saml:Advice><cb:ChannelBindings>binding</cb:ChannelBindings><samlec:GeneratedKey>AAECAwQFBgcICQoLDA0ODw==</samlec:GeneratedKey></saml:Advice><saml:Subject><saml:SubjectConfirmation Method=\"urn:oasis:names:tc:SAML:2.0:cm:bearer\"><saml:SubjectConfirmationData Recipient=\"" + recipient + "\"/></saml:SubjectConfirmation></saml:Subject></saml:Assertion>"
                 : "<saml:Assertion><saml:Advice><samlec:GeneratedKey>AA==</samlec:GeneratedKey></saml:Advice></saml:Assertion>";
-        return new Soap("response", Direction.INBOUND, """
+        return new Soap("response", "corr", Direction.INBOUND, """
                 <S:Envelope xmlns:S="http://schemas.xmlsoap.org/soap/envelope/"
                     xmlns:ecp="urn:oasis:names:tc:SAML:2.0:profiles:SSO:ecp"
                     xmlns:cb="urn:oasis:names:tc:SAML:protocol:ext:channel-binding"
@@ -91,7 +153,8 @@ class EcpTranscriptProfileCaseTest {
                 """.formatted(recipient, headerCb, assertion), Map.of());
     }
 
-    private record Soap(String id, Direction direction, String xml, Map<String, List<String>> headers) {}
+    private record Soap(String id, String correlation, Direction direction, String xml,
+                        Map<String, List<String>> headers) {}
 
     private static final class Fixture {
         private static final String RUN = "run_0123456789ABCDEFGHJKMNPQRS";
@@ -107,7 +170,7 @@ class EcpTranscriptProfileCaseTest {
                 var bytes = value.xml().getBytes(StandardCharsets.UTF_8);
                 rows.add(new TranscriptEntry(
                         value.id(), RUN, value.direction(), Instant.parse("2026-08-29T00:00:00Z").plusSeconds(sequence++),
-                        "corr", "POST", "https://idp.example/ecp", 200, value.headers(), null, 0,
+                        value.correlation(), "POST", "https://idp.example/ecp", 200, value.headers(), null, 0,
                         reference, bytes.length, "application/soap+xml", null, Map.of()));
                 blobs.put(reference, bytes);
             }
@@ -124,6 +187,22 @@ class EcpTranscriptProfileCaseTest {
                 @Override public List<TranscriptEntry> list(String runId) { return entries; }
             };
             TranscriptContentReader reader = entry -> content.get(entry.decodedSamlRef());
+            if (rule == EcpTranscriptProfileCase.Rule.GENERATED_KEY) {
+                java.security.PrivateKey key = new java.security.PrivateKey() {
+                    @Override public String getAlgorithm() { return "fixture"; }
+                    @Override public String getFormat() { return "fixture"; }
+                    @Override public byte[] getEncoded() { return new byte[0]; }
+                };
+                org.samlier.saml.crypto.SamlElementDecrypter decrypter = (wrapper, ignored) ->
+                        org.samlier.saml.normal.SecureXml.parse("""
+                            <saml:Assertion xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion"
+                              xmlns:samlec="urn:ietf:params:xml:ns:samlec">
+                              <saml:Advice><samlec:GeneratedKey>AAECAwQFBgcICQoLDA0ODw==</samlec:GeneratedKey></saml:Advice>
+                            </saml:Assertion>
+                            """.getBytes(StandardCharsets.UTF_8)).getDocumentElement();
+                return new EcpTranscriptProfileCase(rule, List.of(), key, decrypter)
+                        .evaluate(RUN, recorder, reader).outcome();
+            }
             return new EcpTranscriptProfileCase(rule, List.of()).evaluate(RUN, recorder, reader).outcome();
         }
     }
