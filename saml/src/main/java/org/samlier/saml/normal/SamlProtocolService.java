@@ -189,6 +189,45 @@ public final class SamlProtocolService {
                 Base64.getEncoder().encodeToString(xml), acs, request.relayState());
     }
 
+    public ResponseMessage buildLogoutResponse(TestPlan plan, DecodedMessage request, URI destination) {
+        var requestRoot = request.parsed().document().getDocumentElement();
+        if (!PROTOCOL.equals(requestRoot.getNamespaceURI()) || !"LogoutRequest".equals(requestRoot.getLocalName())) {
+            throw new SamlException("A LogoutResponse requires a LogoutRequest");
+        }
+        var document = SecureXml.newDocument();
+        var response = element(document, PROTOCOL, "samlp:LogoutResponse");
+        declareSamlNamespaces(response);
+        response.setAttribute("ID", "_" + Identifiers.newId("saml"));
+        response.setAttribute("Version", "2.0");
+        response.setAttribute("IssueInstant", instant(clock.instant()));
+        response.setAttribute("InResponseTo", requestRoot.getAttribute("ID"));
+        if (destination != null) response.setAttribute("Destination", destination.toString());
+        document.appendChild(response);
+        var issuer = element(document, ASSERTION, "saml:Issuer");
+        issuer.setTextContent(peerEndpoint(plan, ""));
+        response.appendChild(issuer);
+        var status = element(document, PROTOCOL, "samlp:Status");
+        var statusCode = element(document, PROTOCOL, "samlp:StatusCode");
+        statusCode.setAttribute("Value", SUCCESS);
+        status.appendChild(statusCode);
+        response.appendChild(status);
+        signer.sign(response, keyStore.getOrCreate(plan.id()), issuer);
+        var xml = SecureXml.serialize(document);
+        reader.read(xml);
+        return new ResponseMessage(
+                response.getAttribute("ID"), xml, Base64.getEncoder().encodeToString(xml),
+                destination, request.relayState());
+    }
+
+    public URI redirectResponse(ResponseMessage response) {
+        if (response.destination() == null) throw new SamlException("Redirect response has no destination");
+        var encoded = url(Base64.getEncoder().encodeToString(deflate(response.xml())));
+        var value = response.destination() + (response.destination().toString().contains("?") ? "&" : "?")
+                + "SAMLResponse=" + encoded;
+        if (response.relayState() != null) value += "&RelayState=" + url(response.relayState());
+        return URI.create(value);
+    }
+
     private DecodedMessage decoded(byte[] xml, String relayState) {
         var parsed = reader.read(xml);
         return new DecodedMessage(xml, parsed, relayState);

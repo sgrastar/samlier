@@ -34,7 +34,8 @@ public final class TargetMetadataParser {
             throw new SamlException("Target metadata entityID does not match the Test Plan");
         }
         return new TargetMetadata(entity.getAttribute("entityID"), endpoints(entity, "SingleSignOnService"),
-                endpoints(entity, "AssertionConsumerService"), signingCertificates(entity));
+                endpoints(entity, "SingleLogoutService"), endpoints(entity, "AssertionConsumerService"),
+                signingCertificates(entity));
     }
 
     private java.util.List<TargetMetadata.Endpoint> endpoints(Element entity, String localName) {

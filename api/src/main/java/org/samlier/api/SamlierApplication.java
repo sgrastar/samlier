@@ -23,6 +23,7 @@ import org.samlier.core.run.RunRepository;
 import org.samlier.core.run.RunStatus;
 import org.samlier.peer.idp.IdpPeerService;
 import org.samlier.peer.sp.SpPeerService;
+import org.samlier.peer.logout.SloPeerService;
 import org.samlier.runner.OutboundPolicy;
 import org.samlier.runner.PreflightService;
 import org.samlier.runner.RunEvent;
@@ -70,6 +71,7 @@ public final class SamlierApplication {
                 metadataParser, new OutboundPolicy(config.outboundAllowPrivate()), clock, json.mapper());
         var spPeer = new SpPeerService(plans, runs, runService, metadataCache, metadataParser, saml, transcript, clock);
         var idpPeer = new IdpPeerService(plans, runs, runService, metadataCache, metadataParser, saml, transcript, clock);
+        var sloPeer = new SloPeerService(plans, runs, metadataCache, metadataParser, saml, transcript, clock);
         var m1 = M1Runtime.create(
                 config, database, json, plans, runs, transcript, transcript, metadataCache,
                 metadataParser, keyStore, clock);
@@ -123,7 +125,7 @@ public final class SamlierApplication {
                                 ctx.header("X-CSRF-Token")));
             }
             routes(javalin, config, plans, runs, transcript, eventBus, runService, preflight,
-                    metadata, spPeer, idpPeer, m1, clock);
+                    metadata, spPeer, idpPeer, sloPeer, m1, clock);
             javalin.routes.exception(MisdirectedRequest.class, (error, ctx) ->
                     ctx.status(421).json(new ApiModels.ErrorView("misdirected_request", error.getMessage())));
             javalin.routes.exception(IllegalArgumentException.class, (error, ctx) -> {
@@ -145,6 +147,7 @@ public final class SamlierApplication {
                                org.samlier.core.transcript.TranscriptRecorder transcript,
                                RunEventBus eventBus, RunService runService, PreflightService preflight,
                                MetadataService metadata, SpPeerService spPeer, IdpPeerService idpPeer,
+                               SloPeerService sloPeer,
                                M1Runtime m1, Clock clock) {
         javalin.routes.get("/", SamlierApplication::serveIndex);
         javalin.routes.get("/reports/{run}", SamlierApplication::serveIndex);
@@ -228,6 +231,42 @@ public final class SamlierApplication {
         });
         javalin.routes.get("/p/{plan}/idp/sso", ctx -> serveIdp(ctx, idpPeer));
         javalin.routes.post("/p/{plan}/idp/sso", ctx -> serveIdp(ctx, idpPeer));
+        for (var role : List.of("sp", "idp")) {
+            javalin.routes.get("/p/{plan}/" + role + "/slo", ctx ->
+                    serveSlo(ctx, sloPeer, SloPeerService.Transport.FRONT_CHANNEL));
+            javalin.routes.post("/p/{plan}/" + role + "/slo", ctx ->
+                    serveSlo(ctx, sloPeer, SloPeerService.Transport.FRONT_CHANNEL));
+            javalin.routes.post("/p/{plan}/" + role + "/slo/soap", ctx ->
+                    serveSlo(ctx, sloPeer, SloPeerService.Transport.SOAP));
+        }
+    }
+
+    private static void serveSlo(Context ctx, SloPeerService service, SloPeerService.Transport transport) {
+        var result = service.consume(
+                ctx.pathParam("plan"), transport, ctx.method().name(), ctx.req().getQueryString(),
+                ctx.bodyAsBytes(), headers(ctx), absoluteRequestUrl(ctx));
+        if (result.response() == null) {
+            ctx.status(HttpStatus.NO_CONTENT);
+            return;
+        }
+        if (transport == SloPeerService.Transport.SOAP) {
+            ctx.contentType("text/xml; charset=utf-8").result(service.soapResponse(result));
+            return;
+        }
+        if (MetadataService.REDIRECT.equals(result.responseBinding())) {
+            ctx.redirect(service.redirectResponse(result).toString());
+            return;
+        }
+        var nonceBytes = new byte[18];
+        NONCE_RANDOM.nextBytes(nonceBytes);
+        var nonce = Base64.getUrlEncoder().withoutPadding().encodeToString(nonceBytes);
+        ctx.header("Content-Security-Policy", "default-src 'none'; script-src 'nonce-" + nonce
+                        + "'; form-action " + origin(result.response().destination())
+                        + "; frame-ancestors 'none'; base-uri 'none'; object-src 'none'");
+        ctx.header("Cache-Control", "no-store").contentType("text/html; charset=utf-8")
+                .result(HtmlPostPage.render(
+                        result.response().destination(), result.response().base64(),
+                        result.response().relayState(), nonce).replace("SAMLResponse", "SAMLResponse"));
     }
 
     private static void serveIdp(Context ctx, IdpPeerService service) {
