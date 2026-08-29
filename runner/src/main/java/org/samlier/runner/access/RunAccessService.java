@@ -31,9 +31,17 @@ public final class RunAccessService implements ManagementSessionExecutor {
     /** Reissuing invalidates the old access URL and every existing management session immediately. */
     public IssuedAccess issue(String runId) {
         requireRun(runId);
+        var prepared = prepareIssue(runId);
+        grants.save(prepared.grant());
+        return prepared.access();
+    }
+
+    /** Prepares a credential for atomic persistence with a new Run. */
+    public PreparedAccess prepareIssue(String runId) {
         var raw = token();
-        grants.save(new RunAccessGrant(runId, hash(raw), null, null, clock.instant(), false));
-        return new IssuedAccess(runId, publicBase.resolve("/manage/" + runId + "#t=" + raw));
+        return new PreparedAccess(
+                new IssuedAccess(runId, publicBase.resolve("/manage/" + runId + "#t=" + raw)),
+                new RunAccessGrant(runId, hash(raw), null, null, clock.instant(), false));
     }
 
     @Override
@@ -107,5 +115,6 @@ public final class RunAccessService implements ManagementSessionExecutor {
     }
 
     public record IssuedAccess(String runId, URI managementUrl) {}
+    public record PreparedAccess(IssuedAccess access, RunAccessGrant grant) {}
     public record ManagementSession(String runId, String sessionToken, String csrfToken) {}
 }

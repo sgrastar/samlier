@@ -21,7 +21,6 @@ import org.samlier.core.plan.PlanRepository;
 import org.samlier.core.plan.TestPlan;
 import org.samlier.core.run.Reachability;
 import org.samlier.core.run.RunRepository;
-import org.samlier.core.run.RunStatus;
 import org.samlier.peer.idp.IdpPeerService;
 import org.samlier.peer.sp.SpPeerService;
 import org.samlier.peer.logout.SloPeerService;
@@ -95,6 +94,7 @@ public final class SamlierApplication {
                 config, database, json, plans, runs, transcript, transcript, metadataCache,
                 metadataParser, keyStore, caseExecutions, clock);
         var hostedRateLimiter = new HostedRateLimiter(clock);
+        var hostedRunProvisioner = new org.samlier.store.SqliteHostedRunProvisioner(database, json);
 
         return Javalin.create(javalin -> {
             javalin.startup.showJavalinBanner = false;
@@ -198,7 +198,8 @@ public final class SamlierApplication {
                         m1.authorize(ctx.pathParam("id"), ctx.cookie(ManagementSessionRoutes.COOKIE_NAME)));
             }
             routes(javalin, config, plans, runs, transcript, eventBus, runService, preflight,
-                    metadata, spPeer, idpPeer, secondaryIdpPeer, sloPeer, m1, hostedRateLimiter, clock);
+                    metadata, spPeer, idpPeer, secondaryIdpPeer, sloPeer, m1,
+                    hostedRateLimiter, hostedRunProvisioner, clock);
             javalin.routes.exception(MisdirectedRequest.class, (error, ctx) ->
                     ctx.status(421).json(new ApiModels.ErrorView("misdirected_request", error.getMessage())));
             javalin.routes.exception(IllegalArgumentException.class, (error, ctx) -> {
@@ -225,7 +226,9 @@ public final class SamlierApplication {
                                MetadataService metadata, SpPeerService spPeer, IdpPeerService idpPeer,
                                IdpPeerService secondaryIdpPeer,
                                SloPeerService sloPeer,
-                               M1Runtime m1, HostedRateLimiter hostedRateLimiter, Clock clock) {
+                               M1Runtime m1, HostedRateLimiter hostedRateLimiter,
+                               org.samlier.store.SqliteHostedRunProvisioner hostedRunProvisioner,
+                               Clock clock) {
         javalin.routes.get("/", SamlierApplication::serveIndex);
         javalin.routes.get("/reports/{run}", SamlierApplication::serveIndex);
         javalin.routes.get("/manage/{run}", SamlierApplication::serveIndex);
@@ -244,11 +247,18 @@ public final class SamlierApplication {
             var request = ctx.bodyAsClass(ApiModels.PlanWrite.class);
             var now = clock.instant();
             var plan = fromWrite(Identifiers.newId("plan"), request, now, now);
-            plans.save(plan);
             ApiModels.RunCreated initialRun = null;
             if (config.mode() == AppConfig.Mode.HOSTED) {
-                var run = runService.create(plan.id());
-                initialRun = new ApiModels.RunCreated(run, m1.issueManagementUrl(run));
+                var run = runService.prepare(plan.id());
+                var access = m1.prepareManagementAccess(run);
+                if (!hostedRunProvisioner.createPlanWithInitialRun(plan, run, access.grant())) {
+                    throw new HostedRateLimiter.RateLimitExceeded(
+                            "Another Run against this target is already active");
+                }
+                runService.publishCreated(run);
+                initialRun = new ApiModels.RunCreated(run, access.access().managementUrl().toString());
+            } else {
+                plans.save(plan);
             }
             ctx.status(HttpStatus.CREATED).json(new ApiModels.PlanCreated(view(config, plan), initialRun));
         });
@@ -266,21 +276,24 @@ public final class SamlierApplication {
         });
         javalin.routes.get("/api/plans/{id}/runs", ctx -> ctx.json(runs.listForPlan(ctx.pathParam("id"))));
         javalin.routes.post("/api/plans/{id}/runs", ctx -> {
+            var requestedPlan = requirePlan(plans, ctx.pathParam("id"));
+            org.samlier.core.run.TestRun run;
+            String managementUrl;
             if (config.mode() == AppConfig.Mode.HOSTED) {
                 hostedRateLimiter.requireAllowed("create-run", ctx.ip(), 20, Duration.ofHours(1));
-                var requestedPlan = requirePlan(plans, ctx.pathParam("id"));
-                var activeForTarget = plans.list().stream()
-                        .filter(candidate -> candidate.target().entityId().equals(requestedPlan.target().entityId()))
-                        .flatMap(candidate -> runs.listForPlan(candidate.id()).stream())
-                        .anyMatch(candidate -> candidate.status() != RunStatus.COMPLETED
-                                && candidate.status() != RunStatus.ABORTED);
-                if (activeForTarget) {
+                run = runService.prepare(requestedPlan.id());
+                var access = m1.prepareManagementAccess(run);
+                if (!hostedRunProvisioner.createRun(requestedPlan, run, access.grant())) {
                     throw new HostedRateLimiter.RateLimitExceeded(
                             "Another Run against this target is already active");
                 }
+                runService.publishCreated(run);
+                managementUrl = access.access().managementUrl().toString();
+            } else {
+                run = runService.create(requestedPlan.id());
+                managementUrl = null;
             }
-            var run = runService.create(ctx.pathParam("id"));
-            ctx.status(HttpStatus.CREATED).json(new ApiModels.RunCreated(run, m1.issueManagementUrl(run)));
+            ctx.status(HttpStatus.CREATED).json(new ApiModels.RunCreated(run, managementUrl));
         });
         javalin.routes.get("/api/runs/{id}", ctx -> ctx.json(requireRun(runs, ctx.pathParam("id"))));
         javalin.routes.post("/api/runs/{id}/preflight", ctx -> ctx.json(preflight.execute(ctx.pathParam("id"))));

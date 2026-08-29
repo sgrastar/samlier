@@ -338,8 +338,11 @@ final class M1Runtime {
         access.authorizeMutation(runId, sessionToken, csrfToken);
     }
 
-    String issueManagementUrl(TestRun run) {
-        return config.mode() == AppConfig.Mode.HOSTED ? access.issue(run.id()).managementUrl().toString() : null;
+    org.samlier.runner.access.RunAccessService.PreparedAccess prepareManagementAccess(TestRun run) {
+        if (config.mode() != AppConfig.Mode.HOSTED) {
+            throw new IllegalStateException("Prepared management access is only used in Hosted mode");
+        }
+        return access.prepareIssue(run.id());
     }
 
     private TestRun requireRun(String runId) {

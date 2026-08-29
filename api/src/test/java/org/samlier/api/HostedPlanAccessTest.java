@@ -45,6 +45,13 @@ class HostedPlanAccessTest {
             var managementUrl = URI.create(firstJson.at("/initialRun/managementUrl").asText());
             assertTrue(managementUrl.toString().contains("/manage/" + runId + "#t="));
 
+            var duplicateTarget = createPlan(client, base, "Duplicate target",
+                    "https://first.internal.example/idp",
+                    "https://duplicate.example/metadata", "duplicate-secret");
+            assertEquals(429, duplicateTarget.statusCode(), duplicateTarget.body());
+            assertFalse(duplicateTarget.body().contains("managementUrl"));
+            assertFalse(duplicateTarget.body().contains("plan_"));
+
             var second = createPlan(client, base, "Second", "https://second.example/idp",
                     "https://second.example/metadata", "another-secret");
             var secondPlanId = json.readTree(second.body()).at("/plan/plan/id").asText();

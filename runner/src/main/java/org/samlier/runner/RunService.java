@@ -24,12 +24,23 @@ public final class RunService {
 
     public TestRun create(String planId) {
         plans.find(planId).orElseThrow(() -> new IllegalArgumentException("Unknown Test Plan"));
-        var now = clock.instant();
-        var run = new TestRun(Identifiers.newId("run"), planId, RunStatus.CREATED,
-                Reachability.UNKNOWN, Map.of(), now, now);
+        var run = prepare(planId);
         runs.save(run);
-        events.publish(new RunEvent(run.id(), "run.created", now, Map.of("status", run.status().name())));
+        publishCreated(run);
         return run;
+    }
+
+    /** Builds a Run for a caller that will persist it in a larger transaction. */
+    public TestRun prepare(String planId) {
+        var now = clock.instant();
+        return new TestRun(Identifiers.newId("run"), planId, RunStatus.CREATED,
+                Reachability.UNKNOWN, Map.of(), now, now);
+    }
+
+    /** Publishes the creation event after an external transaction commits. */
+    public void publishCreated(TestRun run) {
+        events.publish(new RunEvent(
+                run.id(), "run.created", run.createdAt(), Map.of("status", run.status().name())));
     }
 
     public TestRun update(TestRun run, RunStatus status, Reachability reachability, Map<String, Object> context) {

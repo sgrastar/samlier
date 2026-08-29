@@ -11,6 +11,13 @@ Plan and Run administrative reads are scoped through the session token to that R
 the matching CSRF token, and Plan API views omit both `testUserHint` and the target metadata source. Cross-Plan,
 missing-cookie, and missing-CSRF paths are covered by end-to-end HTTP regression tests.
 
+A follow-up review found that initial Run creation bypassed the existing one-active-Run-per-target check and that
+separate Plan, Run, and access-grant writes could leave an unreachable Plan after a partial failure. Hosted
+provisioning now performs the active-target check and all three writes under one SQLite `BEGIN IMMEDIATE`
+transaction. Concurrent requests for the same entity ID serialize, exactly one succeeds, and any child-write
+failure rolls the Plan back. Repository tests cover successful persistence, active/terminal state transitions,
+rollback, and concurrent creation; the HTTP test includes a duplicate-target negative control.
+
 ## R1 — 2026-08-25 Review of the Judgment Model and Coverage Definition
 
 **Conclusion**: All 9 findings were valid. Of these, 3 findings (the misreading of the RFC2119 levels in Finding 4) were corrected after re-fetching and cross-checking the

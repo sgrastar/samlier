@@ -345,7 +345,9 @@ POST /p/{plan}/idp/slo/soap         Test IdP: SOAP SLO
 GET  /p/{plan}/start/{caseId}       Starting point for browser operation (user clicks)
 ```
 
-In Hosted mode, `POST /api/plans` creates the initial Run in the same request and returns its one-time management URL.
+In Hosted mode, `POST /api/plans` creates the Plan, initial Run, and hashed access grant atomically and returns its
+one-time management URL. The same transaction rejects creation while any non-terminal Run exists for that target
+entity ID, including when requests race.
 Every other Plan endpoint, Run details, preflight, and Run events require the HttpOnly management session;
 mutations additionally require the matching CSRF token. `GET /api/plans` returns only the Plan associated
 with the caller's current Run session. Plan responses never include `test_user_hint` or the target metadata
