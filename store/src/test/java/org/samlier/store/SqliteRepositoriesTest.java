@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -12,6 +13,7 @@ import org.samlier.core.plan.MetadataSourceKind;
 import org.samlier.core.plan.PlanProfile;
 import org.samlier.core.plan.TargetKind;
 import org.samlier.core.plan.TestPlan;
+import org.samlier.core.evaluation.ApplicabilityInput;
 import org.samlier.core.run.Reachability;
 import org.samlier.core.run.RunStatus;
 import org.samlier.core.run.TestRun;
@@ -25,6 +27,7 @@ class SqliteRepositoriesTest {
         var json = new JsonCodec();
         var plans = new SqlitePlanRepository(database, json);
         var runs = new SqliteRunRepository(database, json);
+        var applicability = new SqliteApplicabilityInputRepository(database, json);
         var now = Instant.parse("2026-08-29T00:00:00Z");
         var plan = new TestPlan(
                 "plan_0123456789ABCDEFGHJKMNPQRS",
@@ -42,11 +45,21 @@ class SqliteRepositoriesTest {
         var run = new TestRun("run_0123456789ABCDEFGHJKMNPQRS", plan.id(), RunStatus.CREATED,
                 Reachability.UNKNOWN, Map.of(), now, now);
         runs.save(run);
+        var exclusion = new ApplicabilityInput.ExclusionDeclaration(
+                "Target is in the excluded classification", "operator", now);
+        var input = new ApplicabilityInput(false, null, List.of(), exclusion);
+        applicability.save(run.id(), "classification", input, now);
 
         assertEquals(plan, plans.find(plan.id()).orElseThrow());
         assertEquals(run, runs.find(run.id()).orElseThrow());
         assertEquals(1, plans.list().size());
         assertEquals(1, runs.listForPlan(plan.id()).size());
+        assertEquals(input, applicability.find(run.id(), "classification").orElseThrow());
+
+        var observed = new ApplicabilityInput(true, true, List.of("transcript:1"), null);
+        applicability.save(run.id(), "classification", observed, now.plusSeconds(1));
+        assertEquals(observed, applicability.find(run.id(), "classification").orElseThrow());
         assertTrue(plans.delete(plan.id()));
+        assertTrue(applicability.find(run.id(), "classification").isEmpty());
     }
 }
