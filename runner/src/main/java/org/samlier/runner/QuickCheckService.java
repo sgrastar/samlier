@@ -11,6 +11,7 @@ import java.util.Optional;
 import javax.xml.namespace.QName;
 import org.samlier.core.caseexec.CaseExecution;
 import org.samlier.core.caseexec.CaseExecutionRepository;
+import org.samlier.core.casedef.CaseDefinitionCatalog;
 import org.samlier.core.plan.PlanRepository;
 import org.samlier.core.plan.TargetRole;
 import org.samlier.core.run.RunRepository;
@@ -38,6 +39,7 @@ public final class QuickCheckService implements QuickCheckExecutor {
     private final TargetSigningCertificateProvider targetSigningCertificates;
     private final URI peerBase;
     private final Clock clock;
+    private final CaseDefinitionCatalog approvedDefinitions;
 
     public QuickCheckService(
             PlanRepository plans,
@@ -49,6 +51,21 @@ public final class QuickCheckService implements QuickCheckExecutor {
             TargetSigningCertificateProvider targetSigningCertificates,
             URI peerBase,
             Clock clock) {
+        this(plans, runs, transcript, transcriptContent, caseExecutions, keys,
+                targetSigningCertificates, peerBase, clock, null);
+    }
+
+    public QuickCheckService(
+            PlanRepository plans,
+            RunRepository runs,
+            TranscriptRecorder transcript,
+            TranscriptContentReader transcriptContent,
+            CaseExecutionRepository caseExecutions,
+            FilePlanKeyStore keys,
+            TargetSigningCertificateProvider targetSigningCertificates,
+            URI peerBase,
+            Clock clock,
+            CaseDefinitionCatalog approvedDefinitions) {
         this.plans = Objects.requireNonNull(plans, "plans");
         this.runs = Objects.requireNonNull(runs, "runs");
         this.transcript = Objects.requireNonNull(transcript, "transcript");
@@ -59,6 +76,7 @@ public final class QuickCheckService implements QuickCheckExecutor {
                 targetSigningCertificates, "targetSigningCertificates");
         this.peerBase = Objects.requireNonNull(peerBase, "peerBase");
         this.clock = Objects.requireNonNull(clock, "clock");
+        this.approvedDefinitions = approvedDefinitions;
     }
 
     @Override
@@ -79,6 +97,12 @@ public final class QuickCheckService implements QuickCheckExecutor {
                 (ignored, identifier) -> PrincipalIdentityResolver.Resolution.unknown(),
                 caseExecutions,
                 inactiveProbe(plan.id())));
+        if (approvedDefinitions != null) {
+            CaseImplementationAudit.requireExact(
+                    approvedDefinitions, registry,
+                    CaseDefinitionCatalog.Milestone.M1,
+                    CaseDefinitionCatalog.ExecutionMode.AUTOMATED);
+        }
         var context = new DefaultCaseContext(
                 run.id(), plan.profile().role(), clock, plan.parameters(),
                 plan.interaction(),

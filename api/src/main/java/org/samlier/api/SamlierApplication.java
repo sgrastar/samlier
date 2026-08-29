@@ -70,6 +70,9 @@ public final class SamlierApplication {
                 metadataParser, new OutboundPolicy(config.outboundAllowPrivate()), clock, json.mapper());
         var spPeer = new SpPeerService(plans, runs, runService, metadataCache, metadataParser, saml, transcript, clock);
         var idpPeer = new IdpPeerService(plans, runs, runService, metadataCache, metadataParser, saml, transcript, clock);
+        var m1 = M1Runtime.create(
+                config, database, json, plans, runs, transcript, transcript, metadataCache,
+                metadataParser, keyStore, clock);
 
         return Javalin.create(javalin -> {
             javalin.startup.showJavalinBanner = false;
@@ -82,12 +85,21 @@ public final class SamlierApplication {
                 securityHeaders(ctx);
                 enforceConfiguredOrigin(ctx, config);
             });
-            routes(javalin, config, plans, runs, transcript, eventBus, runService, preflight, metadata, spPeer, idpPeer, clock);
+            QuickCheckRoutes.register(javalin, m1::quickCheck);
+            ResultRoutes.register(javalin, m1::requireResult);
+            if (config.mode() == AppConfig.Mode.HOSTED) {
+                ManagementSessionRoutes.register(javalin, config.publicBaseUrl(), m1::exchange);
+            }
+            routes(javalin, config, plans, runs, transcript, eventBus, runService, preflight,
+                    metadata, spPeer, idpPeer, m1, clock);
             javalin.routes.exception(MisdirectedRequest.class, (error, ctx) ->
                     ctx.status(421).json(new ApiModels.ErrorView("misdirected_request", error.getMessage())));
             javalin.routes.exception(IllegalArgumentException.class, (error, ctx) -> {
                 ctx.status(HttpStatus.BAD_REQUEST).json(new ApiModels.ErrorView("invalid_request", error.getMessage()));
             });
+            javalin.routes.exception(SecurityException.class, (error, ctx) ->
+                    ctx.status(HttpStatus.FORBIDDEN)
+                            .json(new ApiModels.ErrorView("access_denied", "Access denied")));
             javalin.routes.exception(Exception.class, (error, ctx) -> {
                 error.printStackTrace();
                 ctx.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -100,8 +112,11 @@ public final class SamlierApplication {
                                PlanRepository plans, RunRepository runs,
                                org.samlier.core.transcript.TranscriptRecorder transcript,
                                RunEventBus eventBus, RunService runService, PreflightService preflight,
-                               MetadataService metadata, SpPeerService spPeer, IdpPeerService idpPeer, Clock clock) {
+                               MetadataService metadata, SpPeerService spPeer, IdpPeerService idpPeer,
+                               M1Runtime m1, Clock clock) {
         javalin.routes.get("/", SamlierApplication::serveIndex);
+        javalin.routes.get("/reports/{run}", SamlierApplication::serveIndex);
+        javalin.routes.get("/manage/{run}", SamlierApplication::serveIndex);
         javalin.routes.get("/assets/{file}", SamlierApplication::serveAsset);
         javalin.routes.get("/api/health", ctx -> ctx.json(Map.of(
                 "status", "ok", "version", "0.1.0-SNAPSHOT", "mode", config.mode().name().toLowerCase())));
@@ -127,8 +142,10 @@ public final class SamlierApplication {
             else ctx.status(HttpStatus.NO_CONTENT);
         });
         javalin.routes.get("/api/plans/{id}/runs", ctx -> ctx.json(runs.listForPlan(ctx.pathParam("id"))));
-        javalin.routes.post("/api/plans/{id}/runs", ctx ->
-                ctx.status(HttpStatus.CREATED).json(runService.create(ctx.pathParam("id"))));
+        javalin.routes.post("/api/plans/{id}/runs", ctx -> {
+            var run = runService.create(ctx.pathParam("id"));
+            ctx.status(HttpStatus.CREATED).json(new ApiModels.RunCreated(run, m1.issueManagementUrl(run)));
+        });
         javalin.routes.get("/api/runs/{id}", ctx -> ctx.json(requireRun(runs, ctx.pathParam("id"))));
         javalin.routes.post("/api/runs/{id}/preflight", ctx -> ctx.json(preflight.execute(ctx.pathParam("id"))));
         javalin.routes.get("/api/runs/{id}/transcript", ctx -> ctx.json(transcript.list(ctx.pathParam("id"))));

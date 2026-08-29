@@ -53,6 +53,19 @@ class SamlierApplicationTest {
             var planId = created.body().replaceFirst("(?s).*\"id\":\"(plan_[0-9A-Z]+)\".*", "$1");
             assertTrue(planId.matches("plan_[0-9A-HJKMNP-TV-Z]{26}"));
 
+            var createdRun = client.send(HttpRequest.newBuilder(base.resolve("/api/plans/" + planId + "/runs"))
+                            .header("Content-Type", "application/json")
+                            .POST(HttpRequest.BodyPublishers.noBody()).build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(201, createdRun.statusCode(), createdRun.body());
+            assertTrue(createdRun.body().contains("\"managementUrl\":null"));
+            var runId = createdRun.body().replaceFirst("(?s).*\"id\":\"(run_[0-9A-Z]+)\".*", "$1");
+            assertTrue(runId.matches("run_[0-9A-HJKMNP-TV-Z]{26}"));
+            var reportShell = client.send(HttpRequest.newBuilder(base.resolve("/reports/" + runId)).build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, reportShell.statusCode());
+            assertTrue(reportShell.body().contains("<div id=\"root\"></div>"));
+
             var metadata = client.send(HttpRequest.newBuilder(base.resolve("/p/" + planId + "/metadata")).build(),
                     HttpResponse.BodyHandlers.ofString());
             assertEquals(200, metadata.statusCode());

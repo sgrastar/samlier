@@ -23,5 +23,6 @@ final class ApiModels {
             TestPlan.Interaction interaction) {}
 
     record PlanView(TestPlan plan, String entityId, String metadataUrl, String mdqUrl) {}
+    record RunCreated(org.samlier.core.run.TestRun run, String managementUrl) {}
     record ErrorView(String error, String message) {}
 }

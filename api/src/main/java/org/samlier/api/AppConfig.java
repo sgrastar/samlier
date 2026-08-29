@@ -13,7 +13,8 @@ public record AppConfig(
         int httpPort,
         boolean outboundAllowPrivate,
         boolean outboundAllowInsecureTls,
-        boolean publishEnabled) {
+        boolean publishEnabled,
+        String suiteImageDigest) {
 
     public AppConfig {
         validateBaseUrl(publicBaseUrl, "publicBaseUrl");
@@ -32,6 +33,20 @@ public record AppConfig(
         if (mode == Mode.HOSTED && outboundAllowInsecureTls) {
             throw new IllegalArgumentException("Hosted mode cannot disable outbound TLS verification");
         }
+        suiteImageDigest = suiteImageDigest == null ? "" : suiteImageDigest;
+        if (!suiteImageDigest.isEmpty() && !suiteImageDigest.matches("sha256:[0-9a-f]{64}")) {
+            throw new IllegalArgumentException("suiteImageDigest must be a lowercase SHA-256 digest");
+        }
+        if (mode == Mode.HOSTED && suiteImageDigest.isEmpty()) {
+            throw new IllegalArgumentException("Hosted mode requires SAMLIER_IMAGE_DIGEST");
+        }
+    }
+
+    public AppConfig(
+            Mode mode, URI publicBaseUrl, URI peerBaseUrl, Path dataDirectory, int httpPort,
+            boolean outboundAllowPrivate, boolean outboundAllowInsecureTls, boolean publishEnabled) {
+        this(mode, publicBaseUrl, peerBaseUrl, dataDirectory, httpPort, outboundAllowPrivate,
+                outboundAllowInsecureTls, publishEnabled, "");
     }
 
     public static AppConfig fromEnvironment() { return from(System.getenv()); }
@@ -47,7 +62,8 @@ public record AppConfig(
         var insecureTls = Boolean.parseBoolean(environment.getOrDefault("SAMLIER_OUTBOUND_ALLOW_INSECURE_TLS", "false"));
         var publish = Boolean.parseBoolean(environment.getOrDefault(
                 "SAMLIER_PUBLISH_ENABLED", mode == Mode.HOSTED ? "true" : "false"));
-        return new AppConfig(mode, publicBase, peerBase, data, port, allowPrivate, insecureTls, publish);
+        var imageDigest = environment.getOrDefault("SAMLIER_IMAGE_DIGEST", "");
+        return new AppConfig(mode, publicBase, peerBase, data, port, allowPrivate, insecureTls, publish, imageDigest);
     }
 
     private static boolean sameOrigin(URI left, URI right) {

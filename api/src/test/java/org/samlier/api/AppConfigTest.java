@@ -32,6 +32,6 @@ class AppConfigTest {
 
     private AppConfig config(URI app, URI peer, boolean allowPrivate, boolean insecureTls) {
         return new AppConfig(AppConfig.Mode.HOSTED, app, peer, Path.of("data"), 8080,
-                allowPrivate, insecureTls, true);
+                allowPrivate, insecureTls, true, "sha256:" + "a".repeat(64));
     }
 }

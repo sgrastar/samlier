@@ -55,10 +55,12 @@ export function App() {
   const createRun = async () => {
     if (!selected) return
     try {
-      const run = await api.createRun(selected.plan.id)
-      setRuns(current => [run, ...current])
-      const report = await api.preflight(run.id)
-      setMessage(`Preflight completed: ${JSON.stringify(report)}`)
+      const created = await api.createRun(selected.plan.id)
+      setRuns(current => [created.run, ...current])
+      const report = await api.preflight(created.run.id)
+      setMessage(created.managementUrl
+        ? `Save this management URL now; it is shown only once: ${created.managementUrl}`
+        : `Preflight completed: ${JSON.stringify(report)}`)
       setRuns(await api.runs(selected.plan.id))
     } catch (error) { setMessage((error as Error).message) }
   }

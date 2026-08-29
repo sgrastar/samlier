@@ -43,10 +43,10 @@ public final class CaseDefinitionCatalog {
 
     public enum ExecutionMode { AUTOMATED, BROWSER, CONFIG, ATTESTED }
     public enum Milestone { M1, M2, M3 }
-    public enum VariantTreatment { VERDICT, CONTROL, INFORMATIONAL }
+    public enum VariantTreatment { VERDICT, CONTROL, INFORMATIONAL, OUT_OF_SCOPE }
     public enum VariantScope { OWNER_CONDITION, LINKED_CONDITION }
     public enum GroupKind { ALL_OF, ONE_OF, ONE_OF_AVAILABLE }
-    public enum ControlKind { POSITIVE, NEGATIVE }
+    public enum ControlKind { POSITIVE, NEGATIVE, INFORMATIONAL }
 
     public record CaseDefinition(
             String id,
