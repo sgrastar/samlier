@@ -1,6 +1,8 @@
 package org.samlier.runner;
 
 import java.util.Objects;
+import java.util.List;
+import org.samlier.core.evaluation.CaseRun;
 import org.samlier.core.evaluation.CoverageCatalog;
 import org.samlier.core.evaluation.Evaluator;
 import org.samlier.core.evaluation.RunResult;
@@ -32,14 +34,34 @@ public final class RunEvaluationService {
     }
 
     public RunResult evaluate(String runId) {
+        return snapshot(runId).result();
+    }
+
+    /** Captures the exact plan, run and case-side inputs used for one public determination. */
+    public EvaluatedRun snapshot(String runId) {
         if (runId == null || runId.isBlank()) throw new IllegalArgumentException("runId must not be blank");
         var run = runs.find(runId).orElseThrow(() -> new IllegalArgumentException("Unknown Run"));
         var plan = plans.find(run.planId()).orElseThrow(() -> new IllegalStateException("Run has no Test Plan"));
-        return Evaluator.evaluate(
+        var completedCases = caseRuns.completed(runId);
+        var result = Evaluator.evaluate(
                 catalog,
                 plan,
                 applicability.evaluations(run, plan),
-                caseRuns.completed(runId),
+                completedCases,
                 incidents.incidents(runId));
+        return new EvaluatedRun(plan, run, completedCases, result);
+    }
+
+    public record EvaluatedRun(
+            org.samlier.core.plan.TestPlan plan,
+            org.samlier.core.run.TestRun run,
+            List<CaseRun> cases,
+            RunResult result) {
+        public EvaluatedRun {
+            Objects.requireNonNull(plan, "plan");
+            Objects.requireNonNull(run, "run");
+            cases = List.copyOf(cases);
+            Objects.requireNonNull(result, "result");
+        }
     }
 }
