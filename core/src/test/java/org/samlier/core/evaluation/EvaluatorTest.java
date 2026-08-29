@@ -56,7 +56,8 @@ class EvaluatorTest {
         var catalog = catalog(obligation(
                 "REQ.a", Rfc2119Level.MUST, Testability.AUTOMATED, ProfileScope.CORE, "feature"));
         var applicability = new ApplicabilityEvaluation(
-                "REQ.a", EffectiveResult.TRUE, true, Basis.OBSERVED, List.of("metadata:feature"));
+                "REQ.a", "feature", PredicateKind.CAPABILITY_BASED, false, true,
+                EffectiveResult.TRUE, true, Basis.OBSERVED, List.of("metadata:feature"));
 
         var result = Evaluator.evaluate(catalog, plan(PlanProfile.IDP_CORE), List.of(applicability),
                 List.of(completed("case-a", "REQ.a", Outcome.VIOLATED)), List.of());
@@ -70,7 +71,8 @@ class EvaluatorTest {
         var catalog = catalog(obligation(
                 "REQ.a", Rfc2119Level.MUST, Testability.AUTOMATED, ProfileScope.CORE, "feature"));
         var applicability = new ApplicabilityEvaluation(
-                "REQ.a", EffectiveResult.FALSE, false, Basis.OBSERVED, List.of());
+                "REQ.a", "feature", PredicateKind.CAPABILITY_BASED, false, false,
+                EffectiveResult.FALSE, false, Basis.OBSERVED, List.of("probe:negative"));
 
         var result = Evaluator.evaluate(catalog, plan(PlanProfile.IDP_CORE), List.of(applicability), List.of(), List.of());
         assertEquals(Verdict.NOT_APPLICABLE, result.obligations().getFirst().verdict());
@@ -103,7 +105,8 @@ class EvaluatorTest {
                 obligation("REQ.a", Rfc2119Level.MUST, Testability.AUTOMATED, ProfileScope.CORE, null),
                 obligation("REQ.b", Rfc2119Level.MUST, Testability.AUTOMATED, ProfileScope.CORE, "classification"));
         var exclusion = new ApplicabilityEvaluation(
-                "REQ.b", EffectiveResult.FALSE, false, Basis.DECLARATION_ONLY_EXCLUSION, List.of("attestation:proxy"));
+                "REQ.b", "classification", PredicateKind.CLASSIFICATION_BASED, false, null,
+                EffectiveResult.FALSE, false, Basis.DECLARATION_ONLY_EXCLUSION, List.of("attestation:proxy"));
 
         var result = Evaluator.evaluate(catalog, plan(PlanProfile.IDP_CORE), List.of(exclusion),
                 List.of(completed("case-a", "REQ.a", Outcome.SATISFIED)), List.of());
