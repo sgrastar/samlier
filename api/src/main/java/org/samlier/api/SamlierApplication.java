@@ -201,7 +201,7 @@ public final class SamlierApplication {
         javalin.routes.get("/browser/{run}/{caseId}", SamlierApplication::serveIndex);
         javalin.routes.get("/assets/{file}", SamlierApplication::serveAsset);
         javalin.routes.get("/api/health", ctx -> ctx.json(Map.of(
-                "status", "ok", "version", "0.1.0-SNAPSHOT", "mode", config.mode().name().toLowerCase())));
+                "status", "ok", "version", "0.1.0", "mode", config.mode().name().toLowerCase())));
         javalin.routes.get("/api/plans", ctx -> ctx.json(plans.list().stream()
                 .map(plan -> view(config, plan)).toList()));
         javalin.routes.post("/api/plans", ctx -> {

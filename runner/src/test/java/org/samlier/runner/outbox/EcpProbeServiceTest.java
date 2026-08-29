@@ -2,6 +2,7 @@ package org.samlier.runner.outbox;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.net.URI;
@@ -79,5 +80,35 @@ class EcpProbeServiceTest {
         var action = repository.findOutbox(result.actionId()).orElseThrow().action();
         assertEquals(true, action.requiresEphemeralCredential());
         assertEquals(false, new String(action.payload(), StandardCharsets.UTF_8).contains("secret"));
+    }
+
+    @Test
+    void requiresEveryApprovedEcpFixtureToBeSentBeforeTheMilestoneCanStart() {
+        var secret = "alice:secret".getBytes(StandardCharsets.UTF_8);
+        var sender = (OutboundSender) (runId, action, credential) ->
+                new OutboundSender.SendResult(false, Map.of("status", 200), "tx-" + action.actionId());
+        var dispatcher = new OutboundDispatcher(
+                repository, sender, credentials, new OutboundPolicy(true),
+                Clock.fixed(NOW, ZoneOffset.UTC));
+        var service = new EcpProbeService(
+                repository, credentials, dispatcher, Clock.fixed(NOW, ZoneOffset.UTC));
+
+        assertEquals(7, EcpProbeService.requiredFixtureIds().size());
+        assertFalse(EcpProbeService.allRequiredFixturesSent(repository, RUN));
+        service.execute(RUN, URI.create("https://idp.example/ecp"),
+                "<Envelope/>".getBytes(StandardCharsets.UTF_8), secret);
+        assertFalse(EcpProbeService.allRequiredFixturesSent(repository, RUN));
+
+        for (var fixtureId : EcpProbeService.requiredFixtureIds()) {
+            service.execute(RUN, fixtureId, URI.create("https://idp.example/ecp"),
+                    "<Envelope/>".getBytes(StandardCharsets.UTF_8), secret);
+        }
+
+        assertTrue(EcpProbeService.allRequiredFixturesSent(repository, RUN));
+        assertTrue(EcpProbeService.requiredFixtureIds().stream()
+                .map(fixtureId -> EcpProbeService.actionId(RUN, fixtureId))
+                .allMatch(actionId -> repository.findOutbox(actionId)
+                        .map(entry -> entry.status() == OutboxStatus.SENT)
+                        .orElse(false)));
     }
 }

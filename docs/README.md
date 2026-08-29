@@ -1,6 +1,6 @@
 # Samlier — SAML Conformance Test Suite
 
-**Design documentation** / Created: 2026-08-25 / Status: Draft (Phase 1 design in progress)
+**Design documentation** / Created: 2026-08-25 / Status: v0.1 implementation complete; operational reference runs remain release evidence
 
 An OSS tool that allows anyone to verify any SAML IdP / SP implementation under the same conditions, based on requirements in published specifications.
 It aims to be the SAML equivalent of the OIDF Conformance Suite.
@@ -22,12 +22,12 @@ It aims to be the SAML equivalent of the OIDF Conformance Suite.
 | Languages | **English only**. Public test-definition YAML uses English fields only; legacy `ja` fields are rejected in CI |
 | Requirements catalog | **`tests/coverage.yaml` is authoritative**; the tables in `04` are generated from it |
 
-**The only remaining undecided item is D-15 (Hosted-version operations: domain, hosting provider, and cost responsibility), and it is sufficient to decide it before starting M4.**
+**D-15 (the operator, domain, provider, retention enforcement, and cost of an official Hosted deployment) remains an operational deployment decision.**
 See [09-open-decisions.md](09-open-decisions.md) for the decision history.
 
 ## Status of Design Gate G1
 
-**Approved by a signed record. G2 design is currently `PENDING_REVIEW`.**
+**G1 and G2 are approved by signed records. The `PENDING_REVIEW` fields inside authored catalogs remain unchanged by design; approval evidence lives outside the reviewed target commit.**
 
 | Artifact | Contents |
 |---|---|
@@ -54,11 +54,11 @@ G1a  Catalog creation             ✅ Complete
   ↓
 G1b  Review obligation meaning    ✅ Signed approval complete
   ↓                               Verification: G1_TOOLS_COMMIT=<SHA> tools/g1_ci_verify.sh
-M0   Skeleton implementation      ✅ Zero-case peer, transcript, preflight, API, and UI skeleton
+M0   Skeleton implementation      ✅ Peer, transcript, preflight, API, and UI skeleton
   ↓
-G2   Test design                  ⏳ Role-specific cases, controls, counterexamples, mutants, and feasibility spikes are awaiting independent review
+G2   Test design                  ✅ Role-specific cases, controls, counterexamples, mutants, and feasibility spikes have signed independent approval
   ↓                               Also include the verification infrastructure (schema / g2_validate / approvals/g2.yaml / CI)
-M1–  Implementation of evaluation cases  ★ After G2 is complete
+M1–M4 Evaluation and publication ✅ Approved cases, evidence workflows, protocol probes, result JSON, report HTML, and hosted publication controls are implemented
 ```
 
 The conventions for implementation agents (such as Codex) are in [`AGENTS.md`](../AGENTS.md).

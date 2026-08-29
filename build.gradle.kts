@@ -8,7 +8,7 @@ plugins {
 }
 
 group = "org.samlier"
-version = "0.1.0-SNAPSHOT"
+version = "0.1.0"
 
 subprojects {
     group = rootProject.group

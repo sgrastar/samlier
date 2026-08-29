@@ -266,7 +266,7 @@ final class M1Runtime {
         var plan = requirePlan(run);
         if (milestone == org.samlier.core.casedef.CaseDefinitionCatalog.Milestone.M3
                 && plan.profile() == org.samlier.core.plan.PlanProfile.IDP_FULL
-                && caseExecutions.find(run.id(), org.samlier.runner.outbox.EcpProbeService.FIXTURE_ID).isEmpty()) {
+                && !org.samlier.runner.outbox.EcpProbeService.allRequiredFixturesSent(caseExecutions, run.id())) {
             throw new IllegalArgumentException(
                     "Run the ECP, channel-binding, and SAML-EC probes before starting M3 for an IdP Full Profile Run");
         }

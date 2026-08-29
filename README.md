@@ -1,8 +1,8 @@
 # Samlier
 
-Samlier is an open-source black-box conformance suite for SAML implementations. It is being built around the Kantara Interoperability Implementation Profile and tests both identity providers and service providers.
+Samlier is an open-source black-box conformance suite for SAML implementations. Version 0.1 targets the Kantara SAML V2.0 Implementation Profile for Federation Interoperability v1.1 and tests both identity providers and service providers.
 
-The current M0 implementation is a zero-conformance-case skeleton. It provides Test Plan CRUD, preflight checks, signed Test Peer metadata, SAML browser round trips, redacted transcripts, and live Run events. It does **not** make conformance determinations yet.
+The implementation includes the signed G1 obligation catalog, independently reviewed G2 case design, all approved M1–M3 execution workflows, SSO/SLO/ECP protocol peers, metadata and MDQ variants, a secondary IdP, redacted transcripts, schema-v1 result JSON, and self-contained HTML reports. A result can remain `INDETERMINATE` or `INCOMPLETE` when target configuration or external evidence is unavailable; Samlier does not hide those obligations as not applicable.
 
 ## Requirements
 
@@ -14,6 +14,7 @@ The current M0 implementation is a zero-conformance-case skeleton. It provides T
 
 ```bash
 ./gradlew check
+SAMLIER_IMAGE_DIGEST="sha256:<digest-of-the-build-you-are-running>" \
 SAMLIER_DATA_DIR="$PWD/data" ./gradlew :api:run
 ```
 
@@ -24,22 +25,28 @@ Generated Test Peer private keys are stored unencrypted below that directory. Th
 ## Run with Docker
 
 ```bash
-docker build -t samlier:m0 .
+docker build -t samlier:0.1.0 .
+IMAGE_DIGEST="$(docker image inspect --format '{{.Id}}' samlier:0.1.0)"
 docker run --rm -p 8080:8080 -v samlier-data:/data \
   -e SAMLIER_PUBLIC_BASE_URL=http://localhost:8080 \
   -e SAMLIER_PEER_BASE_URL=http://localhost:8080 \
-  samlier:m0
+  -e SAMLIER_IMAGE_DIGEST="$IMAGE_DIGEST" \
+  samlier:0.1.0
 ```
 
 Self-hosted mode permits private network targets by default. Hosted deployments must use separate application and Test Peer origins and block private or special-purpose outbound destinations.
 
-## Keycloak M0 smoke test
+Only test systems you own or are explicitly authorized to test. The UI and API require that confirmation when a Test Plan is created. Self-hosted mode has no application authentication and must not be exposed directly to an untrusted network; put an authentication proxy in front of it when remote access is necessary.
 
-`dev/keycloak/prepare-smoke.sh` starts the pinned Keycloak fixture and Samlier image, imports the generated Test Peer metadata, creates a Run, and prints the browser start URL. Complete the login with the fixture credentials printed by the script; the Run must finish as `COMPLETED`. This is an operational smoke test, not a conformance determination.
+Self-hosted results are local, self-declared exports. They cannot be uploaded and converted into an official shared URL. Shared URLs are issued only for Runs executed by a Hosted Samlier deployment. This is a test result, not a certification, and neither Kantara nor OASIS endorses an individual result.
+
+## Keycloak smoke test
+
+`dev/keycloak/prepare-smoke.sh` starts the pinned Keycloak fixture and Samlier image, imports the generated Test Peer metadata, creates a Run, and prints the browser start URL. Complete the login with the fixture credentials printed by the script; the baseline Run must finish as `COMPLETED`. Continue from the Run management page to execute M1–M3 evidence workflows. The smoke round trip alone is an operational check, not a conformance determination.
 
 ## Project status and design
 
-The requirements catalog has passed signed G1 review and the zero-case M0 skeleton is implemented. The role-specific G2 case and mutant design is awaiting independent signed approval. No verdict cases are implemented; M1 remains blocked until G2 approval. See [the design index](docs/README.md), [the G2 design](docs/12-g2-test-design.md), [the roadmap](docs/01-scope-and-roadmap.md), and [the implementation rules](AGENTS.md).
+The requirements catalog and role-specific case design are protected by signed G1/G2 approval records. The implementation registry is tested against all approved case IDs so a missing case fails the build. See [the design index](docs/README.md), [the G2 design](docs/12-g2-test-design.md), [the roadmap](docs/01-scope-and-roadmap.md), and [the implementation rules](AGENTS.md).
 
 ## License
 

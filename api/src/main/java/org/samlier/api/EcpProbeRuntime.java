@@ -86,24 +86,28 @@ final class EcpProbeRuntime {
             var bindingA = channelBinding(run.id(), "a");
             var bindingB = channelBinding(run.id(), "b");
             results.add(channelProbe(plan, run.id(), endpoint, responseConsumer, credential,
-                    "fixture-ecp-channel-binding-match-signed", bindingA, bindingA, true, allocatedEnvelopes));
+                    EcpProbeService.CHANNEL_BINDING_MATCH_SIGNED,
+                    bindingA, bindingA, true, allocatedEnvelopes));
             results.add(channelProbe(plan, run.id(), endpoint, responseConsumer, credential,
-                    "fixture-ecp-channel-binding-match-unsigned", bindingA, bindingA, false, allocatedEnvelopes));
+                    EcpProbeService.CHANNEL_BINDING_MATCH_UNSIGNED,
+                    bindingA, bindingA, false, allocatedEnvelopes));
             results.add(channelProbe(plan, run.id(), endpoint, responseConsumer, credential,
-                    "fixture-ecp-channel-binding-mismatch", bindingA, bindingB, true, allocatedEnvelopes));
+                    EcpProbeService.CHANNEL_BINDING_MISMATCH,
+                    bindingA, bindingB, true, allocatedEnvelopes));
             results.add(channelProbe(plan, run.id(), endpoint, responseConsumer, credential,
-                    "fixture-ecp-channel-binding-request-only", bindingA, null, true, allocatedEnvelopes));
+                    EcpProbeService.CHANNEL_BINDING_REQUEST_ONLY,
+                    bindingA, null, true, allocatedEnvelopes));
             var noExtension = saml.buildEcpAuthnRequest(
                     plan, endpoint, responseConsumer, "ecp-channel-header-only-" + run.id());
             var headerOnly = envelopes.channelBinding(noExtension.xml(), "tls-server-end-point", bindingA);
             allocatedEnvelopes.add(headerOnly);
-            results.add(probes.execute(run.id(), "fixture-ecp-channel-binding-header-only",
+            results.add(probes.execute(run.id(), EcpProbeService.CHANNEL_BINDING_HEADER_ONLY,
                     endpoint, headerOnly, credential));
             var samlEcRequest = saml.buildEcpAuthnRequest(
                     plan, endpoint, responseConsumer, "saml-ec-session-key-" + run.id());
             var samlEcEnvelope = envelopes.samlEcSessionKey(samlEcRequest.xml());
             allocatedEnvelopes.add(samlEcEnvelope);
-            results.add(probes.execute(run.id(), "fixture-ecp-saml-ec-session-key",
+            results.add(probes.execute(run.id(), EcpProbeService.SAML_EC_SESSION_KEY,
                     endpoint, samlEcEnvelope, credential));
             return List.copyOf(results);
         } finally {
