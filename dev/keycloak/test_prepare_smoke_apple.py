@@ -81,6 +81,15 @@ class RepositoryLaunchConfigurationTest(unittest.TestCase):
         self.assertIn("docker image inspect --format '{{.Id}}'", script)
         self.assertIn('PROVIDED_IMAGE_DIGEST" != "$ACTUAL_IMAGE_DIGEST', script)
 
+    def test_container_ci_exports_the_built_image_digest_for_compose_cleanup(self) -> None:
+        workflow = (launcher.ROOT / ".github/workflows/build.yml").read_text()
+        build_step = workflow.split("- name: Build container image", 1)[1].split(
+            "- name: Run pinned Keycloak SAML round trip", 1
+        )[0]
+        self.assertIn("docker image inspect", build_step)
+        self.assertIn("SAMLIER_IMAGE_DIGEST=", build_step)
+        self.assertIn('>> "$GITHUB_ENV"', build_step)
+
 
 if __name__ == "__main__":
     unittest.main()

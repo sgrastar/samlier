@@ -79,7 +79,9 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Build container image
-        run: docker build --tag samlier:ci .
+        run: |
+          docker build --tag samlier:ci .
+          echo "SAMLIER_IMAGE_DIGEST=$(docker image inspect --format '{{.Id}}' samlier:ci)" >> "$GITHUB_ENV"
       - name: Run pinned Keycloak SAML round trip
         env:
           SAMLIER_IMAGE: samlier:ci
