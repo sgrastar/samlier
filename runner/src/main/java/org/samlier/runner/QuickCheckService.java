@@ -27,7 +27,7 @@ import org.samlier.runner.cases.TargetSigningCertificateProvider;
 import org.samlier.saml.crypto.FilePlanKeyStore;
 
 /** Executes the approved M1 automated subset as an operational check over a completed Transcript. */
-public final class QuickCheckService {
+public final class QuickCheckService implements QuickCheckExecutor {
     public static final String DISCLAIMER = "This is an operational check, not a conformance determination.";
     private final PlanRepository plans;
     private final RunRepository runs;
@@ -61,6 +61,7 @@ public final class QuickCheckService {
         this.clock = Objects.requireNonNull(clock, "clock");
     }
 
+    @Override
     public QuickCheckResult execute(String runId) {
         var run = runs.find(runId).orElseThrow(() -> new IllegalArgumentException("Unknown Run"));
         if (run.status() != RunStatus.COMPLETED) {
