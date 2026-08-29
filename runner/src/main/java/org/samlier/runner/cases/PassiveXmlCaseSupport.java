@@ -35,6 +35,9 @@ final class PassiveXmlCaseSupport {
                 for (var field : result.violatingFields()) {
                     violations.add(new Violation(evidence, field));
                 }
+                for (var field : result.unverifiableFields()) {
+                    unparseable.add(new EvidenceRef("transcript-field", message.evidenceRef() + "#" + field));
+                }
             } catch (SamlException malformed) {
                 unparseable.add(evidence);
             }
@@ -55,9 +58,9 @@ final class PassiveXmlCaseSupport {
         if (!unparseable.isEmpty()) {
             return new CaseOutcome(
                     Outcome.NOT_VERIFIED,
-                    "target_message_unparseable",
-                    ruleCode + ".message-unparseable",
-                    "case." + ruleCode + ".message-unparseable",
+                    "target_message_or_field_unparseable",
+                    ruleCode + ".unparseable",
+                    "case." + ruleCode + ".unparseable",
                     unparseable,
                     java.util.Map.of(
                             "inspected_messages", inspected.size(),
@@ -78,10 +81,15 @@ final class PassiveXmlCaseSupport {
         Inspection inspect(Document document);
     }
 
-    record Inspection(int observedFields, List<String> violatingFields) {
+    record Inspection(int observedFields, List<String> violatingFields, List<String> unverifiableFields) {
+        Inspection(int observedFields, List<String> violatingFields) {
+            this(observedFields, violatingFields, List.of());
+        }
+
         Inspection {
             if (observedFields < 0) throw new IllegalArgumentException("observedFields must not be negative");
             violatingFields = List.copyOf(violatingFields);
+            unverifiableFields = List.copyOf(unverifiableFields);
         }
     }
 
