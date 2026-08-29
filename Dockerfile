@@ -24,5 +24,4 @@ WORKDIR /opt/samlier
 ENV SAMLIER_DATA_DIR=/data \
     SAMLIER_HTTP_PORT=8080
 EXPOSE 8080
-VOLUME ["/data"]
 ENTRYPOINT ["/opt/samlier/bin/api"]

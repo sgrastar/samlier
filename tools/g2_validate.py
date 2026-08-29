@@ -39,6 +39,7 @@ STATIC_PROTECTED_PATHS = {
     '.github/workflows/g2.yml', '.github/workflows/build.yml',
     'Dockerfile', '.dockerignore', 'dev/keycloak/compose.yml', 'dev/keycloak/prepare-smoke.sh',
     'dev/keycloak/smoke.py', 'dev/keycloak/test_smoke.py',
+    'dev/keycloak/prepare-smoke-apple.py', 'dev/keycloak/test_prepare_smoke_apple.py',
     'dev/keycloak/realm-samlier.json',
     'build.gradle.kts', 'settings.gradle.kts',
     'gradle/libs.versions.toml', 'gradle/verification-metadata.xml',
