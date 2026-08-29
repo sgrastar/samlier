@@ -14,6 +14,8 @@ import org.samlier.core.caseexec.CaseStep;
 import org.samlier.core.caseexec.OutboundAction;
 import org.samlier.core.caseexec.TestCase;
 import org.samlier.core.caseexec.WaitCondition;
+import org.samlier.core.evaluation.CaseOutcome;
+import org.samlier.core.plan.TestPlan;
 
 /** Applies pure case transitions and persists state plus outbox intents atomically. */
 public final class CaseExecutionService {
@@ -28,7 +30,7 @@ public final class CaseExecutionService {
         var existing = repository.find(runId, testCase.id());
         if (existing.isPresent()) return existing.orElseThrow();
         return apply(runId, testCase.id(), -1, CaseState.initial(),
-                testCase.start(context), context.clock().instant());
+                testCase.start(context), context.clock().instant(), context.interaction());
     }
 
     public CaseExecution resume(
@@ -39,7 +41,7 @@ public final class CaseExecutionService {
         if (current.status() == CaseExecutionStatus.FINISHED) return current;
         requireExpectedEvent(current, event, context.clock().instant());
         return apply(runId, testCase.id(), current.revision(), current.state(),
-                testCase.resume(context, current.state(), event), context.clock().instant());
+                testCase.resume(context, current.state(), event), context.clock().instant(), context.interaction());
     }
 
     private void requireMatchingRun(String runId, TestCase testCase, CaseContext context) {
@@ -57,8 +59,9 @@ public final class CaseExecutionService {
             long expectedRevision,
             CaseState current,
             CaseStep step,
-            Instant now) {
-        var transition = transition(current, step, now);
+            Instant now,
+            TestPlan.Interaction interaction) {
+        var transition = transition(current, step, now, interaction);
         validateActionIds(runId, caseId, transition.state(), transition.actions());
         var execution = new CaseExecution(
                 runId,
@@ -74,16 +77,23 @@ public final class CaseExecutionService {
                 .orElseThrow(() -> new IllegalStateException("Concurrent case transition was not persisted"));
     }
 
-    private Transition transition(CaseState current, CaseStep step, Instant now) {
+    private Transition transition(
+            CaseState current,
+            CaseStep step,
+            Instant now,
+            TestPlan.Interaction interaction) {
         return switch (step) {
             case CaseStep.Continue value -> new Transition(
                     CaseExecutionStatus.RUNNING, value.next(), null, null, value.actions());
-            case CaseStep.AwaitBrowser value -> new Transition(
-                    CaseExecutionStatus.WAITING_BROWSER,
-                    value.next(),
-                    new WaitCondition(WaitCondition.Kind.BROWSER, null, value.startUrl(), null, now.plus(value.ttl())),
-                    null,
-                    value.actions());
+            case CaseStep.AwaitBrowser value -> interaction.allowBrowserSteps()
+                    ? new Transition(
+                            CaseExecutionStatus.WAITING_BROWSER,
+                            value.next(),
+                            new WaitCondition(
+                                    WaitCondition.Kind.BROWSER, null, value.startUrl(), null, now.plus(value.ttl())),
+                            null,
+                            value.actions())
+                    : interactionDisallowed(current);
             case CaseStep.AwaitConfig value -> new Transition(
                     CaseExecutionStatus.WAITING_CONFIG,
                     value.next(),
@@ -91,13 +101,15 @@ public final class CaseExecutionService {
                             now.plus(value.ttl())),
                     null,
                     value.actions());
-            case CaseStep.AwaitAttestation value -> new Transition(
-                    CaseExecutionStatus.WAITING_ATTESTATION,
-                    value.next(),
-                    new WaitCondition(WaitCondition.Kind.ATTESTATION, value.questionKey(), null, null,
-                            now.plus(value.ttl())),
-                    null,
-                    value.actions());
+            case CaseStep.AwaitAttestation value -> interaction.allowAttestation()
+                    ? new Transition(
+                            CaseExecutionStatus.WAITING_ATTESTATION,
+                            value.next(),
+                            new WaitCondition(WaitCondition.Kind.ATTESTATION, value.questionKey(), null, null,
+                                    now.plus(value.ttl())),
+                            null,
+                            value.actions())
+                    : interactionDisallowed(current);
             case CaseStep.AwaitInbound value -> new Transition(
                     CaseExecutionStatus.WAITING_INBOUND,
                     value.next(),
@@ -107,6 +119,16 @@ public final class CaseExecutionService {
             case CaseStep.Finish value -> new Transition(
                     CaseExecutionStatus.FINISHED, current, null, value.outcome(), List.of());
         };
+    }
+
+    private Transition interactionDisallowed(CaseState current) {
+        return new Transition(
+                CaseExecutionStatus.FINISHED,
+                current,
+                null,
+                CaseOutcome.notVerified(
+                        "interaction_disallowed", "interaction.disallowed"),
+                List.of());
     }
 
     private void validateActionIds(
@@ -147,6 +169,6 @@ public final class CaseExecutionService {
             CaseExecutionStatus status,
             CaseState state,
             WaitCondition waitCondition,
-            org.samlier.core.evaluation.CaseOutcome outcome,
+            CaseOutcome outcome,
             List<OutboundAction> actions) {}
 }

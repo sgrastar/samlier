@@ -227,6 +227,45 @@ class CaseExecutionServiceTest {
         assertEquals(Outcome.SATISFIED, finished.outcome().outcome());
     }
 
+    @Test
+    void centrallyBlocksInteractiveWaitsAndTheirOutboundActionsWhenInteractionIsDisabled() {
+        var disabled = context(
+                plan().parameters(), context.transcript(), new TestPlan.Interaction(false, false));
+        var browser = interactiveCase("case-browser-disabled", true);
+        var attestation = interactiveCase("case-attestation-disabled", false);
+
+        var browserResult = service.start(RUN_ID, browser, disabled);
+        var attestationResult = service.start(RUN_ID, attestation, disabled);
+
+        assertEquals(CaseExecutionStatus.FINISHED, browserResult.status());
+        assertEquals("interaction_disallowed", browserResult.outcome().notVerifiedReason());
+        assertEquals(CaseExecutionStatus.FINISHED, attestationResult.status());
+        assertEquals("interaction_disallowed", attestationResult.outcome().notVerifiedReason());
+        assertEquals(List.of(), repository.listOutbox(RUN_ID));
+    }
+
+    private TestCase interactiveCase(String caseId, boolean browser) {
+        return new TestCase() {
+            @Override public String id() { return caseId; }
+            @Override public TargetRole role() { return TargetRole.IDP; }
+            @Override public CaseStep start(CaseContext ignored) {
+                var next = new CaseState("interactive-wait", Map.of());
+                var action = new OutboundAction(
+                        ActionIds.derive(RUN_ID, caseId, next.phase(), 0),
+                        OutboundKind.AUTHN_REQUEST, new byte[] {1}, URI.create("https://idp.example/sso"), false);
+                if (browser) {
+                    return new CaseStep.AwaitBrowser(
+                            next, List.of(action), URI.create("https://suite.example/start"), Duration.ofMinutes(5));
+                }
+                return new CaseStep.AwaitAttestation(
+                        next, List.of(action), "attestation.question", Duration.ofMinutes(5));
+            }
+            @Override public CaseStep resume(CaseContext ignored, CaseState state, CaseEvent event) {
+                throw new UnsupportedOperationException();
+            }
+        };
+    }
+
     private TestCase immediateCase(String caseId) {
         return new TestCase() {
             @Override public String id() { return caseId; }
@@ -272,12 +311,19 @@ class CaseExecutionServiceTest {
     }
 
     private CaseContext context(TestPlan.Parameters parameters, TranscriptRecorder transcript) {
+        return context(parameters, transcript, TestPlan.Interaction.defaults());
+    }
+
+    private CaseContext context(
+            TestPlan.Parameters parameters,
+            TranscriptRecorder transcript,
+            TestPlan.Interaction interaction) {
         return new CaseContext() {
             @Override public String runId() { return RUN_ID; }
             @Override public TargetRole targetRole() { return TargetRole.IDP; }
             @Override public Clock clock() { return Clock.fixed(NOW, ZoneOffset.UTC); }
             @Override public TestPlan.Parameters parameters() { return parameters; }
-            @Override public TestPlan.Interaction interaction() { return TestPlan.Interaction.defaults(); }
+            @Override public TestPlan.Interaction interaction() { return interaction; }
             @Override public Reachability reachability() { return Reachability.UNKNOWN; }
             @Override public TranscriptRecorder transcript() { return transcript; }
             @Override public boolean transcriptComplete() { return false; }
