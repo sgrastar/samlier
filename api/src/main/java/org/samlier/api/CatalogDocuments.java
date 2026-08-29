@@ -1,12 +1,13 @@
 package org.samlier.api;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import java.io.IOException;
+import java.io.ByteArrayInputStream;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import org.yaml.snakeyaml.LoaderOptions;
+import org.yaml.snakeyaml.Yaml;
+import org.yaml.snakeyaml.constructor.SafeConstructor;
 
 /** Loads the exact signed G1/G2 documents embedded in the application artifact. */
 final class CatalogDocuments {
@@ -14,7 +15,6 @@ final class CatalogDocuments {
             "tests/cases.yaml", "tests/feasibility.yaml", "tests/mutants/baselines.yaml",
             "tests/mutants/catalog.yaml", "tests/mutants/control-mutants.yaml");
     private final Map<String, byte[]> bytes;
-    private final ObjectMapper yaml = new ObjectMapper(new YAMLFactory());
 
     private CatalogDocuments(Map<String, byte[]> bytes) {
         this.bytes = Map.copyOf(bytes);
@@ -39,11 +39,21 @@ final class CatalogDocuments {
     Map<String, Object> parsed(String path) {
         var value = bytes.get(path);
         if (value == null) throw new IllegalArgumentException("Unknown embedded catalog: " + path);
-        try {
-            return yaml.readValue(value, new TypeReference<>() {});
-        } catch (IOException error) {
-            throw new IllegalStateException("Could not parse embedded approved catalog: " + path, error);
+        var options = new LoaderOptions();
+        options.setAllowDuplicateKeys(false);
+        options.setMaxAliasesForCollections(1_000);
+        var loaded = new Yaml(new SafeConstructor(options)).load(new ByteArrayInputStream(value));
+        if (!(loaded instanceof Map<?, ?> source)) {
+            throw new IllegalStateException("Embedded approved catalog is not an object: " + path);
         }
+        var result = new LinkedHashMap<String, Object>();
+        source.forEach((key, item) -> {
+            if (!(key instanceof String text)) {
+                throw new IllegalStateException("Embedded approved catalog has a non-string key: " + path);
+            }
+            result.put(text, item);
+        });
+        return Map.copyOf(result);
     }
 
     byte[] bytes(String path) { return bytes.get(path).clone(); }

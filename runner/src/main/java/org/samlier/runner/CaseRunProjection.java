@@ -8,7 +8,7 @@ import org.samlier.core.caseexec.CaseExecutionStatus;
 import org.samlier.core.caseexec.CaseIds;
 import org.samlier.core.evaluation.CaseRun;
 
-/** Projects persisted finished executions into the Evaluator's case-side input. */
+/** Projects persisted executions into the Evaluator's case-side input. */
 public final class CaseRunProjection implements CaseRunProvider {
     private final CaseExecutionRepository repository;
     private final java.util.Set<String> approvedCaseIds;
@@ -31,12 +31,21 @@ public final class CaseRunProjection implements CaseRunProvider {
             if (!approvedCaseIds.contains(execution.caseId())) {
                 throw new IllegalArgumentException("Unknown approved case ID: " + execution.caseId());
             }
-            if (execution.status() != CaseExecutionStatus.FINISHED) continue;
-            if (execution.outcome() == null) {
-                throw new IllegalStateException("Finished case has no outcome: " + execution.caseId());
-            }
+            var outcome = switch (execution.status()) {
+                case FINISHED -> {
+                    if (execution.outcome() == null) {
+                        throw new IllegalStateException("Finished case has no outcome: " + execution.caseId());
+                    }
+                    yield execution.outcome();
+                }
+                case RUNNING -> org.samlier.core.evaluation.CaseOutcome.notVerified(
+                        "case_in_progress", "case.in-progress");
+                case WAITING_BROWSER, WAITING_CONFIG, WAITING_ATTESTATION, WAITING_INBOUND ->
+                        org.samlier.core.evaluation.CaseOutcome.notVerified(
+                                "pending_interaction", "case.pending-interaction");
+            };
             projected.add(CaseRun.completed(
-                    execution.caseId(), CaseIds.obligationKey(execution.caseId()), execution.outcome()));
+                    execution.caseId(), CaseIds.obligationKey(execution.caseId()), outcome));
         }
         return List.copyOf(projected);
     }

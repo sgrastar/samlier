@@ -12,6 +12,7 @@ public interface InteractionQuery {
             String caseId,
             Kind kind,
             String promptKey,
+            String promptEn,
             URI startUrl,
             Instant expiresAt,
             List<String> answerValues) {

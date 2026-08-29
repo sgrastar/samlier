@@ -112,6 +112,7 @@ export function App() {
         {selected.plan.profile.startsWith('IDP') && <a className="button" href={`/p/${selected.plan.id}/start/m0-roundtrip?run=${run.id}`}>Start IdP round trip</a>}
         {selected.plan.profile.startsWith('SP') && <p>Start login at the target SP after importing the Test Peer metadata.</p>}
         {run.status === 'COMPLETED' && <a href={`/reports/${run.id}`}>Open result</a>}
+        {run.status === 'COMPLETED' && <a href={`/manage/${run.id}`}>Manage evidence</a>}
       </article>)}
     </section>}
   </main>

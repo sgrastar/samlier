@@ -25,22 +25,25 @@ public final class PendingInteractionService implements InteractionQuery {
         if (runId == null || runId.isBlank()) throw new IllegalArgumentException("runId must not be blank");
         var result = new ArrayList<PendingInteraction>();
         for (var execution : executions.list(runId)) {
-            var testCase = registry.require(execution.caseId());
             var wait = execution.waitCondition();
             if (execution.status() == CaseExecutionStatus.WAITING_BROWSER) {
                 result.add(new PendingInteraction(
-                        execution.caseId(), Kind.BROWSER, null, wait.startUrl(), wait.expiresAt(), List.of()));
+                        execution.caseId(), Kind.BROWSER, null, null,
+                        wait.startUrl(), wait.expiresAt(), List.of()));
             } else if (execution.status() == CaseExecutionStatus.WAITING_CONFIG) {
                 result.add(new PendingInteraction(
-                        execution.caseId(), Kind.CONFIGURATION, wait.promptKey(), null, wait.expiresAt(),
+                        execution.caseId(), Kind.CONFIGURATION, wait.promptKey(), wait.promptKey(),
+                        null, wait.expiresAt(),
                         CONFIGURATION_ANSWERS));
             } else if (execution.status() == CaseExecutionStatus.WAITING_ATTESTATION) {
+                var testCase = registry.require(execution.caseId());
                 if (!(testCase instanceof AttestedOutcomeTestCase attested)) {
                     throw new IllegalStateException(
                             "Attestation case does not expose server-defined options: " + execution.caseId());
                 }
                 result.add(new PendingInteraction(
-                        execution.caseId(), Kind.ATTESTATION, wait.promptKey(), null, wait.expiresAt(),
+                        execution.caseId(), Kind.ATTESTATION, wait.promptKey(), attested.promptEn(),
+                        null, wait.expiresAt(),
                         attested.options().stream().map(option -> option.value()).toList()));
             }
         }

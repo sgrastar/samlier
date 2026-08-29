@@ -29,6 +29,7 @@ public final class AttestedOutcomeTestCase implements TestCase {
     private final String id;
     private final TargetRole role;
     private final String questionKey;
+    private final String promptEn;
     private final Duration ttl;
     private final Map<String, AttestationOption> options;
 
@@ -38,9 +39,20 @@ public final class AttestedOutcomeTestCase implements TestCase {
             String questionKey,
             Duration ttl,
             List<AttestationOption> options) {
+        this(id, role, questionKey, questionKey, ttl, options);
+    }
+
+    public AttestedOutcomeTestCase(
+            String id,
+            TargetRole role,
+            String questionKey,
+            String promptEn,
+            Duration ttl,
+            List<AttestationOption> options) {
         this.id = text(id, "id");
         this.role = Objects.requireNonNull(role, "role");
         this.questionKey = text(questionKey, "questionKey");
+        this.promptEn = text(promptEn, "promptEn");
         this.ttl = Objects.requireNonNull(ttl, "ttl");
         if (ttl.isZero() || ttl.isNegative()) throw new IllegalArgumentException("ttl must be positive");
         if (options == null || options.isEmpty()) {
@@ -59,6 +71,7 @@ public final class AttestedOutcomeTestCase implements TestCase {
     @Override public String id() { return id; }
     @Override public TargetRole role() { return role; }
     public String questionKey() { return questionKey; }
+    public String promptEn() { return promptEn; }
     public List<AttestationOption> options() { return List.copyOf(options.values()); }
 
     @Override

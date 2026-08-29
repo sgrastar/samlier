@@ -7,7 +7,7 @@
 
 * { box-sizing: border-box; }
 body { margin: 0; min-width: 320px; }
-button, input, select { font: inherit; }
+button, input, select, textarea { font: inherit; }
 a { color: #154f3a; }
 
 main { width: min(1120px, calc(100% - 40px)); margin: 0 auto; padding: 72px 0; }
@@ -21,7 +21,7 @@ aside { border-left: 4px solid #c99e3e; background: #fffaf0; padding: 14px 18px;
 .grid { display: grid; grid-template-columns: 1.2fr .8fr; gap: 24px; }
 .panel { background: #fff; border: 1px solid #d7d7cb; padding: 28px; box-shadow: 0 10px 30px rgb(48 59 49 / 5%); }
 label { display: grid; gap: 7px; margin: 14px 0; font-size: .8rem; font-weight: 700; color: #586158; }
-input, select { width: 100%; border: 1px solid #bec4ba; border-radius: 2px; padding: 11px 12px; color: #172018; background: #fff; }
+input, select, textarea { width: 100%; border: 1px solid #bec4ba; border-radius: 2px; padding: 11px 12px; color: #172018; background: #fff; }
 button, .button { border: 0; border-radius: 2px; padding: 11px 16px; background: #1c5f45; color: #fff; font-weight: 750; cursor: pointer; text-decoration: none; }
 .plan-list { list-style: none; margin: 0; padding: 0; }
 .plan-list button { width: 100%; display: flex; justify-content: space-between; margin: 0 0 8px; background: #edf0ea; color: #1e2820; text-align: left; }
@@ -32,6 +32,15 @@ dl { display: grid; grid-template-columns: 100px 1fr; gap: 8px 18px; }
 dt { color: #687168; } dd { margin: 0; overflow-wrap: anywhere; }
 .run { display: flex; align-items: center; gap: 16px; border-top: 1px solid #e4e5de; padding: 16px 0; }
 .run div { display: grid; margin-right: auto; }.run small { color: #737a73; }
+.management { margin-top: 28px; }
+.interaction-list { display: grid; gap: 18px; }
+.interaction { border: 1px solid #d7d7cb; padding: 20px; }
+.interaction header { display: flex; justify-content: space-between; margin-bottom: 14px; }
+.interaction pre { white-space: pre-wrap; font: inherit; color: #39433b; line-height: 1.55; }
+.interaction fieldset { border: 0; padding: 0; margin: 18px 0; }
+.interaction .radio { display: flex; align-items: center; gap: 9px; font-size: .9rem; }
+.interaction .radio input { width: auto; }
+.interaction textarea { min-height: 90px; resize: vertical; }
 
 .report { max-width: 1240px; }
 .report-header { max-width: none; display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 48px; align-items: end; }

@@ -35,7 +35,8 @@ class CaseImplementationAuditTest {
     private CaseDefinition definition(String id, TargetRole role) {
         return new CaseDefinition(
                 id, "REQ.a", role, ExecutionMode.AUTOMATED, Milestone.M1, List.of(), Map.of(), List.of(),
-                List.of(), List.of(), new Requirements(List.of(), "none"), false, null,
+                List.of(), List.of(), "Counterexample.", List.of(),
+                new Requirements(List.of(), "none"), false, null,
                 "sha256:" + "a".repeat(64));
     }
 

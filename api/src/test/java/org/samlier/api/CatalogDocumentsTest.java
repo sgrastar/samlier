@@ -3,6 +3,7 @@ package org.samlier.api;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -12,6 +13,11 @@ import org.samlier.core.casedef.CaseDefinitionCatalogMapper;
 import org.samlier.core.evaluation.CoverageCatalogMapper;
 import org.samlier.core.evaluation.PredicateCatalogMapper;
 import org.samlier.runner.result.EvaluationArtifactDigests;
+import org.samlier.runner.CaseImplementationAudit;
+import org.samlier.runner.cases.ApprovedAttestedCaseRegistry;
+import org.samlier.runner.cases.AttestedOutcomeTestCase;
+import org.samlier.core.casedef.CaseDefinitionCatalog.ExecutionMode;
+import org.samlier.core.casedef.CaseDefinitionCatalog.Milestone;
 
 class CatalogDocumentsTest {
     @Test
@@ -27,6 +33,14 @@ class CatalogDocumentsTest {
         assertEquals(544, coverage.obligations().size());
         assertEquals(26, predicates.definitions().size());
         assertEquals(732, cases.cases().size());
+        var attested = ApprovedAttestedCaseRegistry.create(cases);
+        assertEquals(47, attested.ids().size());
+        CaseImplementationAudit.requireExact(cases, attested, Milestone.M1, ExecutionMode.ATTESTED);
+        var firstAttestation = (AttestedOutcomeTestCase) attested.require("IIP-G02-c-idp-01");
+        assertEquals(java.util.List.of("satisfied", "violated", "unable_to_verify"),
+                firstAttestation.options().stream().map(value -> value.value()).toList());
+        assertTrue(firstAttestation.promptEn().contains("SPProvidedID"));
+        assertTrue(firstAttestation.promptEn().contains("Counterexample to avoid"));
         assertFalse(digests.compositeDigest().isBlank());
         assertArrayEquals(Files.readAllBytes(repositoryRoot().resolve("tests/coverage.yaml")),
                 documents.bytes("tests/coverage.yaml"));

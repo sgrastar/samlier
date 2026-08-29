@@ -36,7 +36,8 @@ class PendingInteractionServiceTest {
         var browser = passiveCase("IIP-SSO01-a-sp-01", TargetRole.SP);
         var config = passiveCase("IIP-MD01-a-sp-01", TargetRole.SP);
         var attested = new AttestedOutcomeTestCase(
-                "IIP-G02-c-sp-01", TargetRole.SP, "attestation.g02", Duration.ofMinutes(5),
+                "IIP-G02-c-sp-01", TargetRole.SP, "attestation.g02", "Review approved evidence.",
+                Duration.ofMinutes(5),
                 List.of(
                         AttestationOption.of("preserved", Outcome.SATISFIED, "preserved"),
                         AttestationOption.of("truncated", Outcome.VIOLATED, "truncated")));
@@ -62,6 +63,7 @@ class PendingInteractionServiceTest {
                 "confirmed", "capability_absent", "target_config_unavailable", "capability_undetermined"),
                 pending.get(1).answerValues());
         assertEquals(List.of("preserved", "truncated"), pending.get(2).answerValues());
+        assertEquals("Review approved evidence.", pending.get(2).promptEn());
         assertEquals(EXPIRES, pending.get(2).expiresAt());
     }
 

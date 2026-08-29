@@ -23,6 +23,8 @@ class CaseDefinitionCatalogMapperTest {
                 definition.configurationFailureSemantics());
         assertEquals(1, definition.variantPlan().size());
         assertEquals(1, definition.controls().size());
+        assertEquals("A declaration-only oracle could miss the fault.", definition.counterexampleEn());
+        assertEquals(List.of("Use the target readback surface."), definition.interpretationConstraints());
         assertEquals(List.of(definition), catalog.select(Milestone.M1, ExecutionMode.CONFIG, TargetRole.SP));
     }
 
@@ -54,6 +56,8 @@ class CaseDefinitionCatalogMapperTest {
                 Map.entry("controls", List.of(Map.of(
                         "id", "positive", "kind", "positive", "fixture", "sp-core-minimal",
                         "description_en", "The baseline preserves the value.", "on_failure", "control_failed"))),
+                Map.entry("counterexample_en", "A declaration-only oracle could miss the fault."),
+                Map.entry("interpretation_constraints", List.of("Use the target readback surface.")),
                 Map.entry("requires", Map.of("passed_cases", List.of(), "session", "none")),
                 Map.entry("destroys_session", false),
                 Map.entry("configuration_failure_semantics", "test_precondition"),

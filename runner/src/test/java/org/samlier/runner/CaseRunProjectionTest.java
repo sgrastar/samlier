@@ -53,7 +53,7 @@ class CaseRunProjectionTest {
     }
 
     @Test
-    void projectsOnlyFinishedRegisteredCasesInStableOrder() {
+    void projectsFinishedAndPendingRegisteredCasesInStableOrder() {
         persist(finished("IIP-SSO01-aa-idp-01", Outcome.SATISFIED));
         persist(running("IIP-SSO01-ab-idp-01"));
         persist(finished("IIP-G03-a-idp-01", Outcome.VIOLATED));
@@ -62,12 +62,13 @@ class CaseRunProjectionTest {
 
         var result = projection.completed(RUN_ID);
 
-        assertEquals(List.of("IIP-G03-a-idp-01", "IIP-SSO01-aa-idp-01"),
+        assertEquals(List.of("IIP-G03-a-idp-01", "IIP-SSO01-aa-idp-01", "IIP-SSO01-ab-idp-01"),
                 result.stream().map(value -> value.id()).toList());
-        assertEquals(List.of("IIP-G03.a", "IIP-SSO01.aa"),
+        assertEquals(List.of("IIP-G03.a", "IIP-SSO01.aa", "IIP-SSO01.ab"),
                 result.stream().map(value -> value.obligationKey()).toList());
-        assertEquals(List.of(Outcome.VIOLATED, Outcome.SATISFIED),
+        assertEquals(List.of(Outcome.VIOLATED, Outcome.SATISFIED, Outcome.NOT_VERIFIED),
                 result.stream().map(value -> value.outcome().outcome()).toList());
+        assertEquals("case_in_progress", result.get(2).outcome().notVerifiedReason());
     }
 
     @Test

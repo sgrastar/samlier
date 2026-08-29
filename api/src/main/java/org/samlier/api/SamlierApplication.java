@@ -87,8 +87,17 @@ public final class SamlierApplication {
             });
             QuickCheckRoutes.register(javalin, m1::quickCheck);
             ResultRoutes.register(javalin, m1::requireResult);
+            InteractionRoutes.register(javalin, m1::pending);
+            AttestationRoutes.register(javalin, m1::attest);
             if (config.mode() == AppConfig.Mode.HOSTED) {
                 ManagementSessionRoutes.register(javalin, config.publicBaseUrl(), m1::exchange);
+                javalin.routes.before("/api/runs/{id}/interactions", ctx ->
+                        m1.authorize(ctx.pathParam("id"), ctx.cookie(ManagementSessionRoutes.COOKIE_NAME)));
+                javalin.routes.before("/api/runs/{id}/cases/{caseId}/attest", ctx ->
+                        m1.authorizeMutation(
+                                ctx.pathParam("id"),
+                                ctx.cookie(ManagementSessionRoutes.COOKIE_NAME),
+                                ctx.header("X-CSRF-Token")));
             }
             routes(javalin, config, plans, runs, transcript, eventBus, runService, preflight,
                     metadata, spPeer, idpPeer, m1, clock);

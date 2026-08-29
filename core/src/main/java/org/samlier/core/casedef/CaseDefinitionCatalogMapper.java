@@ -76,6 +76,8 @@ public final class CaseDefinitionCatalogMapper {
                 enumeration(TargetRole.class, value.get("role"), "role"), mode,
                 enumeration(Milestone.class, value.get("milestone"), "milestone"), variants, scopes,
                 plan, groups, controls,
+                string(value.get("counterexample_en"), "counterexample_en"),
+                strings(value.get("interpretation_constraints"), "interpretation_constraints"),
                 new Requirements(strings(required.get("passed_cases"), "passed_cases"),
                         string(required.get("session"), "session")),
                 bool(value.get("destroys_session"), "destroys_session"), semantics,
@@ -104,7 +106,11 @@ public final class CaseDefinitionCatalogMapper {
     }
 
     private static List<?> list(Object value, String name) {
-        if (!(value instanceof List<?> result)) throw new IllegalArgumentException(name + " must be an array");
+        if (!(value instanceof List<?> result)) {
+            throw new IllegalArgumentException(
+                    name + " must be an array, but was "
+                            + (value == null ? "null" : value.getClass().getName()));
+        }
         return result;
     }
 

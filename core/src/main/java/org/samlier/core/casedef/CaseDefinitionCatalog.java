@@ -59,6 +59,8 @@ public final class CaseDefinitionCatalog {
             List<VariantInstruction> variantPlan,
             List<VariantGroup> variantGroups,
             List<Control> controls,
+            String counterexampleEn,
+            List<String> interpretationConstraints,
             Requirements requires,
             boolean destroysSession,
             ConfigurationFailureSemantics configurationFailureSemantics,
@@ -74,6 +76,9 @@ public final class CaseDefinitionCatalog {
             variantPlan = List.copyOf(variantPlan == null ? List.of() : variantPlan);
             variantGroups = List.copyOf(variantGroups == null ? List.of() : variantGroups);
             controls = List.copyOf(controls == null ? List.of() : controls);
+            text(counterexampleEn, "counterexampleEn");
+            interpretationConstraints = List.copyOf(
+                    interpretationConstraints == null ? List.of() : interpretationConstraints);
             Objects.requireNonNull(requires, "requires");
             if (mode == ExecutionMode.CONFIG && configurationFailureSemantics == null) {
                 throw new IllegalArgumentException("CONFIG case has no configuration failure semantics: " + id);

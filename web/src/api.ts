@@ -107,6 +107,18 @@ export interface ManagementSession {
   csrfToken: string
 }
 
+export interface PendingInteraction {
+  caseId: string
+  kind: 'BROWSER' | 'CONFIGURATION' | 'ATTESTATION'
+  promptKey: string | null
+  promptEn: string | null
+  startUrl: string | null
+  expiresAt: string
+  answerValues: string[]
+}
+
+export interface Health { status: string; version: string; mode: 'selfhosted' | 'hosted' }
+
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, {
     ...init,
@@ -131,6 +143,7 @@ function camelize(value: unknown): unknown {
 }
 
 export const api = {
+  health: () => request<Health>('/api/health'),
   plans: () => request<Plan[]>('/api/plans'),
   createPlan: (input: PlanInput) => request<Plan>('/api/plans', { method: 'POST', body: JSON.stringify(input) }),
   deletePlan: (id: string) => request<void>(`/api/plans/${id}`, { method: 'DELETE' }),
@@ -144,4 +157,10 @@ export const api = {
   managementSession: (runId: string, token: string) => request<ManagementSession>(
     '/api/manage/session', { method: 'POST', body: JSON.stringify({ runId, token }) },
   ),
+  interactions: (runId: string) => request<PendingInteraction[]>(`/api/runs/${runId}/interactions`),
+  attest: (runId: string, caseId: string, value: string, note: string, csrfToken?: string) =>
+    request<unknown>(`/api/runs/${runId}/cases/${caseId}/attest`, {
+      method: 'POST', body: JSON.stringify({ value, note }),
+      headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : {},
+    }),
 }

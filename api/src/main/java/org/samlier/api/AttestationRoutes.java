@@ -6,7 +6,7 @@ import java.util.Objects;
 import java.util.Set;
 import org.samlier.runner.AttestationExecutor;
 
-/** Isolated attestation route; application composition is added only after the G2-protected root is reapproved. */
+/** Isolated attestation route; server-side case definitions own every option-to-outcome mapping. */
 public final class AttestationRoutes {
     private AttestationRoutes() {}
 
