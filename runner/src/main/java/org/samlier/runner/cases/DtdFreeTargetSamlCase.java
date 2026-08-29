@@ -6,7 +6,6 @@ import java.util.Map;
 import org.samlier.core.evaluation.CaseOutcome;
 import org.samlier.core.evaluation.EvidenceRef;
 import org.samlier.core.evaluation.Outcome;
-import org.samlier.core.transcript.Direction;
 import org.samlier.core.transcript.TranscriptContentReader;
 import org.samlier.core.transcript.TranscriptRecorder;
 import org.samlier.saml.raw.XmlDoctypeDetector;
@@ -15,7 +14,7 @@ import org.samlier.saml.raw.XmlDoctypeDetector;
 public final class DtdFreeTargetSamlCase {
     public static final String OBLIGATION = "IIP-G03.a";
 
-    public CaseOutcome evaluate(List<TargetSamlMessage> messages) {
+    public CaseOutcome evaluate(List<TargetTranscriptMessages.Message> messages) {
         messages = List.copyOf(messages == null ? List.of() : messages);
         if (messages.isEmpty()) {
             return CaseOutcome.notVerified(
@@ -51,27 +50,6 @@ public final class DtdFreeTargetSamlCase {
 
     public CaseOutcome evaluateTranscript(
             String runId, TranscriptRecorder transcript, TranscriptContentReader content) {
-        var messages = transcript.list(runId).stream()
-                .filter(entry -> entry.direction() == Direction.INBOUND)
-                .filter(entry -> entry.decodedSamlRef() != null && entry.decodedSamlBytes() > 0)
-                .map(entry -> new TargetSamlMessage(
-                        "transcript:" + entry.id(), content.readDecodedSaml(entry)))
-                .toList();
-        return evaluate(messages);
-    }
-
-    public record TargetSamlMessage(String evidenceRef, byte[] xml) {
-        public TargetSamlMessage {
-            if (evidenceRef == null || evidenceRef.isBlank()) {
-                throw new IllegalArgumentException("evidenceRef must not be blank");
-            }
-            if (xml == null || xml.length == 0) throw new IllegalArgumentException("xml must not be empty");
-            xml = xml.clone();
-        }
-
-        @Override
-        public byte[] xml() {
-            return xml.clone();
-        }
+        return evaluate(TargetTranscriptMessages.read(runId, transcript, content));
     }
 }

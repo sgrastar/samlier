@@ -8,6 +8,7 @@ import org.samlier.core.caseexec.CaseState;
 import org.samlier.core.caseexec.CaseStep;
 import org.samlier.core.caseexec.TestCase;
 import org.samlier.core.transcript.TranscriptContentReader;
+import org.samlier.core.plan.TargetRole;
 
 /** Executable wrapper for the two role-specific G2 case IDs that share the IIP-G03.a oracle. */
 public final class DtdFreeTranscriptTestCase implements TestCase {
@@ -28,6 +29,10 @@ public final class DtdFreeTranscriptTestCase implements TestCase {
     @Override
     public String id() {
         return id;
+    }
+
+    @Override public TargetRole role() {
+        return id.contains("-idp-") ? TargetRole.IDP : TargetRole.SP;
     }
 
     @Override

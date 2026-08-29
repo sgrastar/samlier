@@ -17,6 +17,7 @@ import org.samlier.core.plan.MetadataDeliveryKind;
 import org.samlier.core.plan.MetadataSourceKind;
 import org.samlier.core.plan.PlanProfile;
 import org.samlier.core.plan.TargetKind;
+import org.samlier.core.plan.TargetRole;
 import org.samlier.core.plan.TestPlan;
 import org.samlier.core.run.Reachability;
 import org.samlier.core.run.RunStatus;
@@ -69,6 +70,7 @@ class DtdFreeTranscriptCaseTest {
                 new DtdFreeTranscriptTestCase("IIP-G03-a-idp-01", transcript),
                 new CaseContext() {
                     @Override public String runId() { return run.id(); }
+                    @Override public TargetRole targetRole() { return TargetRole.IDP; }
                     @Override public Clock clock() { return Clock.fixed(now, ZoneOffset.UTC); }
                     @Override public TestPlan.Parameters parameters() { return plan.parameters(); }
                     @Override public Reachability reachability() { return run.targetToSuiteReachability(); }

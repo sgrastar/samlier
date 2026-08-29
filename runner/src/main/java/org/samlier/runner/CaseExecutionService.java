@@ -24,7 +24,7 @@ public final class CaseExecutionService {
     }
 
     public CaseExecution start(String runId, TestCase testCase, CaseContext context) {
-        requireMatchingRun(runId, context);
+        requireMatchingRun(runId, testCase, context);
         var existing = repository.find(runId, testCase.id());
         if (existing.isPresent()) return existing.orElseThrow();
         return apply(runId, testCase.id(), -1, CaseState.initial(),
@@ -33,7 +33,7 @@ public final class CaseExecutionService {
 
     public CaseExecution resume(
             String runId, TestCase testCase, CaseContext context, CaseEvent event) {
-        requireMatchingRun(runId, context);
+        requireMatchingRun(runId, testCase, context);
         var current = repository.find(runId, testCase.id())
                 .orElseThrow(() -> new IllegalArgumentException("Case has not started: " + testCase.id()));
         if (current.status() == CaseExecutionStatus.FINISHED) return current;
@@ -42,9 +42,12 @@ public final class CaseExecutionService {
                 testCase.resume(context, current.state(), event), context.clock().instant());
     }
 
-    private void requireMatchingRun(String runId, CaseContext context) {
+    private void requireMatchingRun(String runId, TestCase testCase, CaseContext context) {
         if (context == null || !runId.equals(context.runId())) {
             throw new IllegalArgumentException("CaseContext belongs to another Run");
+        }
+        if (testCase == null || testCase.role() != context.targetRole()) {
+            throw new IllegalArgumentException("TestCase belongs to another target role");
         }
     }
 

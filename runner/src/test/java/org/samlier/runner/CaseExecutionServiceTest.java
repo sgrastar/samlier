@@ -31,6 +31,7 @@ import org.samlier.core.plan.MetadataDeliveryKind;
 import org.samlier.core.plan.MetadataSourceKind;
 import org.samlier.core.plan.PlanProfile;
 import org.samlier.core.plan.TargetKind;
+import org.samlier.core.plan.TargetRole;
 import org.samlier.core.plan.TestPlan;
 import org.samlier.core.run.Reachability;
 import org.samlier.core.run.RunStatus;
@@ -103,6 +104,7 @@ class CaseExecutionServiceTest {
     void rejectsNondeterministicActionIdsBeforeWritingAnything() {
         var testCase = new TestCase() {
             @Override public String id() { return "case-random-action"; }
+            @Override public TargetRole role() { return TargetRole.IDP; }
 
             @Override
             public CaseStep start(CaseContext ignored) {
@@ -134,9 +136,22 @@ class CaseExecutionServiceTest {
                 repository.find(RUN_ID, testCase.id()).orElseThrow().status());
     }
 
+    @Test
+    void rejectsACaseDesignedForAnotherTargetRoleBeforeStartingIt() {
+        var testCase = waitingCase("case-wrong-role", new AtomicInteger(), TargetRole.SP);
+
+        assertThrows(IllegalArgumentException.class, () -> service.start(RUN_ID, testCase, context));
+        assertEquals(List.of(), repository.listOutbox(RUN_ID));
+    }
+
     private TestCase waitingCase(String caseId, AtomicInteger starts) {
+        return waitingCase(caseId, starts, TargetRole.IDP);
+    }
+
+    private TestCase waitingCase(String caseId, AtomicInteger starts, TargetRole role) {
         return new TestCase() {
             @Override public String id() { return caseId; }
+            @Override public TargetRole role() { return role; }
 
             @Override
             public CaseStep start(CaseContext ignored) {
@@ -162,6 +177,7 @@ class CaseExecutionServiceTest {
     private CaseContext context(TestPlan.Parameters parameters, TranscriptRecorder transcript) {
         return new CaseContext() {
             @Override public String runId() { return RUN_ID; }
+            @Override public TargetRole targetRole() { return TargetRole.IDP; }
             @Override public Clock clock() { return Clock.fixed(NOW, ZoneOffset.UTC); }
             @Override public TestPlan.Parameters parameters() { return parameters; }
             @Override public Reachability reachability() { return Reachability.UNKNOWN; }

@@ -6,7 +6,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.samlier.core.evaluation.Outcome;
-import org.samlier.runner.cases.DtdFreeTargetSamlCase.TargetSamlMessage;
 
 class DtdFreeTargetSamlCaseTest {
     private final DtdFreeTargetSamlCase testCase = new DtdFreeTargetSamlCase();
@@ -40,7 +39,7 @@ class DtdFreeTargetSamlCaseTest {
         assertEquals("no_target_generated_saml_messages", outcome.notVerifiedReason());
     }
 
-    private static TargetSamlMessage message(String ref, String xml) {
-        return new TargetSamlMessage(ref, xml.getBytes(StandardCharsets.UTF_8));
+    private static TargetTranscriptMessages.Message message(String ref, String xml) {
+        return new TargetTranscriptMessages.Message(ref, xml.getBytes(StandardCharsets.UTF_8));
     }
 }
