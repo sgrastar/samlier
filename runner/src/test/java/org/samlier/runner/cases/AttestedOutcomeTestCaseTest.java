@@ -26,7 +26,9 @@ import org.samlier.core.run.Reachability;
 import org.samlier.core.run.RunStatus;
 import org.samlier.core.run.TestRun;
 import org.samlier.runner.CaseExecutionService;
+import org.samlier.runner.AttestationService;
 import org.samlier.runner.DefaultCaseContext;
+import org.samlier.runner.TestCaseRegistry;
 import org.samlier.store.FileTranscriptRecorder;
 import org.samlier.store.JsonCodec;
 import org.samlier.store.SqliteCaseExecutionRepository;
@@ -61,19 +63,24 @@ class AttestedOutcomeTestCaseTest {
     void persistsThePromptAndMapsOnlyAServerDefinedOptionToOutcome() {
         var testCase = testCase();
         var waiting = executions.start(RUN_ID, testCase, context(plan));
+        var attestations = new AttestationService(
+                new TestCaseRegistry(List.of(testCase)), executions, ignored -> context(plan));
 
         assertEquals(CaseExecutionStatus.WAITING_ATTESTATION, waiting.status());
         assertEquals("attestation.iip-g02-c", waiting.waitCondition().promptKey());
         assertEquals(NOW.plus(Duration.ofHours(1)), waiting.waitCondition().expiresAt());
 
-        assertThrows(IllegalArgumentException.class, () -> executions.resume(
-                RUN_ID, testCase, context(plan), new CaseEvent.Attested("FAIL", "client supplied verdict")));
+        assertThrows(IllegalArgumentException.class, () -> attestations.attest(
+                RUN_ID, testCase.id(), "FAIL", "client supplied verdict"));
         assertEquals(CaseExecutionStatus.WAITING_ATTESTATION,
                 repository.find(RUN_ID, testCase.id()).orElseThrow().status());
 
-        var finished = executions.resume(
-                RUN_ID, testCase, context(plan), new CaseEvent.Attested("truncated", "Observed in the admin UI"));
+        var result = attestations.attest(
+                RUN_ID, testCase.id(), "truncated", "Observed in the admin UI");
+        var finished = repository.find(RUN_ID, testCase.id()).orElseThrow();
 
+        assertEquals(CaseExecutionStatus.FINISHED, result.status());
+        assertEquals(Outcome.VIOLATED, result.outcome().outcome());
         assertEquals(CaseExecutionStatus.FINISHED, finished.status());
         assertEquals(Outcome.VIOLATED, finished.outcome().outcome());
         assertEquals("attestation.truncated", finished.outcome().reasonCode());
@@ -83,9 +90,8 @@ class AttestedOutcomeTestCaseTest {
         assertEquals("attestation", finished.outcome().evidence().getFirst().kind());
         assertFalse(finished.outcome().evidence().getFirst().reference().contains("Observed in the admin UI"));
 
-        var repeated = executions.resume(
-                RUN_ID, testCase, context(plan), new CaseEvent.Attested("preserved", "different retry"));
-        assertEquals(finished, repeated);
+        var repeated = attestations.attest(RUN_ID, testCase.id(), "preserved", "different retry");
+        assertEquals(finished.outcome(), repeated.outcome());
     }
 
     @Test

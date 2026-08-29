@@ -29,7 +29,7 @@ public final class TestCaseRegistry {
     }
 
     public TestCase require(String id) {
-        return find(id).orElseThrow(() -> new IllegalArgumentException("Unknown automated case ID: " + id));
+        return find(id).orElseThrow(() -> new IllegalArgumentException("Unknown case ID: " + id));
     }
 
     public List<TestCase> forRole(TargetRole role) {
