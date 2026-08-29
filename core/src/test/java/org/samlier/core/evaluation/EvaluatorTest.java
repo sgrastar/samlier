@@ -1,0 +1,210 @@
+package org.samlier.core.evaluation;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.Map;
+import org.junit.jupiter.api.Test;
+import org.samlier.core.evaluation.ApplicabilityEvaluation.Basis;
+import org.samlier.core.evaluation.ApplicabilityEvaluation.EffectiveResult;
+import org.samlier.core.evaluation.CoverageCatalog.Obligation;
+import org.samlier.core.evaluation.CoverageCatalog.ProfileScope;
+import org.samlier.core.evaluation.CoverageCatalog.Testability;
+import org.samlier.core.evaluation.RunResult.Completeness;
+import org.samlier.core.evaluation.RunResult.Conformance;
+import org.samlier.core.plan.MetadataDeliveryKind;
+import org.samlier.core.plan.MetadataSourceKind;
+import org.samlier.core.plan.PlanProfile;
+import org.samlier.core.plan.TargetKind;
+import org.samlier.core.plan.TargetRole;
+import org.samlier.core.plan.TestPlan;
+
+class EvaluatorTest {
+    @Test
+    void keepsShouldViolationOutOfFailAndSurfacesWarning() {
+        var catalog = catalog(
+                obligation("REQ.a", Rfc2119Level.MUST, Testability.AUTOMATED, ProfileScope.CORE, null),
+                obligation("REQ.b", Rfc2119Level.SHOULD, Testability.AUTOMATED, ProfileScope.CORE, null));
+
+        var result = Evaluator.evaluate(catalog, plan(PlanProfile.IDP_CORE), List.of(), List.of(
+                completed("case-a", "REQ.a", Outcome.SATISFIED),
+                completed("case-b", "REQ.b", Outcome.VIOLATED)), List.of());
+
+        assertEquals(Conformance.CONFORMANT_WITH_WARNINGS, result.conformance());
+        assertEquals(Completeness.COMPLETE, result.completeness());
+        assertEquals(Verdict.WARNING, result.obligations().get(1).verdict());
+    }
+
+    @Test
+    void unresolvedShouldMakesCompletenessIncompleteButNotConformanceIndeterminate() {
+        var catalog = catalog(
+                obligation("REQ.a", Rfc2119Level.MUST, Testability.AUTOMATED, ProfileScope.CORE, null),
+                obligation("REQ.b", Rfc2119Level.SHOULD, Testability.AUTOMATED, ProfileScope.CORE, null));
+
+        var result = Evaluator.evaluate(catalog, plan(PlanProfile.IDP_CORE), List.of(), List.of(
+                completed("case-a", "REQ.a", Outcome.SATISFIED),
+                CaseRun.completed("case-b", "REQ.b", CaseOutcome.notVerified("timeout", "case.timeout"))), List.of());
+
+        assertEquals(Conformance.CONFORMANT, result.conformance());
+        assertEquals(Completeness.INCOMPLETE, result.completeness());
+    }
+
+    @Test
+    void conflictIsInjectedIndependentlyAndFailStillWins() {
+        var catalog = catalog(obligation(
+                "REQ.a", Rfc2119Level.MUST, Testability.AUTOMATED, ProfileScope.CORE, "feature"));
+        var applicability = new ApplicabilityEvaluation(
+                "REQ.a", EffectiveResult.TRUE, true, Basis.OBSERVED, List.of("metadata:feature"));
+
+        var result = Evaluator.evaluate(catalog, plan(PlanProfile.IDP_CORE), List.of(applicability),
+                List.of(completed("case-a", "REQ.a", Outcome.VIOLATED)), List.of());
+
+        assertEquals(Verdict.FAIL, result.obligations().getFirst().verdict());
+        assertEquals(Conformance.NON_CONFORMANT, result.conformance());
+    }
+
+    @Test
+    void falseConditionalObligationIsNotApplicableAndMustNotExecute() {
+        var catalog = catalog(obligation(
+                "REQ.a", Rfc2119Level.MUST, Testability.AUTOMATED, ProfileScope.CORE, "feature"));
+        var applicability = new ApplicabilityEvaluation(
+                "REQ.a", EffectiveResult.FALSE, false, Basis.OBSERVED, List.of());
+
+        var result = Evaluator.evaluate(catalog, plan(PlanProfile.IDP_CORE), List.of(applicability), List.of(), List.of());
+        assertEquals(Verdict.NOT_APPLICABLE, result.obligations().getFirst().verdict());
+        assertEquals(Conformance.CONFORMANT, result.conformance());
+
+        assertThrows(IllegalArgumentException.class, () -> Evaluator.evaluate(
+                catalog,
+                plan(PlanProfile.IDP_CORE),
+                List.of(applicability),
+                List.of(completed("case-a", "REQ.a", Outcome.SATISFIED)),
+                List.of()));
+    }
+
+    @Test
+    void unknownApplicabilityCannotBeSilentlyExcluded() {
+        var catalog = catalog(obligation(
+                "REQ.a", Rfc2119Level.MUST, Testability.AUTOMATED, ProfileScope.CORE, "feature"));
+
+        var result = Evaluator.evaluate(catalog, plan(PlanProfile.IDP_CORE), List.of(), List.of(), List.of());
+
+        assertEquals(Verdict.NOT_VERIFIED, result.obligations().getFirst().verdict());
+        assertEquals(Conformance.INDETERMINATE, result.conformance());
+        assertEquals(Completeness.INCOMPLETE, result.completeness());
+        assertEquals(1, result.coverage().mustUnresolved());
+    }
+
+    @Test
+    void declarationOnlyExclusionIsVisibleInTheConformanceEnum() {
+        var catalog = catalog(
+                obligation("REQ.a", Rfc2119Level.MUST, Testability.AUTOMATED, ProfileScope.CORE, null),
+                obligation("REQ.b", Rfc2119Level.MUST, Testability.AUTOMATED, ProfileScope.CORE, "classification"));
+        var exclusion = new ApplicabilityEvaluation(
+                "REQ.b", EffectiveResult.FALSE, false, Basis.DECLARATION_ONLY_EXCLUSION, List.of("attestation:proxy"));
+
+        var result = Evaluator.evaluate(catalog, plan(PlanProfile.IDP_CORE), List.of(exclusion),
+                List.of(completed("case-a", "REQ.a", Outcome.SATISFIED)), List.of());
+
+        assertEquals(Conformance.CONFORMANT_WITH_DECLARED_EXCLUSIONS, result.conformance());
+        assertEquals(1, result.coverage().excludedByDeclaration());
+    }
+
+    @Test
+    void notObservableMustIsOutsideTheConformanceDenominator() {
+        var catalog = catalog(
+                obligation("REQ.a", Rfc2119Level.MUST, Testability.AUTOMATED, ProfileScope.CORE, null),
+                obligation("REQ.b", Rfc2119Level.MUST, Testability.NOT_OBSERVABLE, ProfileScope.CORE, null));
+
+        var result = Evaluator.evaluate(catalog, plan(PlanProfile.IDP_CORE), List.of(),
+                List.of(completed("case-a", "REQ.a", Outcome.SATISFIED)), List.of());
+
+        assertEquals(Conformance.CONFORMANT, result.conformance());
+        assertEquals(1, result.coverage().mustObservable());
+        assertEquals(1, result.coverage().mustNotObservable());
+        assertEquals(1.0, result.coverage().verifiedRatio());
+    }
+
+    @Test
+    void fullObligationsAreNotIncludedInACoreRun() {
+        var catalog = catalog(
+                obligation("REQ.a", Rfc2119Level.MUST, Testability.AUTOMATED, ProfileScope.CORE, null),
+                obligation("REQ.b", Rfc2119Level.SHOULD, Testability.AUTOMATED, ProfileScope.FULL, null));
+
+        var result = Evaluator.evaluate(catalog, plan(PlanProfile.IDP_CORE), List.of(),
+                List.of(completed("case-a", "REQ.a", Outcome.SATISFIED)), List.of());
+
+        assertEquals(List.of("REQ.a"), result.obligations().stream().map(RunResult.ObligationResult::key).toList());
+    }
+
+    @Test
+    void suiteErrorIsNotMisreportedAsATargetViolation() {
+        var catalog = catalog(obligation(
+                "REQ.a", Rfc2119Level.MUST, Testability.AUTOMATED, ProfileScope.CORE, null));
+
+        var result = Evaluator.evaluate(catalog, plan(PlanProfile.IDP_CORE), List.of(),
+                List.of(CaseRun.suiteError("case-a", "REQ.a", "runner crashed")),
+                List.of(new SuiteIncident("INTERNAL_ERROR", "case-a", null, "runner crashed")));
+
+        assertEquals(Verdict.ERROR, result.obligations().getFirst().verdict());
+        assertEquals(Conformance.INDETERMINATE, result.conformance());
+        assertEquals(Completeness.INCOMPLETE, result.completeness());
+    }
+
+    @Test
+    void unknownDeliveryRemainsSuiteUncertaintyRatherThanTargetFailure() {
+        var catalog = catalog(obligation(
+                "REQ.a", Rfc2119Level.MUST, Testability.AUTOMATED, ProfileScope.CORE, null));
+        var incident = new SuiteIncident("UNKNOWN_DELIVERY", "case-a", "action-1", "delivery unknown");
+        var caseRun = CaseRun.completed(
+                "case-a",
+                "REQ.a",
+                CaseOutcome.notVerified("delivery_unknown", "outbox.delivery-unknown"));
+
+        var result = Evaluator.evaluate(
+                catalog, plan(PlanProfile.IDP_CORE), List.of(), List.of(caseRun), List.of(incident));
+
+        assertEquals(Verdict.NOT_VERIFIED, result.obligations().getFirst().verdict());
+        assertEquals(Conformance.INDETERMINATE, result.conformance());
+        assertEquals(0, result.coverage().verdictCounts().get(Verdict.FAIL));
+        assertEquals(List.of(incident), result.suiteIncidents());
+    }
+
+    private static CaseRun completed(String id, String obligation, Outcome outcome) {
+        return CaseRun.completed(id, obligation, CaseOutcome.of(
+                outcome, "test", List.of(new EvidenceRef("test", "evidence:" + id))));
+    }
+
+    private static CoverageCatalog catalog(Obligation... obligations) {
+        return new CoverageCatalog(List.of(obligations));
+    }
+
+    private static Obligation obligation(
+            String key,
+            Rfc2119Level level,
+            Testability testability,
+            ProfileScope profileScope,
+            String condition) {
+        return new Obligation(key, key.substring(0, key.indexOf('.')), level,
+                List.of(TargetRole.IDP), condition, testability, profileScope);
+    }
+
+    private static TestPlan plan(PlanProfile profile) {
+        return new TestPlan(
+                "plan_0123456789ABCDEFGHJKMNPQRS",
+                "Evaluator test",
+                profile,
+                new TestPlan.Target(
+                        TargetKind.IDP,
+                        "https://idp.example/entity",
+                        new TestPlan.MetadataSource(MetadataSourceKind.URL, "https://idp.example/metadata")),
+                MetadataDeliveryKind.MANUAL,
+                Map.of(),
+                TestPlan.Parameters.defaults(),
+                TestPlan.Interaction.defaults(),
+                Instant.EPOCH,
+                Instant.EPOCH);
+    }
+}
