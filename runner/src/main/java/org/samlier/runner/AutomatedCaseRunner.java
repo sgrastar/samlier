@@ -1,0 +1,29 @@
+package org.samlier.runner;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+import org.samlier.core.caseexec.CaseContext;
+import org.samlier.core.caseexec.CaseExecution;
+import org.samlier.runner.cases.AutomatedCaseRegistry;
+
+/** Starts approved automated cases at the lifecycle point where their evidence is available. */
+public final class AutomatedCaseRunner {
+    private final TestCaseRegistry cases;
+    private final CaseExecutionService executions;
+
+    public AutomatedCaseRunner(TestCaseRegistry cases, CaseExecutionService executions) {
+        this.cases = Objects.requireNonNull(cases, "cases");
+        this.executions = Objects.requireNonNull(executions, "executions");
+    }
+
+    public List<CaseExecution> startReady(String runId, CaseContext context) {
+        var started = new ArrayList<CaseExecution>();
+        for (var testCase : cases.forRole(context.targetRole())) {
+            var duringRun = AutomatedCaseRegistry.runsDuringRun(testCase.id());
+            if (!duringRun && !context.transcriptComplete()) continue;
+            started.add(executions.start(runId, testCase, context));
+        }
+        return List.copyOf(started);
+    }
+}
