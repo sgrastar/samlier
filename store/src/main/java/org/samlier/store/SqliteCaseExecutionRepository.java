@@ -44,6 +44,28 @@ public final class SqliteCaseExecutionRepository implements CaseExecutionReposit
     }
 
     @Override
+    public List<CaseExecution> list(String runId) {
+        var executions = new ArrayList<CaseExecution>();
+        try (var connection = database.open();
+             var statement = connection.prepareStatement(
+                     "SELECT revision, document_json FROM case_executions WHERE run_id = ? ORDER BY case_id")) {
+            statement.setString(1, runId);
+            try (var rows = statement.executeQuery()) {
+                while (rows.next()) {
+                    var execution = json.read(rows.getString("document_json"), CaseExecution.class);
+                    if (execution.revision() != rows.getLong("revision")) {
+                        throw new StoreException("Case execution revision does not match its document");
+                    }
+                    executions.add(execution);
+                }
+            }
+            return List.copyOf(executions);
+        } catch (SQLException e) {
+            throw new StoreException("Could not list case executions", e);
+        }
+    }
+
+    @Override
     public boolean apply(long expectedRevision, CaseExecution execution, List<OutboundAction> actions) {
         if (expectedRevision < -1) throw new IllegalArgumentException("expectedRevision is invalid");
         if (execution.revision() != expectedRevision + 1) {

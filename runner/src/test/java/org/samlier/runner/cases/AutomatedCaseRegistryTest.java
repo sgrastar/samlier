@@ -118,6 +118,7 @@ class AutomatedCaseRegistryTest {
     private CaseExecutionRepository emptyRepository() {
         return new CaseExecutionRepository() {
             @Override public Optional<CaseExecution> find(String runId, String caseId) { return Optional.empty(); }
+            @Override public List<CaseExecution> list(String runId) { return List.of(); }
             @Override public boolean apply(long expectedRevision, CaseExecution execution, List<OutboundAction> actions) {
                 throw new UnsupportedOperationException();
             }

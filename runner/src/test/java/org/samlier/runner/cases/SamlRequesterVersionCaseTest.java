@@ -69,6 +69,9 @@ class SamlRequesterVersionCaseTest {
                         runId, caseId, 0, CaseExecutionStatus.FINISHED, CaseState.initial(), null,
                         outcome, Instant.parse("2026-08-29T00:00:00Z")));
             }
+            @Override public List<CaseExecution> list(String runId) {
+                return find(runId, SamlRequesterVersionCase.NORMAL_SSO_CASE_ID).stream().toList();
+            }
             @Override public boolean apply(long expectedRevision, CaseExecution execution, List<OutboundAction> actions) {
                 throw new UnsupportedOperationException();
             }
