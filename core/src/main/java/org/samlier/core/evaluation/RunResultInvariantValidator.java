@@ -39,7 +39,7 @@ public final class RunResultInvariantValidator {
 
         validateApplicability(selected, obligations, result.applicability());
         validateRequirements(obligations.values(), result.requirements());
-        validateCoverage(obligations.values(), result);
+        validateCoverage(selected, obligations.values(), result);
         validateScopeQualifications(result);
     }
 
@@ -106,6 +106,7 @@ public final class RunResultInvariantValidator {
     }
 
     private static void validateCoverage(
+            Map<String, CoverageCatalog.Obligation> selected,
             java.util.Collection<ObligationResult> obligations,
             RunResult result) {
         var counts = new EnumMap<Verdict, Integer>(Verdict.class);
@@ -115,6 +116,9 @@ public final class RunResultInvariantValidator {
         var applicableMust = obligations.stream()
                 .filter(value -> value.verdict() != Verdict.NOT_APPLICABLE)
                 .filter(value -> value.level().levelClass() == LevelClass.MUST_CLASS)
+                .toList();
+        var applicable = obligations.stream()
+                .filter(value -> value.verdict() != Verdict.NOT_APPLICABLE)
                 .toList();
         var mustNotObservable = count(applicableMust, Verdict.NOT_OBSERVABLE);
         var mustObservable = applicableMust.size() - mustNotObservable;
@@ -128,12 +132,24 @@ public final class RunResultInvariantValidator {
         var exclusions = (int) result.applicability().stream()
                 .filter(value -> value.basis() == Basis.DECLARATION_ONLY_EXCLUSION)
                 .count();
+        var declarationOnly = (int) result.applicability().stream()
+                .filter(value -> value.basis() != Basis.OBSERVED)
+                .count();
+        var attested = (int) applicable.stream()
+                .filter(value -> selected.get(value.key()).testability() == CoverageCatalog.Testability.ATTESTED)
+                .count();
         var ratio = mustObservable == 0 ? 1.0 : (double) mustResolved / mustObservable;
         var coverage = result.coverage();
+        require(coverage.obligationsTotal() == obligations.size(), "obligationsTotal is inconsistent");
+        require(coverage.obligationsApplicable() == applicable.size(), "obligationsApplicable is inconsistent");
+        require(coverage.mustApplicable() == applicableMust.size(), "mustApplicable is inconsistent");
         require(coverage.mustObservable() == mustObservable, "mustObservable is inconsistent");
         require(coverage.mustResolved() == mustResolved, "mustResolved is inconsistent");
         require(coverage.mustUnresolved() == mustUnresolved, "mustUnresolved is inconsistent");
         require(coverage.mustNotObservable() == mustNotObservable, "mustNotObservable is inconsistent");
+        require(coverage.attestedObligations() == attested, "attestedObligations is inconsistent");
+        require(coverage.applicabilityFromDeclarationOnly() == declarationOnly,
+                "applicabilityFromDeclarationOnly is inconsistent");
         require(coverage.excludedByDeclaration() == exclusions, "excludedByDeclaration is inconsistent");
         require(Double.compare(coverage.verifiedRatio(), ratio) == 0, "verifiedRatio is inconsistent");
         require(coverage.verdictCounts().equals(counts), "Verdict counts are inconsistent");

@@ -100,6 +100,10 @@ class EvaluatorTest {
         assertEquals(Verdict.NOT_VERIFIED, result.obligations().getFirst().verdict());
         assertEquals(Conformance.INDETERMINATE, result.conformance());
         assertEquals(Completeness.INCOMPLETE, result.completeness());
+        assertEquals(1, result.coverage().obligationsTotal());
+        assertEquals(1, result.coverage().obligationsApplicable());
+        assertEquals(1, result.coverage().mustApplicable());
+        assertEquals(1, result.coverage().applicabilityFromDeclarationOnly());
         assertEquals(1, result.coverage().mustUnresolved());
     }
 
@@ -144,6 +148,7 @@ class EvaluatorTest {
 
         assertEquals(Conformance.CONFORMANT_WITH_DECLARED_EXCLUSIONS, result.conformance());
         assertEquals(1, result.coverage().excludedByDeclaration());
+        assertEquals(1, result.coverage().applicabilityFromDeclarationOnly());
         assertEquals(1, result.scopeQualifications().size());
         assertEquals(List.of("REQ.b"), result.scopeQualifications().getFirst().excludedObligations());
         assertEquals("Target is a classified proxy", result.scopeQualifications().getFirst().reason());
@@ -186,6 +191,39 @@ class EvaluatorTest {
         assertEquals(Conformance.CONFORMANT, result.conformance());
         assertEquals(1, result.coverage().mustObservable());
         assertEquals(1, result.coverage().mustNotObservable());
+        assertEquals(1.0, result.coverage().verifiedRatio());
+    }
+
+    @Test
+    void reportsEveryRequiredCoverageDenominatorFromSelectedApplicableObligations() {
+        var catalog = catalog(
+                obligation("REQ.a", Rfc2119Level.MUST, Testability.AUTOMATED, ProfileScope.CORE, null),
+                obligation("REQ.b", Rfc2119Level.MUST, Testability.ATTESTED, ProfileScope.CORE, null),
+                obligation("REQ.c", Rfc2119Level.MUST, Testability.NOT_OBSERVABLE, ProfileScope.CORE, null),
+                obligation("REQ.d", Rfc2119Level.SHOULD, Testability.AUTOMATED, ProfileScope.CORE, "feature"));
+        var notApplicable = new ApplicabilityEvaluation(
+                "REQ.d", "feature", PredicateKind.CAPABILITY_BASED, false, false,
+                EffectiveResult.FALSE, false, Basis.OBSERVED, List.of("probe:negative"), null);
+
+        var result = Evaluator.evaluate(
+                catalog,
+                plan(PlanProfile.IDP_CORE),
+                List.of(notApplicable),
+                List.of(
+                        completed("case-a", "REQ.a", Outcome.SATISFIED),
+                        completed("case-b", "REQ.b", Outcome.SATISFIED)),
+                List.of());
+
+        assertEquals(4, result.coverage().obligationsTotal());
+        assertEquals(3, result.coverage().obligationsApplicable());
+        assertEquals(3, result.coverage().mustApplicable());
+        assertEquals(2, result.coverage().mustObservable());
+        assertEquals(2, result.coverage().mustResolved());
+        assertEquals(0, result.coverage().mustUnresolved());
+        assertEquals(1, result.coverage().mustNotObservable());
+        assertEquals(1, result.coverage().attestedObligations());
+        assertEquals(0, result.coverage().applicabilityFromDeclarationOnly());
+        assertEquals(0, result.coverage().excludedByDeclaration());
         assertEquals(1.0, result.coverage().verifiedRatio());
     }
 

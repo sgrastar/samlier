@@ -42,8 +42,10 @@ class RunResultInvariantValidatorTest {
         var fixture = fixture();
         var source = fixture.result().coverage();
         var corruptCoverage = new RunResult.CoverageMetrics(
+                source.obligationsTotal(), source.obligationsApplicable(), source.mustApplicable(),
                 source.mustObservable(), source.mustResolved() + 1, source.mustUnresolved(),
-                source.mustNotObservable(), source.excludedByDeclaration(), source.verifiedRatio(),
+                source.mustNotObservable(), source.attestedObligations(),
+                source.applicabilityFromDeclarationOnly(), source.excludedByDeclaration(), source.verifiedRatio(),
                 source.verdictCounts());
         var corrupt = copy(fixture.result(), fixture.result().conformance(), corruptCoverage,
                 fixture.result().applicability(), fixture.result().scopeQualifications());

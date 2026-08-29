@@ -69,10 +69,15 @@ public record RunResult(
     }
 
     public record CoverageMetrics(
+            int obligationsTotal,
+            int obligationsApplicable,
+            int mustApplicable,
             int mustObservable,
             int mustResolved,
             int mustUnresolved,
             int mustNotObservable,
+            int attestedObligations,
+            int applicabilityFromDeclarationOnly,
             int excludedByDeclaration,
             double verifiedRatio,
             Map<Verdict, Integer> verdictCounts) {

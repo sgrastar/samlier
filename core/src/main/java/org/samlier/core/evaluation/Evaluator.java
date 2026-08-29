@@ -54,7 +54,7 @@ public final class Evaluator {
         }
 
         var requirementResults = aggregateRequirements(obligationResults);
-        var coverage = coverage(obligationResults, applicabilityByKey);
+        var coverage = coverage(obligationResults, applicabilityByKey, selectedByKey);
         var conformance = conformance(obligationResults, coverage.excludedByDeclaration());
         var completeness = completeness(obligationResults);
 
@@ -167,7 +167,8 @@ public final class Evaluator {
 
     private static CoverageMetrics coverage(
             List<ObligationResult> obligations,
-            Map<String, ApplicabilityEvaluation> applicability) {
+            Map<String, ApplicabilityEvaluation> applicability,
+            Map<String, Obligation> selected) {
         var counts = new EnumMap<Verdict, Integer>(Verdict.class);
         for (var verdict : Verdict.values()) counts.put(verdict, 0);
         for (var obligation : obligations) counts.merge(obligation.verdict(), 1, Integer::sum);
@@ -183,15 +184,28 @@ public final class Evaluator {
             default -> false;
         });
         var mustUnresolved = count(applicableMust, result -> isUnresolved(result.verdict()));
+        var applicable = obligations.stream()
+                .filter(result -> result.verdict() != Verdict.NOT_APPLICABLE)
+                .toList();
+        var attested = count(applicable, result ->
+                selected.get(result.key()).testability() == Testability.ATTESTED);
+        var declarationOnly = (int) applicability.values().stream()
+                .filter(value -> value.basis() != Basis.OBSERVED)
+                .count();
         var exclusions = (int) applicability.values().stream()
                 .filter(value -> value.basis() == Basis.DECLARATION_ONLY_EXCLUSION)
                 .count();
         var ratio = mustObservable == 0 ? 1.0 : (double) mustResolved / mustObservable;
         return new CoverageMetrics(
+                obligations.size(),
+                applicable.size(),
+                applicableMust.size(),
                 mustObservable,
                 mustResolved,
                 mustUnresolved,
                 mustNotObservable,
+                attested,
+                declarationOnly,
                 exclusions,
                 ratio,
                 counts);
