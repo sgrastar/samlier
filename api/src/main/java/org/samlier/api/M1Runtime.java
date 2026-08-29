@@ -32,6 +32,7 @@ import org.samlier.runner.cases.ApprovedAttestedCaseRegistry;
 import org.samlier.runner.cases.ApprovedConfigCaseRegistry;
 import org.samlier.runner.cases.ApprovedBrowserCaseRegistry;
 import org.samlier.runner.cases.M2AutomatedCaseRegistry;
+import org.samlier.runner.cases.M3AutomatedCaseRegistry;
 import org.samlier.runner.result.DefaultResultContextProvider;
 import org.samlier.runner.result.EvaluationArtifactDigests;
 import org.samlier.runner.result.ResultDocumentContext;
@@ -144,10 +145,23 @@ final class M1Runtime {
         var m3Browser = ApprovedBrowserCaseRegistry.create(
                 definitions, config.publicBaseUrl(),
                 org.samlier.core.casedef.CaseDefinitionCatalog.Milestone.M3);
+        var m3Automated = M3AutomatedCaseRegistry.create(
+                runId -> {
+                    var run = runs.find(runId).orElseThrow(() -> new IllegalArgumentException("Unknown Run"));
+                    try { return metadataCache.get(run.planId()); }
+                    catch (org.samlier.store.StoreException unavailable) { return null; }
+                },
+                transcriptContent,
+                runId -> {
+                    var run = runs.find(runId).orElseThrow(() -> new IllegalArgumentException("Unknown Run"));
+                    var plan = plans.find(run.planId()).orElseThrow(() -> new IllegalStateException("Run has no Test Plan"));
+                    try { return targetCertificates.certificatesFor(plan); }
+                    catch (RuntimeException unavailable) { return List.of(); }
+                });
         var interactiveRegistry = org.samlier.runner.TestCaseRegistry.merge(
                 m1Attested, m1Config, m1Browser,
                 m2Automated, m2Attested, m2Config, m2Browser,
-                m3Attested, m3Config, m3Browser);
+                m3Automated, m3Attested, m3Config, m3Browser);
         var executionService = new CaseExecutionService(caseExecutions);
         var caseContexts = (org.samlier.runner.CaseContextProvider) runId -> caseContext(
                 runId, plans, runs, transcript, clock);
@@ -162,6 +176,7 @@ final class M1Runtime {
                         new ApprovedCaseStarter(coverage, definitions, m2Config, executionService, applicability),
                         new ApprovedCaseStarter(coverage, definitions, m2Browser, executionService, applicability)),
                 org.samlier.core.casedef.CaseDefinitionCatalog.Milestone.M3, List.of(
+                        new ApprovedCaseStarter(coverage, definitions, m3Automated, executionService, applicability),
                         new ApprovedCaseStarter(coverage, definitions, m3Attested, executionService, applicability),
                         new ApprovedCaseStarter(coverage, definitions, m3Config, executionService, applicability),
                         new ApprovedCaseStarter(coverage, definitions, m3Browser, executionService, applicability)));
