@@ -1,6 +1,7 @@
 package org.samlier.runner;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.net.URI;
 import java.time.Clock;
@@ -68,19 +69,25 @@ class AutomatedCaseRunnerTest {
 
     @Test
     void startsActiveCasesDuringTheRunAndPassiveCasesOnlyAfterTranscriptCompletion() {
-        var during = runner.startReady(RUN_ID, context(false));
+        var during = runner.startReady(RUN_ID, PlanProfile.IDP_CORE, context(false));
         assertEquals(List.of(IdpErrorResponseTestCase.CASE_ID), during.stream().map(value -> value.caseId()).toList());
         assertEquals(CaseExecutionStatus.WAITING_INBOUND, during.getFirst().status());
         assertEquals(1, repository.listOutbox(RUN_ID).size());
 
-        var completed = runner.startReady(RUN_ID, context(true));
+        var completed = runner.startReady(RUN_ID, PlanProfile.IDP_CORE, context(true));
         assertEquals(2, completed.size());
         assertEquals(CaseExecutionStatus.FINISHED,
                 repository.find(RUN_ID, "IIP-G03-a-idp-01").orElseThrow().status());
         assertEquals(1, repository.listOutbox(RUN_ID).size());
 
-        runner.startReady(RUN_ID, context(true));
+        runner.startReady(RUN_ID, PlanProfile.IDP_CORE, context(true));
         assertEquals(1, repository.listOutbox(RUN_ID).size());
+    }
+
+    @Test
+    void refusesAProfileForAnotherTargetRole() {
+        assertThrows(IllegalArgumentException.class,
+                () -> runner.startReady(RUN_ID, PlanProfile.SP_CORE, context(false)));
     }
 
     private TestCase activeCase() {

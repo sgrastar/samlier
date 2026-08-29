@@ -75,9 +75,11 @@ class AutomatedCaseEmptyEvidenceTest {
                 RUN_ID, TargetRole.IDP, Clock.fixed(NOW, ZoneOffset.UTC), plan.parameters(),
                 Reachability.CONFIRMED, transcript, true);
 
-        var snapshot = runner.startReady(RUN_ID, context);
+        var snapshot = runner.startReady(RUN_ID, plan.profile(), context);
 
-        assertEquals(registry.forRole(TargetRole.IDP).size(), snapshot.size());
+        assertEquals(registry.forRole(TargetRole.IDP).stream()
+                .filter(value -> AutomatedCaseRegistry.includedIn(value.id(), plan.profile())).count(), snapshot.size());
+        assertFalse(snapshot.stream().anyMatch(value -> AutomatedCaseRegistry.fullProfileCaseIds().contains(value.caseId())));
         var finished = snapshot.stream().filter(value -> value.status() == CaseExecutionStatus.FINISHED).toList();
         assertEquals(snapshot.size() - 1, finished.size(), "Only the active error probe should still be waiting");
         assertFalse(finished.stream().anyMatch(value -> value.outcome().outcome() == Outcome.VIOLATED),
@@ -120,9 +122,11 @@ class AutomatedCaseEmptyEvidenceTest {
                 RUN_ID, TargetRole.SP, Clock.fixed(NOW, ZoneOffset.UTC), plan.parameters(),
                 Reachability.CONFIRMED, transcript, true);
 
-        var snapshot = runner.startReady(RUN_ID, context);
+        var snapshot = runner.startReady(RUN_ID, plan.profile(), context);
 
-        assertEquals(registry.forRole(TargetRole.SP).size(), snapshot.size());
+        assertEquals(registry.forRole(TargetRole.SP).stream()
+                .filter(value -> AutomatedCaseRegistry.includedIn(value.id(), plan.profile())).count(), snapshot.size());
+        assertFalse(snapshot.stream().anyMatch(value -> AutomatedCaseRegistry.fullProfileCaseIds().contains(value.caseId())));
         assertEquals(snapshot.size(), snapshot.stream()
                 .filter(value -> value.status() == CaseExecutionStatus.FINISHED).count());
         assertFalse(snapshot.stream().anyMatch(value -> value.outcome().outcome() == Outcome.VIOLATED),

@@ -4,12 +4,21 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
 import java.util.Set;
+import org.samlier.core.plan.PlanProfile;
 import org.samlier.core.caseexec.TestCase;
 import org.samlier.runner.TestCaseRegistry;
 
 /** Composition root for the complete approved M1 AUTOMATED case set. */
 public final class AutomatedCaseRegistry {
     private static final Set<String> DURING_RUN_CASES = Set.of(IdpErrorResponseTestCase.CASE_ID);
+    private static final Set<String> FULL_PROFILE_CASES = Set.of(
+            "IIP-SSO01-cy-idp-01", "IIP-SSO01-cy-sp-01", "IIP-SSO01-cz-idp-01",
+            "IIP-SSO01-db-idp-01", "IIP-SSO01-dm-idp-01", "IIP-SSO01-dq-idp-01",
+            "IIP-SSO01-ds-idp-01", "IIP-SSO01-du-idp-01", "IIP-SSO01-fg-sp-01",
+            "IIP-SSO01-ew-idp-01", "IIP-SSO01-ew-sp-01", "IIP-SSO01-ex-idp-01",
+            "IIP-SSO01-ex-sp-01", "IIP-SSO01-fl-sp-01", "IIP-SSO01-fs-idp-01",
+            "IIP-SSO01-fs-sp-01", "IIP-SSO01-fv-idp-01", "IIP-SSO07-a-idp-01",
+            "IIP-SSO07-a-sp-01");
     private AutomatedCaseRegistry() {}
 
     public static TestCaseRegistry create(AutomatedCaseDependencies dependencies) {
@@ -77,6 +86,15 @@ public final class AutomatedCaseRegistry {
 
     public static boolean runsDuringRun(String caseId) {
         return DURING_RUN_CASES.contains(caseId);
+    }
+
+    public static boolean includedIn(String caseId, PlanProfile profile) {
+        java.util.Objects.requireNonNull(profile, "profile");
+        return profile.full() || !FULL_PROFILE_CASES.contains(caseId);
+    }
+
+    public static Set<String> fullProfileCaseIds() {
+        return FULL_PROFILE_CASES;
     }
 
     private static void add(

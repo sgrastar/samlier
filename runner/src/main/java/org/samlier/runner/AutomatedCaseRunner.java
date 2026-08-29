@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Objects;
 import org.samlier.core.caseexec.CaseContext;
 import org.samlier.core.caseexec.CaseExecution;
+import org.samlier.core.plan.PlanProfile;
 import org.samlier.runner.cases.AutomatedCaseRegistry;
 
 /** Starts approved automated cases at the lifecycle point where their evidence is available. */
@@ -17,9 +18,13 @@ public final class AutomatedCaseRunner {
         this.executions = Objects.requireNonNull(executions, "executions");
     }
 
-    public List<CaseExecution> startReady(String runId, CaseContext context) {
+    public List<CaseExecution> startReady(String runId, PlanProfile profile, CaseContext context) {
+        if (profile == null || profile.role() != context.targetRole()) {
+            throw new IllegalArgumentException("Plan profile belongs to another target role");
+        }
         var started = new ArrayList<CaseExecution>();
         for (var testCase : cases.forRole(context.targetRole())) {
+            if (!AutomatedCaseRegistry.includedIn(testCase.id(), profile)) continue;
             var duringRun = AutomatedCaseRegistry.runsDuringRun(testCase.id());
             if (!duringRun && !context.transcriptComplete()) continue;
             started.add(executions.start(runId, testCase, context));
