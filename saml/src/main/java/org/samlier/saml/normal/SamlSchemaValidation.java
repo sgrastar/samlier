@@ -2,16 +2,25 @@ package org.samlier.saml.normal;
 
 import java.io.InputStream;
 import java.io.Reader;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import javax.xml.XMLConstants;
 import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.sax.SAXResult;
 import javax.xml.transform.stream.StreamSource;
 import javax.xml.validation.Schema;
 import javax.xml.validation.SchemaFactory;
+import javax.xml.validation.TypeInfoProvider;
+import javax.xml.validation.ValidatorHandler;
 import org.w3c.dom.Element;
+import org.w3c.dom.TypeInfo;
 import org.w3c.dom.ls.LSInput;
 import org.w3c.dom.ls.LSResourceResolver;
+import org.xml.sax.Attributes;
 import org.xml.sax.SAXException;
+import org.xml.sax.helpers.DefaultHandler;
 
 /** Offline, DTD-free validation against the SAML 2.0 schemas shipped with the pinned OpenSAML runtime. */
 public final class SamlSchemaValidation {
@@ -37,6 +46,102 @@ public final class SamlSchemaValidation {
         } catch (SAXException | java.io.IOException invalid) {
             return false;
         }
+    }
+
+    /**
+     * Validates an element and reports values whose schema type is {@code xs:string}
+     * or a restriction derived from it. This deliberately uses schema type
+     * information rather than element-name heuristics.
+     */
+    public static StringInspection inspectStringValues(Element element, SchemaKind kind) {
+        try {
+            var handler = schema(kind).newValidatorHandler();
+            var collector = new StringValueCollector(handler.getTypeInfoProvider());
+            handler.setContentHandler(collector);
+            var transformerFactory = javax.xml.transform.TransformerFactory.newInstance();
+            transformerFactory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
+            transformerFactory.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
+            transformerFactory.setAttribute(XMLConstants.ACCESS_EXTERNAL_STYLESHEET, "");
+            transformerFactory.newTransformer().transform(new DOMSource(element), new SAXResult(handler));
+            return new StringInspection(true, collector.values());
+        } catch (javax.xml.transform.TransformerException failure) {
+            return new StringInspection(false, List.of());
+        }
+    }
+
+    public record TypedStringValue(String path, String value, boolean attribute) {
+        public TypedStringValue {
+            path = java.util.Objects.requireNonNull(path, "path");
+            value = java.util.Objects.requireNonNull(value, "value");
+        }
+    }
+
+    public record StringInspection(boolean schemaValid, List<TypedStringValue> values) {
+        public StringInspection {
+            values = List.copyOf(values);
+        }
+    }
+
+    private static Schema schema(SchemaKind kind) {
+        return kind == SchemaKind.PROTOCOL ? PROTOCOL : ASSERTION;
+    }
+
+    private static boolean isString(TypeInfo type) {
+        if (type == null) return false;
+        if (XMLConstants.W3C_XML_SCHEMA_NS_URI.equals(type.getTypeNamespace())
+                && "string".equals(type.getTypeName())) return true;
+        return type.isDerivedFrom(
+                XMLConstants.W3C_XML_SCHEMA_NS_URI,
+                "string",
+                TypeInfo.DERIVATION_RESTRICTION);
+    }
+
+    private static final class StringValueCollector extends DefaultHandler {
+        private final TypeInfoProvider types;
+        private final ArrayDeque<ElementValue> elements = new ArrayDeque<>();
+        private final List<TypedStringValue> values = new ArrayList<>();
+
+        private StringValueCollector(TypeInfoProvider types) {
+            this.types = types;
+        }
+
+        @Override
+        public void startElement(String uri, String localName, String qName, Attributes attributes) {
+            var path = (elements.isEmpty() ? "" : elements.peek().path()) + "/" + display(uri, localName, qName);
+            elements.push(new ElementValue(path, isString(types.getElementTypeInfo()), new StringBuilder()));
+            for (var index = 0; index < attributes.getLength(); index++) {
+                if (isString(types.getAttributeTypeInfo(index))) {
+                    values.add(new TypedStringValue(
+                            path + "/@" + display(attributes.getURI(index), attributes.getLocalName(index), attributes.getQName(index)),
+                            attributes.getValue(index),
+                            true));
+                }
+            }
+        }
+
+        @Override
+        public void characters(char[] characters, int start, int length) {
+            if (!elements.isEmpty()) elements.peek().text().append(characters, start, length);
+        }
+
+        @Override
+        public void endElement(String uri, String localName, String qName) {
+            var element = elements.pop();
+            if (element.stringType()) {
+                values.add(new TypedStringValue(element.path(), element.text().toString(), false));
+            }
+        }
+
+        private List<TypedStringValue> values() {
+            return List.copyOf(values);
+        }
+
+        private static String display(String uri, String localName, String qName) {
+            var name = localName == null || localName.isBlank() ? qName : localName;
+            return uri == null || uri.isBlank() ? name : "{" + uri + "}" + name;
+        }
+
+        private record ElementValue(String path, boolean stringType, StringBuilder text) {}
     }
 
     private static Schema load(String namespace) {
