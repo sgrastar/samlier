@@ -90,13 +90,41 @@ class EvaluatorTest {
     void unknownApplicabilityCannotBeSilentlyExcluded() {
         var catalog = catalog(obligation(
                 "REQ.a", Rfc2119Level.MUST, Testability.AUTOMATED, ProfileScope.CORE, "feature"));
+        var unknown = new ApplicabilityEvaluation(
+                "REQ.a", "feature", PredicateKind.CAPABILITY_BASED, false, null,
+                EffectiveResult.UNKNOWN, false, Basis.DECLARED, List.of(), null);
 
-        var result = Evaluator.evaluate(catalog, plan(PlanProfile.IDP_CORE), List.of(), List.of(), List.of());
+        var result = Evaluator.evaluate(
+                catalog, plan(PlanProfile.IDP_CORE), List.of(unknown), List.of(), List.of());
 
         assertEquals(Verdict.NOT_VERIFIED, result.obligations().getFirst().verdict());
         assertEquals(Conformance.INDETERMINATE, result.conformance());
         assertEquals(Completeness.INCOMPLETE, result.completeness());
         assertEquals(1, result.coverage().mustUnresolved());
+    }
+
+    @Test
+    void rejectsMissingMismatchedOrUnconditionalApplicabilityInputs() {
+        var conditional = catalog(obligation(
+                "REQ.a", Rfc2119Level.MUST, Testability.AUTOMATED, ProfileScope.CORE, "feature"));
+        assertThrows(IllegalArgumentException.class, () -> Evaluator.evaluate(
+                conditional, plan(PlanProfile.IDP_CORE), List.of(), List.of(), List.of()));
+
+        var wrongPredicate = new ApplicabilityEvaluation(
+                "REQ.a", "other", PredicateKind.CAPABILITY_BASED, true, null,
+                EffectiveResult.TRUE, false, Basis.DECLARED, List.of(), null);
+        assertThrows(IllegalArgumentException.class, () -> Evaluator.evaluate(
+                conditional, plan(PlanProfile.IDP_CORE), List.of(wrongPredicate), List.of(), List.of()));
+
+        var unconditional = catalog(obligation(
+                "REQ.a", Rfc2119Level.MUST, Testability.AUTOMATED, ProfileScope.CORE, null));
+        var injectedExclusion = new ApplicabilityEvaluation(
+                "REQ.a", "classification", PredicateKind.CLASSIFICATION_BASED, false, null,
+                EffectiveResult.FALSE, false, Basis.DECLARATION_ONLY_EXCLUSION, List.of(),
+                new ApplicabilityInput.ExclusionDeclaration(
+                        "Injected exclusion", "operator", Instant.parse("2026-08-29T00:00:00Z")));
+        assertThrows(IllegalArgumentException.class, () -> Evaluator.evaluate(
+                unconditional, plan(PlanProfile.IDP_CORE), List.of(injectedExclusion), List.of(), List.of()));
     }
 
     @Test

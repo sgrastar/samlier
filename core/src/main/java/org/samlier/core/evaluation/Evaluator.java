@@ -42,6 +42,7 @@ public final class Evaluator {
                 .toList();
         var selectedByKey = indexObligations(selected);
         var applicabilityByKey = indexApplicability(applicability, selectedByKey);
+        requireConditionalApplicability(selected, applicabilityByKey);
         var casesByObligation = indexCases(caseRuns, selectedByKey);
         validateSuiteIncidents(caseRuns, incidents);
 
@@ -241,14 +242,34 @@ public final class Evaluator {
             Map<String, Obligation> selected) {
         var result = new LinkedHashMap<String, ApplicabilityEvaluation>();
         for (var value : values) {
-            if (!selected.containsKey(value.obligationKey())) {
+            var obligation = selected.get(value.obligationKey());
+            if (obligation == null) {
                 throw new IllegalArgumentException("Applicability is outside the selected profile: " + value.obligationKey());
+            }
+            if (obligation.condition() == null) {
+                throw new IllegalArgumentException(
+                        "Unconditional obligation must not receive applicability: " + value.obligationKey());
+            }
+            if (!obligation.condition().equals(value.predicate())) {
+                throw new IllegalArgumentException(
+                        "Applicability predicate does not match coverage: " + value.obligationKey());
             }
             if (result.put(value.obligationKey(), value) != null) {
                 throw new IllegalArgumentException("Duplicate applicability: " + value.obligationKey());
             }
         }
         return result;
+    }
+
+    private static void requireConditionalApplicability(
+            List<Obligation> selected,
+            Map<String, ApplicabilityEvaluation> applicability) {
+        for (var obligation : selected) {
+            if (obligation.condition() != null && !applicability.containsKey(obligation.key())) {
+                throw new IllegalArgumentException(
+                        "Conditional obligation has no applicability evaluation: " + obligation.key());
+            }
+        }
     }
 
     private static Map<String, List<CaseRun>> indexCases(
