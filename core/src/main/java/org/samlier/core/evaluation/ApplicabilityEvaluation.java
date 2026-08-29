@@ -2,6 +2,7 @@ package org.samlier.core.evaluation;
 
 import java.util.List;
 import java.util.Objects;
+import org.samlier.core.evaluation.ApplicabilityInput.ExclusionDeclaration;
 
 public record ApplicabilityEvaluation(
         String obligationKey,
@@ -12,7 +13,8 @@ public record ApplicabilityEvaluation(
         EffectiveResult effectiveResult,
         boolean conflict,
         Basis basis,
-        List<String> evidenceRefs) {
+        List<String> evidenceRefs,
+        ExclusionDeclaration exclusion) {
 
     public ApplicabilityEvaluation {
         if (obligationKey == null || obligationKey.isBlank()) {
@@ -27,6 +29,9 @@ public record ApplicabilityEvaluation(
         evidenceRefs = List.copyOf(evidenceRefs == null ? List.of() : evidenceRefs);
         switch (basis) {
             case OBSERVED -> {
+                if (exclusion != null) {
+                    throw new IllegalArgumentException("Observed basis must not carry an exclusion");
+                }
                 if (observed == null) {
                     throw new IllegalArgumentException("Observed basis requires an observed value");
                 }
@@ -36,6 +41,9 @@ public record ApplicabilityEvaluation(
                 }
             }
             case DECLARED -> {
+                if (exclusion != null) {
+                    throw new IllegalArgumentException("Declared basis must not carry an exclusion");
+                }
                 if (observed != null) {
                     throw new IllegalArgumentException("Declared basis must not carry an observed value");
                 }
@@ -50,6 +58,7 @@ public record ApplicabilityEvaluation(
                 if (predicateKind != PredicateKind.CLASSIFICATION_BASED
                         || !Boolean.FALSE.equals(declared)
                         || observed != null
+                        || exclusion == null
                         || effectiveResult != EffectiveResult.FALSE) {
                     throw new IllegalArgumentException("Invalid declaration-only exclusion");
                 }

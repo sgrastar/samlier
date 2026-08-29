@@ -2,6 +2,7 @@ package org.samlier.core.evaluation;
 
 import java.util.List;
 import java.util.Map;
+import java.time.Instant;
 
 public record RunResult(
         Conformance conformance,
@@ -10,12 +11,14 @@ public record RunResult(
         List<RequirementResult> requirements,
         CoverageMetrics coverage,
         List<ApplicabilityEvaluation> applicability,
+        List<ScopeQualification> scopeQualifications,
         List<SuiteIncident> suiteIncidents) {
 
     public RunResult {
         obligations = List.copyOf(obligations);
         requirements = List.copyOf(requirements);
         applicability = List.copyOf(applicability);
+        scopeQualifications = List.copyOf(scopeQualifications);
         suiteIncidents = List.copyOf(suiteIncidents);
     }
 
@@ -45,6 +48,23 @@ public record RunResult(
     public record RequirementResult(String id, Verdict verdict, List<String> obligationKeys) {
         public RequirementResult {
             obligationKeys = List.copyOf(obligationKeys);
+        }
+    }
+
+    public record ScopeQualification(
+            String kind,
+            String predicate,
+            List<String> excludedObligations,
+            String reason,
+            String attestedBy,
+            Instant attestedAt,
+            boolean verified) {
+        public ScopeQualification {
+            excludedObligations = List.copyOf(excludedObligations);
+            if (!"declared_exclusion".equals(kind)) {
+                throw new IllegalArgumentException("Unsupported scope qualification kind");
+            }
+            if (verified) throw new IllegalArgumentException("Declared exclusions are not verified");
         }
     }
 

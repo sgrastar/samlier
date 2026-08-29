@@ -57,7 +57,7 @@ class EvaluatorTest {
                 "REQ.a", Rfc2119Level.MUST, Testability.AUTOMATED, ProfileScope.CORE, "feature"));
         var applicability = new ApplicabilityEvaluation(
                 "REQ.a", "feature", PredicateKind.CAPABILITY_BASED, false, true,
-                EffectiveResult.TRUE, true, Basis.OBSERVED, List.of("metadata:feature"));
+                EffectiveResult.TRUE, true, Basis.OBSERVED, List.of("metadata:feature"), null);
 
         var result = Evaluator.evaluate(catalog, plan(PlanProfile.IDP_CORE), List.of(applicability),
                 List.of(completed("case-a", "REQ.a", Outcome.VIOLATED)), List.of());
@@ -72,7 +72,7 @@ class EvaluatorTest {
                 "REQ.a", Rfc2119Level.MUST, Testability.AUTOMATED, ProfileScope.CORE, "feature"));
         var applicability = new ApplicabilityEvaluation(
                 "REQ.a", "feature", PredicateKind.CAPABILITY_BASED, false, false,
-                EffectiveResult.FALSE, false, Basis.OBSERVED, List.of("probe:negative"));
+                EffectiveResult.FALSE, false, Basis.OBSERVED, List.of("probe:negative"), null);
 
         var result = Evaluator.evaluate(catalog, plan(PlanProfile.IDP_CORE), List.of(applicability), List.of(), List.of());
         assertEquals(Verdict.NOT_APPLICABLE, result.obligations().getFirst().verdict());
@@ -104,15 +104,46 @@ class EvaluatorTest {
         var catalog = catalog(
                 obligation("REQ.a", Rfc2119Level.MUST, Testability.AUTOMATED, ProfileScope.CORE, null),
                 obligation("REQ.b", Rfc2119Level.MUST, Testability.AUTOMATED, ProfileScope.CORE, "classification"));
+        var exclusionDeclaration = new ApplicabilityInput.ExclusionDeclaration(
+                "Target is a classified proxy", "operator", Instant.parse("2026-08-29T00:00:00Z"));
         var exclusion = new ApplicabilityEvaluation(
                 "REQ.b", "classification", PredicateKind.CLASSIFICATION_BASED, false, null,
-                EffectiveResult.FALSE, false, Basis.DECLARATION_ONLY_EXCLUSION, List.of("attestation:proxy"));
+                EffectiveResult.FALSE, false, Basis.DECLARATION_ONLY_EXCLUSION,
+                List.of("attestation:proxy"), exclusionDeclaration);
 
         var result = Evaluator.evaluate(catalog, plan(PlanProfile.IDP_CORE), List.of(exclusion),
                 List.of(completed("case-a", "REQ.a", Outcome.SATISFIED)), List.of());
 
         assertEquals(Conformance.CONFORMANT_WITH_DECLARED_EXCLUSIONS, result.conformance());
         assertEquals(1, result.coverage().excludedByDeclaration());
+        assertEquals(1, result.scopeQualifications().size());
+        assertEquals(List.of("REQ.b"), result.scopeQualifications().getFirst().excludedObligations());
+        assertEquals("Target is a classified proxy", result.scopeQualifications().getFirst().reason());
+        assertEquals(false, result.scopeQualifications().getFirst().verified());
+    }
+
+    @Test
+    void groupsExclusionScopeMechanicallyAndRejectsConflictingDeclarations() {
+        var catalog = catalog(
+                obligation("REQ.a", Rfc2119Level.MUST, Testability.AUTOMATED, ProfileScope.CORE, null),
+                obligation("REQ.b", Rfc2119Level.MUST, Testability.AUTOMATED, ProfileScope.CORE, "classification"),
+                obligation("REQ.c", Rfc2119Level.MUST, Testability.AUTOMATED, ProfileScope.CORE, "classification"));
+        var first = new ApplicabilityInput.ExclusionDeclaration(
+                "Target is in the excluded class", "operator", Instant.parse("2026-08-29T00:00:00Z"));
+        var second = new ApplicabilityInput.ExclusionDeclaration(
+                "Different reason", "operator", Instant.parse("2026-08-29T00:00:00Z"));
+        var exclusionB = exclusion("REQ.b", first);
+        var exclusionC = exclusion("REQ.c", first);
+
+        var result = Evaluator.evaluate(
+                catalog, plan(PlanProfile.IDP_CORE), List.of(exclusionB, exclusionC),
+                List.of(completed("case-a", "REQ.a", Outcome.SATISFIED)), List.of());
+        assertEquals(List.of("REQ.b", "REQ.c"),
+                result.scopeQualifications().getFirst().excludedObligations());
+
+        assertThrows(IllegalArgumentException.class, () -> Evaluator.evaluate(
+                catalog, plan(PlanProfile.IDP_CORE), List.of(exclusionB, exclusion("REQ.c", second)),
+                List.of(completed("case-a", "REQ.a", Outcome.SATISFIED)), List.of()));
     }
 
     @Test
@@ -192,6 +223,14 @@ class EvaluatorTest {
     private static CaseRun completed(String id, String obligation, Outcome outcome) {
         return CaseRun.completed(id, obligation, CaseOutcome.of(
                 outcome, "test", List.of(new EvidenceRef("test", "evidence:" + id))));
+    }
+
+    private static ApplicabilityEvaluation exclusion(
+            String obligation, ApplicabilityInput.ExclusionDeclaration declaration) {
+        return new ApplicabilityEvaluation(
+                obligation, "classification", PredicateKind.CLASSIFICATION_BASED, false, null,
+                EffectiveResult.FALSE, false, Basis.DECLARATION_ONLY_EXCLUSION,
+                List.of("attestation:classification"), declaration);
     }
 
     private static CoverageCatalog catalog(Obligation... obligations) {

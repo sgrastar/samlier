@@ -57,6 +57,6 @@ public final class ApplicabilityEngine {
             Basis basis) {
         return new ApplicabilityEvaluation(
                 obligationKey, predicate, kind, input.declared(), input.observed(), effective, conflict, basis,
-                input.evidenceRefs());
+                input.evidenceRefs(), input.exclusion());
     }
 }

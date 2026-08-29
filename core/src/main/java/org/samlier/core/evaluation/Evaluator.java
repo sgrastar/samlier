@@ -17,6 +17,7 @@ import org.samlier.core.evaluation.RunResult.Conformance;
 import org.samlier.core.evaluation.RunResult.CoverageMetrics;
 import org.samlier.core.evaluation.RunResult.ObligationResult;
 import org.samlier.core.evaluation.RunResult.RequirementResult;
+import org.samlier.core.evaluation.RunResult.ScopeQualification;
 import org.samlier.core.plan.TestPlan;
 
 /** The sole canonical location for outcome conversion and result aggregation. */
@@ -63,6 +64,7 @@ public final class Evaluator {
                 requirementResults,
                 coverage,
                 applicability,
+                scopeQualifications(applicability),
                 incidents);
     }
 
@@ -278,5 +280,34 @@ public final class Evaluator {
                         "UNKNOWN_DELIVERY must not become a target violation: " + incident.caseId());
             }
         }
+    }
+
+    private static List<ScopeQualification> scopeQualifications(
+            List<ApplicabilityEvaluation> applicability) {
+        record Group(ApplicabilityInput.ExclusionDeclaration exclusion, List<String> obligations) {}
+        var groups = new LinkedHashMap<String, Group>();
+        for (var evaluation : applicability) {
+            if (evaluation.basis() != Basis.DECLARATION_ONLY_EXCLUSION) continue;
+            var existing = groups.get(evaluation.predicate());
+            if (existing == null) {
+                var obligations = new ArrayList<String>();
+                obligations.add(evaluation.obligationKey());
+                groups.put(evaluation.predicate(), new Group(evaluation.exclusion(), obligations));
+            } else {
+                if (!existing.exclusion().equals(evaluation.exclusion())) {
+                    throw new IllegalArgumentException(
+                            "One exclusion predicate has inconsistent declarations: " + evaluation.predicate());
+                }
+                existing.obligations().add(evaluation.obligationKey());
+            }
+        }
+        var result = new ArrayList<ScopeQualification>();
+        for (var entry : groups.entrySet()) {
+            var exclusion = entry.getValue().exclusion();
+            result.add(new ScopeQualification(
+                    "declared_exclusion", entry.getKey(), entry.getValue().obligations(), exclusion.reason(),
+                    exclusion.attestedBy(), exclusion.attestedAt(), false));
+        }
+        return List.copyOf(result);
     }
 }

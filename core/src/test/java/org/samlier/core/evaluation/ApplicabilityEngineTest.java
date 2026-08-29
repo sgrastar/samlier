@@ -58,13 +58,14 @@ class ApplicabilityEngineTest {
                 new ApplicabilityInput(true, null, List.of("metadata:feature"), null));
         assertThrows(IllegalArgumentException.class, () -> new ApplicabilityEvaluation(
                 "REQ.a", "feature", PredicateKind.CAPABILITY_BASED, true, true,
-                EffectiveResult.TRUE, true, Basis.OBSERVED, List.of("metadata:feature")));
+                EffectiveResult.TRUE, true, Basis.OBSERVED, List.of("metadata:feature"), null));
         assertThrows(IllegalArgumentException.class, () -> new ApplicabilityEvaluation(
                 "REQ.a", "feature", PredicateKind.CAPABILITY_BASED, false, null,
-                EffectiveResult.FALSE, false, Basis.DECLARED, List.of()));
+                EffectiveResult.FALSE, false, Basis.DECLARED, List.of(), null));
         assertThrows(IllegalArgumentException.class, () -> new ApplicabilityEvaluation(
                 "REQ.a", "feature", PredicateKind.CAPABILITY_BASED, false, null,
-                EffectiveResult.FALSE, false, Basis.DECLARATION_ONLY_EXCLUSION, List.of()));
+                EffectiveResult.FALSE, false, Basis.DECLARATION_ONLY_EXCLUSION, List.of(),
+                new ExclusionDeclaration("reason", "operator", Instant.EPOCH)));
     }
 
     private void assertEvaluation(
