@@ -23,6 +23,7 @@ import org.samlier.runner.cases.IdpErrorProbeConfiguration;
 import org.samlier.runner.cases.PrincipalIdentityResolver;
 import org.samlier.runner.cases.SamlAttributeReleaseFixture;
 import org.samlier.runner.cases.SamlOptionalFieldObservationCase;
+import org.samlier.runner.cases.TargetSigningCertificateProvider;
 import org.samlier.saml.crypto.FilePlanKeyStore;
 
 /** Executes the approved M1 automated subset as an operational check over a completed Transcript. */
@@ -34,6 +35,7 @@ public final class QuickCheckService {
     private final TranscriptContentReader transcriptContent;
     private final CaseExecutionRepository caseExecutions;
     private final FilePlanKeyStore keys;
+    private final TargetSigningCertificateProvider targetSigningCertificates;
     private final URI peerBase;
     private final Clock clock;
 
@@ -44,6 +46,7 @@ public final class QuickCheckService {
             TranscriptContentReader transcriptContent,
             CaseExecutionRepository caseExecutions,
             FilePlanKeyStore keys,
+            TargetSigningCertificateProvider targetSigningCertificates,
             URI peerBase,
             Clock clock) {
         this.plans = Objects.requireNonNull(plans, "plans");
@@ -52,6 +55,8 @@ public final class QuickCheckService {
         this.transcriptContent = Objects.requireNonNull(transcriptContent, "transcriptContent");
         this.caseExecutions = Objects.requireNonNull(caseExecutions, "caseExecutions");
         this.keys = Objects.requireNonNull(keys, "keys");
+        this.targetSigningCertificates = Objects.requireNonNull(
+                targetSigningCertificates, "targetSigningCertificates");
         this.peerBase = Objects.requireNonNull(peerBase, "peerBase");
         this.clock = Objects.requireNonNull(clock, "clock");
     }
@@ -67,7 +72,7 @@ public final class QuickCheckService {
                 transcriptContent,
                 attributeFixtures(),
                 optionalSelectors(),
-                List.<X509Certificate>of(),
+                targetSigningCertificates.certificatesFor(plan),
                 peerBase.resolve("/p/" + plan.id()).toString(),
                 ignored -> Optional.of(credentials.privateKey()),
                 (ignored, identifier) -> PrincipalIdentityResolver.Resolution.unknown(),

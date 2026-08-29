@@ -1,13 +1,19 @@
 package org.samlier.saml.metadata;
 
+import java.io.ByteArrayInputStream;
 import java.net.URI;
+import java.security.cert.CertificateFactory;
+import java.security.cert.X509Certificate;
 import java.util.ArrayList;
+import java.util.Base64;
+import java.util.List;
 import org.samlier.saml.normal.SamlException;
 import org.samlier.saml.normal.SecureXml;
 import org.w3c.dom.Element;
 
 public final class TargetMetadataParser {
     private static final String MD = "urn:oasis:names:tc:SAML:2.0:metadata";
+    private static final String DS = "http://www.w3.org/2000/09/xmldsig#";
 
     public TargetMetadata parse(byte[] xml, String expectedEntityId) {
         var document = SecureXml.parse(xml);
@@ -28,7 +34,7 @@ public final class TargetMetadataParser {
             throw new SamlException("Target metadata entityID does not match the Test Plan");
         }
         return new TargetMetadata(entity.getAttribute("entityID"), endpoints(entity, "SingleSignOnService"),
-                endpoints(entity, "AssertionConsumerService"));
+                endpoints(entity, "AssertionConsumerService"), signingCertificates(entity));
     }
 
     private java.util.List<TargetMetadata.Endpoint> endpoints(Element entity, String localName) {
@@ -44,5 +50,36 @@ public final class TargetMetadataParser {
                     "true".equals(element.getAttribute("isDefault"))));
         }
         return result;
+    }
+
+    private java.util.List<X509Certificate> signingCertificates(Element entity) {
+        var result = new ArrayList<X509Certificate>();
+        var descriptors = entity.getElementsByTagNameNS(MD, "KeyDescriptor");
+        try {
+            var factory = CertificateFactory.getInstance("X.509");
+            for (var descriptorIndex = 0; descriptorIndex < descriptors.getLength(); descriptorIndex++) {
+                var descriptor = (Element) descriptors.item(descriptorIndex);
+                var use = descriptor.getAttribute("use");
+                if (!use.isBlank() && !"signing".equals(use)) continue;
+                var certificates = descriptor.getElementsByTagNameNS(DS, "X509Certificate");
+                for (var certificateIndex = 0; certificateIndex < certificates.getLength(); certificateIndex++) {
+                    var lexical = certificates.item(certificateIndex).getTextContent().replaceAll("\\s+", "");
+                    var certificate = (X509Certificate) factory.generateCertificate(
+                            new ByteArrayInputStream(Base64.getDecoder().decode(lexical)));
+                    if (result.stream().noneMatch(existing -> same(existing, certificate))) result.add(certificate);
+                }
+            }
+            return List.copyOf(result);
+        } catch (Exception invalidCertificate) {
+            throw new SamlException("Target metadata contains an invalid signing certificate", invalidCertificate);
+        }
+    }
+
+    private boolean same(X509Certificate left, X509Certificate right) {
+        try {
+            return java.util.Arrays.equals(left.getEncoded(), right.getEncoded());
+        } catch (java.security.cert.CertificateEncodingException impossible) {
+            throw new SamlException("Could not compare target signing certificates", impossible);
+        }
     }
 }
