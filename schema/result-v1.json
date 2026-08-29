@@ -1,0 +1,321 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://samlier.example/schema/result-v1.json",
+  "title": "Samlier result JSON v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "run", "suite", "evaluation_bundle", "profile", "target",
+    "configuration", "applicability", "advisories", "suite_incidents", "summary",
+    "coverage", "requirements", "unresolved", "not_observable", "conformance_statement"
+  ],
+  "properties": {
+    "schema_version": { "const": "1" },
+    "run": { "$ref": "#/$defs/run" },
+    "suite": { "$ref": "#/$defs/suite" },
+    "evaluation_bundle": { "$ref": "#/$defs/evaluationBundle" },
+    "profile": { "$ref": "#/$defs/profile" },
+    "target": { "$ref": "#/$defs/target" },
+    "configuration": { "$ref": "#/$defs/configuration" },
+    "applicability": { "type": "array", "items": { "$ref": "#/$defs/applicability" } },
+    "advisories": { "type": "array", "items": { "$ref": "#/$defs/advisory" } },
+    "suite_incidents": { "type": "array", "items": { "$ref": "#/$defs/suiteIncident" } },
+    "summary": { "$ref": "#/$defs/summary" },
+    "coverage": { "$ref": "#/$defs/coverage" },
+    "requirements": { "type": "array", "items": { "$ref": "#/$defs/requirement" } },
+    "unresolved": { "type": "array", "items": { "$ref": "#/$defs/unresolved" } },
+    "not_observable": { "type": "array", "items": { "$ref": "#/$defs/notObservable" } },
+    "conformance_statement": { "type": "string", "minLength": 1 }
+  },
+  "$defs": {
+    "nonEmpty": { "type": "string", "minLength": 1 },
+    "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "instant": { "type": "string", "format": "date-time" },
+    "role": { "enum": ["IDP", "SP"] },
+    "kind": { "enum": ["IDP", "SP", "TOKEN_TRANSLATION_PROXY"] },
+    "level": {
+      "enum": ["MUST", "MUST_NOT", "REQUIRED", "SHOULD", "SHOULD_NOT", "RECOMMENDED", "NOT_RECOMMENDED", "MAY", "OPTIONAL"]
+    },
+    "verdict": {
+      "enum": ["FAIL", "INCONSISTENT", "ERROR", "INDETERMINATE", "NOT_VERIFIED", "WARNING", "PASS", "NOT_SUPPORTED", "NOT_OBSERVABLE", "NOT_APPLICABLE"]
+    },
+    "outcome": {
+      "type": ["string", "null"],
+      "enum": ["SATISFIED", "SATISFIED_WITH_NOTE", "VIOLATED", "INDETERMINATE", "INCONSISTENT", "NOT_VERIFIED", null]
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "reference"],
+      "properties": {
+        "kind": { "$ref": "#/$defs/nonEmpty" },
+        "reference": { "$ref": "#/$defs/nonEmpty" }
+      }
+    },
+    "scopeQualification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "predicate", "excluded_obligations", "reason", "attested_by", "attested_at", "verified"],
+      "properties": {
+        "kind": { "const": "declared_exclusion" },
+        "predicate": { "$ref": "#/$defs/nonEmpty" },
+        "excluded_obligations": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/nonEmpty" } },
+        "reason": { "$ref": "#/$defs/nonEmpty" },
+        "attested_by": { "$ref": "#/$defs/nonEmpty" },
+        "attested_at": { "$ref": "#/$defs/instant" },
+        "verified": { "const": false }
+      }
+    },
+    "run": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "started_at", "finished_at", "conformance", "completeness", "scope_qualifications"],
+      "properties": {
+        "id": { "$ref": "#/$defs/nonEmpty" },
+        "started_at": { "$ref": "#/$defs/instant" },
+        "finished_at": { "$ref": "#/$defs/instant" },
+        "conformance": { "enum": ["CONFORMANT", "CONFORMANT_WITH_WARNINGS", "CONFORMANT_WITH_DECLARED_EXCLUSIONS", "NON_CONFORMANT", "INDETERMINATE"] },
+        "completeness": { "enum": ["COMPLETE", "INCOMPLETE"] },
+        "scope_qualifications": { "type": "array", "items": { "$ref": "#/$defs/scopeQualification" } }
+      }
+    },
+    "suite": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version", "image_digest", "execution_mode"],
+      "properties": {
+        "name": { "$ref": "#/$defs/nonEmpty" },
+        "version": { "$ref": "#/$defs/nonEmpty" },
+        "image_digest": { "$ref": "#/$defs/digest" },
+        "execution_mode": { "$ref": "#/$defs/nonEmpty" }
+      }
+    },
+    "evaluationBundle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["digest", "components"],
+      "properties": {
+        "digest": { "$ref": "#/$defs/digest" },
+        "components": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["coverage_yaml", "test_definitions", "specs_yaml", "outcome_mapping_version", "aggregation_policy_version"],
+          "properties": {
+            "coverage_yaml": { "$ref": "#/$defs/digest" },
+            "test_definitions": { "$ref": "#/$defs/digest" },
+            "specs_yaml": { "$ref": "#/$defs/digest" },
+            "outcome_mapping_version": { "$ref": "#/$defs/nonEmpty" },
+            "aggregation_policy_version": { "$ref": "#/$defs/nonEmpty" }
+          }
+        }
+      }
+    },
+    "profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "spec", "level_definition_note"],
+      "properties": {
+        "id": { "enum": ["idp-core", "idp-full", "sp-core", "sp-full"] },
+        "spec": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["document", "version", "date"],
+          "properties": {
+            "document": { "$ref": "#/$defs/nonEmpty" },
+            "version": { "$ref": "#/$defs/nonEmpty" },
+            "date": { "type": "string", "format": "date" }
+          }
+        },
+        "level_definition_note": { "$ref": "#/$defs/nonEmpty" }
+      }
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["declared_product", "declared_by", "verified", "entity_id", "metadata_digest", "role", "kind"],
+      "properties": {
+        "declared_product": { "$ref": "#/$defs/nonEmpty" },
+        "declared_by": { "$ref": "#/$defs/nonEmpty" },
+        "verified": { "const": false },
+        "entity_id": { "type": "string", "format": "uri" },
+        "metadata_digest": { "$ref": "#/$defs/digest" },
+        "role": { "$ref": "#/$defs/role" },
+        "kind": { "$ref": "#/$defs/kind" }
+      }
+    },
+    "configuration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["suite_metadata_delivery", "reachability", "declared_features", "parameters"],
+      "properties": {
+        "suite_metadata_delivery": { "enum": ["MANUAL", "HTTP_URL", "MDQ"] },
+        "reachability": { "enum": ["UNKNOWN", "CONFIRMED", "UNAVAILABLE"] },
+        "declared_features": { "type": "object", "additionalProperties": { "type": "boolean" } },
+        "parameters": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["clock_skew_tolerance_seconds", "metadata_refresh_wait_seconds"],
+          "properties": {
+            "clock_skew_tolerance_seconds": { "type": "integer", "minimum": 0 },
+            "metadata_refresh_wait_seconds": { "type": "integer", "minimum": 1 }
+          }
+        }
+      }
+    },
+    "applicability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["obligation", "predicate", "predicate_kind", "declared", "observed", "effective_result", "conflict", "basis", "evidence"],
+      "properties": {
+        "obligation": { "$ref": "#/$defs/nonEmpty" },
+        "predicate": { "$ref": "#/$defs/nonEmpty" },
+        "predicate_kind": { "enum": ["CLAIM_BASED", "CAPABILITY_BASED", "CLASSIFICATION_BASED"] },
+        "declared": { "type": ["boolean", "null"] },
+        "observed": { "type": ["boolean", "null"] },
+        "effective_result": { "enum": ["TRUE", "FALSE", "UNKNOWN"] },
+        "conflict": { "type": "boolean" },
+        "basis": { "enum": ["DECLARED", "OBSERVED", "DECLARATION_ONLY_EXCLUSION"] },
+        "evidence": { "type": "array", "items": { "$ref": "#/$defs/evidence" } }
+      }
+    },
+    "advisory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "obligation", "severity", "message_en", "affects_verdict"],
+      "properties": {
+        "code": { "$ref": "#/$defs/nonEmpty" },
+        "obligation": { "$ref": "#/$defs/nonEmpty" },
+        "severity": { "$ref": "#/$defs/nonEmpty" },
+        "message_en": { "$ref": "#/$defs/nonEmpty" },
+        "affects_verdict": { "const": false }
+      }
+    },
+    "suiteIncident": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "case_id", "action_id", "note"],
+      "properties": {
+        "kind": { "$ref": "#/$defs/nonEmpty" },
+        "case_id": { "$ref": "#/$defs/nonEmpty" },
+        "action_id": { "type": ["string", "null"] },
+        "note": { "type": ["string", "null"] }
+      }
+    },
+    "verdictCounts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fail", "inconsistent", "error", "indeterminate", "not_verified", "warning", "pass", "not_supported", "not_observable", "not_applicable"],
+      "properties": {
+        "fail": { "type": "integer", "minimum": 0 },
+        "inconsistent": { "type": "integer", "minimum": 0 },
+        "error": { "type": "integer", "minimum": 0 },
+        "indeterminate": { "type": "integer", "minimum": 0 },
+        "not_verified": { "type": "integer", "minimum": 0 },
+        "warning": { "type": "integer", "minimum": 0 },
+        "pass": { "type": "integer", "minimum": 0 },
+        "not_supported": { "type": "integer", "minimum": 0 },
+        "not_observable": { "type": "integer", "minimum": 0 },
+        "not_applicable": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "count": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["total", "verdicts"],
+      "properties": {
+        "total": { "type": "integer", "minimum": 0 },
+        "verdicts": { "$ref": "#/$defs/verdictCounts" }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requirements", "obligations", "cases"],
+      "properties": {
+        "requirements": { "$ref": "#/$defs/count" },
+        "obligations": { "$ref": "#/$defs/count" },
+        "cases": { "$ref": "#/$defs/count" }
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["obligations_total", "obligations_applicable", "must_applicable", "must_observable", "must_resolved", "must_unresolved", "must_not_observable", "attested_obligations", "applicability_from_declaration_only", "excluded_by_declaration", "verified_ratio"],
+      "properties": {
+        "obligations_total": { "type": "integer", "minimum": 0 },
+        "obligations_applicable": { "type": "integer", "minimum": 0 },
+        "must_applicable": { "type": "integer", "minimum": 0 },
+        "must_observable": { "type": "integer", "minimum": 0 },
+        "must_resolved": { "type": "integer", "minimum": 0 },
+        "must_unresolved": { "type": "integer", "minimum": 0 },
+        "must_not_observable": { "type": "integer", "minimum": 0 },
+        "attested_obligations": { "type": "integer", "minimum": 0 },
+        "applicability_from_declaration_only": { "type": "integer", "minimum": 0 },
+        "excluded_by_declaration": { "type": "integer", "minimum": 0 },
+        "verified_ratio": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "obligation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "level", "role", "verdict"],
+      "properties": {
+        "key": { "$ref": "#/$defs/nonEmpty" },
+        "level": { "$ref": "#/$defs/level" },
+        "role": { "$ref": "#/$defs/role" },
+        "verdict": { "$ref": "#/$defs/verdict" }
+      }
+    },
+    "case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "obligation", "outcome", "verdict", "mode", "reason_code", "reason", "attested", "evidence", "definition_url"],
+      "properties": {
+        "id": { "$ref": "#/$defs/nonEmpty" },
+        "obligation": { "$ref": "#/$defs/nonEmpty" },
+        "outcome": { "$ref": "#/$defs/outcome" },
+        "verdict": { "$ref": "#/$defs/verdict" },
+        "mode": { "enum": ["AUTOMATED", "BROWSER", "CONFIG", "ATTESTED", "NOT_OBSERVABLE"] },
+        "reason_code": { "$ref": "#/$defs/nonEmpty" },
+        "reason": { "$ref": "#/$defs/nonEmpty" },
+        "attested": { "type": "boolean" },
+        "evidence": { "type": "array", "items": { "$ref": "#/$defs/evidence" } },
+        "definition_url": { "type": "string", "format": "uri-reference" }
+      }
+    },
+    "requirement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "verdict", "spec_url", "obligations", "cases"],
+      "properties": {
+        "id": { "$ref": "#/$defs/nonEmpty" },
+        "verdict": { "$ref": "#/$defs/verdict" },
+        "spec_url": { "type": "string", "format": "uri-reference" },
+        "obligations": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/obligation" } },
+        "cases": { "type": "array", "items": { "$ref": "#/$defs/case" } }
+      }
+    },
+    "unresolved": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["obligation", "level", "verdict", "reasons", "how_to_resolve"],
+      "properties": {
+        "obligation": { "$ref": "#/$defs/nonEmpty" },
+        "level": { "$ref": "#/$defs/level" },
+        "verdict": { "enum": ["INCONSISTENT", "ERROR", "INDETERMINATE", "NOT_VERIFIED"] },
+        "reasons": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/nonEmpty" } },
+        "how_to_resolve": { "$ref": "#/$defs/nonEmpty" }
+      }
+    },
+    "notObservable": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["obligation", "level", "reason"],
+      "properties": {
+        "obligation": { "$ref": "#/$defs/nonEmpty" },
+        "level": { "$ref": "#/$defs/level" },
+        "reason": { "$ref": "#/$defs/nonEmpty" }
+      }
+    }
+  }
+}

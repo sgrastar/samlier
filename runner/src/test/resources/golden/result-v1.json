@@ -1,0 +1,205 @@
+{
+  "schema_version" : "1",
+  "run" : {
+    "id" : "run_0123456789ABCDEFGHJKMNPQRS",
+    "started_at" : "2026-08-29T14:00:00Z",
+    "finished_at" : "2026-08-29T14:00:30Z",
+    "conformance" : "CONFORMANT_WITH_DECLARED_EXCLUSIONS",
+    "completeness" : "COMPLETE",
+    "scope_qualifications" : [ {
+      "kind" : "declared_exclusion",
+      "predicate" : "classification",
+      "excluded_obligations" : [ "OTHER.a" ],
+      "reason" : "Target is outside this classification",
+      "attested_by" : "operator",
+      "attested_at" : "2026-08-29T14:00:00Z",
+      "verified" : false
+    } ]
+  },
+  "suite" : {
+    "name" : "Samlier",
+    "version" : "0.1.0",
+    "image_digest" : "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "execution_mode" : "self-hosted"
+  },
+  "evaluation_bundle" : {
+    "digest" : "sha256:3110b9b40efa3e4691a9ebd2818fc771f62ddb7e7b3002f651f8b983e488d7d9",
+    "components" : {
+      "coverage_yaml" : "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "test_definitions" : "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "specs_yaml" : "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "outcome_mapping_version" : "1",
+      "aggregation_policy_version" : "1"
+    }
+  },
+  "profile" : {
+    "id" : "idp-full",
+    "spec" : {
+      "document" : "SAML V2.0 Implementation Profile for Federation Interoperability",
+      "version" : "1.1",
+      "date" : "2019-12-18"
+    },
+    "level_definition_note" : "Core and Full are Samlier test scopes, not IIP conformance classes."
+  },
+  "target" : {
+    "declared_product" : "Example IdP",
+    "declared_by" : "operator",
+    "verified" : false,
+    "entity_id" : "https://idp.example/entity",
+    "metadata_digest" : "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "role" : "IDP",
+    "kind" : "IDP"
+  },
+  "configuration" : {
+    "suite_metadata_delivery" : "HTTP_URL",
+    "reachability" : "CONFIRMED",
+    "declared_features" : {
+      "single_logout" : true
+    },
+    "parameters" : {
+      "clock_skew_tolerance_seconds" : 180,
+      "metadata_refresh_wait_seconds" : 300
+    }
+  },
+  "applicability" : [ {
+    "obligation" : "OTHER.a",
+    "predicate" : "classification",
+    "predicate_kind" : "CLASSIFICATION_BASED",
+    "declared" : false,
+    "observed" : null,
+    "effective_result" : "FALSE",
+    "conflict" : false,
+    "basis" : "DECLARATION_ONLY_EXCLUSION",
+    "evidence" : [ ]
+  } ],
+  "advisories" : [ {
+    "code" : "clock_skew.very_permissive",
+    "obligation" : "REQ.a",
+    "severity" : "info",
+    "message_en" : "Observed only.",
+    "affects_verdict" : false
+  } ],
+  "suite_incidents" : [ ],
+  "summary" : {
+    "requirements" : {
+      "total" : 2,
+      "verdicts" : {
+        "error" : 0,
+        "fail" : 0,
+        "inconsistent" : 0,
+        "indeterminate" : 0,
+        "not_applicable" : 1,
+        "not_observable" : 0,
+        "not_supported" : 0,
+        "not_verified" : 0,
+        "pass" : 0,
+        "warning" : 1
+      }
+    },
+    "obligations" : {
+      "total" : 4,
+      "verdicts" : {
+        "error" : 0,
+        "fail" : 0,
+        "inconsistent" : 0,
+        "indeterminate" : 0,
+        "not_applicable" : 1,
+        "not_observable" : 1,
+        "not_supported" : 0,
+        "not_verified" : 0,
+        "pass" : 1,
+        "warning" : 1
+      }
+    },
+    "cases" : {
+      "total" : 2,
+      "verdicts" : {
+        "error" : 0,
+        "fail" : 0,
+        "inconsistent" : 0,
+        "indeterminate" : 0,
+        "not_applicable" : 0,
+        "not_observable" : 0,
+        "not_supported" : 0,
+        "not_verified" : 0,
+        "pass" : 1,
+        "warning" : 1
+      }
+    }
+  },
+  "coverage" : {
+    "obligations_total" : 4,
+    "obligations_applicable" : 3,
+    "must_applicable" : 2,
+    "must_observable" : 1,
+    "must_resolved" : 1,
+    "must_unresolved" : 0,
+    "must_not_observable" : 1,
+    "attested_obligations" : 1,
+    "applicability_from_declaration_only" : 1,
+    "excluded_by_declaration" : 1,
+    "verified_ratio" : 1.0
+  },
+  "requirements" : [ {
+    "id" : "REQ",
+    "verdict" : "WARNING",
+    "spec_url" : "https://example.test/spec#REQ",
+    "obligations" : [ {
+      "key" : "REQ.a",
+      "level" : "MUST",
+      "role" : "IDP",
+      "verdict" : "PASS"
+    }, {
+      "key" : "REQ.b",
+      "level" : "SHOULD",
+      "role" : "IDP",
+      "verdict" : "WARNING"
+    }, {
+      "key" : "REQ.c",
+      "level" : "MUST",
+      "role" : "IDP",
+      "verdict" : "NOT_OBSERVABLE"
+    } ],
+    "cases" : [ {
+      "id" : "REQ-a-idp-01",
+      "obligation" : "REQ.a",
+      "outcome" : "SATISFIED",
+      "verdict" : "PASS",
+      "mode" : "AUTOMATED",
+      "reason_code" : "ok",
+      "reason" : "ok",
+      "attested" : false,
+      "evidence" : [ ],
+      "definition_url" : "https://example.test/cases/REQ-a-idp-01"
+    }, {
+      "id" : "REQ-b-idp-01",
+      "obligation" : "REQ.b",
+      "outcome" : "VIOLATED",
+      "verdict" : "WARNING",
+      "mode" : "ATTESTED",
+      "reason_code" : "recommendation",
+      "reason" : "recommendation",
+      "attested" : true,
+      "evidence" : [ ],
+      "definition_url" : "https://example.test/cases/REQ-b-idp-01"
+    } ]
+  }, {
+    "id" : "OTHER",
+    "verdict" : "NOT_APPLICABLE",
+    "spec_url" : "https://example.test/spec#OTHER",
+    "obligations" : [ {
+      "key" : "OTHER.a",
+      "level" : "MUST",
+      "role" : "IDP",
+      "verdict" : "NOT_APPLICABLE"
+    } ],
+    "cases" : [ ]
+  } ],
+  "unresolved" : [ ],
+  "not_observable" : [ {
+    "obligation" : "REQ.c",
+    "level" : "MUST",
+    "reason" : "The obligation cannot be verified from the external protocol surface."
+  } ],
+  "conformance_statement" : "Conformance: CONFORMANT_WITH_DECLARED_EXCLUSIONS; completeness: COMPLETE. Resolved 1 of 1 externally testable MUST-class obligations. 1 MUST-class obligation(s) were not externally observable: REQ.c. 1 obligation(s) were excluded using unverified declarations; see scope_qualifications. This is a test result, not a certification."
+}
