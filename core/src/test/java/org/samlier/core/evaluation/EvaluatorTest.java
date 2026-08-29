@@ -172,6 +172,20 @@ class EvaluatorTest {
         assertEquals(List.of(incident), result.suiteIncidents());
     }
 
+    @Test
+    void rejectsUnknownDeliveryThatWasTransferredIntoATargetViolation() {
+        var catalog = catalog(obligation(
+                "REQ.a", Rfc2119Level.MUST, Testability.AUTOMATED, ProfileScope.CORE, null));
+        var incident = new SuiteIncident("UNKNOWN_DELIVERY", "case-a", "action-1", "delivery unknown");
+
+        assertThrows(IllegalArgumentException.class, () -> Evaluator.evaluate(
+                catalog,
+                plan(PlanProfile.IDP_CORE),
+                List.of(),
+                List.of(completed("case-a", "REQ.a", Outcome.VIOLATED)),
+                List.of(incident)));
+    }
+
     private static CaseRun completed(String id, String obligation, Outcome outcome) {
         return CaseRun.completed(id, obligation, CaseOutcome.of(
                 outcome, "test", List.of(new EvidenceRef("test", "evidence:" + id))));

@@ -42,6 +42,7 @@ public final class Evaluator {
         var selectedByKey = indexObligations(selected);
         var applicabilityByKey = indexApplicability(applicability, selectedByKey);
         var casesByObligation = indexCases(caseRuns, selectedByKey);
+        validateSuiteIncidents(caseRuns, incidents);
 
         var obligationResults = new ArrayList<ObligationResult>();
         for (var obligation : selected) {
@@ -263,5 +264,19 @@ public final class Evaluator {
         var immutable = new LinkedHashMap<String, List<CaseRun>>();
         for (var entry : result.entrySet()) immutable.put(entry.getKey(), List.copyOf(entry.getValue()));
         return immutable;
+    }
+
+    private static void validateSuiteIncidents(List<CaseRun> caseRuns, List<SuiteIncident> incidents) {
+        var byId = new LinkedHashMap<String, CaseRun>();
+        for (var caseRun : caseRuns) byId.put(caseRun.id(), caseRun);
+        for (var incident : incidents) {
+            if (!"UNKNOWN_DELIVERY".equals(incident.kind())) continue;
+            var caseRun = byId.get(incident.caseId());
+            if (caseRun != null && caseRun.outcome() != null
+                    && caseRun.outcome().outcome() == Outcome.VIOLATED) {
+                throw new IllegalArgumentException(
+                        "UNKNOWN_DELIVERY must not become a target violation: " + incident.caseId());
+            }
+        }
     }
 }

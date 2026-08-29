@@ -9,7 +9,7 @@ import org.samlier.core.caseexec.CaseIds;
 import org.samlier.core.evaluation.CaseRun;
 
 /** Projects persisted finished executions into the Evaluator's case-side input. */
-public final class CaseRunProjection {
+public final class CaseRunProjection implements CaseRunProvider {
     private final CaseExecutionRepository repository;
     private final TestCaseRegistry registry;
 
@@ -18,6 +18,7 @@ public final class CaseRunProjection {
         this.registry = Objects.requireNonNull(registry, "registry");
     }
 
+    @Override
     public List<CaseRun> completed(String runId) {
         if (runId == null || runId.isBlank()) throw new IllegalArgumentException("runId must not be blank");
         var projected = new ArrayList<CaseRun>();
