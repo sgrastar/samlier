@@ -74,7 +74,11 @@ def main():
         environment['G2_VALIDATOR_SOURCE'] = anchor
         environment['G2_VALIDATOR_SOURCE_KIND'] = source_kind
         environment['G2_RUNNER_SOURCE'] = os.environ.get('G2_RUNNER_COMMIT') or 'working-tree'
-        print(f'[g2-trusted-verify] approval={approval_commit[:12]} target={target[:12]} validator={anchor[:12]}')
+        print(f'[g2-trusted-verify] Target repository: {ROOT}')
+        print(f'[g2-trusted-verify] Signed approval commit: {approval_commit} (signed-commit)')
+        print(f'[g2-trusted-verify] Approved target commit: {target}')
+        print(f'[g2-trusted-verify] Validator source: {anchor} ({source_kind})')
+        print(f'[g2-trusted-verify] Runner source: {environment["G2_RUNNER_SOURCE"]}')
         process = subprocess.run([sys.executable, '-I', str(tools / 'g2_validate.py')],
                                  cwd=temporary, env=environment, check=False)
         return process.returncode

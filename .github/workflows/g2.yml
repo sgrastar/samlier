@@ -27,7 +27,7 @@ jobs:
         run: |
           rm -f build/g2-report.json
           .venv/bin/python tools/g2_validate.py
-          ./gradlew :saml:test --tests org.samlier.saml.G2FeasibilitySpikeTest --no-daemon
+          ./gradlew check --no-daemon
       - uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882
         if: always()
         with: { name: g2-design-report, path: build/g2-report.json }
@@ -40,6 +40,8 @@ jobs:
         with: { fetch-depth: 0 }
       - uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b
         with: { python-version: '3.14' }
+      - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654
+        with: { distribution: temurin, java-version: '21', cache: gradle }
       - name: Validate immutable G2 tools pin
         env:
           G2_TOOLS_COMMIT: ${{ vars.G2_TOOLS_COMMIT }}
@@ -90,6 +92,16 @@ jobs:
           assert provenance['validator_source'] == os.environ['G2_TOOLS_COMMIT']
           assert provenance['runner_source'] == os.environ['G2_TOOLS_COMMIT']
           PY
+      - name: Re-run feasibility evidence from the pinned target
+        env:
+          G2_TOOLS_COMMIT: ${{ vars.G2_TOOLS_COMMIT }}
+        run: |
+          set -euo pipefail
+          TARGET=$(mktemp -d)
+          git archive "$G2_TOOLS_COMMIT" | tar -x -C "$TARGET"
+          cd "$TARGET"
+          ./gradlew :saml:test --tests org.samlier.saml.G2FeasibilitySpikeTest --no-daemon
+          ./gradlew :peer:test --tests org.samlier.peer.PeerG2FeasibilityTest --no-daemon
       - uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882
         if: always()
         with: { name: g2-approval-report, path: build/g2-report.json }

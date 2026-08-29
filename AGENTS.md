@@ -79,7 +79,9 @@ Make operationally useful observations **advisory** (`affects_verdict: false`)
 ### 7. Do not create cases without controls
 
 If an implementation can satisfy the expected value while failing the obligation, that case has no detection power.
-Always pair positive / negative controls ([G2 in docs/01](docs/01-scope-and-roadmap.md)).
+Pair positive / negative controls for every evaluative case ([G2 in docs/01](docs/01-scope-and-roadmap.md)).
+For an explicitly non-evaluative MAY/OPTIONAL choice, use an informational fixture plus
+`control_waiver_en` and `mutant_waiver`; never fabricate an unreachable `violated` outcome.
 
 **Cover expanded `linked_obligations` as well.** A link with `kind: inherit_variants` means
 “also cover the linked obligation's `required_variants`,” and must be expanded **transitively**.

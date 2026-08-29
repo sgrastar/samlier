@@ -195,12 +195,14 @@ It does not change when reordered; editing the description changes it (= the var
 ### Pass criteria
 
 - [ ] **All <!--g1:case_target-->543<!--/g1--> obligations are assigned to at least one case** (verified in CI).
-- [ ] Each obligation’s **`required_variants` is completely covered by `covers_variants`**.
+- [ ] Each obligation’s **`required_variants` is completely covered by `covers_variants`**, with
+      `variant_groups` preserving `all_of` / `one_of` / `one_of_available` semantics.
 - [ ] **Expanded `linked_obligations` are also covered** — the variant set obtained by **transitively expanding** links with `kind: inherit_variants` is the denominator ([03 §Link semantics](03-test-model.md) L1). Apply each link's `variant_applicability` rule while scheduling the imported variants (L2).
       Covering the destination’s variants **does not cover the linked obligation itself** (L4).
       Refer to them with the qualified form `<obligation key>#<variant ID>` (L3).
-- [ ] Each case has both a **positive control and a negative control**
-      (if only one exists, record the reason in `control_waiver_en`).
+- [ ] Each evaluative case has both a **positive control and a negative control**.
+      An explicitly non-evaluative MAY/OPTIONAL choice instead has an informational fixture,
+      `control_waiver_en`, and `mutant_waiver`; it must not invent a `violated` outcome.
 - [ ] Each case includes a **`counterexample_en`** (an implementation that passes without satisfying the obligation).
       If one cannot be written, redesign the case because it has no detection power.
 - [ ] ★ Each obligation is **detected by an executable mutant or has a waiver**

@@ -254,7 +254,11 @@ signed `tests/approvals/g2.yaml` record.
 The G2 trust protocol mirrors G1: target commit C contains no approval record;
 signed commit A adds only `tests/approvals/g2.yaml`; CI extracts the trusted runner
 and validator from the immutable `G2_TOOLS_COMMIT`. The workflow must verify
-`g2.complete == true` and external-pin provenance before enabling M1.
+`g2.complete == true` and external-pin provenance before enabling M1. It then
+extracts that same immutable target into an isolated directory and reruns the
+SAML and peer feasibility tests under Java 21. The signed artifact manifest
+includes the approved G1 inputs, the complete fixture tree, build/dependency
+inputs, and every production boundary used as feasibility evidence.
 
 **Explicit limits** (the validator makes no stronger claim):
 

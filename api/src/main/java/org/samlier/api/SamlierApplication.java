@@ -205,7 +205,7 @@ public final class SamlierApplication {
     }
 
     private static String peerEntityId(AppConfig config, TestPlan plan) {
-        return config.peerBaseUrl().resolve("/p/" + plan.id()).toString();
+        return org.samlier.peer.PeerIdentity.primary(config.peerBaseUrl(), plan.id()).toString();
     }
 
     private static TestPlan requirePlan(PlanRepository plans, String id) {

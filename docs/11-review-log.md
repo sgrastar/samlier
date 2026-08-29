@@ -3602,3 +3602,35 @@ and CI entry points continue to extract the validator from a pinned commit and
 execute it in isolated mode. The G1 catalog content and obligation digests are
 unchanged; the amended validator must nevertheless receive a new signed approval
 because it is itself a protected G1 artifact.
+
+---
+
+## G2 Consolidated Design Review Corrections — 2026-08-29
+
+The first complete G2 review found that full variant-set coverage alone did not
+prove executable detection power. The correction retained every approved G1
+meaning and changed only G2 design, evidence, and approval enforcement.
+
+- Explicitly non-evaluative MAY/OPTIONAL choices now use informational fixtures
+  and mutant waivers; no unreachable `violated` outcome is manufactured.
+- Variant plans and logical groups preserve `all_of`, `one_of`, and
+  `one_of_available`, including the alternatives in `IIP-IDP12.d` and the
+  available read-back paths in `IIP-G02.c`.
+- Mutants now carry structured observation contracts. The `IIP-IDP16.a`
+  mutation is restricted to ECP so the linked Web Browser SSO obligation remains
+  unchanged.
+- Universal accept/reject controls apply only to explicit receiver decisions,
+  not to every producer, CONFIG, ATTESTED, passive, or informational case.
+- Baseline conditions are derived from fixture inputs. A fifth proxy IdP
+  baseline separates mutually exclusive classifications, all baselines retain
+  MDQ capability, and role/profile/condition precedence is fixed.
+- SLO cases that terminate state declare the effect and use a fresh isolated
+  session. Missing observation opportunities remain `not_verified`.
+- Every feasibility assertion maps one-to-one to an executable production-
+  boundary test; test-local fakes no longer count as evidence.
+- G2 approval binds G1 inputs, the complete fixture tree, build inputs,
+  feasibility boundaries, schemas, validators, and CI. Approval CI reruns tests
+  from the externally pinned target.
+
+These changes do not approve G2 and do not begin M1. Independent signed review
+remains the next gate.
