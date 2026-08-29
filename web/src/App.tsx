@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { api, type Plan, type PlanInput, type Profile, type Run } from './api'
 import { ResultReport } from './ResultReport'
+import { ManagementBootstrap } from './ManagementBootstrap'
 
 const initialInput: PlanInput = {
   name: '',
@@ -18,6 +19,8 @@ const initialInput: PlanInput = {
 export function App() {
   const reportRunId = window.location.pathname.match(/^\/reports\/(run_[0-9A-HJKMNP-TV-Z]{26})$/)?.[1]
   if (reportRunId) return <ResultReport runId={reportRunId} />
+  const manageRunId = window.location.pathname.match(/^\/manage\/(run_[0-9A-HJKMNP-TV-Z]{26})$/)?.[1]
+  if (manageRunId) return <ManagementBootstrap runId={manageRunId} />
 
   const [plans, setPlans] = useState<Plan[]>([])
   const [selectedId, setSelectedId] = useState<string>()

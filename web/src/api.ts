@@ -97,6 +97,11 @@ export interface PlanInput {
   interaction: { allowBrowserSteps: boolean; allowAttestation: boolean }
 }
 
+export interface ManagementSession {
+  runId: string
+  csrfToken: string
+}
+
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, {
     ...init,
@@ -131,4 +136,7 @@ export const api = {
   result: async (runId: string) => camelize(
     await request<unknown>(`/api/runs/${runId}/result.json`),
   ) as PublicResult,
+  managementSession: (runId: string, token: string) => request<ManagementSession>(
+    '/api/manage/session', { method: 'POST', body: JSON.stringify({ runId, token }) },
+  ),
 }

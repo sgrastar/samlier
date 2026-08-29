@@ -1,0 +1,9 @@
+package org.samlier.core.access;
+
+import java.util.Optional;
+
+public interface RunAccessGrantRepository {
+    Optional<RunAccessGrant> find(String runId);
+    void save(RunAccessGrant grant);
+    boolean delete(String runId);
+}

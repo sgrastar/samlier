@@ -16,6 +16,8 @@ class AppConfigTest {
                 URI.create("https://app.example"), URI.create("https://peer.example"), true, false));
         assertThrows(IllegalArgumentException.class, () -> config(
                 URI.create("https://app.example"), URI.create("https://peer.example"), false, true));
+        assertThrows(IllegalArgumentException.class, () -> config(
+                URI.create("http://app.example"), URI.create("https://peer.example"), false, false));
         assertDoesNotThrow(() -> config(
                 URI.create("https://app.example"), URI.create("https://peer.example"), false, false));
     }

@@ -38,6 +38,8 @@ class SqliteDatabaseMigrationTest {
             assertEquals(2, versions.getInt(1));
             assertTrue(versions.next());
             assertEquals(3, versions.getInt(1));
+            assertTrue(versions.next());
+            assertEquals(4, versions.getInt(1));
         }
         try (var connection = upgraded.open();
              var table = connection.createStatement().executeQuery(
@@ -47,6 +49,11 @@ class SqliteDatabaseMigrationTest {
         try (var connection = upgraded.open();
              var table = connection.createStatement().executeQuery(
                      "SELECT name FROM sqlite_master WHERE type='table' AND name='applicability_inputs'")) {
+            assertTrue(table.next());
+        }
+        try (var connection = upgraded.open();
+             var table = connection.createStatement().executeQuery(
+                     "SELECT name FROM sqlite_master WHERE type='table' AND name='run_access_grants'")) {
             assertTrue(table.next());
         }
     }

@@ -1,0 +1,104 @@
+package org.samlier.runner.access;
+
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+import java.time.Clock;
+import java.util.Base64;
+import java.util.Objects;
+import org.samlier.core.access.RunAccessGrant;
+import org.samlier.core.access.RunAccessGrantRepository;
+import org.samlier.core.run.RunRepository;
+
+/** Issues, exchanges, rotates, authorizes, and revokes per-Run management credentials. */
+public final class RunAccessService implements ManagementSessionExecutor {
+    private static final SecureRandom RANDOM = new SecureRandom();
+    private static final int TOKEN_BYTES = 32;
+    private final URI publicBase;
+    private final RunRepository runs;
+    private final RunAccessGrantRepository grants;
+    private final Clock clock;
+
+    public RunAccessService(URI publicBase, RunRepository runs, RunAccessGrantRepository grants, Clock clock) {
+        this.publicBase = Objects.requireNonNull(publicBase, "publicBase");
+        this.runs = Objects.requireNonNull(runs, "runs");
+        this.grants = Objects.requireNonNull(grants, "grants");
+        this.clock = Objects.requireNonNull(clock, "clock");
+    }
+
+    /** Reissuing invalidates the old access URL and every existing management session immediately. */
+    public IssuedAccess issue(String runId) {
+        requireRun(runId);
+        var raw = token();
+        grants.save(new RunAccessGrant(runId, hash(raw), null, null, clock.instant(), false));
+        return new IssuedAccess(runId, publicBase.resolve("/manage/" + runId + "#t=" + raw));
+    }
+
+    @Override
+    public ManagementSession exchange(String runId, String accessToken) {
+        validToken(accessToken);
+        var grant = grants.find(runId).orElseThrow(RunAccessService::denied);
+        if (grant.revoked() || !constantTimeEquals(grant.accessTokenHash(), hash(accessToken))) throw denied();
+        var session = token();
+        var csrf = token();
+        grants.save(new RunAccessGrant(
+                runId, grant.accessTokenHash(), hash(session), hash(csrf), clock.instant(), false));
+        return new ManagementSession(runId, session, csrf);
+    }
+
+    public void authorize(String runId, String sessionToken) {
+        validToken(sessionToken);
+        var grant = grants.find(runId).orElseThrow(RunAccessService::denied);
+        if (grant.revoked() || grant.sessionTokenHash() == null
+                || !constantTimeEquals(grant.sessionTokenHash(), hash(sessionToken))) throw denied();
+    }
+
+    public void authorizeMutation(String runId, String sessionToken, String csrfToken) {
+        authorize(runId, sessionToken);
+        validToken(csrfToken);
+        var grant = grants.find(runId).orElseThrow(RunAccessService::denied);
+        if (!constantTimeEquals(grant.csrfTokenHash(), hash(csrfToken))) throw denied();
+    }
+
+    public void revoke(String runId) {
+        var grant = grants.find(runId).orElseThrow(RunAccessService::denied);
+        grants.save(new RunAccessGrant(runId, grant.accessTokenHash(), null, null, clock.instant(), true));
+    }
+
+    private void requireRun(String runId) {
+        if (runs.find(runId).isEmpty()) throw new IllegalArgumentException("Unknown Run");
+    }
+
+    private static String token() {
+        var bytes = new byte[TOKEN_BYTES];
+        RANDOM.nextBytes(bytes);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+    }
+
+    private static String hash(String value) {
+        try {
+            var digest = MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8));
+            return "sha256:" + java.util.HexFormat.of().formatHex(digest);
+        } catch (NoSuchAlgorithmException impossible) {
+            throw new IllegalStateException("SHA-256 is unavailable", impossible);
+        }
+    }
+
+    private static boolean constantTimeEquals(String left, String right) {
+        return MessageDigest.isEqual(
+                left.getBytes(StandardCharsets.US_ASCII), right.getBytes(StandardCharsets.US_ASCII));
+    }
+
+    private static void validToken(String value) {
+        if (value == null || !value.matches("[A-Za-z0-9_-]{43}")) throw denied();
+    }
+
+    private static SecurityException denied() {
+        return new SecurityException("Invalid or revoked Run management credential");
+    }
+
+    public record IssuedAccess(String runId, URI managementUrl) {}
+    public record ManagementSession(String runId, String sessionToken, String csrfToken) {}
+}

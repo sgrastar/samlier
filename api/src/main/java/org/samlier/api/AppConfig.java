@@ -22,6 +22,10 @@ public record AppConfig(
         if (mode == Mode.HOSTED && sameOrigin(publicBaseUrl, peerBaseUrl)) {
             throw new IllegalArgumentException("Hosted mode requires separate app and peer origins");
         }
+        if (mode == Mode.HOSTED && (!"https".equalsIgnoreCase(publicBaseUrl.getScheme())
+                || !"https".equalsIgnoreCase(peerBaseUrl.getScheme()))) {
+            throw new IllegalArgumentException("Hosted mode requires HTTPS app and peer origins");
+        }
         if (mode == Mode.HOSTED && outboundAllowPrivate) {
             throw new IllegalArgumentException("Hosted mode cannot allow private outbound destinations");
         }
