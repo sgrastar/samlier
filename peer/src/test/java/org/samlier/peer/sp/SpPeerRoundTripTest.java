@@ -1,6 +1,7 @@
 package org.samlier.peer.sp;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.net.URI;
@@ -10,6 +11,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Map;
+import java.util.Base64;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.samlier.core.plan.MetadataDeliveryKind;
@@ -26,6 +28,8 @@ import org.samlier.saml.metadata.MetadataService;
 import org.samlier.saml.metadata.TargetMetadataParser;
 import org.samlier.saml.normal.OpenSamlReader;
 import org.samlier.saml.normal.SamlProtocolService;
+import org.samlier.saml.normal.SamlException;
+import org.samlier.saml.raw.XmlDoctypeDetector;
 import org.samlier.store.FileTranscriptRecorder;
 import org.samlier.store.JsonCodec;
 import org.samlier.store.MetadataCache;
@@ -75,6 +79,39 @@ class SpPeerRoundTripTest {
         assertEquals("completed", completed.context().get("m0RoundTrip"));
         assertEquals(2, recorder.list(run.id()).size());
         assertTrue(completed.context().keySet().stream().noneMatch(key -> key.toLowerCase().contains("verdict")));
+    }
+
+    @Test
+    void recordsTargetResponseBeforeDtdRejection() {
+        var now = Instant.parse("2026-08-29T00:00:00Z");
+        var clock = Clock.fixed(now, ZoneOffset.UTC);
+        var database = new SqliteDatabase(directory);
+        var json = new JsonCodec();
+        var plans = new SqlitePlanRepository(database, json);
+        var runs = new SqliteRunRepository(database, json);
+        var plan = plan("plan_0123456789ABCDEFGHJKMNPQRS", PlanProfile.IDP_CORE, TargetKind.IDP,
+                "https://idp.example/entity", now);
+        plans.save(plan);
+        var runService = new RunService(plans, runs, new RunEventBus(), clock);
+        var run = runService.create(plan.id());
+        var saml = new SamlProtocolService(URI.create("https://peer.example"),
+                new FilePlanKeyStore(directory, clock), new XmlSigner(), new OpenSamlReader(), clock);
+        var recorder = new FileTranscriptRecorder(database, json, directory);
+        var peer = new SpPeerService(
+                plans, runs, runService, new MetadataCache(directory), new TargetMetadataParser(),
+                saml, recorder, clock);
+        var xml = "<!DOCTYPE Response [<!ELEMENT Response EMPTY>]><Response/>"
+                .getBytes(StandardCharsets.UTF_8);
+        var body = "SAMLResponse=" + URLEncoder.encode(
+                Base64.getEncoder().encodeToString(xml), StandardCharsets.UTF_8)
+                + "&RelayState=" + URLEncoder.encode(run.id(), StandardCharsets.UTF_8);
+
+        assertThrows(SamlException.class, () -> peer.consume(
+                plan.id(), body.getBytes(StandardCharsets.UTF_8), Map.of(), "https://peer.example/acs"));
+
+        var entry = recorder.list(run.id()).getFirst();
+        assertTrue(XmlDoctypeDetector.containsDoctype(recorder.readDecodedSaml(entry)));
+        assertEquals("not-yet-parsed", entry.samlSummary().get("parseStatus"));
     }
 
     private TestPlan plan(String id, PlanProfile profile, TargetKind kind, String entityId, Instant now) {

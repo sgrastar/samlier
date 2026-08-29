@@ -67,16 +67,18 @@ public final class SpPeerService {
     }
 
     public Map<String, Object> consume(String planId, byte[] rawBody, Map<String, List<String>> headers, String requestUrl) {
-        var message = saml.decodePost(rawBody, "SAMLResponse");
-        var runId = message.relayState();
+        var rawMessage = saml.decodePostRaw(rawBody, "SAMLResponse");
+        var runId = rawMessage.relayState();
         if (runId == null) throw new SamlException("SAMLResponse has no RelayState correlation");
         var run = runs.find(runId).orElseThrow(() -> new SamlException("Unknown RelayState"));
         if (!run.planId().equals(planId)) throw new SamlException("RelayState belongs to another Test Plan");
+        var transcriptEntry = transcript.record(new TranscriptInput(run.id(), Direction.INBOUND, clock.instant(), run.id(), "POST",
+                requestUrl, 200, headers, rawBody, "application/x-www-form-urlencoded", null,
+                rawMessage.xml(), Map.of("type", "SAMLResponse", "parseStatus", "not-yet-parsed")));
+        var message = saml.parse(rawMessage);
         var expected = String.valueOf(run.context().getOrDefault("authnRequestId", ""));
         var actual = String.valueOf(message.parsed().summary().getOrDefault("inResponseTo", ""));
-        transcript.record(new TranscriptInput(run.id(), Direction.INBOUND, clock.instant(), actual, "POST",
-                requestUrl, 200, headers, rawBody, "application/x-www-form-urlencoded", null,
-                message.xml(), message.parsed().summary()));
+        transcript.updateSamlAnalysis(transcriptEntry.id(), actual, message.parsed().summary());
         if (expected.isBlank() || !expected.equals(actual)) {
             throw new SamlException("SAMLResponse InResponseTo does not match the active AuthnRequest");
         }

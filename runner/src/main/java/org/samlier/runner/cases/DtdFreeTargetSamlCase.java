@@ -6,6 +6,9 @@ import java.util.Map;
 import org.samlier.core.evaluation.CaseOutcome;
 import org.samlier.core.evaluation.EvidenceRef;
 import org.samlier.core.evaluation.Outcome;
+import org.samlier.core.transcript.Direction;
+import org.samlier.core.transcript.TranscriptContentReader;
+import org.samlier.core.transcript.TranscriptRecorder;
 import org.samlier.saml.raw.XmlDoctypeDetector;
 
 /** Approved G2 case IIP-G03-a-{idp,sp}-01: passive inspection of target-generated SAML. */
@@ -44,6 +47,17 @@ public final class DtdFreeTargetSamlCase {
                 "case.iip-g03-a.dtd-absent",
                 inspected.stream().map(value -> new EvidenceRef("transcript", value)).toList(),
                 Map.of("inspected_messages", inspected.size()));
+    }
+
+    public CaseOutcome evaluateTranscript(
+            String runId, TranscriptRecorder transcript, TranscriptContentReader content) {
+        var messages = transcript.list(runId).stream()
+                .filter(entry -> entry.direction() == Direction.INBOUND)
+                .filter(entry -> entry.decodedSamlRef() != null && entry.decodedSamlBytes() > 0)
+                .map(entry -> new TargetSamlMessage(
+                        "transcript:" + entry.id(), content.readDecodedSaml(entry)))
+                .toList();
+        return evaluate(messages);
     }
 
     public record TargetSamlMessage(String evidenceRef, byte[] xml) {

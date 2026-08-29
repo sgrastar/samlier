@@ -25,6 +25,7 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
 public final class SamlProtocolService {
+    private static final int MAX_XML_BYTES = 5 * 1024 * 1024;
     private static final String PROTOCOL = "urn:oasis:names:tc:SAML:2.0:protocol";
     private static final String ASSERTION = "urn:oasis:names:tc:SAML:2.0:assertion";
     private static final String SUCCESS = "urn:oasis:names:tc:SAML:2.0:status:Success";
@@ -70,6 +71,10 @@ public final class SamlProtocolService {
     }
 
     public DecodedMessage decodeRedirect(String rawQuery, String parameter) {
+        return parse(decodeRedirectRaw(rawQuery, parameter));
+    }
+
+    public RawDecodedMessage decodeRedirectRaw(String rawQuery, String parameter) {
         var parameters = parseForm(rawQuery);
         var value = parameters.get(parameter);
         if (value == null) throw new SamlException("Missing " + parameter);
@@ -77,8 +82,9 @@ public final class SamlProtocolService {
             var compressed = Base64.getDecoder().decode(value);
             var inflater = new Inflater(true);
             try (var input = new InflaterInputStream(new java.io.ByteArrayInputStream(compressed), inflater)) {
-                var xml = input.readAllBytes();
-                return decoded(xml, parameters.get("RelayState"));
+                var xml = input.readNBytes(MAX_XML_BYTES + 1);
+                if (xml.length > MAX_XML_BYTES) throw new SamlException("Decoded SAML message exceeds the 5 MiB limit");
+                return new RawDecodedMessage(xml, parameters.get("RelayState"));
             } finally {
                 inflater.end();
             }
@@ -88,14 +94,24 @@ public final class SamlProtocolService {
     }
 
     public DecodedMessage decodePost(byte[] rawBody, String parameter) {
+        return parse(decodePostRaw(rawBody, parameter));
+    }
+
+    public RawDecodedMessage decodePostRaw(byte[] rawBody, String parameter) {
         var parameters = parseForm(new String(rawBody, StandardCharsets.UTF_8));
         var value = parameters.get(parameter);
         if (value == null) throw new SamlException("Missing " + parameter);
         try {
-            return decoded(Base64.getDecoder().decode(value), parameters.get("RelayState"));
+            var xml = Base64.getDecoder().decode(value);
+            if (xml.length > MAX_XML_BYTES) throw new SamlException("Decoded SAML message exceeds the 5 MiB limit");
+            return new RawDecodedMessage(xml, parameters.get("RelayState"));
         } catch (IllegalArgumentException e) {
             throw new SamlException("Could not decode HTTP-POST SAML message", e);
         }
+    }
+
+    public DecodedMessage parse(RawDecodedMessage message) {
+        return decoded(message.xml(), message.relayState());
     }
 
     public ResponseMessage buildResponse(TestPlan plan, DecodedMessage request, URI acs, String subjectValue) {
@@ -228,6 +244,10 @@ public final class SamlProtocolService {
     }
 
     public record AuthnRequestMessage(String id, byte[] xml, URI redirect, String relayState) {}
+    public record RawDecodedMessage(byte[] xml, String relayState) {
+        public RawDecodedMessage { xml = xml.clone(); }
+        @Override public byte[] xml() { return xml.clone(); }
+    }
     public record DecodedMessage(byte[] xml, OpenSamlReader.ParsedMessage parsed, String relayState) {}
     public record ResponseMessage(String id, byte[] xml, String base64, URI destination, String relayState) {}
 }

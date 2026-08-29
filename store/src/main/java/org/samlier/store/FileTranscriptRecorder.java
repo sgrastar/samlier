@@ -8,10 +8,11 @@ import java.util.ArrayList;
 import java.util.List;
 import org.samlier.core.Identifiers;
 import org.samlier.core.transcript.TranscriptEntry;
+import org.samlier.core.transcript.TranscriptContentReader;
 import org.samlier.core.transcript.TranscriptInput;
 import org.samlier.core.transcript.TranscriptRecorder;
 
-public final class FileTranscriptRecorder implements TranscriptRecorder {
+public final class FileTranscriptRecorder implements TranscriptRecorder, TranscriptContentReader {
     private final SqliteDatabase database;
     private final JsonCodec json;
     private final Path directory;
@@ -69,6 +70,57 @@ public final class FileTranscriptRecorder implements TranscriptRecorder {
             return List.copyOf(entries);
         } catch (SQLException e) {
             throw new StoreException("Could not list transcript entries", e);
+        }
+    }
+
+    @Override
+    public TranscriptEntry updateSamlAnalysis(
+            String entryId, String correlationId, java.util.Map<String, Object> samlSummary) {
+        try (var connection = database.open();
+             var select = connection.prepareStatement(
+                     "SELECT document_json FROM transcript_entries WHERE id = ?")) {
+            select.setString(1, entryId);
+            TranscriptEntry existing;
+            try (var rows = select.executeQuery()) {
+                if (!rows.next()) throw new IllegalArgumentException("Unknown Transcript entry");
+                existing = json.read(rows.getString(1), TranscriptEntry.class);
+            }
+            var updated = new TranscriptEntry(
+                    existing.id(), existing.runId(), existing.direction(), existing.timestamp(),
+                    correlationId, existing.method(), existing.url(), existing.status(),
+                    existing.headers(), existing.bodyRef(), existing.bodyBytes(), existing.decodedSamlRef(),
+                    existing.decodedSamlBytes(), existing.contentType(), existing.rawQuery(),
+                    java.util.Map.copyOf(samlSummary == null ? java.util.Map.of() : samlSummary));
+            try (var update = connection.prepareStatement(
+                    "UPDATE transcript_entries SET document_json = ? WHERE id = ?")) {
+                update.setString(1, json.write(updated));
+                update.setString(2, entryId);
+                update.executeUpdate();
+            }
+            return updated;
+        } catch (SQLException e) {
+            throw new StoreException("Could not update Transcript summary", e);
+        }
+    }
+
+    @Override
+    public byte[] readDecodedSaml(TranscriptEntry entry) {
+        if (entry == null || entry.decodedSamlRef() == null || entry.decodedSamlRef().isBlank()) {
+            throw new IllegalArgumentException("Transcript entry has no decoded SAML content");
+        }
+        var dataRoot = directory.getParent().toAbsolutePath().normalize();
+        var resolved = dataRoot.resolve(entry.decodedSamlRef()).normalize();
+        if (!resolved.startsWith(directory.toAbsolutePath().normalize())) {
+            throw new IllegalArgumentException("Transcript content reference escapes the transcript directory");
+        }
+        try {
+            var bytes = Files.readAllBytes(resolved);
+            if (bytes.length != entry.decodedSamlBytes()) {
+                throw new StoreException("Decoded SAML content length does not match its Transcript entry");
+            }
+            return bytes;
+        } catch (IOException e) {
+            throw new StoreException("Could not read decoded SAML content", e);
         }
     }
 

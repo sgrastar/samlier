@@ -42,28 +42,33 @@ public final class SqliteDatabase {
             try (var statement = connection.createStatement()) {
                 statement.execute("CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL)");
             }
-            var applied = false;
-            try (var query = connection.prepareStatement("SELECT 1 FROM schema_migrations WHERE version = 1")) {
-                applied = query.executeQuery().next();
-            }
-            if (!applied) {
-                var resource = SqliteDatabase.class.getResourceAsStream("/db/migration/V001__initial_schema.sql");
-                if (resource == null) throw new StoreException("Missing database migration V001");
-                var sql = new String(resource.readAllBytes(), StandardCharsets.UTF_8);
-                try (var statement = connection.createStatement()) {
-                    for (var command : sql.split(";")) {
-                        if (!command.isBlank()) statement.execute(command);
-                    }
-                }
-                try (var insert = connection.prepareStatement(
-                        "INSERT INTO schema_migrations(version, applied_at) VALUES(1, ?)")) {
-                    insert.setString(1, Instant.now().toString());
-                    insert.executeUpdate();
-                }
-            }
+            applyMigration(connection, 1, "/db/migration/V001__initial_schema.sql");
+            applyMigration(connection, 2, "/db/migration/V002__case_execution_outbox.sql");
             connection.commit();
         } catch (SQLException | IOException e) {
             throw new StoreException("Could not apply database migrations", e);
+        }
+    }
+
+    private void applyMigration(Connection connection, int version, String resourceName)
+            throws SQLException, IOException {
+        try (var query = connection.prepareStatement("SELECT 1 FROM schema_migrations WHERE version = ?")) {
+            query.setInt(1, version);
+            if (query.executeQuery().next()) return;
+        }
+        var resource = SqliteDatabase.class.getResourceAsStream(resourceName);
+        if (resource == null) throw new StoreException("Missing database migration V" + version);
+        var sql = new String(resource.readAllBytes(), StandardCharsets.UTF_8);
+        try (var statement = connection.createStatement()) {
+            for (var command : sql.split(";")) {
+                if (!command.isBlank()) statement.execute(command);
+            }
+        }
+        try (var insert = connection.prepareStatement(
+                "INSERT INTO schema_migrations(version, applied_at) VALUES(?, ?)")) {
+            insert.setInt(1, version);
+            insert.setString(2, Instant.now().toString());
+            insert.executeUpdate();
         }
     }
 }

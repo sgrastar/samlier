@@ -48,10 +48,17 @@ public final class IdpPeerService {
         var plan = plans.find(planId).orElseThrow(() -> new IllegalArgumentException("Unknown Test Plan"));
         if (plan.profile().role() != TargetRole.SP) throw new IllegalArgumentException("This plan does not test an SP");
         var run = activeRun(planId);
-        var request = "GET".equalsIgnoreCase(method)
-                ? saml.decodeRedirect(rawQuery, "SAMLRequest")
-                : saml.decodePost(rawBody, "SAMLRequest");
+        var rawRequest = "GET".equalsIgnoreCase(method)
+                ? saml.decodeRedirectRaw(rawQuery, "SAMLRequest")
+                : saml.decodePostRaw(rawBody, "SAMLRequest");
+        var transcriptEntry = transcript.record(new TranscriptInput(run.id(), Direction.INBOUND, clock.instant(), run.id(),
+                method, requestUrl, 200, headers, rawBody,
+                "GET".equalsIgnoreCase(method) ? null : "application/x-www-form-urlencoded",
+                rawQuery, rawRequest.xml(), Map.of("type", "SAMLRequest", "parseStatus", "not-yet-parsed")));
+        var request = saml.parse(rawRequest);
         var requestRoot = request.parsed().document().getDocumentElement();
+        transcript.updateSamlAnalysis(
+                transcriptEntry.id(), requestRoot.getAttribute("ID"), request.parsed().summary());
         var metadata = metadataParser.parse(metadataCache.get(plan.id()), plan.target().entityId());
         var requestedAcs = requestRoot.getAttribute("AssertionConsumerServiceURL");
         URI acs;
@@ -68,10 +75,6 @@ public final class IdpPeerService {
                     .orElseThrow(() -> new SamlException("Target metadata has no AssertionConsumerService"))
                     .location();
         }
-        transcript.record(new TranscriptInput(run.id(), Direction.INBOUND, clock.instant(),
-                requestRoot.getAttribute("ID"), method, requestUrl, 200, headers, rawBody,
-                "GET".equalsIgnoreCase(method) ? null : "application/x-www-form-urlencoded",
-                rawQuery, request.xml(), request.parsed().summary()));
         var response = saml.buildResponse(plan, request, acs, "samlier-m0-user");
         transcript.record(new TranscriptInput(run.id(), Direction.OUTBOUND, clock.instant(), response.id(), "POST",
                 acs.toString(), null, Map.of(), new byte[0], "application/x-www-form-urlencoded", null,

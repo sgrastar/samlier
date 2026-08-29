@@ -1,12 +1,14 @@
 package org.samlier.saml.normal;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.net.URI;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.Base64;
 import org.apache.xml.security.signature.XMLSignature;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -48,5 +50,22 @@ class SamlProtocolServiceTest {
                 "http://www.w3.org/2000/09/xmldsig#", "Signature").item(0);
         var signature = new XMLSignature(signatureElement, "");
         assertTrue(signature.checkSignatureValue(keyStore.getOrCreate(plan.id()).certificate()));
+    }
+
+    @Test
+    void bindingDecodePreservesDtdBytesBeforeSecureXmlParsingRejectsThem() {
+        var plan = SamlTestFixtures.idpPlan();
+        var clock = Clock.fixed(Instant.parse("2026-08-29T00:00:00Z"), ZoneOffset.UTC);
+        var service = new SamlProtocolService(URI.create("https://peer.example"),
+                new FilePlanKeyStore(directory, clock), new XmlSigner(), new OpenSamlReader(), clock);
+        var xml = "<!DOCTYPE Response [<!ELEMENT Response EMPTY>]><Response/>"
+                .getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        var body = "SAMLResponse=" + java.net.URLEncoder.encode(
+                Base64.getEncoder().encodeToString(xml), java.nio.charset.StandardCharsets.UTF_8);
+
+        var raw = service.decodePostRaw(body.getBytes(java.nio.charset.StandardCharsets.UTF_8), "SAMLResponse");
+
+        assertTrue(java.util.Arrays.equals(xml, raw.xml()));
+        assertThrows(SamlException.class, () -> service.parse(raw));
     }
 }
