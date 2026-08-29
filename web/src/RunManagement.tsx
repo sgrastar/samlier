@@ -5,9 +5,12 @@ export function RunManagement({ runId, csrfToken }: { runId: string; csrfToken?:
   const [interactions, setInteractions] = useState<PendingInteraction[]>([])
   const [error, setError] = useState('')
   const [busy, setBusy] = useState('')
+  const [planId, setPlanId] = useState('')
 
   const refresh = async () => {
-    setInteractions(await api.interactions(runId))
+    const [nextInteractions, run] = await Promise.all([api.interactions(runId), api.run(runId)])
+    setInteractions(nextInteractions)
+    setPlanId(run.planId)
   }
 
   useEffect(() => { void refresh().catch(cause => setError((cause as Error).message)) }, [runId])
@@ -96,7 +99,7 @@ export function RunManagement({ runId, csrfToken }: { runId: string; csrfToken?:
     {interactions.length === 0 ? <p className="quiet-success">No pending interactions.</p> :
       <div className="interaction-list">{interactions.map(interaction => <article key={interaction.caseId} className="interaction">
         <header><strong>{interaction.caseId}</strong><span>{interaction.kind}</span></header>
-        {interaction.promptEn && <pre>{interaction.promptEn}</pre>}
+        {interaction.promptEn && <pre>{resolvePrompt(interaction.promptEn, planId, runId)}</pre>}
         {interaction.kind === 'BROWSER' && <div className="actions">
           {interaction.startUrl && <a className="button" href={interaction.startUrl}>Open focused browser step</a>}
           <button disabled={busy === interaction.caseId} onClick={() => void completeBrowser(interaction)}>
@@ -127,6 +130,10 @@ export function RunManagement({ runId, csrfToken }: { runId: string; csrfToken?:
       </article>)}</div>}
     <p><a href={`/reports/${runId}`}>Open current result</a></p>
   </section>
+}
+
+function resolvePrompt(value: string, planId: string, runId: string) {
+  return value.replaceAll('<plan-id>', planId || '<plan-id>').replaceAll('<run-id>', runId)
 }
 
 function humanize(value: string) {

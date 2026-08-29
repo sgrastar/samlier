@@ -79,6 +79,14 @@ class SpPeerRoundTripTest {
         assertEquals("completed", completed.context().get("m0RoundTrip"));
         assertEquals(2, recorder.list(run.id()).size());
         assertTrue(completed.context().keySet().stream().noneMatch(key -> key.toLowerCase().contains("verdict")));
+
+        var probeBody = "SAMLResponse=" + URLEncoder.encode(response.base64(), StandardCharsets.UTF_8);
+        peer.consume(plan.id(), probeBody.getBytes(StandardCharsets.UTF_8), Map.of(),
+                "https://peer.example/p/" + plan.id() + "/sp/acs/0?mdv=no-key-info&run=" + run.id());
+        assertEquals(3, recorder.list(run.id()).size());
+        assertEquals(RunStatus.COMPLETED, runs.find(run.id()).orElseThrow().status());
+        assertEquals("completed", runs.find(run.id()).orElseThrow().context().get("m0RoundTrip"),
+                "probe traffic must not rewrite the normal round-trip state");
     }
 
     @Test

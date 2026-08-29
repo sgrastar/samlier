@@ -148,6 +148,7 @@ export const api = {
   createPlan: (input: PlanInput) => request<Plan>('/api/plans', { method: 'POST', body: JSON.stringify(input) }),
   deletePlan: (id: string) => request<void>(`/api/plans/${id}`, { method: 'DELETE' }),
   runs: (planId: string) => request<Run[]>(`/api/plans/${planId}/runs`),
+  run: (runId: string) => request<Run>(`/api/runs/${runId}`),
   createRun: (planId: string) => request<RunCreated>(`/api/plans/${planId}/runs`, { method: 'POST' }),
   preflight: (runId: string) => request<Record<string, unknown>>(`/api/runs/${runId}/preflight`, { method: 'POST' }),
   transcript: (runId: string) => request<unknown[]>(`/api/runs/${runId}/transcript`),

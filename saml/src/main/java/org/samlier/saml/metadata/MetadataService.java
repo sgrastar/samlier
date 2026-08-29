@@ -5,6 +5,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.format.DateTimeFormatter;
 import java.util.Base64;
+import java.util.List;
 import javax.xml.XMLConstants;
 import org.samlier.core.plan.TestPlan;
 import org.samlier.saml.crypto.FilePlanKeyStore;
@@ -35,6 +36,10 @@ public final class MetadataService {
     }
 
     public byte[] generate(TestPlan plan) {
+        return generate(plan, Variant.BASELINE, null);
+    }
+
+    public byte[] generate(TestPlan plan, Variant variant, String runId) {
         var credentials = keyStore.getOrCreate(plan.id());
         var document = SecureXml.newDocument();
         var root = element(document, MD, "md:EntityDescriptor");
@@ -52,11 +57,11 @@ public final class MetadataService {
         sp.setAttribute("WantAssertionsSigned", "true");
         keyDescriptor(document, sp, credentials.certificate(), "signing");
         keyDescriptor(document, sp, credentials.certificate(), "encryption");
-        service(document, sp, "SingleLogoutService", REDIRECT, endpoint(plan, "/sp/slo"), null, false);
-        service(document, sp, "SingleLogoutService", POST, endpoint(plan, "/sp/slo"), null, false);
-        service(document, sp, "SingleLogoutService", SOAP, endpoint(plan, "/sp/slo/soap"), null, false);
-        service(document, sp, "AssertionConsumerService", POST, endpoint(plan, "/sp/acs/0"), 0, true);
-        service(document, sp, "AssertionConsumerService", PAOS, endpoint(plan, "/sp/paos"), 2, false);
+        service(document, sp, "SingleLogoutService", REDIRECT, endpoint(plan, "/sp/slo", variant, runId), null, false);
+        service(document, sp, "SingleLogoutService", POST, endpoint(plan, "/sp/slo", variant, runId), null, false);
+        service(document, sp, "SingleLogoutService", SOAP, endpoint(plan, "/sp/slo/soap", variant, runId), null, false);
+        service(document, sp, "AssertionConsumerService", POST, endpoint(plan, "/sp/acs/0", variant, runId), 0, true);
+        service(document, sp, "AssertionConsumerService", PAOS, endpoint(plan, "/sp/paos", variant, runId), 2, false);
         root.appendChild(sp);
 
         var idp = element(document, MD, "md:IDPSSODescriptor");
@@ -64,17 +69,42 @@ public final class MetadataService {
         idp.setAttribute("WantAuthnRequestsSigned", "false");
         keyDescriptor(document, idp, credentials.certificate(), "signing");
         keyDescriptor(document, idp, credentials.certificate(), "encryption");
-        service(document, idp, "SingleSignOnService", REDIRECT, endpoint(plan, "/idp/sso"), null, false);
-        service(document, idp, "SingleSignOnService", POST, endpoint(plan, "/idp/sso"), null, false);
-        service(document, idp, "SingleLogoutService", REDIRECT, endpoint(plan, "/idp/slo"), null, false);
-        service(document, idp, "SingleLogoutService", POST, endpoint(plan, "/idp/slo"), null, false);
-        service(document, idp, "SingleLogoutService", SOAP, endpoint(plan, "/idp/slo/soap"), null, false);
+        service(document, idp, "SingleSignOnService", REDIRECT, endpoint(plan, "/idp/sso", variant, runId), null, false);
+        service(document, idp, "SingleSignOnService", POST, endpoint(plan, "/idp/sso", variant, runId), null, false);
+        service(document, idp, "SingleLogoutService", REDIRECT, endpoint(plan, "/idp/slo", variant, runId), null, false);
+        service(document, idp, "SingleLogoutService", POST, endpoint(plan, "/idp/slo", variant, runId), null, false);
+        service(document, idp, "SingleLogoutService", SOAP, endpoint(plan, "/idp/slo/soap", variant, runId), null, false);
         nameIdFormat(document, idp, "urn:oasis:names:tc:SAML:2.0:nameid-format:persistent");
         nameIdFormat(document, idp, "urn:oasis:names:tc:SAML:2.0:nameid-format:transient");
         root.appendChild(idp);
 
-        signer.sign(root, credentials, root.getFirstChild() instanceof Element e ? e : null);
+        signer.sign(root, credentials, root.getFirstChild() instanceof Element e ? e : null, signatureOptions(variant));
         return SecureXml.serialize(document);
+    }
+
+    private XmlSigner.SignatureOptions signatureOptions(Variant variant) {
+        var standard = XmlSigner.SignatureOptions.standard().transforms();
+        return switch (variant) {
+            case BASELINE, CONTROL -> XmlSigner.SignatureOptions.standard();
+            case NO_KEY_INFO -> new XmlSigner.SignatureOptions(false, standard);
+            case XPATH_IDENTITY -> new XmlSigner.SignatureOptions(true, List.of(
+                    XmlSigner.TransformSpec.algorithm(org.apache.xml.security.transforms.Transforms.TRANSFORM_ENVELOPED_SIGNATURE),
+                    XmlSigner.TransformSpec.xpath("true()"),
+                    XmlSigner.TransformSpec.algorithm(org.apache.xml.security.transforms.Transforms.TRANSFORM_C14N_EXCL_OMIT_COMMENTS)));
+            case XPATH_EXCLUDE_ROLE_DESCRIPTORS -> xpathExclusion(
+                    "not(ancestor-or-self::md:SPSSODescriptor or ancestor-or-self::md:IDPSSODescriptor)");
+            case XPATH_EXCLUDE_ENDPOINTS -> xpathExclusion(
+                    "not(ancestor-or-self::md:AssertionConsumerService or ancestor-or-self::md:SingleSignOnService or ancestor-or-self::md:SingleLogoutService)");
+            case XPATH_EXCLUDE_KEY_DESCRIPTORS -> xpathExclusion(
+                    "not(ancestor-or-self::md:KeyDescriptor)");
+        };
+    }
+
+    private XmlSigner.SignatureOptions xpathExclusion(String expression) {
+        return new XmlSigner.SignatureOptions(true, List.of(
+                XmlSigner.TransformSpec.algorithm(org.apache.xml.security.transforms.Transforms.TRANSFORM_ENVELOPED_SIGNATURE),
+                XmlSigner.TransformSpec.xpath(expression),
+                XmlSigner.TransformSpec.algorithm(org.apache.xml.security.transforms.Transforms.TRANSFORM_C14N_EXCL_OMIT_COMMENTS)));
     }
 
     private void keyDescriptor(Document document, Element parent, java.security.cert.X509Certificate certificate, String use) {
@@ -112,6 +142,33 @@ public final class MetadataService {
 
     private String endpoint(TestPlan plan, String suffix) {
         return peerBase.resolve("/p/" + plan.id() + suffix).toString();
+    }
+
+    private String endpoint(TestPlan plan, String suffix, Variant variant, String runId) {
+        var base = endpoint(plan, suffix);
+        if (variant == Variant.BASELINE) return base;
+        if (runId == null || runId.isBlank()) throw new IllegalArgumentException("runId is required for metadata variants");
+        return base + "?mdv=" + variant.id() + "&run=" + runId;
+    }
+
+    public enum Variant {
+        BASELINE("baseline"),
+        CONTROL("control"),
+        XPATH_IDENTITY("xpath-identity"),
+        XPATH_EXCLUDE_ROLE_DESCRIPTORS("xpath-exclude-role-descriptors"),
+        XPATH_EXCLUDE_ENDPOINTS("xpath-exclude-endpoints"),
+        XPATH_EXCLUDE_KEY_DESCRIPTORS("xpath-exclude-key-descriptors"),
+        NO_KEY_INFO("no-key-info");
+
+        private final String id;
+        Variant(String id) { this.id = id; }
+        public String id() { return id; }
+
+        public static Variant parse(String value) {
+            if (value == null || value.isBlank() || "baseline".equals(value)) return BASELINE;
+            return java.util.Arrays.stream(values()).filter(item -> item.id.equals(value)).findFirst()
+                    .orElseThrow(() -> new IllegalArgumentException("Unknown metadata variant: " + value));
+        }
     }
 
     private Element element(Document document, String namespace, String qualifiedName) {

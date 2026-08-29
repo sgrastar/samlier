@@ -68,7 +68,10 @@ public final class SpPeerService {
 
     public Map<String, Object> consume(String planId, byte[] rawBody, Map<String, List<String>> headers, String requestUrl) {
         var rawMessage = saml.decodePostRaw(rawBody, "SAMLResponse");
-        var runId = rawMessage.relayState();
+        var variant = queryParameter(requestUrl, "mdv");
+        var correlatedRun = queryParameter(requestUrl, "run");
+        var probe = variant != null && correlatedRun != null;
+        var runId = probe ? correlatedRun : rawMessage.relayState();
         if (runId == null) throw new SamlException("SAMLResponse has no RelayState correlation");
         var run = runs.find(runId).orElseThrow(() -> new SamlException("Unknown RelayState"));
         if (!run.planId().equals(planId)) throw new SamlException("RelayState belongs to another Test Plan");
@@ -79,13 +82,29 @@ public final class SpPeerService {
         var expected = String.valueOf(run.context().getOrDefault("authnRequestId", ""));
         var actual = String.valueOf(message.parsed().summary().getOrDefault("inResponseTo", ""));
         transcript.updateSamlAnalysis(transcriptEntry.id(), actual, message.parsed().summary());
-        if (expected.isBlank() || !expected.equals(actual)) {
+        if (!probe && (expected.isBlank() || !expected.equals(actual))) {
             throw new SamlException("SAMLResponse InResponseTo does not match the active AuthnRequest");
         }
-        var context = new LinkedHashMap<String, Object>(run.context());
-        context.put("m0RoundTrip", "completed");
-        context.put("responseSummary", message.parsed().summary());
-        runService.update(run, RunStatus.COMPLETED, run.targetToSuiteReachability(), context);
+        if (!probe) {
+            var context = new LinkedHashMap<String, Object>(run.context());
+            context.put("m0RoundTrip", "completed");
+            context.put("responseSummary", message.parsed().summary());
+            runService.update(run, RunStatus.COMPLETED, run.targetToSuiteReachability(), context);
+        }
         return message.parsed().summary();
+    }
+
+    private String queryParameter(String requestUrl, String name) {
+        var query = URI.create(requestUrl).getRawQuery();
+        if (query == null) return null;
+        for (var part : query.split("&")) {
+            var separator = part.indexOf('=');
+            var key = separator < 0 ? part : part.substring(0, separator);
+            if (name.equals(java.net.URLDecoder.decode(key, java.nio.charset.StandardCharsets.UTF_8))) {
+                return separator < 0 ? "" : java.net.URLDecoder.decode(
+                        part.substring(separator + 1), java.nio.charset.StandardCharsets.UTF_8);
+            }
+        }
+        return null;
     }
 }

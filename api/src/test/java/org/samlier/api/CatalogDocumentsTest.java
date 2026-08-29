@@ -54,7 +54,9 @@ class CatalogDocumentsTest {
         assertEquals(214, ApprovedConfigCaseRegistry.create(cases, Milestone.M2).ids().size());
         assertEquals(20, ApprovedBrowserCaseRegistry.create(
                 cases, java.net.URI.create("https://suite.example"), Milestone.M2).ids().size());
-        assertEquals(12, M2AutomatedCaseRegistry.create(runId -> null).ids().size());
+        var m2Automated = M2AutomatedCaseRegistry.create(runId -> null);
+        assertEquals(18, m2Automated.ids().size());
+        CaseImplementationAudit.requireExact(cases, m2Automated, Milestone.M2, ExecutionMode.AUTOMATED);
         assertEquals(11, ApprovedAttestedCaseRegistry.create(cases, Milestone.M3).ids().size());
         assertEquals(9, ApprovedConfigCaseRegistry.create(cases, Milestone.M3).ids().size());
         assertEquals(83, ApprovedBrowserCaseRegistry.create(

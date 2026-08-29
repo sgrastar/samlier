@@ -146,7 +146,7 @@ final class M1Runtime {
                 org.samlier.core.casedef.CaseDefinitionCatalog.Milestone.M3);
         var interactiveRegistry = org.samlier.runner.TestCaseRegistry.merge(
                 m1Attested, m1Config, m1Browser,
-                m2Attested, m2Config, m2Browser,
+                m2Automated, m2Attested, m2Config, m2Browser,
                 m3Attested, m3Config, m3Browser);
         var executionService = new CaseExecutionService(caseExecutions);
         var caseContexts = (org.samlier.runner.CaseContextProvider) runId -> caseContext(

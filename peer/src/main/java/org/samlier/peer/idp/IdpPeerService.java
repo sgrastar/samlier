@@ -47,7 +47,10 @@ public final class IdpPeerService {
             Map<String, List<String>> headers, String requestUrl) {
         var plan = plans.find(planId).orElseThrow(() -> new IllegalArgumentException("Unknown Test Plan"));
         if (plan.profile().role() != TargetRole.SP) throw new IllegalArgumentException("This plan does not test an SP");
-        var run = activeRun(planId);
+        var variant = queryParameter(requestUrl, "mdv");
+        var correlatedRun = queryParameter(requestUrl, "run");
+        var probe = variant != null && correlatedRun != null;
+        var run = probe ? requireRun(planId, correlatedRun) : activeRun(planId);
         var rawRequest = "GET".equalsIgnoreCase(method)
                 ? saml.decodeRedirectRaw(rawQuery, "SAMLRequest")
                 : saml.decodePostRaw(rawBody, "SAMLRequest");
@@ -79,11 +82,19 @@ public final class IdpPeerService {
         transcript.record(new TranscriptInput(run.id(), Direction.OUTBOUND, clock.instant(), response.id(), "POST",
                 acs.toString(), null, Map.of(), new byte[0], "application/x-www-form-urlencoded", null,
                 response.xml(), Map.of("type", "Response", "id", response.id(), "destination", acs.toString())));
-        var context = new LinkedHashMap<String, Object>(run.context());
-        context.put("m0RoundTrip", "response-issued");
-        context.put("requestSummary", request.parsed().summary());
-        runService.update(run, RunStatus.COMPLETED, run.targetToSuiteReachability(), context);
+        if (!probe) {
+            var context = new LinkedHashMap<String, Object>(run.context());
+            context.put("m0RoundTrip", "response-issued");
+            context.put("requestSummary", request.parsed().summary());
+            runService.update(run, RunStatus.COMPLETED, run.targetToSuiteReachability(), context);
+        }
         return response;
+    }
+
+    private TestRun requireRun(String planId, String runId) {
+        var run = runs.find(runId).orElseThrow(() -> new SamlException("Unknown correlated Run"));
+        if (!planId.equals(run.planId())) throw new SamlException("Correlated Run belongs to another Test Plan");
+        return run;
     }
 
     private TestRun activeRun(String planId) {
@@ -91,6 +102,20 @@ public final class IdpPeerService {
                 .filter(run -> run.status() != RunStatus.COMPLETED && run.status() != RunStatus.ABORTED)
                 .findFirst()
                 .orElseThrow(() -> new SamlException("Create a Run before starting login at the target SP"));
+    }
+
+    private String queryParameter(String requestUrl, String name) {
+        var query = URI.create(requestUrl).getRawQuery();
+        if (query == null) return null;
+        for (var part : query.split("&")) {
+            var separator = part.indexOf('=');
+            var key = separator < 0 ? part : part.substring(0, separator);
+            if (name.equals(java.net.URLDecoder.decode(key, java.nio.charset.StandardCharsets.UTF_8))) {
+                return separator < 0 ? "" : java.net.URLDecoder.decode(
+                        part.substring(separator + 1), java.nio.charset.StandardCharsets.UTF_8);
+            }
+        }
+        return null;
     }
 
     private static final class TargetMetadataParserEndpoint {

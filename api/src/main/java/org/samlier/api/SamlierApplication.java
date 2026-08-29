@@ -195,7 +195,22 @@ public final class SamlierApplication {
         javalin.routes.get("/p/{plan}/metadata", ctx -> {
             var plan = requirePlan(plans, ctx.pathParam("plan"));
             confirmReachabilityProbe(ctx.queryParam("probe"), plan.id(), runs, runService);
-            ctx.contentType("application/samlmetadata+xml").result(metadata.generate(plan));
+            var variant = MetadataService.Variant.parse(ctx.queryParam("variant"));
+            var runId = ctx.queryParam("run");
+            if (variant != MetadataService.Variant.BASELINE) {
+                runId = requiredQuery(ctx, "run");
+                var run = requireRun(runs, runId);
+                if (!plan.id().equals(run.planId())) {
+                    throw new IllegalArgumentException("Run belongs to another Test Plan");
+                }
+                transcript.record(new org.samlier.core.transcript.TranscriptInput(
+                        run.id(), org.samlier.core.transcript.Direction.INBOUND, clock.instant(),
+                        "metadata:" + variant.id(), "GET", absoluteRequestUrl(ctx), 200,
+                        headers(ctx), new byte[0], null, ctx.req().getQueryString(), new byte[0],
+                        Map.of("type", "MetadataFetch", "variant", variant.id())));
+                ctx.header("Cache-Control", "no-store");
+            }
+            ctx.contentType("application/samlmetadata+xml").result(metadata.generate(plan, variant, runId));
         });
         javalin.routes.get("/mdq/<entityId>", ctx -> {
             var entityId = URLDecoder.decode(ctx.pathParam("entityId"), StandardCharsets.UTF_8);

@@ -74,6 +74,19 @@ class SamlierApplicationTest {
             assertTrue(metadata.body().contains("<ds:Signature"));
             assertTrue(metadata.body().contains("<md:SPSSODescriptor"));
             assertTrue(metadata.body().contains("<md:IDPSSODescriptor"));
+
+            var variant = client.send(HttpRequest.newBuilder(base.resolve(
+                            "/p/" + planId + "/metadata?variant=no-key-info&run=" + runId)).build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, variant.statusCode(), variant.body());
+            assertEquals("no-store", variant.headers().firstValue("Cache-Control").orElseThrow());
+            assertTrue(variant.body().contains("mdv=no-key-info&amp;run=" + runId));
+            var transcript = client.send(HttpRequest.newBuilder(base.resolve(
+                            "/api/runs/" + runId + "/transcript")).build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, transcript.statusCode());
+            assertTrue(transcript.body().contains("MetadataFetch"));
+            assertTrue(transcript.body().contains("no-key-info"));
         } finally {
             app.stop();
         }
