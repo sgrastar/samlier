@@ -904,7 +904,8 @@ mutants:
   authored_by: samlier-g2-builder
   base: idp-full
   target_role: idp
-  injected_violation_en: On the IDP IIP-MD03.e path, apply invert_normative_behavior only to IIP-MD03.e#v-a38c9f2c43.
+  injected_violation_en: 'On the IDP IIP-MD03.e path, apply invert_normative_behavior to every permitted alternative in the
+    selected one_of group: IIP-MD03.e#v-a38c9f2c43, IIP-MD03.e#v-cf5ab2560b.'
   executor:
     kind: declarative-sut-mutation
     adapter: idp-mutant-target
@@ -920,20 +921,25 @@ mutants:
       signal_en: 'The public keys used for metadata signature verification may be contained in X.509 certificates — Trigger
         IIP-MD03.e#v-a38c9f2c43: Configure the key contained in an X.509 certificate'
       baseline_evidence_en: The evidence at the stated surface demonstrates the approved behavior for IIP-MD03.e#v-a38c9f2c43.
-      mutated_evidence_en: On the selected input, perform the nonconforming counterpart of IIP-MD03.e#v-a38c9f2c43.
+      mutated_evidence_en: 'On the selected input, perform the nonconforming counterpart of IIP-MD03.e#v-a38c9f2c43. Simultaneously
+        make every alternative in the same one_of group nonconforming: IIP-MD03.e#v-a38c9f2c43, IIP-MD03.e#v-cf5ab2560b.'
       unavailable_outcome: not_verified
       isolation_en: Apply the mutation only at IIP-MD03.e on the idp path. Preserve every other baseline behavior. If the
         trigger imports another obligation, keep that obligation conforming outside this owner-specific path.
+    mutation_variants:
+    - IIP-MD03.e#v-a38c9f2c43
+    - IIP-MD03.e#v-cf5ab2560b
   expected_changes:
     IIP-MD03.e:
       outcome: violated
   unchanged_required: all_others
-  mutant_digest: sha256:67735d15400c8010dcdf1723ef15da3a464429fc8bf1420addcb2442c07fc9f2
+  mutant_digest: sha256:5c376ce8582c33f77b72dd15bc7490a826c3ee2e15037f4c3bea5dbdf034539b
 - id: mut-iip-md03-e-sp
   authored_by: samlier-g2-builder
   base: sp-full-slo-enc
   target_role: sp
-  injected_violation_en: On the SP IIP-MD03.e path, apply invert_normative_behavior only to IIP-MD03.e#v-a38c9f2c43.
+  injected_violation_en: 'On the SP IIP-MD03.e path, apply invert_normative_behavior to every permitted alternative in the
+    selected one_of group: IIP-MD03.e#v-a38c9f2c43, IIP-MD03.e#v-cf5ab2560b.'
   executor:
     kind: declarative-sut-mutation
     adapter: sp-mutant-target
@@ -949,15 +955,19 @@ mutants:
       signal_en: 'The public keys used for metadata signature verification may be contained in X.509 certificates — Trigger
         IIP-MD03.e#v-a38c9f2c43: Configure the key contained in an X.509 certificate'
       baseline_evidence_en: The evidence at the stated surface demonstrates the approved behavior for IIP-MD03.e#v-a38c9f2c43.
-      mutated_evidence_en: On the selected input, perform the nonconforming counterpart of IIP-MD03.e#v-a38c9f2c43.
+      mutated_evidence_en: 'On the selected input, perform the nonconforming counterpart of IIP-MD03.e#v-a38c9f2c43. Simultaneously
+        make every alternative in the same one_of group nonconforming: IIP-MD03.e#v-a38c9f2c43, IIP-MD03.e#v-cf5ab2560b.'
       unavailable_outcome: not_verified
       isolation_en: Apply the mutation only at IIP-MD03.e on the sp path. Preserve every other baseline behavior. If the trigger
         imports another obligation, keep that obligation conforming outside this owner-specific path.
+    mutation_variants:
+    - IIP-MD03.e#v-a38c9f2c43
+    - IIP-MD03.e#v-cf5ab2560b
   expected_changes:
     IIP-MD03.e:
       outcome: violated
   unchanged_required: all_others
-  mutant_digest: sha256:38a47ca855aa9bcc914d8090d66ef789dd5af91dd0b322e71aa2141e94657540
+  mutant_digest: sha256:116c1f70db2110af8d2a4431fdef09260f6013c45695dfaca6b0372644b2c214
 - id: mut-iip-md04-a-idp
   authored_by: samlier-g2-builder
   base: idp-core-no-ecp
@@ -6558,64 +6568,6 @@ mutants:
       outcome: violated
   unchanged_required: all_others
   mutant_digest: sha256:fe850339829e13a6b8d735553b336afa3cfb54420ed3645612b26f804d973673
-- id: mut-iip-md06-a4-idp
-  authored_by: samlier-g2-builder
-  base: idp-full
-  target_role: idp
-  injected_violation_en: On the IDP IIP-MD06.a4 path, apply invert_normative_behavior only to IIP-MD06.a4#v-57817c9261.
-  executor:
-    kind: declarative-sut-mutation
-    adapter: idp-mutant-target
-    mutation_point: IIP-MD06.a4
-    trigger_variant: IIP-MD06.a4#v-57817c9261
-    trigger_en: 'Encryption keys found in metadata may be used for the containing entity — Variant: Use a metadata key to
-      encrypt an Assertion, NameID, Attribute, or data-encryption key'
-    operation: invert_normative_behavior
-    expected_behavior_en: Encryption keys found in metadata may be used for the containing entity
-    observation:
-      evidence_kind: configuration_and_transcript
-      surface_en: The requested target configuration, proof that it was applied, and the resulting target protocol behavior.
-      signal_en: 'Encryption keys found in metadata may be used for the containing entity — Trigger IIP-MD06.a4#v-57817c9261:
-        Use a metadata key to encrypt an Assertion, NameID, Attribute, or data-encryption key'
-      baseline_evidence_en: The evidence at the stated surface demonstrates the approved behavior for IIP-MD06.a4#v-57817c9261.
-      mutated_evidence_en: On the selected input, perform the nonconforming counterpart of IIP-MD06.a4#v-57817c9261.
-      unavailable_outcome: not_verified
-      isolation_en: Apply the mutation only at IIP-MD06.a4 on the idp path. Preserve every other baseline behavior. If the
-        trigger imports another obligation, keep that obligation conforming outside this owner-specific path.
-  expected_changes:
-    IIP-MD06.a4:
-      outcome: violated
-  unchanged_required: all_others
-  mutant_digest: sha256:14419011181440c7f9767ea0af22eab2b9ba0ac7f0908bafce3a7493c4310bc6
-- id: mut-iip-md06-a4-sp
-  authored_by: samlier-g2-builder
-  base: sp-full-slo-enc
-  target_role: sp
-  injected_violation_en: On the SP IIP-MD06.a4 path, apply invert_normative_behavior only to IIP-MD06.a4#v-57817c9261.
-  executor:
-    kind: declarative-sut-mutation
-    adapter: sp-mutant-target
-    mutation_point: IIP-MD06.a4
-    trigger_variant: IIP-MD06.a4#v-57817c9261
-    trigger_en: 'Encryption keys found in metadata may be used for the containing entity — Variant: Use a metadata key to
-      encrypt an Assertion, NameID, Attribute, or data-encryption key'
-    operation: invert_normative_behavior
-    expected_behavior_en: Encryption keys found in metadata may be used for the containing entity
-    observation:
-      evidence_kind: configuration_and_transcript
-      surface_en: The requested target configuration, proof that it was applied, and the resulting target protocol behavior.
-      signal_en: 'Encryption keys found in metadata may be used for the containing entity — Trigger IIP-MD06.a4#v-57817c9261:
-        Use a metadata key to encrypt an Assertion, NameID, Attribute, or data-encryption key'
-      baseline_evidence_en: The evidence at the stated surface demonstrates the approved behavior for IIP-MD06.a4#v-57817c9261.
-      mutated_evidence_en: On the selected input, perform the nonconforming counterpart of IIP-MD06.a4#v-57817c9261.
-      unavailable_outcome: not_verified
-      isolation_en: Apply the mutation only at IIP-MD06.a4 on the sp path. Preserve every other baseline behavior. If the
-        trigger imports another obligation, keep that obligation conforming outside this owner-specific path.
-  expected_changes:
-    IIP-MD06.a4:
-      outcome: violated
-  unchanged_required: all_others
-  mutant_digest: sha256:eee26ad35a9816a623132e06e96c984e09616eed58c4039b8ccff6affad5432d
 - id: mut-iip-md06-a5-idp
   authored_by: samlier-g2-builder
   base: idp-core-no-ecp
@@ -8892,37 +8844,6 @@ mutants:
       outcome: violated
   unchanged_required: all_others
   mutant_digest: sha256:0d15d3f24e112bfd0450906a945aefca0229e2e5ab95fa1d1bbe8430464ed1fe
-- id: mut-iip-sso01-z-idp
-  authored_by: samlier-g2-builder
-  base: idp-full
-  target_role: idp
-  injected_violation_en: On the IDP IIP-SSO01.z path, apply invert_normative_behavior only to IIP-SSO01.z#v-1e58ab9f57.
-  executor:
-    kind: declarative-sut-mutation
-    adapter: idp-mutant-target
-    mutation_point: IIP-SSO01.z
-    trigger_variant: IIP-SSO01.z#v-1e58ab9f57
-    trigger_en: 'An identity provider may initiate this profile by delivering an unsolicited Response message to a service
-      provider — Variant: Perform IdP-initiated SSO → a session is established without an AuthnRequest (when supported)'
-    operation: invert_normative_behavior
-    expected_behavior_en: An identity provider may initiate this profile by delivering an unsolicited Response message to
-      a service provider
-    observation:
-      evidence_kind: browser_and_transcript
-      surface_en: The browser-visible transition together with the target request/response and session evidence in the Transcript.
-      signal_en: 'An identity provider may initiate this profile by delivering an unsolicited Response message to a service
-        provider — Trigger IIP-SSO01.z#v-1e58ab9f57: Perform IdP-initiated SSO → a session is established without an AuthnRequest
-        (when supported)'
-      baseline_evidence_en: The evidence at the stated surface demonstrates the approved behavior for IIP-SSO01.z#v-1e58ab9f57.
-      mutated_evidence_en: On the selected input, perform the nonconforming counterpart of IIP-SSO01.z#v-1e58ab9f57.
-      unavailable_outcome: not_verified
-      isolation_en: Apply the mutation only at IIP-SSO01.z on the idp path. Preserve every other baseline behavior. If the
-        trigger imports another obligation, keep that obligation conforming outside this owner-specific path.
-  expected_changes:
-    IIP-SSO01.z:
-      outcome: violated
-  unchanged_required: all_others
-  mutant_digest: sha256:49f8b3b7ecb0633f83642c40430caa8db8fe92b29762b7b79b5dcf3b92586ee5
 - id: mut-iip-sso01-aa-sp
   authored_by: samlier-g2-builder
   base: sp-full-slo-enc
@@ -9771,38 +9692,6 @@ mutants:
       outcome: violated
   unchanged_required: all_others
   mutant_digest: sha256:1779949f1e020852027ca3d289993ea1795ff36493ffa96907ed77d18594e299
-- id: mut-iip-sso01-ax-idp
-  authored_by: samlier-g2-builder
-  base: idp-full
-  target_role: idp
-  injected_violation_en: On the IDP IIP-SSO01.ax path, apply invert_normative_behavior only to IIP-SSO01.ax#v-98d528b3e5.
-  executor:
-    kind: declarative-sut-mutation
-    adapter: idp-mutant-target
-    mutation_point: IIP-SSO01.ax
-    trigger_variant: IIP-SSO01.ax#v-98d528b3e5
-    trigger_en: 'When ProxyCount is zero and direct authentication is not possible, the identity provider may return ProxyCountExceeded
-      as a second-level StatusCode — Variant: If an IIP-SSO01.aw error Response contains a secondary <StatusCode>, record
-      its value'
-    operation: invert_normative_behavior
-    expected_behavior_en: When ProxyCount is zero and direct authentication is not possible, the identity provider may return
-      ProxyCountExceeded as a second-level StatusCode
-    observation:
-      evidence_kind: configuration_and_transcript
-      surface_en: The requested target configuration, proof that it was applied, and the resulting target protocol behavior.
-      signal_en: 'When ProxyCount is zero and direct authentication is not possible, the identity provider may return ProxyCountExceeded
-        as a second-level StatusCode — Trigger IIP-SSO01.ax#v-98d528b3e5: If an IIP-SSO01.aw error Response contains a secondary
-        <StatusCode>, record its value'
-      baseline_evidence_en: The evidence at the stated surface demonstrates the approved behavior for IIP-SSO01.ax#v-98d528b3e5.
-      mutated_evidence_en: On the selected input, perform the nonconforming counterpart of IIP-SSO01.ax#v-98d528b3e5.
-      unavailable_outcome: not_verified
-      isolation_en: Apply the mutation only at IIP-SSO01.ax on the idp path. Preserve every other baseline behavior. If the
-        trigger imports another obligation, keep that obligation conforming outside this owner-specific path.
-  expected_changes:
-    IIP-SSO01.ax:
-      outcome: violated
-  unchanged_required: all_others
-  mutant_digest: sha256:7a3432b5952109f6bd421a87ba7db652c7263a89af840c24fd6e2b09848f9f22
 - id: mut-iip-sso01-ay-idp
   authored_by: samlier-g2-builder
   base: idp-full
@@ -11795,7 +11684,8 @@ mutants:
   authored_by: samlier-g2-builder
   base: idp-full
   target_role: idp
-  injected_violation_en: On the IDP IIP-SSO01.dy path, apply emit_nonconforming_evidence only to IIP-SSO01.dy#v-d6e3c96d7a.
+  injected_violation_en: 'On the IDP IIP-SSO01.dy path, apply emit_nonconforming_evidence to every permitted alternative in
+    the selected one_of group: IIP-SSO01.dy#v-2aed0f0d69, IIP-SSO01.dy#v-d6e3c96d7a.'
   executor:
     kind: declarative-sut-mutation
     adapter: idp-mutant-target
@@ -11814,15 +11704,19 @@ mutants:
         — Trigger IIP-SSO01.dy#v-d6e3c96d7a: Method (a): SessionIndex is selected from a set of small positive integers and
         repeating constants.'
       baseline_evidence_en: The evidence at the stated surface demonstrates the approved behavior for IIP-SSO01.dy#v-d6e3c96d7a.
-      mutated_evidence_en: Produce attestation or trace evidence that directly contradicts IIP-SSO01.dy#v-d6e3c96d7a.
+      mutated_evidence_en: 'Produce attestation or trace evidence that directly contradicts IIP-SSO01.dy#v-d6e3c96d7a. Simultaneously
+        make every alternative in the same one_of group nonconforming: IIP-SSO01.dy#v-2aed0f0d69, IIP-SSO01.dy#v-d6e3c96d7a.'
       unavailable_outcome: not_verified
       isolation_en: Apply the mutation only at IIP-SSO01.dy on the idp path. Preserve every other baseline behavior. If the
         trigger imports another obligation, keep that obligation conforming outside this owner-specific path.
+    mutation_variants:
+    - IIP-SSO01.dy#v-2aed0f0d69
+    - IIP-SSO01.dy#v-d6e3c96d7a
   expected_changes:
     IIP-SSO01.dy:
       outcome: violated
   unchanged_required: all_others
-  mutant_digest: sha256:638c8ae450f4fb50de51cf2cadc590d340612a8cc28f8eba0b3a5652a259e8e6
+  mutant_digest: sha256:92560c60b61dba646268ed844ccf1b9bdb20467bc4097303855b7343b6435a52
 - id: mut-iip-sso01-dz-idp
   authored_by: samlier-g2-builder
   base: idp-core-no-ecp
@@ -13383,38 +13277,6 @@ mutants:
       outcome: violated
   unchanged_required: all_others
   mutant_digest: sha256:0cc4762f935b429055962c37bc80e1ea8bfaf7097a2f858ed9ec2dcb63934d6e
-- id: mut-iip-sso01-bk-idp
-  authored_by: samlier-g2-builder
-  base: idp-full
-  target_role: idp
-  injected_violation_en: On the IDP IIP-SSO01.bk path, apply invert_normative_behavior only to IIP-SSO01.bk#v-1cd2409048.
-  executor:
-    kind: declarative-sut-mutation
-    adapter: idp-mutant-target
-    mutation_point: IIP-SSO01.bk
-    trigger_variant: IIP-SSO01.bk#v-1cd2409048
-    trigger_en: 'The identity provider may include a binding-specific RelayState parameter with an unsolicited Response, based
-      on mutual agreement with the service provider — Variant: An IdP-initiated SSO configuration that includes RelayState
-      can be used, where supported.'
-    operation: invert_normative_behavior
-    expected_behavior_en: The identity provider may include a binding-specific RelayState parameter with an unsolicited Response,
-      based on mutual agreement with the service provider
-    observation:
-      evidence_kind: browser_and_transcript
-      surface_en: The browser-visible transition together with the target request/response and session evidence in the Transcript.
-      signal_en: 'The identity provider may include a binding-specific RelayState parameter with an unsolicited Response,
-        based on mutual agreement with the service provider — Trigger IIP-SSO01.bk#v-1cd2409048: An IdP-initiated SSO configuration
-        that includes RelayState can be used, where supported.'
-      baseline_evidence_en: The evidence at the stated surface demonstrates the approved behavior for IIP-SSO01.bk#v-1cd2409048.
-      mutated_evidence_en: On the selected input, perform the nonconforming counterpart of IIP-SSO01.bk#v-1cd2409048.
-      unavailable_outcome: not_verified
-      isolation_en: Apply the mutation only at IIP-SSO01.bk on the idp path. Preserve every other baseline behavior. If the
-        trigger imports another obligation, keep that obligation conforming outside this owner-specific path.
-  expected_changes:
-    IIP-SSO01.bk:
-      outcome: violated
-  unchanged_required: all_others
-  mutant_digest: sha256:50c589bf68436c5cd6ec67210b5ce74cdcd6ddfbc5e0ce772473c6ed17d055e6
 - id: mut-iip-sso01-y2-sp
   authored_by: samlier-g2-builder
   base: sp-full-slo-enc
@@ -15517,62 +15379,6 @@ mutants:
       outcome: violated
   unchanged_required: all_others
   mutant_digest: sha256:9930729780c9dbfd22719b39dce2f7bc955f2bb81d60ada230b2d93354ceddb5
-- id: mut-iip-alg05-a-idp
-  authored_by: samlier-g2-builder
-  base: idp-full
-  target_role: idp
-  injected_violation_en: On the IDP IIP-ALG05.a path, apply invert_normative_behavior only to IIP-ALG05.a#v-c16fcb2cd4.
-  executor:
-    kind: declarative-sut-mutation
-    adapter: idp-mutant-target
-    mutation_point: IIP-ALG05.a
-    trigger_variant: IIP-ALG05.a#v-c16fcb2cd4
-    trigger_en: 'May support AES-CBC block encryption algorithms for backwards compatibility — Variant: AES128-CBC'
-    operation: invert_normative_behavior
-    expected_behavior_en: May support AES-CBC block encryption algorithms for backwards compatibility
-    observation:
-      evidence_kind: browser_and_transcript
-      surface_en: The browser-visible transition together with the target request/response and session evidence in the Transcript.
-      signal_en: 'May support AES-CBC block encryption algorithms for backwards compatibility — Trigger IIP-ALG05.a#v-c16fcb2cd4:
-        AES128-CBC'
-      baseline_evidence_en: The evidence at the stated surface demonstrates the approved behavior for IIP-ALG05.a#v-c16fcb2cd4.
-      mutated_evidence_en: On the selected input, perform the nonconforming counterpart of IIP-ALG05.a#v-c16fcb2cd4.
-      unavailable_outcome: not_verified
-      isolation_en: Apply the mutation only at IIP-ALG05.a on the idp path. Preserve every other baseline behavior. If the
-        trigger imports another obligation, keep that obligation conforming outside this owner-specific path.
-  expected_changes:
-    IIP-ALG05.a:
-      outcome: violated
-  unchanged_required: all_others
-  mutant_digest: sha256:e45a023a7c4acb80c1a9ae90a6ece1658c50e3568bc3f4fbdfac59ed0820daf0
-- id: mut-iip-alg05-a-sp
-  authored_by: samlier-g2-builder
-  base: sp-full-slo-enc
-  target_role: sp
-  injected_violation_en: On the SP IIP-ALG05.a path, apply invert_normative_behavior only to IIP-ALG05.a#v-c16fcb2cd4.
-  executor:
-    kind: declarative-sut-mutation
-    adapter: sp-mutant-target
-    mutation_point: IIP-ALG05.a
-    trigger_variant: IIP-ALG05.a#v-c16fcb2cd4
-    trigger_en: 'May support AES-CBC block encryption algorithms for backwards compatibility — Variant: AES128-CBC'
-    operation: invert_normative_behavior
-    expected_behavior_en: May support AES-CBC block encryption algorithms for backwards compatibility
-    observation:
-      evidence_kind: browser_and_transcript
-      surface_en: The browser-visible transition together with the target request/response and session evidence in the Transcript.
-      signal_en: 'May support AES-CBC block encryption algorithms for backwards compatibility — Trigger IIP-ALG05.a#v-c16fcb2cd4:
-        AES128-CBC'
-      baseline_evidence_en: The evidence at the stated surface demonstrates the approved behavior for IIP-ALG05.a#v-c16fcb2cd4.
-      mutated_evidence_en: On the selected input, perform the nonconforming counterpart of IIP-ALG05.a#v-c16fcb2cd4.
-      unavailable_outcome: not_verified
-      isolation_en: Apply the mutation only at IIP-ALG05.a on the sp path. Preserve every other baseline behavior. If the
-        trigger imports another obligation, keep that obligation conforming outside this owner-specific path.
-  expected_changes:
-    IIP-ALG05.a:
-      outcome: violated
-  unchanged_required: all_others
-  mutant_digest: sha256:036e08c0b7ed1c6da54cc20020503f5c856c0914f0a71203b5c561ed15573de0
 - id: mut-iip-alg05-b-idp
   authored_by: samlier-g2-builder
   base: idp-full
@@ -17060,35 +16866,6 @@ mutants:
       outcome: violated
   unchanged_required: all_others
   mutant_digest: sha256:42699b3b0695e1ab1a91848ca2665cb5de58859ebf79b01424d3f8ccf61e108e
-- id: mut-iip-sp14-c-sp
-  authored_by: samlier-g2-builder
-  base: sp-full-slo-enc
-  target_role: sp
-  injected_violation_en: On the SP IIP-SP14.c path, apply invert_normative_behavior only to IIP-SP14.c#v-bfa56bd081.
-  executor:
-    kind: declarative-sut-mutation
-    adapter: sp-mutant-target
-    mutation_point: IIP-SP14.c
-    trigger_variant: IIP-SP14.c#v-bfa56bd081
-    trigger_en: 'Consumption of logout requests is optional — Variant: Send a valid LogoutRequest from the Suite. If unsupported,
-      return NOT_SUPPORTED; if consumed, determine wire behavior under .p–.x'
-    operation: invert_normative_behavior
-    expected_behavior_en: Consumption of logout requests is optional
-    observation:
-      evidence_kind: browser_and_transcript
-      surface_en: The browser-visible transition together with the target request/response and session evidence in the Transcript.
-      signal_en: 'Consumption of logout requests is optional — Trigger IIP-SP14.c#v-bfa56bd081: Send a valid LogoutRequest
-        from the Suite. If unsupported, return NOT_SUPPORTED; if consumed, determine wire behavior under .p–.x'
-      baseline_evidence_en: The evidence at the stated surface demonstrates the approved behavior for IIP-SP14.c#v-bfa56bd081.
-      mutated_evidence_en: On the selected input, perform the nonconforming counterpart of IIP-SP14.c#v-bfa56bd081.
-      unavailable_outcome: not_verified
-      isolation_en: Apply the mutation only at IIP-SP14.c on the sp path. Preserve every other baseline behavior. If the trigger
-        imports another obligation, keep that obligation conforming outside this owner-specific path.
-  expected_changes:
-    IIP-SP14.c:
-      outcome: violated
-  unchanged_required: all_others
-  mutant_digest: sha256:8a0b5fd951cced7df6e95117d51e765d3b492f01bc2fd87b55cd3c1d3948598e
 - id: mut-iip-sp14-c1-sp
   authored_by: samlier-g2-builder
   base: sp-full-slo-enc

@@ -51,6 +51,10 @@
             "adapter": {"enum": ["idp-mutant-target", "sp-mutant-target"]},
             "mutation_point": {"type": "string"},
             "trigger_variant": {"type": "string", "pattern": "^IIP-[A-Z]+[0-9]{2}\\.[a-z]{1,2}[0-9]?#v-[0-9a-f]{10}$"},
+            "mutation_variants": {
+              "type": "array", "minItems": 2, "uniqueItems": true,
+              "items": {"type": "string", "pattern": "^IIP-[A-Z]+[0-9]{2}\\.[a-z]{1,2}[0-9]?#v-[0-9a-f]{10}$"}
+            },
             "trigger_en": {"type": "string", "minLength": 1},
             "operation": {"enum": ["invert_normative_behavior", "emit_prohibited_behavior", "remove_required_capability", "emit_nonconforming_evidence"]},
             "expected_behavior_en": {"type": "string", "minLength": 20},

@@ -29,7 +29,6 @@ control_mutants:
   - IIP-SP14-ae-sp-01
   - IIP-SP14-af-sp-01
   - IIP-SP14-ak-sp-01
-  - IIP-SP14-c-sp-01
   - IIP-SP14-t-sp-01
   - IIP-SP14-y-sp-01
   - IIP-SSO01-ag-idp-01
@@ -52,7 +51,6 @@ control_mutants:
   - IIP-SSO01-r-sp-01
   - IIP-SSO01-s1-sp-01
   - IIP-SSO01-w-sp-01
-  - IIP-SSO01-z-idp-01
   - IIP-SSO05-a-idp-01
   - IIP-SSO05-a-sp-01
   - IIP-SSO05-b-idp-01
@@ -154,6 +152,18 @@ alternative_fixtures:
   expected_outcome: satisfied_with_note
   description_en: Exercise every permitted choice and verify that the recorder preserves the observation without creating
     a target violation or an outcome-to-Verdict decision in the case.
+- id: informational-iip-md06-a4-idp-01
+  case: IIP-MD06-a4-idp-01
+  kind: informational-choice
+  expected_outcome: satisfied_with_note
+  description_en: Exercise every permitted choice and verify that the recorder preserves the observation without creating
+    a target violation or an outcome-to-Verdict decision in the case.
+- id: informational-iip-md06-a4-sp-01
+  case: IIP-MD06-a4-sp-01
+  kind: informational-choice
+  expected_outcome: satisfied_with_note
+  description_en: Exercise every permitted choice and verify that the recorder preserves the observation without creating
+    a target violation or an outcome-to-Verdict decision in the case.
 - id: informational-iip-md06-aa-idp-01
   case: IIP-MD06-aa-idp-01
   kind: informational-choice
@@ -162,6 +172,24 @@ alternative_fixtures:
     a target violation or an outcome-to-Verdict decision in the case.
 - id: informational-iip-md06-aa-sp-01
   case: IIP-MD06-aa-sp-01
+  kind: informational-choice
+  expected_outcome: satisfied_with_note
+  description_en: Exercise every permitted choice and verify that the recorder preserves the observation without creating
+    a target violation or an outcome-to-Verdict decision in the case.
+- id: informational-iip-sso01-z-idp-01
+  case: IIP-SSO01-z-idp-01
+  kind: informational-choice
+  expected_outcome: satisfied_with_note
+  description_en: Exercise every permitted choice and verify that the recorder preserves the observation without creating
+    a target violation or an outcome-to-Verdict decision in the case.
+- id: informational-iip-sso01-ax-idp-01
+  case: IIP-SSO01-ax-idp-01
+  kind: informational-choice
+  expected_outcome: satisfied_with_note
+  description_en: Exercise every permitted choice and verify that the recorder preserves the observation without creating
+    a target violation or an outcome-to-Verdict decision in the case.
+- id: informational-iip-sso01-bk-idp-01
+  case: IIP-SSO01-bk-idp-01
   kind: informational-choice
   expected_outcome: satisfied_with_note
   description_en: Exercise every permitted choice and verify that the recorder preserves the observation without creating
@@ -202,8 +230,26 @@ alternative_fixtures:
   expected_outcome: satisfied_with_note
   description_en: Exercise every permitted choice and verify that the recorder preserves the observation without creating
     a target violation or an outcome-to-Verdict decision in the case.
+- id: informational-iip-alg05-a-idp-01
+  case: IIP-ALG05-a-idp-01
+  kind: informational-choice
+  expected_outcome: satisfied_with_note
+  description_en: Exercise every permitted choice and verify that the recorder preserves the observation without creating
+    a target violation or an outcome-to-Verdict decision in the case.
+- id: informational-iip-alg05-a-sp-01
+  case: IIP-ALG05-a-sp-01
+  kind: informational-choice
+  expected_outcome: satisfied_with_note
+  description_en: Exercise every permitted choice and verify that the recorder preserves the observation without creating
+    a target violation or an outcome-to-Verdict decision in the case.
 - id: informational-iip-sp02-c-sp-01
   case: IIP-SP02-c-sp-01
+  kind: informational-choice
+  expected_outcome: satisfied_with_note
+  description_en: Exercise every permitted choice and verify that the recorder preserves the observation without creating
+    a target violation or an outcome-to-Verdict decision in the case.
+- id: informational-iip-sp14-c-sp-01
+  case: IIP-SP14-c-sp-01
   kind: informational-choice
   expected_outcome: satisfied_with_note
   description_en: Exercise every permitted choice and verify that the recorder preserves the observation without creating

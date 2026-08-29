@@ -16523,7 +16523,7 @@ cases:
   variant_plan:
   - reference: IIP-MD06.a4#v-57817c9261
     applicability: owner_condition
-    treatment: verdict
+    treatment: informational
     instruction_en: Use a metadata key to encrypt an Assertion, NameID, Attribute, or data-encryption key
   variant_groups:
   - id: default-all-of
@@ -16534,22 +16534,15 @@ cases:
       the target outcome.
   controls:
   - id: iip-md06-a4-idp-01-positive
-    kind: positive
+    kind: informational
     fixture: idp-full
-    description_en: 'Exercise the applicable variant groups against baseline idp-full and observe behavior satisfying: Encryption
-      keys found in metadata may be used for the containing entity'
+    description_en: Exercise the permitted choices for IIP-MD06.a4 against baseline idp-full and record the result without
+      a target verdict.
     on_failure: control_failed
-  - id: iip-md06-a4-idp-01-negative
-    kind: negative
-    fixture: mut-iip-md06-a4-idp
-    description_en: 'Exercise trigger variant IIP-MD06.a4#v-57817c9261 with the same prerequisites against the role-specific
-      mutant that deliberately violates: Encryption keys found in metadata may be used for the containing entity'
-    on_failure: control_failed
-  counterexample_en: An Identity Provider that passes one fixed setup but violates the obligation after the required test
-    configuration is successfully applied could pass a one-sided check (Encryption keys found in metadata may be used for
-    the containing entity). The mutant first satisfies the setup precondition and then changes only the normative behavior.
-    If the setup cannot be applied, the case returns not_verified; configuration unavailability is never converted into a
-    target violation.
+  counterexample_en: An Identity Provider may choose either recorded behavior for Encryption keys found in metadata may be
+    used for the containing entity; neither choice can violate this obligation. A fabricated negative oracle would therefore
+    label a conforming implementation nonconforming. The case records the choice as informational evidence and uses a mutant
+    waiver instead of inventing a violation.
   interpretation_constraints: &id114
   - A local policy that is not used is also conformant. The capability to accept it is assessed separately under stronger
     obligations such as IIP-MD07 and MD08.
@@ -16562,15 +16555,20 @@ cases:
     reject_everything: not_applicable
     rationale_en: This case is informational, configuration-based, or evidence-based rather than a protocol accept/reject
       decision.
-  detected_by_mutants:
-  - mut-iip-md06-a4-idp
+  detected_by_mutants: []
   baseline: idp-full
   review:
     state: PENDING_REVIEW
     reviewer: null
     approved_at: null
+  control_waiver_en: The approved G1 text permits every recorded choice and defines no target behavior that can produce a
+    unique violated outcome for this obligation.
+  mutant_waiver:
+    reason_en: Every choice represented by this MAY/OPTIONAL obligation is conforming; a violating target mutant would be
+      fabricated from a requirement owned by another obligation.
+    alternative_control_fixture: informational-iip-md06-a4-idp-01
   configuration_failure_semantics: test_precondition
-  case_digest: sha256:960737cf127f0b4859e62d92397895123399c23059a4d013df6db59c21e90784
+  case_digest: sha256:a496928d45ad206fbfb97df1183c972fafc289ac1a6fc38060ade0b267c6f873
 - id: IIP-MD06-a4-sp-01
   authored_by: samlier-g2-builder
   obligation: IIP-MD06.a4
@@ -16585,7 +16583,7 @@ cases:
   variant_plan:
   - reference: IIP-MD06.a4#v-57817c9261
     applicability: owner_condition
-    treatment: verdict
+    treatment: informational
     instruction_en: Use a metadata key to encrypt an Assertion, NameID, Attribute, or data-encryption key
   variant_groups:
   - id: default-all-of
@@ -16596,21 +16594,15 @@ cases:
       the target outcome.
   controls:
   - id: iip-md06-a4-sp-01-positive
-    kind: positive
+    kind: informational
     fixture: sp-full-slo-enc
-    description_en: 'Exercise the applicable variant groups against baseline sp-full-slo-enc and observe behavior satisfying:
-      Encryption keys found in metadata may be used for the containing entity'
+    description_en: Exercise the permitted choices for IIP-MD06.a4 against baseline sp-full-slo-enc and record the result
+      without a target verdict.
     on_failure: control_failed
-  - id: iip-md06-a4-sp-01-negative
-    kind: negative
-    fixture: mut-iip-md06-a4-sp
-    description_en: 'Exercise trigger variant IIP-MD06.a4#v-57817c9261 with the same prerequisites against the role-specific
-      mutant that deliberately violates: Encryption keys found in metadata may be used for the containing entity'
-    on_failure: control_failed
-  counterexample_en: A Service Provider that passes one fixed setup but violates the obligation after the required test configuration
-    is successfully applied could pass a one-sided check (Encryption keys found in metadata may be used for the containing
-    entity). The mutant first satisfies the setup precondition and then changes only the normative behavior. If the setup
-    cannot be applied, the case returns not_verified; configuration unavailability is never converted into a target violation.
+  counterexample_en: A Service Provider may choose either recorded behavior for Encryption keys found in metadata may be used
+    for the containing entity; neither choice can violate this obligation. A fabricated negative oracle would therefore label
+    a conforming implementation nonconforming. The case records the choice as informational evidence and uses a mutant waiver
+    instead of inventing a violation.
   interpretation_constraints: *id114
   requires:
     passed_cases: []
@@ -16621,15 +16613,20 @@ cases:
     reject_everything: not_applicable
     rationale_en: This case is informational, configuration-based, or evidence-based rather than a protocol accept/reject
       decision.
-  detected_by_mutants:
-  - mut-iip-md06-a4-sp
+  detected_by_mutants: []
   baseline: sp-full-slo-enc
   review:
     state: PENDING_REVIEW
     reviewer: null
     approved_at: null
+  control_waiver_en: The approved G1 text permits every recorded choice and defines no target behavior that can produce a
+    unique violated outcome for this obligation.
+  mutant_waiver:
+    reason_en: Every choice represented by this MAY/OPTIONAL obligation is conforming; a violating target mutant would be
+      fabricated from a requirement owned by another obligation.
+    alternative_control_fixture: informational-iip-md06-a4-sp-01
   configuration_failure_semantics: test_precondition
-  case_digest: sha256:6eb8336d23dce1efcc2ba2db23103d9b938fe67e7aa83ced2db3cbb0278439c9
+  case_digest: sha256:585db74c1657f2ca0ddcaeead2acba2480fc5d722217b525de8ba60c99dc9855
 - id: IIP-MD06-a5-idp-01
   authored_by: samlier-g2-builder
   obligation: IIP-MD06.a5
@@ -22549,11 +22546,11 @@ cases:
   variant_plan:
   - reference: IIP-SSO01.z#v-1e58ab9f57
     applicability: owner_condition
-    treatment: verdict
+    treatment: informational
     instruction_en: Perform IdP-initiated SSO → a session is established without an AuthnRequest (when supported)
   - reference: IIP-SSO01.z#v-e50909aa91
     applicability: owner_condition
-    treatment: verdict
+    treatment: informational
     instruction_en: If unsupported, return NOT_SUPPORTED. This is not a conformance violation
   variant_groups:
   - id: default-all-of
@@ -22565,24 +22562,15 @@ cases:
       the target outcome.
   controls:
   - id: iip-sso01-z-idp-01-positive
-    kind: positive
+    kind: informational
     fixture: idp-full
-    description_en: 'Exercise the applicable variant groups against baseline idp-full and observe behavior satisfying: An
-      identity provider may initiate this profile by delivering an unsolicited Response message to a service provider'
+    description_en: Exercise the permitted choices for IIP-SSO01.z against baseline idp-full and record the result without
+      a target verdict.
     on_failure: control_failed
-  - id: iip-sso01-z-idp-01-negative
-    kind: negative
-    fixture: mut-iip-sso01-z-idp
-    description_en: 'Exercise trigger variant IIP-SSO01.z#v-1e58ab9f57 with the same prerequisites against the role-specific
-      mutant that deliberately violates: An identity provider may initiate this profile by delivering an unsolicited Response
-      message to a service provider'
-    on_failure: control_failed
-  counterexample_en: An Identity Provider that hard-codes the expected behavior for only the selected trigger variant while
-    violating another covered variant could pass a one-sided oracle without satisfying the obligation (An identity provider
-    may initiate this profile by delivering an unsolicited Response message to a service provider). The conforming baseline
-    runs every covered variant, and the role-specific mutant changes the normative behavior for the trigger variant while
-    retaining the same prerequisites. Blanket acceptance, blanket rejection, and a fixture that is never exercised therefore
-    cannot satisfy the control oracle.
+  counterexample_en: An Identity Provider may choose either recorded behavior for An identity provider may initiate this profile
+    by delivering an unsolicited Response message to a service provider; neither choice can violate this obligation. A fabricated
+    negative oracle would therefore label a conforming implementation nonconforming. The case records the choice as informational
+    evidence and uses a mutant waiver instead of inventing a violation.
   interpretation_constraints:
   - ★ MAY_CLASS. An IdP that does not issue unsolicited responses must not be marked FAIL
   - ★ The observation result for this obligation provides input to the supports_unsolicited_responses condition predicate
@@ -22593,17 +22581,22 @@ cases:
   destroys_session: false
   universal_control_applicability:
     accept_everything: not_applicable
-    reject_everything: changes
-    rationale_en: Applicability is limited to an explicit receiver decision in the approved trigger text. Producer output
-      and passive observations use the role-specific mutant instead.
-  detected_by_mutants:
-  - mut-iip-sso01-z-idp
+    reject_everything: not_applicable
+    rationale_en: This case is informational, configuration-based, or evidence-based rather than a protocol accept/reject
+      decision.
+  detected_by_mutants: []
   baseline: idp-full
   review:
     state: PENDING_REVIEW
     reviewer: null
     approved_at: null
-  case_digest: sha256:6ef10d849e1635765b2deb5b20cd92765ab2b12612781bd3c4897057da5bbea1
+  control_waiver_en: The approved G1 text permits every recorded choice and defines no target behavior that can produce a
+    unique violated outcome for this obligation.
+  mutant_waiver:
+    reason_en: Every choice represented by this MAY/OPTIONAL obligation is conforming; a violating target mutant would be
+      fabricated from a requirement owned by another obligation.
+    alternative_control_fixture: informational-iip-sso01-z-idp-01
+  case_digest: sha256:db64347d7dec0df6f3efbd86a72736f2579a35d201a709d0518fc593c78c823e
 - id: IIP-SSO01-aa-sp-01
   authored_by: samlier-g2-builder
   obligation: IIP-SSO01.aa
@@ -24823,11 +24816,11 @@ cases:
   variant_plan:
   - reference: IIP-SSO01.ax#v-98d528b3e5
     applicability: owner_condition
-    treatment: verdict
+    treatment: informational
     instruction_en: If an IIP-SSO01.aw error Response contains a secondary <StatusCode>, record its value
   - reference: IIP-SSO01.ax#v-9af8bc0669
     applicability: owner_condition
-    treatment: verdict
+    treatment: informational
     instruction_en: Do not treat the absence of ProxyCountExceeded as a violation
   variant_groups:
   - id: default-all-of
@@ -24839,24 +24832,15 @@ cases:
       the target outcome.
   controls:
   - id: iip-sso01-ax-idp-01-positive
-    kind: positive
+    kind: informational
     fixture: idp-full
-    description_en: 'Exercise the applicable variant groups against baseline idp-full and observe behavior satisfying: When
-      ProxyCount is zero and direct authentication is not possible, the identity provider may return ProxyCountExceeded as
-      a second-level StatusCode'
+    description_en: Exercise the permitted choices for IIP-SSO01.ax against baseline idp-full and record the result without
+      a target verdict.
     on_failure: control_failed
-  - id: iip-sso01-ax-idp-01-negative
-    kind: negative
-    fixture: mut-iip-sso01-ax-idp
-    description_en: 'Exercise trigger variant IIP-SSO01.ax#v-98d528b3e5 with the same prerequisites against the role-specific
-      mutant that deliberately violates: When ProxyCount is zero and direct authentication is not possible, the identity provider
-      may return ProxyCountExceeded as a second-level StatusCode'
-    on_failure: control_failed
-  counterexample_en: An Identity Provider that passes one fixed setup but violates the obligation after the required test
-    configuration is successfully applied could pass a one-sided check (When ProxyCount is zero and direct authentication
-    is not possible, the identity provider may return ProxyCountExceeded as a second-level StatusCode). The mutant first satisfies
-    the setup precondition and then changes only the normative behavior. If the setup cannot be applied, the case returns
-    not_verified; configuration unavailability is never converted into a target violation.
+  counterexample_en: An Identity Provider may choose either recorded behavior for When ProxyCount is zero and direct authentication
+    is not possible, the identity provider may return ProxyCountExceeded as a second-level StatusCode; neither choice can
+    violate this obligation. A fabricated negative oracle would therefore label a conforming implementation nonconforming.
+    The case records the choice as informational evidence and uses a mutant waiver instead of inventing a violation.
   interpretation_constraints:
   - ★ MAY_CLASS. Errata E65 relaxed the former MUST to MAY. A conforming implementation that omits the secondary code must
     not be marked FAIL
@@ -24870,15 +24854,20 @@ cases:
     reject_everything: not_applicable
     rationale_en: This case is informational, configuration-based, or evidence-based rather than a protocol accept/reject
       decision.
-  detected_by_mutants:
-  - mut-iip-sso01-ax-idp
+  detected_by_mutants: []
   baseline: idp-full
   review:
     state: PENDING_REVIEW
     reviewer: null
     approved_at: null
+  control_waiver_en: The approved G1 text permits every recorded choice and defines no target behavior that can produce a
+    unique violated outcome for this obligation.
+  mutant_waiver:
+    reason_en: Every choice represented by this MAY/OPTIONAL obligation is conforming; a violating target mutant would be
+      fabricated from a requirement owned by another obligation.
+    alternative_control_fixture: informational-iip-sso01-ax-idp-01
   configuration_failure_semantics: test_precondition
-  case_digest: sha256:4d22e2a0a485bf196e282a9cc2c0fd14cd69ade3a228f485e9f4cb9b9651e2ce
+  case_digest: sha256:06076724b49a4e4a22beaee5f2ba6854cd1dc4c92a1824273981d12378a7a938
 - id: IIP-SSO01-ay-idp-01
   authored_by: samlier-g2-builder
   obligation: IIP-SSO01.ay
@@ -33534,11 +33523,11 @@ cases:
   variant_plan:
   - reference: IIP-SSO01.bk#v-0f7e1ec62d
     applicability: owner_condition
-    treatment: verdict
+    treatment: informational
     instruction_en: If unsupported, return NOT_SUPPORTED. This is not a conformance violation
   - reference: IIP-SSO01.bk#v-1cd2409048
     applicability: owner_condition
-    treatment: verdict
+    treatment: informational
     instruction_en: An IdP-initiated SSO configuration that includes RelayState can be used, where supported.
   variant_groups:
   - id: default-all-of
@@ -33550,25 +33539,15 @@ cases:
       the target outcome.
   controls:
   - id: iip-sso01-bk-idp-01-positive
-    kind: positive
+    kind: informational
     fixture: idp-full
-    description_en: 'Exercise the applicable variant groups against baseline idp-full and observe behavior satisfying: The
-      identity provider may include a binding-specific RelayState parameter with an unsolicited Response, based on mutual
-      agreement with the service provider'
+    description_en: Exercise the permitted choices for IIP-SSO01.bk against baseline idp-full and record the result without
+      a target verdict.
     on_failure: control_failed
-  - id: iip-sso01-bk-idp-01-negative
-    kind: negative
-    fixture: mut-iip-sso01-bk-idp
-    description_en: 'Exercise trigger variant IIP-SSO01.bk#v-1cd2409048 with the same prerequisites against the role-specific
-      mutant that deliberately violates: The identity provider may include a binding-specific RelayState parameter with an
-      unsolicited Response, based on mutual agreement with the service provider'
-    on_failure: control_failed
-  counterexample_en: An Identity Provider that hard-codes the expected behavior for only the selected trigger variant while
-    violating another covered variant could pass a one-sided oracle without satisfying the obligation (The identity provider
-    may include a binding-specific RelayState parameter with an unsolicited Response, based on mutual agreement with the service
-    provider). The conforming baseline runs every covered variant, and the role-specific mutant changes the normative behavior
-    for the trigger variant while retaining the same prerequisites. Blanket acceptance, blanket rejection, and a fixture that
-    is never exercised therefore cannot satisfy the control oracle.
+  counterexample_en: An Identity Provider may choose either recorded behavior for The identity provider may include a binding-specific
+    RelayState parameter with an unsolicited Response, based on mutual agreement with the service provider; neither choice
+    can violate this obligation. A fabricated negative oracle would therefore label a conforming implementation nonconforming.
+    The case records the choice as informational evidence and uses a mutant waiver instead of inventing a violation.
   interpretation_constraints:
   - ★ MAY_CLASS. An IdP that does not include RelayState must not be marked FAIL
   - ★ RelayState MAY also be a URL; it may instead be an opaque value that is not a URL.
@@ -33580,16 +33559,21 @@ cases:
   universal_control_applicability:
     accept_everything: not_applicable
     reject_everything: not_applicable
-    rationale_en: Applicability is limited to an explicit receiver decision in the approved trigger text. Producer output
-      and passive observations use the role-specific mutant instead.
-  detected_by_mutants:
-  - mut-iip-sso01-bk-idp
+    rationale_en: This case is informational, configuration-based, or evidence-based rather than a protocol accept/reject
+      decision.
+  detected_by_mutants: []
   baseline: idp-full
   review:
     state: PENDING_REVIEW
     reviewer: null
     approved_at: null
-  case_digest: sha256:091d0efc1f89441576d54ae5717ad72db2bad7077dee0428db864099de33e0f8
+  control_waiver_en: The approved G1 text permits every recorded choice and defines no target behavior that can produce a
+    unique violated outcome for this obligation.
+  mutant_waiver:
+    reason_en: Every choice represented by this MAY/OPTIONAL obligation is conforming; a violating target mutant would be
+      fabricated from a requirement owned by another obligation.
+    alternative_control_fixture: informational-iip-sso01-bk-idp-01
+  case_digest: sha256:929f27040962472d37308a9f0c44b5b6ba263b01cf59a3a8d8fe7f6625194155
 - id: IIP-SSO01-y2-sp-01
   authored_by: samlier-g2-builder
   obligation: IIP-SSO01.y2
@@ -39030,11 +39014,11 @@ cases:
   variant_plan:
   - reference: IIP-ALG05.a#v-c16fcb2cd4
     applicability: owner_condition
-    treatment: verdict
+    treatment: informational
     instruction_en: AES128-CBC
   - reference: IIP-ALG05.a#v-dc06f9c264
     applicability: owner_condition
-    treatment: verdict
+    treatment: informational
     instruction_en: AES256-CBC
   variant_groups:
   - id: default-all-of
@@ -39046,22 +39030,15 @@ cases:
       the target outcome.
   controls:
   - id: iip-alg05-a-idp-01-positive
-    kind: positive
+    kind: informational
     fixture: idp-full
-    description_en: 'Exercise the applicable variant groups against baseline idp-full and observe behavior satisfying: May
-      support AES-CBC block encryption algorithms for backwards compatibility'
+    description_en: Exercise the permitted choices for IIP-ALG05.a against baseline idp-full and record the result without
+      a target verdict.
     on_failure: control_failed
-  - id: iip-alg05-a-idp-01-negative
-    kind: negative
-    fixture: mut-iip-alg05-a-idp
-    description_en: 'Exercise trigger variant IIP-ALG05.a#v-c16fcb2cd4 with the same prerequisites against the role-specific
-      mutant that deliberately violates: May support AES-CBC block encryption algorithms for backwards compatibility'
-    on_failure: control_failed
-  counterexample_en: An Identity Provider that hard-codes the expected behavior for only the selected trigger variant while
-    violating another covered variant could pass a one-sided oracle without satisfying the obligation (May support AES-CBC
-    block encryption algorithms for backwards compatibility). The conforming baseline runs every covered variant, and the
-    role-specific mutant changes the normative behavior for the trigger variant while retaining the same prerequisites. Blanket
-    acceptance, blanket rejection, and a fixture that is never exercised therefore cannot satisfy the control oracle.
+  counterexample_en: An Identity Provider may choose either recorded behavior for May support AES-CBC block encryption algorithms
+    for backwards compatibility; neither choice can violate this obligation. A fabricated negative oracle would therefore
+    label a conforming implementation nonconforming. The case records the choice as informational evidence and uses a mutant
+    waiver instead of inventing a violation.
   interpretation_constraints: &id180
   - Lack of support yields NOT_SUPPORTED, not a violation.
   requires:
@@ -39071,16 +39048,21 @@ cases:
   universal_control_applicability:
     accept_everything: not_applicable
     reject_everything: not_applicable
-    rationale_en: Applicability is limited to an explicit receiver decision in the approved trigger text. Producer output
-      and passive observations use the role-specific mutant instead.
-  detected_by_mutants:
-  - mut-iip-alg05-a-idp
+    rationale_en: This case is informational, configuration-based, or evidence-based rather than a protocol accept/reject
+      decision.
+  detected_by_mutants: []
   baseline: idp-full
   review:
     state: PENDING_REVIEW
     reviewer: null
     approved_at: null
-  case_digest: sha256:fe66d875e68fca96bdc25bd556761a1162eb35c81ac084f2615b26fd3b896835
+  control_waiver_en: The approved G1 text permits every recorded choice and defines no target behavior that can produce a
+    unique violated outcome for this obligation.
+  mutant_waiver:
+    reason_en: Every choice represented by this MAY/OPTIONAL obligation is conforming; a violating target mutant would be
+      fabricated from a requirement owned by another obligation.
+    alternative_control_fixture: informational-iip-alg05-a-idp-01
+  case_digest: sha256:ce514e74236e05de5772e33df6a4021d107e950e46da36ef09c45bb4c33810b2
 - id: IIP-ALG05-a-sp-01
   authored_by: samlier-g2-builder
   obligation: IIP-ALG05.a
@@ -39097,11 +39079,11 @@ cases:
   variant_plan:
   - reference: IIP-ALG05.a#v-c16fcb2cd4
     applicability: owner_condition
-    treatment: verdict
+    treatment: informational
     instruction_en: AES128-CBC
   - reference: IIP-ALG05.a#v-dc06f9c264
     applicability: owner_condition
-    treatment: verdict
+    treatment: informational
     instruction_en: AES256-CBC
   variant_groups:
   - id: default-all-of
@@ -39113,22 +39095,15 @@ cases:
       the target outcome.
   controls:
   - id: iip-alg05-a-sp-01-positive
-    kind: positive
+    kind: informational
     fixture: sp-full-slo-enc
-    description_en: 'Exercise the applicable variant groups against baseline sp-full-slo-enc and observe behavior satisfying:
-      May support AES-CBC block encryption algorithms for backwards compatibility'
+    description_en: Exercise the permitted choices for IIP-ALG05.a against baseline sp-full-slo-enc and record the result
+      without a target verdict.
     on_failure: control_failed
-  - id: iip-alg05-a-sp-01-negative
-    kind: negative
-    fixture: mut-iip-alg05-a-sp
-    description_en: 'Exercise trigger variant IIP-ALG05.a#v-c16fcb2cd4 with the same prerequisites against the role-specific
-      mutant that deliberately violates: May support AES-CBC block encryption algorithms for backwards compatibility'
-    on_failure: control_failed
-  counterexample_en: A Service Provider that hard-codes the expected behavior for only the selected trigger variant while
-    violating another covered variant could pass a one-sided oracle without satisfying the obligation (May support AES-CBC
-    block encryption algorithms for backwards compatibility). The conforming baseline runs every covered variant, and the
-    role-specific mutant changes the normative behavior for the trigger variant while retaining the same prerequisites. Blanket
-    acceptance, blanket rejection, and a fixture that is never exercised therefore cannot satisfy the control oracle.
+  counterexample_en: A Service Provider may choose either recorded behavior for May support AES-CBC block encryption algorithms
+    for backwards compatibility; neither choice can violate this obligation. A fabricated negative oracle would therefore
+    label a conforming implementation nonconforming. The case records the choice as informational evidence and uses a mutant
+    waiver instead of inventing a violation.
   interpretation_constraints: *id180
   requires:
     passed_cases: []
@@ -39137,16 +39112,21 @@ cases:
   universal_control_applicability:
     accept_everything: not_applicable
     reject_everything: not_applicable
-    rationale_en: Applicability is limited to an explicit receiver decision in the approved trigger text. Producer output
-      and passive observations use the role-specific mutant instead.
-  detected_by_mutants:
-  - mut-iip-alg05-a-sp
+    rationale_en: This case is informational, configuration-based, or evidence-based rather than a protocol accept/reject
+      decision.
+  detected_by_mutants: []
   baseline: sp-full-slo-enc
   review:
     state: PENDING_REVIEW
     reviewer: null
     approved_at: null
-  case_digest: sha256:ec86b95c55c471bab04f40bd1b5500faec2a759c1fbbe50167c8634a407c3a01
+  control_waiver_en: The approved G1 text permits every recorded choice and defines no target behavior that can produce a
+    unique violated outcome for this obligation.
+  mutant_waiver:
+    reason_en: Every choice represented by this MAY/OPTIONAL obligation is conforming; a violating target mutant would be
+      fabricated from a requirement owned by another obligation.
+    alternative_control_fixture: informational-iip-alg05-a-sp-01
+  case_digest: sha256:2f2cb465ec6a3a265cfdcc1a9a2d0f50143af8ac84a027a19978f419f030b838
 - id: IIP-ALG05-b-idp-01
   authored_by: samlier-g2-builder
   obligation: IIP-ALG05.b
@@ -42584,7 +42564,7 @@ cases:
   variant_plan:
   - reference: IIP-SP14.c#v-bfa56bd081
     applicability: owner_condition
-    treatment: verdict
+    treatment: informational
     instruction_en: Send a valid LogoutRequest from the Suite. If unsupported, return NOT_SUPPORTED; if consumed, determine
       wire behavior under .p–.x
   variant_groups:
@@ -42596,22 +42576,14 @@ cases:
       the target outcome.
   controls:
   - id: iip-sp14-c-sp-01-positive
-    kind: positive
+    kind: informational
     fixture: sp-full-slo-enc
-    description_en: 'Exercise the applicable variant groups against baseline sp-full-slo-enc and observe behavior satisfying:
-      Consumption of logout requests is optional'
+    description_en: Exercise the permitted choices for IIP-SP14.c against baseline sp-full-slo-enc and record the result without
+      a target verdict.
     on_failure: control_failed
-  - id: iip-sp14-c-sp-01-negative
-    kind: negative
-    fixture: mut-iip-sp14-c-sp
-    description_en: 'Exercise trigger variant IIP-SP14.c#v-bfa56bd081 with the same prerequisites against the role-specific
-      mutant that deliberately violates: Consumption of logout requests is optional'
-    on_failure: control_failed
-  counterexample_en: A Service Provider that recognizes only the exact bytes of the selected fixture while violating the same
-    rule for a semantically equivalent input could pass a one-sided oracle without satisfying the obligation (Consumption
-    of logout requests is optional). The conforming baseline runs every covered variant, and the role-specific mutant changes
-    the normative behavior for the trigger variant while retaining the same prerequisites. Blanket acceptance, blanket rejection,
-    and a fixture that is never exercised therefore cannot satisfy the control oracle.
+  counterexample_en: A Service Provider may choose either recorded behavior for Consumption of logout requests is optional;
+    neither choice can violate this obligation. A fabricated negative oracle would therefore label a conforming implementation
+    nonconforming. The case records the choice as informational evidence and uses a mutant waiver instead of inventing a violation.
   interpretation_constraints:
   - ★ An SP that does not implement this feature is NOT_SUPPORTED. Do not elevate OPTIONAL to MUST
   - ★ Profile responder MUST / RECOMMENDED requirements in .p–.x apply passively to the LogoutRequest actually consumed and
@@ -42625,17 +42597,22 @@ cases:
   destroys_session: false
   universal_control_applicability:
     accept_everything: not_applicable
-    reject_everything: changes
-    rationale_en: Applicability is limited to an explicit receiver decision in the approved trigger text. Producer output
-      and passive observations use the role-specific mutant instead.
-  detected_by_mutants:
-  - mut-iip-sp14-c-sp
+    reject_everything: not_applicable
+    rationale_en: This case is informational, configuration-based, or evidence-based rather than a protocol accept/reject
+      decision.
+  detected_by_mutants: []
   baseline: sp-full-slo-enc
   review:
     state: PENDING_REVIEW
     reviewer: null
     approved_at: null
-  case_digest: sha256:3c41295655f2807dbd9f01a8d47a92eb25d3bcbba3779f09398d7ff5aa40c8bc
+  control_waiver_en: The approved G1 text permits every recorded choice and defines no target behavior that can produce a
+    unique violated outcome for this obligation.
+  mutant_waiver:
+    reason_en: Every choice represented by this MAY/OPTIONAL obligation is conforming; a violating target mutant would be
+      fabricated from a requirement owned by another obligation.
+    alternative_control_fixture: informational-iip-sp14-c-sp-01
+  case_digest: sha256:ddd998c04f0dd2b8548c4fdeff2da2d4ad3543f44067d14849b0e6642b51c9af
 - id: IIP-SP14-c1-sp-01
   authored_by: samlier-g2-builder
   obligation: IIP-SP14.c1
@@ -44306,7 +44283,8 @@ cases:
   - Being sequential is not itself a violation. Do not impose an absolute threshold on probability that is outside the specification.
   requires:
     passed_cases: []
-    session: none
+    session: required
+    setup_fixture: fresh-authenticated-session
   destroys_session: false
   universal_control_applicability:
     accept_everything: not_applicable
@@ -44320,7 +44298,7 @@ cases:
     state: PENDING_REVIEW
     reviewer: null
     approved_at: null
-  case_digest: sha256:b5b4ab73f8821c7ba58aa382c4660fb8406bd8cd7d507a4c57656ae186b8b4ad
+  case_digest: sha256:73226bb819ef4309234c84c5edc4f8d09af64c587852ac5263b74bf8bf2ca701
 - id: IIP-SP14-ab-sp-01
   authored_by: samlier-g2-builder
   obligation: IIP-SP14.ab
@@ -45262,7 +45240,8 @@ cases:
     ASLO rules are evaluated by IIP-IDP17.b through .b4
   requires:
     passed_cases: []
-    session: none
+    session: required
+    setup_fixture: fresh-authenticated-session
   destroys_session: false
   universal_control_applicability:
     accept_everything: not_applicable
@@ -45276,7 +45255,7 @@ cases:
     state: PENDING_REVIEW
     reviewer: null
     approved_at: null
-  case_digest: sha256:694eb607064a2baaa34e5978a0e229dcaeb6a26941b23f4003cd6f60d6520fcf
+  case_digest: sha256:56e7df8a90bedba766a2098fea0fd52c25ff96c86cdfec9bf6337e881db5e89f
 - id: IIP-SP14-ap-sp-01
   authored_by: samlier-g2-builder
   obligation: IIP-SP14.ap
@@ -45324,7 +45303,8 @@ cases:
   - ★ SHOULD_CLASS. The IIP target supports only version 2.0, so the current check is for 2.0. Do not infer a future version
   requires:
     passed_cases: []
-    session: none
+    session: required
+    setup_fixture: fresh-authenticated-session
   destroys_session: false
   universal_control_applicability:
     accept_everything: not_applicable
@@ -45338,7 +45318,7 @@ cases:
     state: PENDING_REVIEW
     reviewer: null
     approved_at: null
-  case_digest: sha256:f3a7b5ad95bc857398f149916412b160c529c77347ae4723aa42d419da96b510
+  case_digest: sha256:c63b3e1676e3257ad70b7d5e242e65f75e321e19eae9542df1ce551f361851b1
 - id: IIP-SP14-aq-sp-01
   authored_by: samlier-g2-builder
   obligation: IIP-SP14.aq
@@ -49909,7 +49889,8 @@ cases:
     of the target-emitted element and does not add an independent rejection obligation for the receiver.
   requires:
     passed_cases: []
-    session: none
+    session: required
+    setup_fixture: fresh-authenticated-session
   destroys_session: false
   universal_control_applicability:
     accept_everything: not_applicable
@@ -49923,7 +49904,7 @@ cases:
     state: PENDING_REVIEW
     reviewer: null
     approved_at: null
-  case_digest: sha256:6f303869aa38b149b059ac80b11fc9d9aef74143157be99479282787661c57e4
+  case_digest: sha256:eeec3f97111aa557f92cc5e5e3ed39d8551194ea9f896a010072c0bc0c8739eb
 - id: IIP-IDP17-b4-idp-01
   authored_by: samlier-g2-builder
   obligation: IIP-IDP17.b4
@@ -51352,7 +51333,8 @@ cases:
     as a uniqueness violation.
   requires:
     passed_cases: []
-    session: none
+    session: required
+    setup_fixture: fresh-authenticated-session
   destroys_session: false
   universal_control_applicability:
     accept_everything: not_applicable
@@ -51366,7 +51348,7 @@ cases:
     state: PENDING_REVIEW
     reviewer: null
     approved_at: null
-  case_digest: sha256:5ea007c393b745ba0091cf89a491d9db315f21169ca6a9095ccd8d55d9e53c3a
+  case_digest: sha256:117b18c0a512ecac49087ee3f415a1d90a6009c024c0cdef9ffbc2dbaf502e94
 - id: IIP-IDP17-w-idp-01
   authored_by: samlier-g2-builder
   obligation: IIP-IDP17.w
@@ -52244,7 +52226,8 @@ cases:
     response-consumption capability to an async-only implementation.
   requires:
     passed_cases: []
-    session: none
+    session: required
+    setup_fixture: fresh-authenticated-session
   destroys_session: false
   universal_control_applicability:
     accept_everything: not_applicable
@@ -52258,7 +52241,7 @@ cases:
     state: PENDING_REVIEW
     reviewer: null
     approved_at: null
-  case_digest: sha256:b99244a1743da6b02ee0c2a09caaa8aae4194e22fb51094db898b22e37bcfc89
+  case_digest: sha256:52a799c52710e33ce734dfd921bd5437bf3414b9568ed66ab46db627a1e8a746
 - id: IIP-IDP17-aj-idp-01
   authored_by: samlier-g2-builder
   obligation: IIP-IDP17.aj
@@ -52307,7 +52290,8 @@ cases:
     SHOULD_CLASS
   requires:
     passed_cases: []
-    session: none
+    session: required
+    setup_fixture: fresh-authenticated-session
   destroys_session: false
   universal_control_applicability:
     accept_everything: not_applicable
@@ -52321,7 +52305,7 @@ cases:
     state: PENDING_REVIEW
     reviewer: null
     approved_at: null
-  case_digest: sha256:ee359473c17b2e8a5207c20f398aa60db1f174821cc42600e95418c9d2b7a422
+  case_digest: sha256:1ecc24afe776227b0a08d54aa30029b8ed6694d3f52e115cec878d1ba7796316
 - id: IIP-IDP17-ak-idp-01
   authored_by: samlier-g2-builder
   obligation: IIP-IDP17.ak

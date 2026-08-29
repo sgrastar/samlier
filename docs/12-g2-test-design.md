@@ -17,6 +17,10 @@ independently and writes the untracked `build/g2-report.json`.
   runtime applicability. `variant_groups` distinguish `all_of`, `one_of`, and
   `one_of_available`, so an OR in the source cannot become an AND just because
   both alternatives appear in the catalog.
+- A mutant whose trigger belongs to a multi-member `one_of` group declares the
+  complete group in `executor.mutation_variants` and makes all alternatives
+  nonconforming together. Flipping only one permitted alternative cannot prove
+  that an OR obligation was violated.
 - Every evaluative case has positive and negative controls. The positive fixture
   is its baseline and the negative fixture is its role-specific mutant. A failed
   control becomes `NOT_VERIFIED(control_failed)`, never a target violation.
@@ -67,6 +71,9 @@ case must state why its successful flow terminates or invalidates that session.
 Response evidence is recorded before destruction, and the session is never
 reused. A mere mention of LogoutRequest or LogoutResponse is not enough to mark
 a case destructive.
+Target-initiated SLO observations also receive a fresh session even when the
+case is not destructive; without authenticated state, a target cannot emit the
+LogoutRequest whose behavior the case is intended to observe.
 
 ## Feasibility boundary
 

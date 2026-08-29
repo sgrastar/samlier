@@ -3634,3 +3634,30 @@ meaning and changed only G2 design, evidence, and approval enforcement.
 
 These changes do not approve G2 and do not begin M1. Independent signed review
 remains the next gate.
+
+### G2 Consolidated Review Follow-up
+
+The independent re-review found four remaining detection-power defects. They
+were corrected before G2 approval:
+
+- A mutant triggered by one member of a multi-member `one_of` group now declares
+  every member in `executor.mutation_variants` and makes the complete group
+  nonconforming. Mutating one permitted alternative while preserving another
+  cannot establish a violation.
+- Six additional MAY/OPTIONAL obligations whose approved G1 controls explicitly
+  prohibit a target violation were moved to informational controls and mutant
+  waivers. G2 no longer invents `violated` for unsupported or omitted optional
+  behavior.
+- Variant treatment is derived and validated against the approved G1 text; the
+  non-evaluative variants are no longer presented to M1 as verdict inputs.
+- Seven target-initiated SLO cases again require a fresh authenticated session.
+  The session is an observation prerequisite, not an assertion that the case is
+  destructive.
+- A cache-disabled Gradle run exposed missing verification entries for resolved
+  transitive POM and module metadata. The missing SHA-256 values were added to
+  `gradle/verification-metadata.xml`; a subsequent strict refresh completed the
+  full build and test suite without lenient verification.
+
+The validator now rejects incomplete `one_of` mutation sets, treatment drift,
+and missing session prerequisites for the reviewed target-initiated SLO set.
+These changes still do not approve G2 or begin M1.

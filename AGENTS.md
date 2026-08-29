@@ -82,6 +82,8 @@ If an implementation can satisfy the expected value while failing the obligation
 Pair positive / negative controls for every evaluative case ([G2 in docs/01](docs/01-scope-and-roadmap.md)).
 For an explicitly non-evaluative MAY/OPTIONAL choice, use an informational fixture plus
 `control_waiver_en` and `mutant_waiver`; never fabricate an unreachable `violated` outcome.
+If a mutant targets a `one_of` variant group, it must make every member of that group
+nonconforming in the same fixture. Mutating only one permitted alternative has no detection power.
 
 **Cover expanded `linked_obligations` as well.** A link with `kind: inherit_variants` means
 “also cover the linked obligation's `required_variants`,” and must be expanded **transitively**.

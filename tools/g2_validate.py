@@ -57,6 +57,8 @@ NON_EVALUATIVE = {
     'IIP-IDP09.b', 'IIP-IDP12.d', 'IIP-IDP13.o', 'IIP-IDP13.p',
     'IIP-IDP13.r', 'IIP-IDP13.b', 'IIP-IDP14.b', 'IIP-IDP17.b4',
     'IIP-IDP17.c', 'IIP-SP02.c',
+    'IIP-ALG05.a', 'IIP-MD06.a4', 'IIP-SP14.c',
+    'IIP-SSO01.ax', 'IIP-SSO01.bk', 'IIP-SSO01.z',
 }
 TRIGGER_OVERRIDES = {
     'IIP-G02.c': 'IIP-G02.c#v-59304685a7',
@@ -79,6 +81,11 @@ DESTRUCTIVE_SESSIONS = {
     'IIP-IDP17.d', 'IIP-IDP17.e', 'IIP-IDP17.p', 'IIP-IDP17.q',
 }
 SESSION_REQUIRED = DESTRUCTIVE_SESSIONS | {'IIP-IDP17.o'}
+TARGET_ISSUED_SLO_SESSION_REQUIREMENTS = {
+    'IIP-IDP17.ai', 'IIP-IDP17.aj', 'IIP-IDP17.b3', 'IIP-IDP17.v',
+    'IIP-SP14.aa', 'IIP-SP14.ao', 'IIP-SP14.ap',
+}
+SESSION_REQUIRED |= TARGET_ISSUED_SLO_SESSION_REQUIREMENTS
 EVIDENCE_KIND = {
     'AUTOMATED': 'transcript', 'BROWSER': 'browser_and_transcript',
     'CONFIG': 'configuration_and_transcript', 'ATTESTED': 'attestation_or_instrumented_trace',
@@ -208,6 +215,20 @@ def variant_description(reference):
     return next((v['description_en'] for v in all_obligations[key].get('required_variants') or []
                  if v['id'] == variant_id), None)
 
+def expected_variant_treatment(owner_key, reference):
+    description = (variant_description(reference) or '').strip().lower()
+    if owner_key in NON_EVALUATIVE:
+        return 'informational'
+    if description.startswith('out of scope'):
+        return 'out_of_scope'
+    if (description.startswith('information only') or 'record as information' in description
+            or 'informational evidence' in description or 'do not evaluate' in description
+            or 'do not use it for the verdict' in description):
+        return 'informational'
+    if description.startswith('control:') or description.startswith('negative control:'):
+        return 'control'
+    return 'verdict'
+
 variant_errors = []
 mode_errors = []
 digest_errors = []
@@ -235,6 +256,8 @@ for case in cases:
         if ref in expected and (item.get('applicability') != expected[ref]
                                 or item.get('instruction_en') != variant_description(ref)):
             variant_errors.append(f"{case['id']}: variant plan is not G1-bound for {ref}")
+        if ref in expected and item.get('treatment') != expected_variant_treatment(key, ref):
+            variant_errors.append(f"{case['id']}: treatment is not G1-bound for {ref}")
     group_members = [member for group in case.get('variant_groups') or [] for member in group.get('members') or []]
     if len(group_members) != len(set(group_members)) or set(group_members) != set(expected):
         variant_errors.append(f"{case['id']}: variant groups do not partition covered variants")
@@ -464,6 +487,7 @@ for mutant in mutants:
         continue
     owner_key = matching_cases[0]['obligation']
     trigger_ref = executor.get('trigger_variant')
+    mutation_refs = set(executor.get('mutation_variants') or [trigger_ref])
     trigger_key, trigger_id = trigger_ref.split('#', 1)
     trigger_obligation = all_obligations.get(trigger_key) or {}
     trigger = next((item for item in trigger_obligation.get('required_variants') or []
@@ -471,6 +495,15 @@ for mutant in mutants:
     expected_trigger = None if trigger is None else f"{trigger_obligation['summary_en']} — Variant: {trigger['description_en']}"
     if trigger is None or executor.get('trigger_en') != expected_trigger:
         mutant_errors.append(mid + ': trigger is not G1-bound')
+    if trigger_ref not in mutation_refs or not mutation_refs <= set(matching_cases[0].get('covers_variants') or []):
+        mutant_errors.append(mid + ': mutation variants are not executable')
+    trigger_groups = [group for group in matching_cases[0].get('variant_groups') or []
+                      if trigger_ref in (group.get('members') or [])]
+    expected_mutation_refs = {trigger_ref}
+    if len(trigger_groups) == 1 and trigger_groups[0].get('kind') == 'one_of':
+        expected_mutation_refs = set(trigger_groups[0].get('members') or [])
+    if mutation_refs != expected_mutation_refs:
+        mutant_errors.append(mid + ': mutation set does not make the selected logical group fail')
     if TRIGGER_OVERRIDES.get(owner_key) and trigger_ref != TRIGGER_OVERRIDES[owner_key]:
         mutant_errors.append(mid + ': reviewed trigger not used')
     observation = executor.get('observation') or {}
