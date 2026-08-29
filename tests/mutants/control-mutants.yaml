@@ -104,6 +104,18 @@ control_mutants:
   - IIP-SSO01-w-sp-01
   unchanged_rule: baseline_for_all_others
 alternative_fixtures:
+- id: informational-iip-md03-e-idp-01
+  case: IIP-MD03-e-idp-01
+  kind: informational-choice
+  expected_outcome: satisfied_with_note
+  description_en: Exercise every permitted choice and verify that the recorder preserves the observation without creating
+    a target violation or an outcome-to-Verdict decision in the case.
+- id: informational-iip-md03-e-sp-01
+  case: IIP-MD03-e-sp-01
+  kind: informational-choice
+  expected_outcome: satisfied_with_note
+  description_en: Exercise every permitted choice and verify that the recorder preserves the observation without creating
+    a target violation or an outcome-to-Verdict decision in the case.
 - id: informational-iip-md05-am-idp-01
   case: IIP-MD05-am-idp-01
   kind: informational-choice
@@ -124,6 +136,18 @@ alternative_fixtures:
     a target violation or an outcome-to-Verdict decision in the case.
 - id: informational-iip-md05-at-sp-01
   case: IIP-MD05-at-sp-01
+  kind: informational-choice
+  expected_outcome: satisfied_with_note
+  description_en: Exercise every permitted choice and verify that the recorder preserves the observation without creating
+    a target violation or an outcome-to-Verdict decision in the case.
+- id: informational-iip-md05-au-idp-01
+  case: IIP-MD05-au-idp-01
+  kind: informational-choice
+  expected_outcome: satisfied_with_note
+  description_en: Exercise every permitted choice and verify that the recorder preserves the observation without creating
+    a target violation or an outcome-to-Verdict decision in the case.
+- id: informational-iip-md05-au-sp-01
+  case: IIP-MD05-au-sp-01
   kind: informational-choice
   expected_outcome: satisfied_with_note
   description_en: Exercise every permitted choice and verify that the recorder preserves the observation without creating

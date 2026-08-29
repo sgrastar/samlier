@@ -59,6 +59,7 @@ NON_EVALUATIVE = {
     'IIP-IDP17.c', 'IIP-SP02.c',
     'IIP-ALG05.a', 'IIP-MD06.a4', 'IIP-SP14.c',
     'IIP-SSO01.ax', 'IIP-SSO01.bk', 'IIP-SSO01.z',
+    'IIP-MD03.e', 'IIP-MD05.au',
 }
 TRIGGER_OVERRIDES = {
     'IIP-G02.c': 'IIP-G02.c#v-59304685a7',

@@ -3644,10 +3644,15 @@ were corrected before G2 approval:
   every member in `executor.mutation_variants` and makes the complete group
   nonconforming. Mutating one permitted alternative while preserving another
   cannot establish a violation.
-- Six additional MAY/OPTIONAL obligations whose approved G1 controls explicitly
+- Eight additional MAY/OPTIONAL obligations whose approved G1 controls explicitly
   prohibit a target violation were moved to informational controls and mutant
   waivers. G2 no longer invents `violated` for unsupported or omitted optional
   behavior.
+- The final cross-check included `IIP-MD03.e` and `IIP-MD05.au`. Making every
+  key-container alternative unavailable under `.e` would violate the separate
+  key-configuration capability while claiming `all_others` remained unchanged;
+  declining the optional ResponseLocation assumption under `.au` is likewise
+  not a unique violation of that permission.
 - Variant treatment is derived and validated against the approved G1 text; the
   non-evaluative variants are no longer presented to M1 as verdict inputs.
 - Seven target-initiated SLO cases again require a fresh authenticated session.

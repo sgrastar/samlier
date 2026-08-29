@@ -2344,11 +2344,11 @@ cases:
   variant_plan:
   - reference: IIP-MD03.e#v-a38c9f2c43
     applicability: owner_condition
-    treatment: verdict
+    treatment: informational
     instruction_en: Configure the key contained in an X.509 certificate
   - reference: IIP-MD03.e#v-cf5ab2560b
     applicability: owner_condition
-    treatment: verdict
+    treatment: informational
     instruction_en: Configure a bare public key (RSAKeyValue)
   variant_groups:
   - id: permitted-key-container
@@ -2360,23 +2360,15 @@ cases:
       by this obligation.
   controls:
   - id: iip-md03-e-idp-01-positive
-    kind: positive
+    kind: informational
     fixture: idp-full
-    description_en: 'Exercise the applicable variant groups against baseline idp-full and observe behavior satisfying: The
-      public keys used for metadata signature verification may be contained in X.509 certificates'
+    description_en: Exercise the permitted choices for IIP-MD03.e against baseline idp-full and record the result without
+      a target verdict.
     on_failure: control_failed
-  - id: iip-md03-e-idp-01-negative
-    kind: negative
-    fixture: mut-iip-md03-e-idp
-    description_en: 'Exercise trigger variant IIP-MD03.e#v-a38c9f2c43 with the same prerequisites against the role-specific
-      mutant that deliberately violates: The public keys used for metadata signature verification may be contained in X.509
-      certificates'
-    on_failure: control_failed
-  counterexample_en: An Identity Provider that passes one fixed setup but violates the obligation after the required test
-    configuration is successfully applied could pass a one-sided check (The public keys used for metadata signature verification
-    may be contained in X.509 certificates). The mutant first satisfies the setup precondition and then changes only the normative
-    behavior. If the setup cannot be applied, the case returns not_verified; configuration unavailability is never converted
-    into a target violation.
+  counterexample_en: An Identity Provider may choose either recorded behavior for The public keys used for metadata signature
+    verification may be contained in X.509 certificates; neither choice can violate this obligation. A fabricated negative
+    oracle would therefore label a conforming implementation nonconforming. The case records the choice as informational evidence
+    and uses a mutant waiver instead of inventing a violation.
   interpretation_constraints: &id014
   - Check that either form can be configured. An implementation that accepts only certificate form is within the permitted
     scope of .e, but evaluate it together with .c
@@ -2389,15 +2381,20 @@ cases:
     reject_everything: not_applicable
     rationale_en: This case is informational, configuration-based, or evidence-based rather than a protocol accept/reject
       decision.
-  detected_by_mutants:
-  - mut-iip-md03-e-idp
+  detected_by_mutants: []
   baseline: idp-full
   review:
     state: PENDING_REVIEW
     reviewer: null
     approved_at: null
+  control_waiver_en: The approved G1 text permits every recorded choice and defines no target behavior that can produce a
+    unique violated outcome for this obligation.
+  mutant_waiver:
+    reason_en: Every choice represented by this MAY/OPTIONAL obligation is conforming; a violating target mutant would be
+      fabricated from a requirement owned by another obligation.
+    alternative_control_fixture: informational-iip-md03-e-idp-01
   configuration_failure_semantics: test_precondition
-  case_digest: sha256:6167ae77c521389ce27c258d0e0a1006e3c64bf912c07a2e780e78a359bd10a6
+  case_digest: sha256:4fd428b6c892d5d04fd36f248383d96e3c585c9fdbc95245b7770909b02e1215
 - id: IIP-MD03-e-sp-01
   authored_by: samlier-g2-builder
   obligation: IIP-MD03.e
@@ -2414,11 +2411,11 @@ cases:
   variant_plan:
   - reference: IIP-MD03.e#v-a38c9f2c43
     applicability: owner_condition
-    treatment: verdict
+    treatment: informational
     instruction_en: Configure the key contained in an X.509 certificate
   - reference: IIP-MD03.e#v-cf5ab2560b
     applicability: owner_condition
-    treatment: verdict
+    treatment: informational
     instruction_en: Configure a bare public key (RSAKeyValue)
   variant_groups:
   - id: permitted-key-container
@@ -2430,23 +2427,15 @@ cases:
       by this obligation.
   controls:
   - id: iip-md03-e-sp-01-positive
-    kind: positive
+    kind: informational
     fixture: sp-full-slo-enc
-    description_en: 'Exercise the applicable variant groups against baseline sp-full-slo-enc and observe behavior satisfying:
-      The public keys used for metadata signature verification may be contained in X.509 certificates'
+    description_en: Exercise the permitted choices for IIP-MD03.e against baseline sp-full-slo-enc and record the result without
+      a target verdict.
     on_failure: control_failed
-  - id: iip-md03-e-sp-01-negative
-    kind: negative
-    fixture: mut-iip-md03-e-sp
-    description_en: 'Exercise trigger variant IIP-MD03.e#v-a38c9f2c43 with the same prerequisites against the role-specific
-      mutant that deliberately violates: The public keys used for metadata signature verification may be contained in X.509
-      certificates'
-    on_failure: control_failed
-  counterexample_en: A Service Provider that passes one fixed setup but violates the obligation after the required test configuration
-    is successfully applied could pass a one-sided check (The public keys used for metadata signature verification may be
-    contained in X.509 certificates). The mutant first satisfies the setup precondition and then changes only the normative
-    behavior. If the setup cannot be applied, the case returns not_verified; configuration unavailability is never converted
-    into a target violation.
+  counterexample_en: A Service Provider may choose either recorded behavior for The public keys used for metadata signature
+    verification may be contained in X.509 certificates; neither choice can violate this obligation. A fabricated negative
+    oracle would therefore label a conforming implementation nonconforming. The case records the choice as informational evidence
+    and uses a mutant waiver instead of inventing a violation.
   interpretation_constraints: *id014
   requires:
     passed_cases: []
@@ -2457,15 +2446,20 @@ cases:
     reject_everything: not_applicable
     rationale_en: This case is informational, configuration-based, or evidence-based rather than a protocol accept/reject
       decision.
-  detected_by_mutants:
-  - mut-iip-md03-e-sp
+  detected_by_mutants: []
   baseline: sp-full-slo-enc
   review:
     state: PENDING_REVIEW
     reviewer: null
     approved_at: null
+  control_waiver_en: The approved G1 text permits every recorded choice and defines no target behavior that can produce a
+    unique violated outcome for this obligation.
+  mutant_waiver:
+    reason_en: Every choice represented by this MAY/OPTIONAL obligation is conforming; a violating target mutant would be
+      fabricated from a requirement owned by another obligation.
+    alternative_control_fixture: informational-iip-md03-e-sp-01
   configuration_failure_semantics: test_precondition
-  case_digest: sha256:f63094ff6efcee793da283b3772c04d69b3d8806ebb0fdec660d8f967639e14d
+  case_digest: sha256:8f4de0ece7efbda46cfe22fbee1762dd46045a4d26fbede2ad31c5a3c73080de
 - id: IIP-MD04-a-idp-01
   authored_by: samlier-g2-builder
   obligation: IIP-MD04.a
@@ -6816,11 +6810,11 @@ cases:
   variant_plan:
   - reference: IIP-MD05.au#v-70cd58af4a
     applicability: owner_condition
-    treatment: verdict
+    treatment: informational
     instruction_en: A control case explicitly specifying ResponseLocation
   - reference: IIP-MD05.au#v-9d5353558e
     applicability: owner_condition
-    treatment: verdict
+    treatment: informational
     instruction_en: An endpoint with both a request and a response, with ResponseLocation omitted
   variant_groups:
   - id: default-all-of
@@ -6832,21 +6826,15 @@ cases:
       the target outcome.
   controls:
   - id: iip-md05-au-idp-01-positive
-    kind: positive
+    kind: informational
     fixture: idp-full
-    description_en: 'Exercise the applicable variant groups against baseline idp-full and observe behavior satisfying: When
-      ResponseLocation is omitted, responses are handled at Location'
+    description_en: Exercise the permitted choices for IIP-MD05.au against baseline idp-full and record the result without
+      a target verdict.
     on_failure: control_failed
-  - id: iip-md05-au-idp-01-negative
-    kind: negative
-    fixture: mut-iip-md05-au-idp
-    description_en: 'Exercise trigger variant IIP-MD05.au#v-9d5353558e with the same prerequisites against the role-specific
-      mutant that deliberately violates: When ResponseLocation is omitted, responses are handled at Location'
-    on_failure: control_failed
-  counterexample_en: An Identity Provider that passes one fixed setup but violates the obligation after the required test
-    configuration is successfully applied could pass a one-sided check (When ResponseLocation is omitted, responses are handled
-    at Location). The mutant first satisfies the setup precondition and then changes only the normative behavior. If the setup
-    cannot be applied, the case returns not_verified; configuration unavailability is never converted into a target violation.
+  counterexample_en: An Identity Provider may choose either recorded behavior for When ResponseLocation is omitted, responses
+    are handled at Location; neither choice can violate this obligation. A fabricated negative oracle would therefore label
+    a conforming implementation nonconforming. The case records the choice as informational evidence and uses a mutant waiver
+    instead of inventing a violation.
   interpretation_constraints: &id047
   - The source text says “may be assumed,” so do not elevate capability permission to a MUST. For an endpoint with a single
     message direction, ResponseLocation itself is unused (IIP-MD05.ab)
@@ -6859,15 +6847,20 @@ cases:
     reject_everything: not_applicable
     rationale_en: This case is informational, configuration-based, or evidence-based rather than a protocol accept/reject
       decision.
-  detected_by_mutants:
-  - mut-iip-md05-au-idp
+  detected_by_mutants: []
   baseline: idp-full
   review:
     state: PENDING_REVIEW
     reviewer: null
     approved_at: null
+  control_waiver_en: The approved G1 text permits every recorded choice and defines no target behavior that can produce a
+    unique violated outcome for this obligation.
+  mutant_waiver:
+    reason_en: Every choice represented by this MAY/OPTIONAL obligation is conforming; a violating target mutant would be
+      fabricated from a requirement owned by another obligation.
+    alternative_control_fixture: informational-iip-md05-au-idp-01
   configuration_failure_semantics: test_precondition
-  case_digest: sha256:c75230f36a24dafa9bfc287887da49cc36f99a42eb07046000a6ba442a86b7a1
+  case_digest: sha256:7012a89a789bf599c9d8cbb9c20687cc67f704fdfa419cbba1bbb76168b142e0
 - id: IIP-MD05-au-sp-01
   authored_by: samlier-g2-builder
   obligation: IIP-MD05.au
@@ -6884,11 +6877,11 @@ cases:
   variant_plan:
   - reference: IIP-MD05.au#v-70cd58af4a
     applicability: owner_condition
-    treatment: verdict
+    treatment: informational
     instruction_en: A control case explicitly specifying ResponseLocation
   - reference: IIP-MD05.au#v-9d5353558e
     applicability: owner_condition
-    treatment: verdict
+    treatment: informational
     instruction_en: An endpoint with both a request and a response, with ResponseLocation omitted
   variant_groups:
   - id: default-all-of
@@ -6900,21 +6893,15 @@ cases:
       the target outcome.
   controls:
   - id: iip-md05-au-sp-01-positive
-    kind: positive
+    kind: informational
     fixture: sp-full-slo-enc
-    description_en: 'Exercise the applicable variant groups against baseline sp-full-slo-enc and observe behavior satisfying:
-      When ResponseLocation is omitted, responses are handled at Location'
+    description_en: Exercise the permitted choices for IIP-MD05.au against baseline sp-full-slo-enc and record the result
+      without a target verdict.
     on_failure: control_failed
-  - id: iip-md05-au-sp-01-negative
-    kind: negative
-    fixture: mut-iip-md05-au-sp
-    description_en: 'Exercise trigger variant IIP-MD05.au#v-9d5353558e with the same prerequisites against the role-specific
-      mutant that deliberately violates: When ResponseLocation is omitted, responses are handled at Location'
-    on_failure: control_failed
-  counterexample_en: A Service Provider that passes one fixed setup but violates the obligation after the required test configuration
-    is successfully applied could pass a one-sided check (When ResponseLocation is omitted, responses are handled at Location).
-    The mutant first satisfies the setup precondition and then changes only the normative behavior. If the setup cannot be
-    applied, the case returns not_verified; configuration unavailability is never converted into a target violation.
+  counterexample_en: A Service Provider may choose either recorded behavior for When ResponseLocation is omitted, responses
+    are handled at Location; neither choice can violate this obligation. A fabricated negative oracle would therefore label
+    a conforming implementation nonconforming. The case records the choice as informational evidence and uses a mutant waiver
+    instead of inventing a violation.
   interpretation_constraints: *id047
   requires:
     passed_cases: []
@@ -6925,15 +6912,20 @@ cases:
     reject_everything: not_applicable
     rationale_en: This case is informational, configuration-based, or evidence-based rather than a protocol accept/reject
       decision.
-  detected_by_mutants:
-  - mut-iip-md05-au-sp
+  detected_by_mutants: []
   baseline: sp-full-slo-enc
   review:
     state: PENDING_REVIEW
     reviewer: null
     approved_at: null
+  control_waiver_en: The approved G1 text permits every recorded choice and defines no target behavior that can produce a
+    unique violated outcome for this obligation.
+  mutant_waiver:
+    reason_en: Every choice represented by this MAY/OPTIONAL obligation is conforming; a violating target mutant would be
+      fabricated from a requirement owned by another obligation.
+    alternative_control_fixture: informational-iip-md05-au-sp-01
   configuration_failure_semantics: test_precondition
-  case_digest: sha256:3608bda5cdedb795a326790772a37616a8b98cb106e7fb2c27f16487d69191f5
+  case_digest: sha256:49ff3df45d975c1e04307cddd61ead771b634a5ca096f1c50b02b4fc513ad2bd
 - id: IIP-MD05-av-idp-01
   authored_by: samlier-g2-builder
   obligation: IIP-MD05.av
