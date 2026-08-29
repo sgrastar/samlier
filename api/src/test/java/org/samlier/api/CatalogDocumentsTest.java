@@ -17,6 +17,7 @@ import org.samlier.runner.CaseImplementationAudit;
 import org.samlier.runner.cases.ApprovedAttestedCaseRegistry;
 import org.samlier.runner.cases.ApprovedConfigCaseRegistry;
 import org.samlier.runner.cases.ApprovedBrowserCaseRegistry;
+import org.samlier.runner.cases.BrowserEvidenceTestCase;
 import org.samlier.runner.cases.M2AutomatedCaseRegistry;
 import org.samlier.runner.cases.M3AutomatedCaseRegistry;
 import org.samlier.runner.cases.AttestedOutcomeTestCase;
@@ -51,6 +52,10 @@ class CatalogDocumentsTest {
         var browser = ApprovedBrowserCaseRegistry.create(cases, java.net.URI.create("https://suite.example"));
         assertEquals(151, browser.ids().size());
         CaseImplementationAudit.requireExact(cases, browser, Milestone.M1, ExecutionMode.BROWSER);
+        var browserCase = (BrowserEvidenceTestCase) browser.require("IIP-ALG01-a-idp-01");
+        assertTrue(browserCase.browserInstructionsEn().contains("target instruction"));
+        assertFalse(browserCase.browserInstructionsEn().contains("Required controls"));
+        assertFalse(browserCase.browserInstructionsEn().contains("role-specific mutant"));
         assertEquals(12, ApprovedAttestedCaseRegistry.create(cases, Milestone.M2).ids().size());
         assertEquals(214, ApprovedConfigCaseRegistry.create(cases, Milestone.M2).ids().size());
         assertEquals(20, ApprovedBrowserCaseRegistry.create(

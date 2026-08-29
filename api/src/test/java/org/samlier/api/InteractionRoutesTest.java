@@ -33,6 +33,8 @@ class InteractionRoutesTest {
             assertTrue(response.body().contains("preserved"), response.body());
             assertTrue(response.body().contains("attestation.g02"), response.body());
             assertTrue(response.body().contains("approved evidence"), response.body());
+            assertTrue(response.body().contains("\"expiresAt\":\"2026-08-29T04:00:00Z\""), response.body());
+            assertFalse(response.body().contains("\"expiresAt\":178"), response.body());
             assertFalse(response.body().contains("CaseState"), response.body());
             assertFalse(response.body().contains("secret"), response.body());
         } finally {

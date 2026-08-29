@@ -30,7 +30,8 @@ public final class SamlSchemaValidation {
             "urn:oasis:names:tc:SAML:2.0:protocol", "schema/saml-schema-protocol-2.0.xsd",
             "urn:oasis:names:tc:SAML:2.0:assertion", "schema/saml-schema-assertion-2.0.xsd",
             "http://www.w3.org/2000/09/xmldsig#", "schema/xmldsig-core-schema.xsd",
-            "http://www.w3.org/2001/04/xmlenc#", "schema/xenc-schema.xsd");
+            "http://www.w3.org/2001/04/xmlenc#", "schema/xenc-schema.xsd",
+            "http://www.w3.org/2009/xmlenc11#", "schema/xenc11-schema.xsd");
     private static final Schema PROTOCOL = load("urn:oasis:names:tc:SAML:2.0:protocol");
     private static final Schema ASSERTION = load("urn:oasis:names:tc:SAML:2.0:assertion");
 
@@ -154,7 +155,10 @@ public final class SamlSchemaValidation {
             var resource = NAMESPACE_RESOURCES.get(namespace);
             var stream = requiredResource(resource);
             var source = new StreamSource(stream, "classpath:/" + resource);
-            return factory.newSchema(source);
+            var xmlEncryption11Resource = NAMESPACE_RESOURCES.get("http://www.w3.org/2009/xmlenc11#");
+            var xmlEncryption11 = new StreamSource(
+                    requiredResource(xmlEncryption11Resource), "classpath:/" + xmlEncryption11Resource);
+            return factory.newSchema(new StreamSource[] {source, xmlEncryption11});
         } catch (SAXException failure) {
             throw new ExceptionInInitializerError(failure);
         }

@@ -69,3 +69,28 @@ test('keeps configuration status separate from the later evidence conclusion', a
   expect(post.url).toContain('/configure')
   expect(post.init?.body).toBe(JSON.stringify({ value: 'confirmed', note: '' }))
 })
+
+test('a focused browser URL shows only the requested case', async () => {
+  vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify([
+    {
+      caseId: 'IIP-ALG01-a-idp-01', kind: 'BROWSER', promptKey: null,
+      promptEn: 'Inspect the target DigestMethod.', startUrl: 'https://suite.example/browser/one',
+      expiresAt: '2026-09-05T00:00:00Z', answerValues: ['completed'],
+    },
+    {
+      caseId: 'IIP-ALG02-a-idp-01', kind: 'BROWSER', promptKey: null,
+      promptEn: 'Inspect the target SignatureMethod.', startUrl: 'https://suite.example/browser/two',
+      expiresAt: '2026-09-05T00:00:00Z', answerValues: ['completed'],
+    },
+  ]), { status: 200, headers: { 'content-type': 'application/json' } })))
+
+  render(<RunManagement
+    runId="run_0123456789ABCDEFGHJKMNPQRS"
+    focusCaseId="IIP-ALG01-a-idp-01"
+  />)
+
+  expect(await screen.findByText(/target DigestMethod/)).toBeTruthy()
+  expect(screen.queryByText(/target SignatureMethod/)).toBeNull()
+  expect(screen.getByRole('link', { name: 'Back to Run management' }).getAttribute('href'))
+    .toBe('/manage/run_0123456789ABCDEFGHJKMNPQRS')
+})

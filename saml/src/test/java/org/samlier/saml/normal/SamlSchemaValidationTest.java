@@ -23,6 +23,37 @@ class SamlSchemaValidationTest {
     }
 
     @Test
+    void validatesXmlEncryption11ParametersInsideAnEncryptedAssertion() {
+        assertTrue(valid(SchemaKind.PROTOCOL, """
+                <samlp:Response xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol"
+                  xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion"
+                  xmlns:ds="http://www.w3.org/2000/09/xmldsig#"
+                  xmlns:xenc="http://www.w3.org/2001/04/xmlenc#"
+                  xmlns:xenc11="http://www.w3.org/2009/xmlenc11#"
+                  ID="_response" Version="2.0" IssueInstant="2026-08-29T00:00:00Z">
+                  <samlp:Status>
+                    <samlp:StatusCode Value="urn:oasis:names:tc:SAML:2.0:status:Success"/>
+                  </samlp:Status>
+                  <saml:EncryptedAssertion>
+                    <xenc:EncryptedData Type="http://www.w3.org/2001/04/xmlenc#Element">
+                      <xenc:EncryptionMethod Algorithm="http://www.w3.org/2009/xmlenc11#aes256-gcm"/>
+                      <ds:KeyInfo>
+                        <xenc:EncryptedKey>
+                          <xenc:EncryptionMethod Algorithm="http://www.w3.org/2009/xmlenc11#rsa-oaep">
+                            <ds:DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"/>
+                            <xenc11:MGF Algorithm="http://www.w3.org/2009/xmlenc11#mgf1sha256"/>
+                          </xenc:EncryptionMethod>
+                          <xenc:CipherData><xenc:CipherValue>AA==</xenc:CipherValue></xenc:CipherData>
+                        </xenc:EncryptedKey>
+                      </ds:KeyInfo>
+                      <xenc:CipherData><xenc:CipherValue>AA==</xenc:CipherValue></xenc:CipherData>
+                    </xenc:EncryptedData>
+                  </saml:EncryptedAssertion>
+                </samlp:Response>
+                """));
+    }
+
+    @Test
     void validatesAssertionsAndTheirRequiredChildren() {
         assertTrue(valid(SchemaKind.ASSERTION, assertion("<saml:AuthnContext><saml:AuthnContextClassRef>urn:example:loa</saml:AuthnContextClassRef></saml:AuthnContext>")));
         assertFalse(valid(SchemaKind.ASSERTION, assertion("")));
