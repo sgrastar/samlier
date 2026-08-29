@@ -23,6 +23,13 @@ public sealed interface CaseEvent {
 
     record ConfigConfirmed() implements CaseEvent {}
 
+    record ConfigUnavailable(ConfigurationIssue issue, String note) implements CaseEvent {
+        public ConfigUnavailable {
+            if (issue == null) throw new IllegalArgumentException("issue is required");
+            note = note == null ? "" : note;
+        }
+    }
+
     record Attested(String value, String note) implements CaseEvent {
         public Attested { text(value, "value"); note = note == null ? "" : note; }
     }
@@ -42,6 +49,12 @@ public sealed interface CaseEvent {
             text(type, "type");
             data = new CaseState("event", data).data();
         }
+    }
+
+    enum ConfigurationIssue {
+        CAPABILITY_ABSENT,
+        TARGET_CONFIG_UNAVAILABLE,
+        CAPABILITY_UNDETERMINED
     }
 
     private static void text(String value, String name) {

@@ -20,6 +20,7 @@ import org.samlier.core.caseexec.CaseEvent;
 import org.samlier.core.caseexec.CaseExecutionStatus;
 import org.samlier.core.caseexec.CaseState;
 import org.samlier.core.caseexec.CaseStep;
+import org.samlier.core.caseexec.ConfigurationFailureSemantics;
 import org.samlier.core.caseexec.InboundMatcher;
 import org.samlier.core.caseexec.OutboundAction;
 import org.samlier.core.caseexec.OutboundKind;
@@ -37,6 +38,7 @@ import org.samlier.core.run.Reachability;
 import org.samlier.core.run.RunStatus;
 import org.samlier.core.run.TestRun;
 import org.samlier.core.transcript.TranscriptRecorder;
+import org.samlier.runner.cases.ConfigurationGateTestCase;
 import org.samlier.store.FileTranscriptRecorder;
 import org.samlier.store.JsonCodec;
 import org.samlier.store.SqliteCaseExecutionRepository;
@@ -142,6 +144,101 @@ class CaseExecutionServiceTest {
 
         assertThrows(IllegalArgumentException.class, () -> service.start(RUN_ID, testCase, context));
         assertEquals(List.of(), repository.listOutbox(RUN_ID));
+    }
+
+    @Test
+    void appliesConfigurationFailureSemanticsCentrally() {
+        var normative = new ConfigurationGateTestCase(
+                immediateCase("case-config-normative"), "configure.feature", Duration.ofMinutes(5),
+                ConfigurationFailureSemantics.NORMATIVE_CAPABILITY);
+        service.start(RUN_ID, normative, context);
+        var absent = service.resume(
+                RUN_ID, normative, context,
+                new CaseEvent.ConfigUnavailable(
+                        CaseEvent.ConfigurationIssue.CAPABILITY_ABSENT, "No setting exists"));
+        assertEquals(Outcome.VIOLATED, absent.outcome().outcome());
+        assertEquals("capability_absent", absent.outcome().reasonCode());
+
+        var precondition = new ConfigurationGateTestCase(
+                immediateCase("case-config-precondition"), "configure.fixture", Duration.ofMinutes(5),
+                ConfigurationFailureSemantics.TEST_PRECONDITION);
+        service.start(RUN_ID, precondition, context);
+        var unmet = service.resume(
+                RUN_ID, precondition, context,
+                new CaseEvent.ConfigUnavailable(
+                        CaseEvent.ConfigurationIssue.CAPABILITY_ABSENT, "Fixture cannot be enabled"));
+        assertEquals(Outcome.NOT_VERIFIED, unmet.outcome().outcome());
+        assertEquals("test_precondition_unavailable", unmet.outcome().notVerifiedReason());
+
+        var unavailable = new ConfigurationGateTestCase(
+                immediateCase("case-config-permission"), "configure.feature", Duration.ofMinutes(5),
+                ConfigurationFailureSemantics.NORMATIVE_CAPABILITY);
+        service.start(RUN_ID, unavailable, context);
+        var permission = service.resume(
+                RUN_ID, unavailable, context,
+                new CaseEvent.ConfigUnavailable(
+                        CaseEvent.ConfigurationIssue.TARGET_CONFIG_UNAVAILABLE, "Insufficient permission"));
+        assertEquals(Outcome.NOT_VERIFIED, permission.outcome().outcome());
+        assertEquals("target_config_unavailable", permission.outcome().notVerifiedReason());
+
+        var unknown = new ConfigurationGateTestCase(
+                immediateCase("case-config-unknown"), "configure.feature", Duration.ofMinutes(5),
+                ConfigurationFailureSemantics.NORMATIVE_CAPABILITY);
+        service.start(RUN_ID, unknown, context);
+        var undetermined = service.resume(
+                RUN_ID, unknown, context,
+                new CaseEvent.ConfigUnavailable(
+                        CaseEvent.ConfigurationIssue.CAPABILITY_UNDETERMINED, "Administrator is unavailable"));
+        assertEquals(Outcome.NOT_VERIFIED, undetermined.outcome().outcome());
+        assertEquals("capability_undetermined", undetermined.outcome().notVerifiedReason());
+    }
+
+    @Test
+    void confirmedConfigurationContinuesIntoTheConcreteCase() {
+        var configured = new ConfigurationGateTestCase(
+                immediateCase("case-config-confirmed"), "configure.feature", Duration.ofMinutes(5),
+                ConfigurationFailureSemantics.NORMATIVE_CAPABILITY);
+
+        var waiting = service.start(RUN_ID, configured, context);
+        assertEquals(CaseExecutionStatus.WAITING_CONFIG, waiting.status());
+        var finished = service.resume(RUN_ID, configured, context, new CaseEvent.ConfigConfirmed());
+
+        assertEquals(CaseExecutionStatus.FINISHED, finished.status());
+        assertEquals(Outcome.SATISFIED, finished.outcome().outcome());
+    }
+
+    @Test
+    void configuredCaseCanSuspendAgainAndResumeAfterRestartSafePersistence() {
+        var configured = new ConfigurationGateTestCase(
+                waitingCase("case-config-then-inbound", new AtomicInteger()),
+                "configure.feature", Duration.ofMinutes(5),
+                ConfigurationFailureSemantics.TEST_PRECONDITION);
+        service.start(RUN_ID, configured, context);
+
+        var inboundWait = service.resume(RUN_ID, configured, context, new CaseEvent.ConfigConfirmed());
+        assertEquals(CaseExecutionStatus.WAITING_INBOUND, inboundWait.status());
+        assertEquals("await-response", inboundWait.state().phase());
+        assertEquals(1, repository.listOutbox(RUN_ID).size());
+
+        var finished = service.resume(
+                RUN_ID, configured, context, new CaseEvent.InboundMessage(
+                        "<Response/>".getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                        new EvidenceRef("transcript", "transcript:configured-response")));
+        assertEquals(Outcome.SATISFIED, finished.outcome().outcome());
+    }
+
+    private TestCase immediateCase(String caseId) {
+        return new TestCase() {
+            @Override public String id() { return caseId; }
+            @Override public TargetRole role() { return TargetRole.IDP; }
+            @Override public CaseStep start(CaseContext ignored) {
+                return new CaseStep.Finish(CaseOutcome.of(
+                        Outcome.SATISFIED, "configured.observation-satisfied", List.of()));
+            }
+            @Override public CaseStep resume(CaseContext ignored, CaseState state, CaseEvent event) {
+                throw new UnsupportedOperationException();
+            }
+        };
     }
 
     private TestCase waitingCase(String caseId, AtomicInteger starts) {

@@ -106,14 +106,14 @@ class AttestedOutcomeTestCaseTest {
         var timedOut = executions.resume(
                 RUN_ID, timedCase, context(plan), new CaseEvent.TimedOut(Duration.ofHours(1)));
         assertEquals(Outcome.NOT_VERIFIED, timedOut.outcome().outcome());
-        assertEquals("attestation_timeout", timedOut.outcome().notVerifiedReason());
+        assertEquals("timeout", timedOut.outcome().notVerifiedReason());
 
         var unclearCase = testCase("IIP-G02-c-idp-unclear");
         executions.start(RUN_ID, unclearCase, context(plan));
         var unclear = executions.resume(
                 RUN_ID, unclearCase, context(plan), new CaseEvent.Attested("unclear", "No readback available"));
         assertEquals(Outcome.NOT_VERIFIED, unclear.outcome().outcome());
-        assertEquals("attestation_unclear", unclear.outcome().notVerifiedReason());
+        assertEquals("user_skipped", unclear.outcome().notVerifiedReason());
     }
 
     @Test
@@ -143,7 +143,7 @@ class AttestedOutcomeTestCaseTest {
                         AttestationOption.of("preserved", Outcome.SATISFIED, "attestation.preserved"),
                         AttestationOption.of("truncated", Outcome.VIOLATED, "attestation.truncated"),
                         AttestationOption.notVerified(
-                                "unclear", "attestation.unclear", "attestation_unclear")));
+                                "unclear", "attestation.unclear", "user_skipped")));
     }
 
     private DefaultCaseContext context(TestPlan source) {

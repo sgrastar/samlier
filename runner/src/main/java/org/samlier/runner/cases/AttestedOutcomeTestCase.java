@@ -83,12 +83,12 @@ public final class AttestedOutcomeTestCase implements TestCase {
         }
         if (event instanceof CaseEvent.TimedOut timedOut) {
             return new CaseStep.Finish(notVerified(
-                    "attestation_timeout", "attestation.timeout",
+                    "timeout", "attestation.timeout",
                     Map.of("waited_seconds", timedOut.waited().toSeconds())));
         }
         if (event instanceof CaseEvent.Aborted aborted) {
             return new CaseStep.Finish(notVerified(
-                    "attestation_aborted", "attestation.aborted",
+                    "user_skipped", "attestation.aborted",
                     Map.of("abort_reason", aborted.reason())));
         }
         if (!(event instanceof CaseEvent.Attested attested)) {
