@@ -1,6 +1,7 @@
 package org.samlier.runner.cases;
 
 import java.security.MessageDigest;
+import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HexFormat;
@@ -17,6 +18,8 @@ import org.samlier.core.transcript.TranscriptEntry;
 import org.samlier.core.transcript.TranscriptRecorder;
 import org.samlier.saml.normal.SamlSchemaValidation;
 import org.samlier.saml.normal.SecureXml;
+import org.samlier.saml.binding.RedirectSignatureVerifier;
+import org.samlier.saml.crypto.XmlSignatureVerifier;
 import org.w3c.dom.Element;
 
 /** Passive Core/Profile checks over target-issued SLO messages and their Suite-side counterparts. */
@@ -34,9 +37,13 @@ public final class LogoutTranscriptProfileCase {
     private static final Set<String> TOP_STATUS = Set.of(
             PROTOCOL + ":Success", PROTOCOL + ":Requester", PROTOCOL + ":Responder", PROTOCOL + ":VersionMismatch");
     private final Rule rule;
+    private final List<X509Certificate> verificationKeys;
+    private final XmlSignatureVerifier xmlSignatures = new XmlSignatureVerifier();
+    private final RedirectSignatureVerifier redirectSignatures = new RedirectSignatureVerifier();
 
-    public LogoutTranscriptProfileCase(Rule rule) {
+    public LogoutTranscriptProfileCase(Rule rule, List<X509Certificate> verificationKeys) {
         this.rule = java.util.Objects.requireNonNull(rule, "rule");
+        this.verificationKeys = List.copyOf(verificationKeys == null ? List.of() : verificationKeys);
     }
 
     public CaseOutcome evaluate(
@@ -91,12 +98,29 @@ public final class LogoutTranscriptProfileCase {
         var scoped = messages.stream().filter(value -> !value.logout().getAttribute("Consent").isBlank()).toList();
         if (scoped.isEmpty()) return optionalNotObserved("slo.consent.not-observed");
         var violations = new ArrayList<String>();
+        var unverifiable = new ArrayList<String>();
         for (var message : scoped) {
             var xmlSignature = message.logout().getElementsByTagNameNS(DS, "Signature").getLength() > 0;
             var bindingSignature = message.entry().rawQuery() != null
                     && message.entry().rawQuery().matches("(^|.*&)Signature=[^&]+(&.*|$)");
-            if (!xmlSignature && !bindingSignature) violations.add(message.reference());
+            if (!xmlSignature && !bindingSignature) {
+                violations.add(message.reference());
+                continue;
+            }
+            if (verificationKeys.isEmpty()) {
+                unverifiable.add(message.reference());
+                continue;
+            }
+            var xmlValid = xmlSignature && verificationKeys.stream().anyMatch(
+                    certificate -> xmlSignatures.hasValidEnvelopedSignature(message.logout(), certificate));
+            var redirectValid = bindingSignature && verificationKeys.stream().anyMatch(
+                    certificate -> redirectSignatures.isValid(message.entry().rawQuery(), certificate));
+            if (!xmlValid && !redirectValid) violations.add(message.reference());
         }
+        if (violations.isEmpty() && !unverifiable.isEmpty()) return new CaseOutcome(
+                Outcome.NOT_VERIFIED, "target_signing_key_unavailable",
+                "slo.consent-signature.key-unavailable", "slo.consent-signature.key-unavailable",
+                evidence(scoped), Map.of("unverifiable", List.copyOf(unverifiable)));
         return outcome(scoped, violations, "slo.consent-signature");
     }
 

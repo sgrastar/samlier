@@ -47,6 +47,7 @@ import org.samlier.store.SqliteApplicabilityInputRepository;
 import org.samlier.store.SqliteCaseExecutionRepository;
 import org.samlier.store.SqliteDatabase;
 import org.samlier.store.SqliteRunAccessGrantRepository;
+import org.samlier.store.SqlitePublicationRepository;
 
 /** Phase 1 execution composition kept outside the HTTP root so its boundaries remain independently testable. */
 final class M1Runtime {
@@ -64,6 +65,8 @@ final class M1Runtime {
     private final AttestationService attestations;
     private final ConfigurationService configurations;
     private final BrowserCompletionService browserCompletions;
+    private final SqliteCaseExecutionRepository caseExecutions;
+    private final SqlitePublicationRepository publications;
 
     private M1Runtime(
             AppConfig config,
@@ -79,7 +82,9 @@ final class M1Runtime {
             PendingInteractionService pendingInteractions,
             AttestationService attestations,
             ConfigurationService configurations,
-            BrowserCompletionService browserCompletions) {
+            BrowserCompletionService browserCompletions,
+            SqliteCaseExecutionRepository caseExecutions,
+            SqlitePublicationRepository publications) {
         this.config = config;
         this.quickCheck = quickCheck;
         this.results = results;
@@ -94,6 +99,8 @@ final class M1Runtime {
         this.attestations = attestations;
         this.configurations = configurations;
         this.browserCompletions = browserCompletions;
+        this.caseExecutions = caseExecutions;
+        this.publications = publications;
     }
 
     static M1Runtime create(
@@ -107,12 +114,12 @@ final class M1Runtime {
             MetadataCache metadataCache,
             TargetMetadataParser metadataParser,
             FilePlanKeyStore keys,
+            SqliteCaseExecutionRepository caseExecutions,
             Clock clock) {
         var documents = CatalogDocuments.load();
         var coverage = CoverageCatalogMapper.fromDocument(documents.parsed("tests/coverage.yaml"));
         var predicates = PredicateCatalogMapper.fromDocument(documents.parsed("tests/predicates.yaml"));
         var definitions = CaseDefinitionCatalogMapper.fromDocument(documents.parsed("tests/cases.yaml"));
-        var caseExecutions = new SqliteCaseExecutionRepository(database, json);
         var targetCertificates = new CachedTargetSigningCertificateProvider(metadataCache, metadataParser);
         var quickCheck = new QuickCheckService(
                 plans, runs, transcript, transcriptContent, caseExecutions, keys, targetCertificates,
@@ -207,10 +214,11 @@ final class M1Runtime {
         }
         var access = new RunAccessService(
                 config.publicBaseUrl(), runs, new SqliteRunAccessGrantRepository(database), clock);
+        var publications = new SqlitePublicationRepository(database);
         return new M1Runtime(
                 config, quickCheck, results, artifacts, access, plans, runs, transcript, clock,
                 starters, pendingInteractions, attestations,
-                configurations, browserCompletions);
+                configurations, browserCompletions, caseExecutions, publications);
     }
 
     QuickCheckService.QuickCheckResult quickCheck(String runId) {
@@ -252,6 +260,12 @@ final class M1Runtime {
         var milestone = parseMilestone(milestoneName);
         var run = requireRun(runId);
         var plan = requirePlan(run);
+        if (milestone == org.samlier.core.casedef.CaseDefinitionCatalog.Milestone.M3
+                && plan.profile() == org.samlier.core.plan.PlanProfile.IDP_FULL
+                && caseExecutions.find(run.id(), org.samlier.runner.outbox.EcpProbeService.FIXTURE_ID).isEmpty()) {
+            throw new IllegalArgumentException(
+                    "Run the ECP HTTP Basic probe before starting M3 for an IdP Full Profile Run");
+        }
         var started = startInteractive(run, plan, milestone);
         if (results != null) results.generate(runId);
         return started;
@@ -263,6 +277,26 @@ final class M1Runtime {
                         results == null
                                 ? "Result generation requires SAMLIER_IMAGE_DIGEST"
                                 : "Result artifact has not been generated"));
+    }
+
+    byte[] requireReport(String runId) {
+        if (results == null) throw new IllegalArgumentException("Report generation requires SAMLIER_IMAGE_DIGEST");
+        return results.requireReport(runId);
+    }
+
+    PublicationRoutes.Published publish(String runId) {
+        if (config.mode() != AppConfig.Mode.HOSTED || !config.publishEnabled()) {
+            throw new IllegalArgumentException("Hosted publication is disabled; export report.html locally instead");
+        }
+        requireRun(runId);
+        if (results == null) throw new IllegalArgumentException("Publication requires SAMLIER_IMAGE_DIGEST");
+        results.generate(runId);
+        publications.publish(runId, clock.instant());
+        return new PublicationRoutes.Published(runId, config.publicBaseUrl().resolve("/reports/" + runId));
+    }
+
+    boolean isPublished(String runId) {
+        return config.mode() == AppConfig.Mode.HOSTED && publications.isPublished(runId);
     }
 
     RunAccessService.ManagementSession exchange(String runId, String token) {

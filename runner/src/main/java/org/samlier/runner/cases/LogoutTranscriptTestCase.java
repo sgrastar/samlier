@@ -3,6 +3,9 @@ package org.samlier.runner.cases;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.security.cert.X509Certificate;
+import java.util.List;
+import java.util.function.Function;
 import org.samlier.core.caseexec.CaseContext;
 import org.samlier.core.caseexec.CaseEvent;
 import org.samlier.core.caseexec.CaseState;
@@ -16,16 +19,22 @@ public final class LogoutTranscriptTestCase implements TestCase {
     private static final Map<String, Definition> DEFINITIONS = definitions();
     private final String id;
     private final TranscriptContentReader content;
+    private final Function<String, List<X509Certificate>> certificates;
 
-    public LogoutTranscriptTestCase(String id, TranscriptContentReader content) {
+    public LogoutTranscriptTestCase(
+            String id,
+            TranscriptContentReader content,
+            Function<String, List<X509Certificate>> certificates) {
         if (!DEFINITIONS.containsKey(id)) throw new IllegalArgumentException("Unapproved SLO case: " + id);
         this.id = id;
         this.content = Objects.requireNonNull(content, "content");
+        this.certificates = Objects.requireNonNull(certificates, "certificates");
     }
     @Override public String id() { return id; }
     @Override public TargetRole role() { return DEFINITIONS.get(id).role(); }
     @Override public CaseStep start(CaseContext context) {
-        return new CaseStep.Finish(new LogoutTranscriptProfileCase(DEFINITIONS.get(id).rule()).evaluate(
+        return new CaseStep.Finish(new LogoutTranscriptProfileCase(
+                DEFINITIONS.get(id).rule(), certificates.apply(context.runId())).evaluate(
                 context.runId(), context.transcript(), content));
     }
     @Override public CaseStep resume(CaseContext context, CaseState state, CaseEvent event) {

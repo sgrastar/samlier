@@ -25,12 +25,17 @@ import org.samlier.peer.idp.IdpPeerService;
 import org.samlier.peer.sp.SpPeerService;
 import org.samlier.peer.logout.SloPeerService;
 import org.samlier.runner.OutboundPolicy;
+import org.samlier.runner.outbox.EcpProbeService;
+import org.samlier.runner.outbox.HttpOutboundSender;
+import org.samlier.runner.outbox.InMemoryEphemeralCredentialProvider;
+import org.samlier.runner.outbox.OutboundDispatcher;
 import org.samlier.runner.PreflightService;
 import org.samlier.runner.RunEvent;
 import org.samlier.runner.RunEventBus;
 import org.samlier.runner.RunService;
 import org.samlier.saml.crypto.FilePlanKeyStore;
 import org.samlier.saml.crypto.XmlSigner;
+import org.samlier.saml.ecp.EcpProbeEnvelopeFactory;
 import org.samlier.saml.metadata.MetadataService;
 import org.samlier.saml.metadata.TargetMetadataParser;
 import org.samlier.saml.normal.OpenSamlReader;
@@ -39,6 +44,7 @@ import org.samlier.store.FileTranscriptRecorder;
 import org.samlier.store.JsonCodec;
 import org.samlier.store.MetadataCache;
 import org.samlier.store.SqliteDatabase;
+import org.samlier.store.SqliteCaseExecutionRepository;
 import org.samlier.store.SqlitePlanRepository;
 import org.samlier.store.SqliteRunRepository;
 
@@ -72,9 +78,19 @@ public final class SamlierApplication {
         var spPeer = new SpPeerService(plans, runs, runService, metadataCache, metadataParser, saml, transcript, clock);
         var idpPeer = new IdpPeerService(plans, runs, runService, metadataCache, metadataParser, saml, transcript, clock);
         var sloPeer = new SloPeerService(plans, runs, metadataCache, metadataParser, saml, transcript, clock);
+        var caseExecutions = new SqliteCaseExecutionRepository(database, json);
+        var ephemeralCredentials = new InMemoryEphemeralCredentialProvider();
+        var outboundDispatcher = new OutboundDispatcher(
+                caseExecutions, HttpOutboundSender.create(transcript, clock), ephemeralCredentials,
+                new OutboundPolicy(config.outboundAllowPrivate()), clock);
+        outboundDispatcher.recoverAfterRestart();
+        var ecpProbe = new EcpProbeRuntime(
+                config.peerBaseUrl(), plans, runs, metadataCache, metadataParser, saml,
+                new EcpProbeEnvelopeFactory(),
+                new EcpProbeService(caseExecutions, ephemeralCredentials, outboundDispatcher, clock));
         var m1 = M1Runtime.create(
                 config, database, json, plans, runs, transcript, transcript, metadataCache,
-                metadataParser, keyStore, clock);
+                metadataParser, keyStore, caseExecutions, clock);
 
         return Javalin.create(javalin -> {
             javalin.startup.showJavalinBanner = false;
@@ -88,12 +104,14 @@ public final class SamlierApplication {
                 enforceConfiguredOrigin(ctx, config);
             });
             QuickCheckRoutes.register(javalin, m1::quickCheck);
-            ResultRoutes.register(javalin, m1::requireResult);
+            ResultRoutes.register(javalin, m1::requireResult, m1::requireReport);
+            PublicationRoutes.register(javalin, m1::publish);
             InteractionRoutes.register(javalin, m1::pending);
             AttestationRoutes.register(javalin, m1::attest);
             ConfigurationRoutes.register(javalin, m1::configure);
             BrowserCompletionRoutes.register(javalin, m1::completeBrowser);
             MilestoneRoutes.register(javalin, m1::startMilestone);
+            EcpProbeRoutes.register(javalin, ecpProbe::execute);
             if (config.mode() == AppConfig.Mode.HOSTED) {
                 ManagementSessionRoutes.register(javalin, config.publicBaseUrl(), m1::exchange);
                 javalin.routes.before("/api/runs/{id}/quick-check", ctx ->
@@ -123,6 +141,26 @@ public final class SamlierApplication {
                                 ctx.pathParam("id"),
                                 ctx.cookie(ManagementSessionRoutes.COOKIE_NAME),
                                 ctx.header("X-CSRF-Token")));
+                javalin.routes.before("/api/runs/{id}/ecp-probe", ctx ->
+                        m1.authorizeMutation(
+                                ctx.pathParam("id"),
+                                ctx.cookie(ManagementSessionRoutes.COOKIE_NAME),
+                                ctx.header("X-CSRF-Token")));
+                javalin.routes.before("/api/runs/{id}/publish", ctx ->
+                        m1.authorizeMutation(
+                                ctx.pathParam("id"),
+                                ctx.cookie(ManagementSessionRoutes.COOKIE_NAME),
+                                ctx.header("X-CSRF-Token")));
+                for (var path : List.of(
+                        "/api/runs/{id}/result.json", "/api/runs/{id}/report.html")) {
+                    javalin.routes.before(path, ctx -> {
+                        if (!m1.isPublished(ctx.pathParam("id"))) {
+                            m1.authorize(ctx.pathParam("id"), ctx.cookie(ManagementSessionRoutes.COOKIE_NAME));
+                        }
+                    });
+                }
+                javalin.routes.before("/api/runs/{id}/transcript", ctx ->
+                        m1.authorize(ctx.pathParam("id"), ctx.cookie(ManagementSessionRoutes.COOKIE_NAME)));
             }
             routes(javalin, config, plans, runs, transcript, eventBus, runService, preflight,
                     metadata, spPeer, idpPeer, sloPeer, m1, clock);
@@ -239,6 +277,19 @@ public final class SamlierApplication {
             javalin.routes.post("/p/{plan}/" + role + "/slo/soap", ctx ->
                     serveSlo(ctx, sloPeer, SloPeerService.Transport.SOAP));
         }
+        javalin.routes.post("/p/{plan}/sp/paos", ctx -> {
+            var runId = requiredQuery(ctx, "run");
+            var run = requireRun(runs, runId);
+            if (!ctx.pathParam("plan").equals(run.planId())) {
+                throw new IllegalArgumentException("Run belongs to another Test Plan");
+            }
+            transcript.record(new org.samlier.core.transcript.TranscriptInput(
+                    run.id(), org.samlier.core.transcript.Direction.INBOUND, clock.instant(),
+                    "ecp-response-consumer", "POST", absoluteRequestUrl(ctx), 204,
+                    headers(ctx), ctx.bodyAsBytes(), ctx.contentType(), ctx.req().getQueryString(),
+                    ctx.bodyAsBytes(), Map.of("type", "EcpPaosResponse")));
+            ctx.status(HttpStatus.NO_CONTENT);
+        });
     }
 
     private static void serveSlo(Context ctx, SloPeerService service, SloPeerService.Transport transport) {

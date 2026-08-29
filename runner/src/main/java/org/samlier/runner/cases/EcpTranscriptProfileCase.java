@@ -72,9 +72,7 @@ public final class EcpTranscriptProfileCase {
 
     private CaseOutcome responseHeader(List<Envelope> requests, List<Envelope> responses) {
         if (responses.isEmpty()) return notVerified("ecp_response_not_observed");
-        var expected = requests.stream().map(value -> first(value.document(), PAOS, "Request"))
-                .filter(java.util.Objects::nonNull).map(value -> value.getAttribute("responseConsumerURL"))
-                .filter(value -> !value.isBlank()).findFirst().orElse(null);
+        var expected = responseConsumer(requests);
         var scoped = responses.stream().filter(value -> has(value.document(), PROTOCOL, "Response")).toList();
         if (scoped.isEmpty()) return optional("ecp.soap-fault-observed");
         var invalid = new ArrayList<String>();
@@ -153,9 +151,7 @@ public final class EcpTranscriptProfileCase {
     }
 
     private CaseOutcome bearer(List<Envelope> requests, List<Envelope> responses) {
-        var expected = requests.stream().map(value -> first(value.document(), PAOS, "Request"))
-                .filter(java.util.Objects::nonNull).map(value -> value.getAttribute("responseConsumerURL"))
-                .filter(value -> !value.isBlank()).findFirst().orElse(null);
+        var expected = responseConsumer(requests);
         var confirmations = new ArrayList<Element>();
         responses.forEach(value -> {
             var nodes = value.document().getElementsByTagNameNS(ASSERTION, "SubjectConfirmation");
@@ -260,6 +256,16 @@ public final class EcpTranscriptProfileCase {
             }
         });
         return result;
+    }
+    private String responseConsumer(List<Envelope> requests) {
+        var paosValue = requests.stream().map(value -> first(value.document(), PAOS, "Request"))
+                .filter(java.util.Objects::nonNull).map(value -> value.getAttribute("responseConsumerURL"))
+                .filter(value -> !value.isBlank()).findFirst();
+        if (paosValue.isPresent()) return paosValue.orElseThrow();
+        return requests.stream().map(value -> first(value.document(), PROTOCOL, "AuthnRequest"))
+                .filter(java.util.Objects::nonNull)
+                .map(value -> value.getAttribute("AssertionConsumerServiceURL"))
+                .filter(value -> !value.isBlank()).findFirst().orElse(null);
     }
     private List<String> values(org.w3c.dom.Document document, String namespace, String name, boolean headerOnly) {
         var result = new ArrayList<String>();

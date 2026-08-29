@@ -46,6 +46,7 @@ public final class SqliteDatabase {
             applyMigration(connection, 2, "/db/migration/V002__case_execution_outbox.sql");
             applyMigration(connection, 3, "/db/migration/V003__applicability_inputs.sql");
             applyMigration(connection, 4, "/db/migration/V004__run_access_grants.sql");
+            applyMigration(connection, 5, "/db/migration/V005__published_runs.sql");
             connection.commit();
         } catch (SQLException | IOException e) {
             throw new StoreException("Could not apply database migrations", e);

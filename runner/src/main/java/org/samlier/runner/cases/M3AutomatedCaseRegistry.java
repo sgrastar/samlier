@@ -19,7 +19,7 @@ public final class M3AutomatedCaseRegistry {
         DiscoveryMetadataTestCase.approvedIds().stream()
                 .map(id -> new DiscoveryMetadataTestCase(id, metadata)).forEach(cases::add);
         LogoutTranscriptTestCase.approvedIds().stream()
-                .map(id -> new LogoutTranscriptTestCase(id, transcriptContent)).forEach(cases::add);
+                .map(id -> new LogoutTranscriptTestCase(id, transcriptContent, certificates)).forEach(cases::add);
         EcpTranscriptTestCase.approvedIds().stream()
                 .map(id -> new EcpTranscriptTestCase(id, transcriptContent, certificates)).forEach(cases::add);
         return new TestCaseRegistry(cases);

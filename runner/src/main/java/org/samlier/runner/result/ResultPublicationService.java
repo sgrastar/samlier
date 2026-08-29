@@ -7,12 +7,13 @@ import org.samlier.core.result.RunArtifactRepository;
 import org.samlier.runner.RunEvaluationService;
 
 /** Generates and atomically persists the single authoritative public result for a Run. */
-public final class ResultPublicationService implements ResultArtifactQuery {
+public final class ResultPublicationService implements ResultArtifactQuery, ReportArtifactQuery {
     private final CoverageCatalog catalog;
     private final RunEvaluationService evaluation;
     private final ResultContextProvider contexts;
     private final ResultJsonWriter json;
     private final RunArtifactRepository artifacts;
+    private final ReportHtmlWriter reportHtml;
 
     public ResultPublicationService(
             CoverageCatalog catalog,
@@ -25,6 +26,7 @@ public final class ResultPublicationService implements ResultArtifactQuery {
         this.contexts = Objects.requireNonNull(contexts, "contexts");
         this.json = Objects.requireNonNull(json, "json");
         this.artifacts = Objects.requireNonNull(artifacts, "artifacts");
+        this.reportHtml = new ReportHtmlWriter();
     }
 
     public byte[] generate(String runId) {
@@ -34,7 +36,9 @@ public final class ResultPublicationService implements ResultArtifactQuery {
         var document = ResultDocumentAssembler.assemble(
                 catalog, snapshot.plan(), snapshot.run(), snapshot.result(), snapshot.cases(), context);
         var bytes = json.write(document).getBytes(StandardCharsets.UTF_8);
+        var report = reportHtml.write(bytes);
         artifacts.saveResult(runId, bytes);
+        artifacts.saveReport(runId, report);
         return bytes.clone();
     }
 
@@ -42,5 +46,11 @@ public final class ResultPublicationService implements ResultArtifactQuery {
     public byte[] require(String runId) {
         return artifacts.findResult(runId)
                 .orElseThrow(() -> new IllegalArgumentException("Result artifact has not been generated"));
+    }
+
+    @Override
+    public byte[] requireReport(String runId) {
+        return artifacts.findReport(runId)
+                .orElseThrow(() -> new IllegalArgumentException("Report artifact has not been generated"));
     }
 }

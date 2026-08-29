@@ -64,6 +64,9 @@ class ResultPublicationServiceTest {
         var generated = service.generate(RUN_ID);
 
         assertArrayEquals(generated, service.require(RUN_ID));
+        var report = new String(service.requireReport(RUN_ID), java.nio.charset.StandardCharsets.UTF_8);
+        assertEquals(true, report.startsWith("<!doctype html>"));
+        assertFalse(report.contains("private@example.test"));
         assertEquals(1, new ResultJsonWriter().mapper().readTree(generated).at("/summary/cases/total").asInt());
         assertFalse(new String(generated, java.nio.charset.StandardCharsets.UTF_8).contains("private@example.test"));
         assertThrows(IllegalArgumentException.class, () -> service.require("run_00000000000000000000000000"));

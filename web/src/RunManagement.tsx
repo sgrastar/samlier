@@ -6,11 +6,18 @@ export function RunManagement({ runId, csrfToken }: { runId: string; csrfToken?:
   const [error, setError] = useState('')
   const [busy, setBusy] = useState('')
   const [planId, setPlanId] = useState('')
+  const [profile, setProfile] = useState('')
+  const [notice, setNotice] = useState('')
+  const [mode, setMode] = useState<'selfhosted' | 'hosted'>('selfhosted')
 
   const refresh = async () => {
-    const [nextInteractions, run] = await Promise.all([api.interactions(runId), api.run(runId)])
+    const [nextInteractions, run, plans, health] = await Promise.all([
+      api.interactions(runId), api.run(runId), api.plans(), api.health(),
+    ])
     setInteractions(nextInteractions)
     setPlanId(run.planId)
+    setProfile(plans.find(value => value.plan.id === run.planId)?.plan.profile ?? '')
+    setMode(health.mode)
   }
 
   useEffect(() => { void refresh().catch(cause => setError((cause as Error).message)) }, [runId])
@@ -88,6 +95,37 @@ export function RunManagement({ runId, csrfToken }: { runId: string; csrfToken?:
     }
   }
 
+  const runEcpProbe = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const form = event.currentTarget
+    const data = new FormData(form)
+    setBusy('ecp-probe')
+    setError('')
+    setNotice('')
+    try {
+      await api.ecpProbe(runId, String(data.get('username') ?? ''), String(data.get('password') ?? ''), csrfToken)
+      form.reset()
+      setNotice('ECP exchange recorded. M3 can now evaluate the ECP transcript.')
+    } catch (cause) {
+      setError((cause as Error).message)
+    } finally {
+      setBusy('')
+    }
+  }
+
+  const publish = async () => {
+    setBusy('publish')
+    setError('')
+    try {
+      const result = await api.publish(runId, csrfToken)
+      setNotice(`Published at ${result.publicUrl}`)
+    } catch (cause) {
+      setError((cause as Error).message)
+    } finally {
+      setBusy('')
+    }
+  }
+
   return <section className="management panel">
     <div className="section-heading"><div><p className="eyebrow">Evidence workflow</p><h2>Pending interactions</h2></div><div className="actions">
       <button disabled={busy === 'quick-check'} onClick={() => void startM1()}>Start or resume M1</button>
@@ -96,6 +134,16 @@ export function RunManagement({ runId, csrfToken }: { runId: string; csrfToken?:
       <button onClick={() => void refresh()}>Refresh</button>
     </div></div>
     {error && <aside role="alert">{error}</aside>}
+    {notice && <aside role="status">{notice}</aside>}
+    {profile === 'IDP_FULL' && <form className="interaction" onSubmit={event => void runEcpProbe(event)}>
+      <fieldset disabled={busy === 'ecp-probe'}>
+        <legend>ECP HTTP Basic probe</legend>
+        <p>Credentials are held in memory for this send only. They are never written to case state, the outbox, or the transcript.</p>
+        <label>Username<input required name="username" autoComplete="username" /></label>
+        <label>Password<input required name="password" type="password" autoComplete="current-password" /></label>
+        <button type="submit">Run ECP probe before M3</button>
+      </fieldset>
+    </form>}
     {interactions.length === 0 ? <p className="quiet-success">No pending interactions.</p> :
       <div className="interaction-list">{interactions.map(interaction => <article key={interaction.caseId} className="interaction">
         <header><strong>{interaction.caseId}</strong><span>{interaction.kind}</span></header>
@@ -128,7 +176,12 @@ export function RunManagement({ runId, csrfToken }: { runId: string; csrfToken?:
         </form>}
         <small>Expires {new Date(interaction.expiresAt).toLocaleString()}</small>
       </article>)}</div>}
-    <p><a href={`/reports/${runId}`}>Open current result</a></p>
+    <div className="actions">
+      <a className="button" href={`/reports/${runId}`}>Open current result</a>
+      <a className="button" href={`/api/runs/${runId}/result.json`} download>Export result.json</a>
+      <a className="button" href={`/api/runs/${runId}/report.html`} download>Export report.html</a>
+      {mode === 'hosted' && <button disabled={busy === 'publish'} onClick={() => void publish()}>Publish hosted result</button>}
+    </div>
   </section>
 }
 

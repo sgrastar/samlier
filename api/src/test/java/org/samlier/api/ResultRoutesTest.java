@@ -14,7 +14,9 @@ class ResultRoutesTest {
     @Test
     void returnsThePersistedBytesWithoutReserializingThem() throws Exception {
         var expected = "{\n  \"schema_version\": \"1\"\n}\n".getBytes(StandardCharsets.UTF_8);
-        var app = Javalin.create(config -> ResultRoutes.register(config, ignored -> expected)).start(0);
+        var report = "<!doctype html><title>report</title>".getBytes(StandardCharsets.UTF_8);
+        var app = Javalin.create(config -> ResultRoutes.register(
+                config, ignored -> expected, ignored -> report)).start(0);
         try {
             var response = HttpClient.newHttpClient().send(HttpRequest.newBuilder(URI.create(
                             "http://127.0.0.1:" + app.port()
@@ -27,6 +29,14 @@ class ResultRoutesTest {
             assertEquals("nosniff", response.headers().firstValue("x-content-type-options").orElseThrow());
             assertEquals("application/json;charset=utf-8",
                     response.headers().firstValue("content-type").orElseThrow());
+            var html = HttpClient.newHttpClient().send(HttpRequest.newBuilder(URI.create(
+                            "http://127.0.0.1:" + app.port()
+                                    + "/api/runs/run_0123456789ABCDEFGHJKMNPQRS/report.html"))
+                            .GET().build(), HttpResponse.BodyHandlers.ofByteArray());
+            assertEquals(200, html.statusCode());
+            org.junit.jupiter.api.Assertions.assertArrayEquals(report, html.body());
+            assertEquals("attachment; filename=\"samlier-report.html\"",
+                    html.headers().firstValue("content-disposition").orElseThrow());
         } finally {
             app.stop();
         }

@@ -4,7 +4,7 @@ import java.util.Map;
 import org.samlier.core.caseexec.OutboundAction;
 
 public interface OutboundSender {
-    SendResult send(OutboundAction action, byte[] ephemeralCredential) throws Exception;
+    SendResult send(String runId, OutboundAction action, byte[] ephemeralCredential) throws Exception;
 
     record SendResult(boolean replayRejected, Map<String, Object> details, String transcriptEntryId) {
         public SendResult {

@@ -48,6 +48,17 @@ public final class SamlProtocolService {
     }
 
     public AuthnRequestMessage buildAuthnRequest(TestPlan plan, URI destination, String relayState) {
+        return buildAuthnRequest(
+                plan, destination, relayState, URI.create(peerEndpoint(plan, "/sp/acs/0")), MetadataService.POST);
+    }
+
+    public AuthnRequestMessage buildEcpAuthnRequest(
+            TestPlan plan, URI destination, URI responseConsumer, String relayState) {
+        return buildAuthnRequest(plan, destination, relayState, responseConsumer, MetadataService.PAOS);
+    }
+
+    private AuthnRequestMessage buildAuthnRequest(
+            TestPlan plan, URI destination, String relayState, URI responseConsumer, String protocolBinding) {
         var document = SecureXml.newDocument();
         var request = element(document, PROTOCOL, "samlp:AuthnRequest");
         declareSamlNamespaces(request);
@@ -56,8 +67,8 @@ public final class SamlProtocolService {
         request.setAttribute("Version", "2.0");
         request.setAttribute("IssueInstant", instant(clock.instant()));
         request.setAttribute("Destination", destination.toString());
-        request.setAttribute("AssertionConsumerServiceURL", peerEndpoint(plan, "/sp/acs/0"));
-        request.setAttribute("ProtocolBinding", MetadataService.POST);
+        request.setAttribute("AssertionConsumerServiceURL", responseConsumer.toString());
+        request.setAttribute("ProtocolBinding", protocolBinding);
         var issuer = element(document, ASSERTION, "saml:Issuer");
         issuer.setTextContent(peerEndpoint(plan, ""));
         request.appendChild(issuer);

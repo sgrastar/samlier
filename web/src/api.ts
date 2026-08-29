@@ -180,4 +180,13 @@ export const api = {
     request<unknown>(`/api/runs/${runId}/milestones/${milestone}/start`, {
       method: 'POST', headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : {},
     }),
+  ecpProbe: (runId: string, username: string, password: string, csrfToken?: string) =>
+    request<unknown>(`/api/runs/${runId}/ecp-probe`, {
+      method: 'POST', body: JSON.stringify({ username, password }),
+      headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : {},
+    }),
+  publish: (runId: string, csrfToken?: string) =>
+    request<{ runId: string; publicUrl: string }>(`/api/runs/${runId}/publish`, {
+      method: 'POST', headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : {},
+    }),
 }

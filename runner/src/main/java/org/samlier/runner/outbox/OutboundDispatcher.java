@@ -98,7 +98,7 @@ public final class OutboundDispatcher {
                     Map.of(), null, clock.instant())) {
                 return new DispatchResult(State.UNKNOWN_DELIVERY, List.of(incident(entry, "concurrent-dispatch")));
             }
-            var result = sender.send(entry.action(), credential);
+            var result = sender.send(entry.runId(), entry.action(), credential);
             if (result.replayRejected()) {
                 var recorded = repository.transitionOutbox(
                         entry.action().actionId(), OutboxStatus.SENDING, OutboxStatus.UNKNOWN_DELIVERY,

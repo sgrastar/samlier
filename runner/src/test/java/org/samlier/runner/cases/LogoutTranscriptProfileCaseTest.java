@@ -51,7 +51,7 @@ class LogoutTranscriptProfileCaseTest {
         var redirectSigned = fixture(inbound("response",
                 response("_response", "2.0", "_request", success()).replace(
                         "Version=\"2.0\"", "Version=\"2.0\" Consent=\"urn:consent\""), "Signature=abc"));
-        assertEquals(Outcome.SATISFIED, redirectSigned.evaluate(LogoutTranscriptProfileCase.Rule.CONSENT_SIGNATURE));
+        assertEquals(Outcome.NOT_VERIFIED, redirectSigned.evaluate(LogoutTranscriptProfileCase.Rule.CONSENT_SIGNATURE));
         var secondaryAtTop = fixture(inbound("response",
                 response("_response", "2.0", "_request", "urn:oasis:names:tc:SAML:2.0:status:PartialLogout"), null));
         assertEquals(Outcome.VIOLATED, secondaryAtTop.evaluate(LogoutTranscriptProfileCase.Rule.TOP_LEVEL_STATUS));
@@ -119,7 +119,7 @@ class LogoutTranscriptProfileCaseTest {
                 @Override public List<TranscriptEntry> list(String runId) { return entries; }
             };
             TranscriptContentReader reader = entry -> content.get(entry.decodedSamlRef());
-            return new LogoutTranscriptProfileCase(rule).evaluate(RUN, recorder, reader).outcome();
+            return new LogoutTranscriptProfileCase(rule, List.of()).evaluate(RUN, recorder, reader).outcome();
         }
     }
 }

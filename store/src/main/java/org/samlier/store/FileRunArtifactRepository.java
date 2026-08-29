@@ -29,9 +29,18 @@ public final class FileRunArtifactRepository implements RunArtifactRepository {
 
     @Override
     public void saveResult(String runId, byte[] resultJson) {
+        save(runId, "result.json", resultJson);
+    }
+
+    @Override
+    public void saveReport(String runId, byte[] reportHtml) {
+        save(runId, "report.html", reportHtml);
+    }
+
+    private void save(String runId, String fileName, byte[] content) {
         validateRunId(runId);
-        if (resultJson == null || resultJson.length == 0) {
-            throw new IllegalArgumentException("resultJson must not be empty");
+        if (content == null || content.length == 0) {
+            throw new IllegalArgumentException(fileName + " must not be empty");
         }
         var runDirectory = directory.resolve(runId);
         createDirectory(runDirectory);
@@ -39,8 +48,8 @@ public final class FileRunArtifactRepository implements RunArtifactRepository {
         try {
             temporary = Files.createTempFile(runDirectory, ".result-", ".tmp");
             setPermissions(temporary, PRIVATE_FILE);
-            Files.write(temporary, resultJson);
-            var destination = runDirectory.resolve("result.json");
+            Files.write(temporary, content);
+            var destination = runDirectory.resolve(fileName);
             try {
                 Files.move(temporary, destination,
                         StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
@@ -63,8 +72,17 @@ public final class FileRunArtifactRepository implements RunArtifactRepository {
 
     @Override
     public Optional<byte[]> findResult(String runId) {
+        return find(runId, "result.json");
+    }
+
+    @Override
+    public Optional<byte[]> findReport(String runId) {
+        return find(runId, "report.html");
+    }
+
+    private Optional<byte[]> find(String runId, String fileName) {
         validateRunId(runId);
-        var path = directory.resolve(runId).resolve("result.json");
+        var path = directory.resolve(runId).resolve(fileName);
         if (!Files.isRegularFile(path)) return Optional.empty();
         try {
             return Optional.of(Files.readAllBytes(path));

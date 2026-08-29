@@ -22,6 +22,9 @@ class FileRunArtifactRepositoryTest {
         repository.saveResult(RUN_ID, replacement);
 
         assertArrayEquals(replacement, repository.findResult(RUN_ID).orElseThrow());
+        var report = "<!doctype html><title>report</title>".getBytes(StandardCharsets.UTF_8);
+        repository.saveReport(RUN_ID, report);
+        assertArrayEquals(report, repository.findReport(RUN_ID).orElseThrow());
         try (var paths = Files.list(directory.resolve("results").resolve(RUN_ID))) {
             assertFalse(paths.anyMatch(path -> path.getFileName().toString().endsWith(".tmp")));
         }
@@ -32,5 +35,6 @@ class FileRunArtifactRepositoryTest {
         var repository = new FileRunArtifactRepository(directory);
         assertThrows(IllegalArgumentException.class, () -> repository.findResult("../../outside"));
         assertThrows(IllegalArgumentException.class, () -> repository.saveResult(RUN_ID, new byte[0]));
+        assertThrows(IllegalArgumentException.class, () -> repository.saveReport(RUN_ID, new byte[0]));
     }
 }

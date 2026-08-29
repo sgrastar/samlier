@@ -70,7 +70,7 @@ class OutboundDispatcherTest {
                 action.actionId(), OutboxStatus.PENDING, OutboxStatus.SENDING, Map.of(), null, NOW);
         repository.recoverSendingAsUnknownDelivery(NOW);
         var sends = new AtomicInteger();
-        var dispatcher = dispatcher((ignored, credential) -> {
+        var dispatcher = dispatcher((runId, ignored, credential) -> {
             sends.incrementAndGet();
             return success();
         }, Optional.empty());
@@ -89,7 +89,7 @@ class OutboundDispatcherTest {
                 action.actionId(), OutboxStatus.PENDING, OutboxStatus.SENDING, Map.of(), null, NOW);
         repository.recoverSendingAsUnknownDelivery(NOW);
         var sends = new AtomicInteger();
-        var dispatcher = dispatcher((ignored, credential) -> {
+        var dispatcher = dispatcher((runId, ignored, credential) -> {
             sends.incrementAndGet();
             return success();
         }, Optional.empty());
@@ -102,11 +102,11 @@ class OutboundDispatcherTest {
     @Test
     void credentialsBlockAfterRestartAndNeverReachPersistentStorage() throws Exception {
         var action = persist(OutboundKind.ECP_SOAP, true);
-        var blocked = dispatcher((ignored, credential) -> success(), Optional.empty());
+        var blocked = dispatcher((runId, ignored, credential) -> success(), Optional.empty());
         assertEquals(OutboundDispatcher.State.BLOCKED_ON_CREDENTIAL, blocked.dispatch(action.actionId()).state());
 
         var secret = "ephemeral-only-secret".getBytes(StandardCharsets.UTF_8);
-        var sent = dispatcher((ignored, credential) -> {
+        var sent = dispatcher((runId, ignored, credential) -> {
             assertArrayEquals(secret, credential);
             return success();
         }, Optional.of(secret));
@@ -119,7 +119,7 @@ class OutboundDispatcherTest {
     @Test
     void sendFailureBecomesSuiteUncertainty() {
         var action = persist(OutboundKind.AUTHN_REQUEST, false);
-        var dispatcher = dispatcher((ignored, credential) -> {
+        var dispatcher = dispatcher((runId, ignored, credential) -> {
             throw new java.io.IOException("connection reset after write");
         }, Optional.empty());
 
@@ -134,7 +134,7 @@ class OutboundDispatcherTest {
     void replayRejectionAfterDispatchNeverBecomesATargetVerdict() {
         var action = persist(OutboundKind.AUTHN_REQUEST, false);
         var dispatcher = dispatcher(
-                (ignored, credential) -> new OutboundSender.SendResult(
+                (runId, ignored, credential) -> new OutboundSender.SendResult(
                         true, Map.of("saml_status", "Requester"), "tx-replay"),
                 Optional.empty());
 
@@ -154,7 +154,7 @@ class OutboundDispatcherTest {
                 action.actionId(), OutboxStatus.PENDING, OutboxStatus.SENDING,
                 Map.of(), null, NOW));
         repository.recoverSendingAsUnknownDelivery(NOW.plusSeconds(1));
-        var dispatcher = dispatcher((ignored, credential) -> {
+        var dispatcher = dispatcher((runId, ignored, credential) -> {
             sends.incrementAndGet();
             return success();
         }, Optional.empty());
