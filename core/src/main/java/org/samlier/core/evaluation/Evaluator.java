@@ -58,7 +58,7 @@ public final class Evaluator {
         var conformance = conformance(obligationResults, coverage.excludedByDeclaration());
         var completeness = completeness(obligationResults);
 
-        return new RunResult(
+        var result = new RunResult(
                 conformance,
                 completeness,
                 obligationResults,
@@ -67,6 +67,8 @@ public final class Evaluator {
                 applicability,
                 scopeQualifications(applicability),
                 incidents);
+        RunResultInvariantValidator.validate(catalog, plan, result);
+        return result;
     }
 
     public static Verdict toVerdict(Rfc2119Level level, CaseOutcome outcome) {
