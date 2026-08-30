@@ -412,7 +412,7 @@ class NormalFlowBrowserObservationTest {
                 response("POST", "https://suite.example/acs", "2.0", "_one",
                         assertionWithNameId("issuer", NormalFlowBrowserObservation.TRANSIENT, "_one")),
                 response("POST", "https://suite.example/acs", "2.0", "_two",
-                        assertionWithNameId("issuer", NormalFlowBrowserObservation.TRANSIENT, "名前")));
+                        assertionWithNameId("issuer", NormalFlowBrowserObservation.TRANSIENT, "nämé")));
         assertOutcome("IIP-SSO05-b2-idp-01", Outcome.VIOLATED,
                 response("POST", "https://suite.example/acs", "2.0", "_one",
                         assertionWithNameId("issuer", NormalFlowBrowserObservation.TRANSIENT, "1invalid")));
