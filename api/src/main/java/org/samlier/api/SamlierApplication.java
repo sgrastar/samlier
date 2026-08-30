@@ -364,11 +364,35 @@ public final class SamlierApplication {
             var runId = requiredQuery(ctx, "run");
             var variant = metadataLab.selected(runId, plan.id());
             var run = requireRun(runs, runId);
+            var redirectStatus = metadataRedirectStatus(variant);
             transcript.record(new org.samlier.core.transcript.TranscriptInput(
                     run.id(), org.samlier.core.transcript.Direction.INBOUND, clock.instant(),
-                    "metadata-live:" + variant.id(), "GET", absoluteRequestUrl(ctx), 200,
+                    "metadata-live:" + variant.id(), "GET", absoluteRequestUrl(ctx),
+                    redirectStatus == null ? 200 : redirectStatus.getCode(),
                     headers(ctx), new byte[0], null, ctx.req().getQueryString(), new byte[0],
                     Map.of("type", "MetadataFetch", "variant", variant.id(), "feed", "live")));
+            ctx.header("Cache-Control", "no-store");
+            if (redirectStatus != null) {
+                var location = config.peerBaseUrl().resolve(
+                        "/p/" + plan.id() + "/metadata/live/content?run=" + run.id()
+                                + "&variant=" + variant.id());
+                ctx.redirect(location.toString(), redirectStatus);
+                return;
+            }
+            ctx.contentType("application/samlmetadata+xml")
+                    .result(metadata.generate(plan, variant, runId));
+        });
+        javalin.routes.get("/p/{plan}/metadata/live/content", ctx -> {
+            var plan = requirePlan(plans, ctx.pathParam("plan"));
+            var runId = requiredQuery(ctx, "run");
+            var run = requireRun(runs, runId);
+            if (!plan.id().equals(run.planId())) {
+                throw new IllegalArgumentException("Run belongs to another Test Plan");
+            }
+            var variant = MetadataService.Variant.parse(requiredQuery(ctx, "variant"));
+            if (metadataRedirectStatus(variant) == null) {
+                throw new IllegalArgumentException("Metadata content route requires a redirect fixture");
+            }
             ctx.header("Cache-Control", "no-store");
             ctx.contentType("application/samlmetadata+xml")
                     .result(metadata.generate(plan, variant, runId));
@@ -534,6 +558,15 @@ public final class SamlierApplication {
     private static String absoluteRequestUrl(Context ctx) {
         var query = ctx.req().getQueryString();
         return ctx.url() + (query == null ? "" : "?" + query);
+    }
+
+    private static HttpStatus metadataRedirectStatus(MetadataService.Variant variant) {
+        return switch (variant) {
+            case REDIRECT_301 -> HttpStatus.MOVED_PERMANENTLY;
+            case REDIRECT_302 -> HttpStatus.FOUND;
+            case REDIRECT_307 -> HttpStatus.TEMPORARY_REDIRECT;
+            default -> null;
+        };
     }
 
     private static void securityHeaders(Context ctx) {

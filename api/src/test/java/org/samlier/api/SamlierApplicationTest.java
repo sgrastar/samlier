@@ -106,6 +106,23 @@ class SamlierApplicationTest {
             assertEquals("no-store", liveMetadata.headers().firstValue("Cache-Control").orElseThrow());
             assertEquals(4, occurrences(liveMetadata.body(), "<ds:KeyInfo"), liveMetadata.body());
             assertTrue(liveMetadata.body().contains("mdv=no-key-info&amp;run=" + runId));
+
+            var redirectSelected = client.send(HttpRequest.newBuilder(base.resolve(
+                            "/api/runs/" + runId + "/metadata-lab/variant"))
+                            .header("Content-Type", "application/json")
+                            .POST(HttpRequest.BodyPublishers.ofString("{\"variant\":\"redirect-307\"}"))
+                            .build(), HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, redirectSelected.statusCode(), redirectSelected.body());
+            var redirect = client.send(HttpRequest.newBuilder(base.resolve(
+                            "/p/" + planId + "/metadata/live?run=" + runId)).build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(307, redirect.statusCode(), redirect.body());
+            var canonicalLocation = URI.create(redirect.headers().firstValue("Location").orElseThrow());
+            var redirectedMetadata = client.send(HttpRequest.newBuilder(base.resolve(
+                            canonicalLocation.getRawPath() + "?" + canonicalLocation.getRawQuery())).build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, redirectedMetadata.statusCode(), redirectedMetadata.body());
+            assertTrue(redirectedMetadata.body().contains("mdv=redirect-307&amp;run=" + runId));
             var reportShell = client.send(HttpRequest.newBuilder(base.resolve("/reports/" + runId)).build(),
                     HttpResponse.BodyHandlers.ofString());
             assertEquals(200, reportShell.statusCode());
