@@ -57,6 +57,13 @@ python3 dev/keycloak/prepare-smoke-apple.py --manual
 
 The launcher builds the current checkout, records the actual OCI image digest in the Run, starts both services on an isolated Apple Container network, and uses Keycloak's network address for target metadata retrieval. Use `--no-build` only when the named local image already represents the checkout being tested.
 
+During an acceptance Run, Samlier derives outcomes directly from the Run-scoped metadata snapshot and
+validated SAML Transcripts where the approved case has a complete observation rule. The operator still
+uses the target's normal administration UI to register metadata or select a required configuration, but
+does not answer `PASS` or `FAIL` for those evidence-driven cases. Cases that depend on internal product
+state or on a configuration that cannot be exercised remain explicit configuration or attestation
+interactions; unavailable evidence is reported as `NOT_VERIFIED` rather than target nonconformance.
+
 ## Project status and design
 
 The requirements catalog and role-specific case design are protected by signed G1/G2 approval records. The implementation registry is tested against all approved case IDs so a missing case fails the build. See [the design index](docs/README.md), [the G2 design](docs/12-g2-test-design.md), [the roadmap](docs/01-scope-and-roadmap.md), and [the implementation rules](AGENTS.md).

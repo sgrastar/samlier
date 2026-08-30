@@ -17,11 +17,18 @@ public interface InteractionQuery {
             URI startUrl,
             @JsonFormat(shape = JsonFormat.Shape.STRING)
             Instant expiresAt,
-            List<String> answerValues) {
+            List<String> answerValues,
+            CompletionMode completionMode) {
         public PendingInteraction {
             answerValues = List.copyOf(answerValues == null ? List.of() : answerValues);
+            if (completionMode == null) throw new IllegalArgumentException("completionMode is required");
         }
     }
 
     enum Kind { BROWSER, CONFIGURATION, ATTESTATION }
+    enum CompletionMode {
+        OPERATOR,
+        TRANSCRIPT,
+        TRANSCRIPT_OR_OPERATOR
+    }
 }

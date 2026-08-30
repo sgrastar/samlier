@@ -110,7 +110,14 @@ public final class MetadataFixtureObservationTestCase
         var required = new ArrayList<String>();
         required.add("fetched:" + CONTROL);
         required.add("used:" + CONTROL);
-        fixtures.forEach(fixture -> required.add("fetched:" + fixture.variant()));
+        fixtures.forEach(fixture -> {
+            required.add("fetched:" + fixture.variant());
+            if (fixture.behavior() == Behavior.ACCEPT) {
+                required.add("used:" + fixture.variant());
+            } else {
+                required.add("conclusive-rejection:" + fixture.variant());
+            }
+        });
         var completed = required.stream().filter(value -> {
             var separator = value.indexOf(':');
             var kind = value.substring(0, separator);
@@ -178,9 +185,19 @@ public final class MetadataFixtureObservationTestCase
                 "fixtures", fixtures.stream().map(Fixture::variant).toList(),
                 "fetched_variants", List.copyOf(fetched),
                 "used_variants", List.copyOf(used));
+        var allFetched = fixtures.stream().allMatch(value -> fetched.contains(value.variant()));
+        var acceptedObserved = fixtures.stream()
+                .filter(value -> value.behavior() == Behavior.ACCEPT)
+                .allMatch(value -> used.contains(value.variant()));
+        var rejected = fixtures.stream().filter(value -> value.behavior() == Behavior.REJECT).toList();
+        // Silence after a fetch cannot prove that the target rejected the fixture: the operator
+        // might not have attempted the flow yet. A reject-only branch becomes conclusive only on
+        // the positive counter-observation that the target used forbidden metadata (VIOLATED).
+        var forbiddenUseObserved = rejected.stream().anyMatch(value -> used.contains(value.variant()));
+        var conclusive = forbiddenUseObserved || (rejected.isEmpty() && acceptedObserved);
         return new Observation(
                 fetched.contains(CONTROL) && used.contains(CONTROL)
-                        && fixtures.stream().allMatch(value -> fetched.contains(value.variant())),
+                        && allFetched && conclusive,
                 fetched, used, distinct(evidence), details);
     }
 

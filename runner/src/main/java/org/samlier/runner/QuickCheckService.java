@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.BiFunction;
 import javax.xml.namespace.QName;
 import org.samlier.core.caseexec.CaseExecution;
 import org.samlier.core.caseexec.CaseExecutionRepository;
@@ -40,6 +41,7 @@ public final class QuickCheckService implements QuickCheckExecutor {
     private final URI peerBase;
     private final Clock clock;
     private final CaseDefinitionCatalog approvedDefinitions;
+    private final BiFunction<org.samlier.core.plan.TestPlan, String, IdpErrorProbeConfiguration> probeConfigurations;
 
     public QuickCheckService(
             PlanRepository plans,
@@ -52,7 +54,7 @@ public final class QuickCheckService implements QuickCheckExecutor {
             URI peerBase,
             Clock clock) {
         this(plans, runs, transcript, transcriptContent, caseExecutions, keys,
-                targetSigningCertificates, peerBase, clock, null);
+                targetSigningCertificates, peerBase, clock, null, null);
     }
 
     public QuickCheckService(
@@ -66,6 +68,22 @@ public final class QuickCheckService implements QuickCheckExecutor {
             URI peerBase,
             Clock clock,
             CaseDefinitionCatalog approvedDefinitions) {
+        this(plans, runs, transcript, transcriptContent, caseExecutions, keys,
+                targetSigningCertificates, peerBase, clock, approvedDefinitions, null);
+    }
+
+    public QuickCheckService(
+            PlanRepository plans,
+            RunRepository runs,
+            TranscriptRecorder transcript,
+            TranscriptContentReader transcriptContent,
+            CaseExecutionRepository caseExecutions,
+            FilePlanKeyStore keys,
+            TargetSigningCertificateProvider targetSigningCertificates,
+            URI peerBase,
+            Clock clock,
+            CaseDefinitionCatalog approvedDefinitions,
+            BiFunction<org.samlier.core.plan.TestPlan, String, IdpErrorProbeConfiguration> probeConfigurations) {
         this.plans = Objects.requireNonNull(plans, "plans");
         this.runs = Objects.requireNonNull(runs, "runs");
         this.transcript = Objects.requireNonNull(transcript, "transcript");
@@ -77,6 +95,9 @@ public final class QuickCheckService implements QuickCheckExecutor {
         this.peerBase = Objects.requireNonNull(peerBase, "peerBase");
         this.clock = Objects.requireNonNull(clock, "clock");
         this.approvedDefinitions = approvedDefinitions;
+        this.probeConfigurations = probeConfigurations == null
+                ? (plan, runId) -> inactiveProbe(plan.id())
+                : probeConfigurations;
     }
 
     @Override
@@ -91,12 +112,12 @@ public final class QuickCheckService implements QuickCheckExecutor {
                 transcriptContent,
                 attributeFixtures(),
                 optionalSelectors(),
-                targetSigningCertificates.certificatesFor(plan),
+                targetSigningCertificates.certificatesFor(plan, run.id()),
                 peerBase.resolve("/p/" + plan.id()).toString(),
                 ignored -> Optional.of(credentials.privateKey()),
                 (ignored, identifier) -> PrincipalIdentityResolver.Resolution.unknown(),
                 caseExecutions,
-                inactiveProbe(plan.id())));
+                probeConfigurations.apply(plan, run.id())));
         if (approvedDefinitions != null) {
             CaseImplementationAudit.requireExact(
                     approvedDefinitions, registry,

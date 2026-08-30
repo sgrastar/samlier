@@ -123,6 +123,7 @@ export interface PendingInteraction {
   startUrl: string | null
   expiresAt: string
   answerValues: string[]
+  completionMode?: 'OPERATOR' | 'TRANSCRIPT' | 'TRANSCRIPT_OR_OPERATOR'
 }
 
 export interface BootstrapContract {
@@ -160,6 +161,15 @@ export interface ProtocolEvidenceStatus {
 export interface ProtocolEvidenceEvaluation {
   completed: Array<{ caseId: string; outcome: string }>
   remaining: ProtocolEvidenceStatus
+}
+
+export interface ActiveProbeStatus {
+  planId: string
+  state: 'NOT_STARTED' | 'READY' | 'AWAITING_RESPONSE' | 'FINISHED' | 'UNAVAILABLE'
+  actionId: string | null
+  startUrl: string | null
+  requiresFreshSession: boolean
+  outcome: string | null
 }
 
 export interface Health { status: string; version: string; mode: 'selfhosted' | 'hosted' }
@@ -204,6 +214,7 @@ export const api = {
   quickCheck: (runId: string, csrfToken?: string) => request<unknown>(`/api/runs/${runId}/quick-check`, {
     method: 'POST', headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : {},
   }),
+  activeProbe: (runId: string) => request<ActiveProbeStatus>(`/api/runs/${runId}/active-probe`),
   result: async (runId: string) => camelize(
     await request<unknown>(`/api/runs/${runId}/result.json`),
   ) as PublicResult,

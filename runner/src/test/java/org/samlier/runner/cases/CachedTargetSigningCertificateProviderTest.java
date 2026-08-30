@@ -44,7 +44,9 @@ class CachedTargetSigningCertificateProviderTest {
         cache.put(PLAN_ID, metadata);
         var provider = new CachedTargetSigningCertificateProvider(cache, new TargetMetadataParser());
 
-        assertEquals(java.util.List.of(certificate), provider.certificatesFor(plan()));
+        cache.putIfAbsent("run_0123456789ABCDEFGHJKMNPQRS", metadata);
+        assertEquals(java.util.List.of(certificate), provider.certificatesFor(
+                plan(), "run_0123456789ABCDEFGHJKMNPQRS"));
     }
 
     private TestPlan plan() {

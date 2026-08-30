@@ -56,7 +56,7 @@ class QuickCheckServiceTest {
                 plans, runs, transcript, transcript,
                 new SqliteCaseExecutionRepository(database, json),
                 new FilePlanKeyStore(directory, Clock.fixed(NOW, ZoneOffset.UTC)),
-                ignored -> java.util.List.of(),
+                (ignored, runId) -> java.util.List.of(),
                 URI.create("https://suite.example"), Clock.fixed(NOW, ZoneOffset.UTC));
     }
 

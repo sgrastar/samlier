@@ -4,6 +4,9 @@ import java.time.Clock;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Function;
+import org.samlier.core.caseexec.OutboundAction;
+import org.samlier.core.caseexec.OutboundKind;
 import org.samlier.core.caseexec.CaseExecutionRepository;
 import org.samlier.core.caseexec.OutboundKind.Retry;
 import org.samlier.core.caseexec.OutboxEntry;
@@ -65,6 +68,51 @@ public final class OutboundDispatcher {
             return new DispatchResult(State.UNKNOWN_DELIVERY, List.of(incident(entry, "send-already-started")));
         }
         return send(entry, entry.status());
+    }
+
+    /**
+     * Hands an unsafe front-channel action to a browser. The delivery remains unknown until the
+     * correlated inbound message arrives; rendering an auto-submit page is not proof of delivery.
+     */
+    public FrontChannelDispatch dispatchFrontChannel(
+            String actionId, Function<OutboundAction, String> handoffRecorder) {
+        Objects.requireNonNull(handoffRecorder, "handoffRecorder");
+        var entry = repository.findOutbox(actionId)
+                .orElseThrow(() -> new IllegalArgumentException("Unknown outbox action: " + actionId));
+        if (entry.action().kind() != OutboundKind.AUTHN_REQUEST) {
+            throw new IllegalArgumentException("Front-channel dispatcher does not implement "
+                    + entry.action().kind());
+        }
+        if (entry.status() != OutboxStatus.PENDING) {
+            throw new IllegalStateException("Unsafe front-channel action cannot be replayed from "
+                    + entry.status());
+        }
+        outboundPolicy.requireAllowed(entry.action().target());
+        if (!repository.transitionOutbox(
+                actionId, OutboxStatus.PENDING, OutboxStatus.SENDING,
+                Map.of(), null, clock.instant())) {
+            throw new IllegalStateException("Concurrent front-channel dispatch");
+        }
+        String transcriptEntryId = null;
+        try {
+            transcriptEntryId = handoffRecorder.apply(entry.action());
+            if (transcriptEntryId == null || transcriptEntryId.isBlank()) {
+                throw new IllegalArgumentException("handoffRecorder must return a transcript entry ID");
+            }
+            if (!repository.transitionOutbox(
+                    actionId, OutboxStatus.SENDING, OutboxStatus.UNKNOWN_DELIVERY,
+                    Map.of("transport", "browser-front-channel"), transcriptEntryId, clock.instant())) {
+                throw new IllegalStateException("Front-channel delivery state was not persisted");
+            }
+            return new FrontChannelDispatch(entry.action(), transcriptEntryId);
+        } catch (RuntimeException failure) {
+            repository.transitionOutbox(
+                    actionId, OutboxStatus.SENDING, OutboxStatus.UNKNOWN_DELIVERY,
+                    Map.of("transport", "browser-front-channel",
+                            "exception_type", failure.getClass().getName()),
+                    transcriptEntryId, clock.instant());
+            throw failure;
+        }
     }
 
     private DispatchResult retryUnknown(OutboxEntry entry) {
@@ -131,6 +179,15 @@ public final class OutboundDispatcher {
 
     public record DispatchResult(State state, List<SuiteIncident> incidents) {
         public DispatchResult { incidents = List.copyOf(incidents); }
+    }
+
+    public record FrontChannelDispatch(OutboundAction action, String transcriptEntryId) {
+        public FrontChannelDispatch {
+            Objects.requireNonNull(action, "action");
+            if (transcriptEntryId == null || transcriptEntryId.isBlank()) {
+                throw new IllegalArgumentException("transcriptEntryId must not be blank");
+            }
+        }
     }
 
     public enum State { SENT, BLOCKED_ON_CREDENTIAL, UNKNOWN_DELIVERY }

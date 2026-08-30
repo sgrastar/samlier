@@ -8,11 +8,14 @@ import org.samlier.core.caseexec.CaseExecutionStatus;
 import org.samlier.runner.cases.AttestationPrompt;
 import org.samlier.runner.cases.ConfigurationPrompt;
 import org.samlier.runner.cases.BrowserPrompt;
+import org.samlier.runner.cases.ProtocolEvidenceCase;
 
 /** Projects persisted user waits without exposing restart state or any client-writable outcome. */
 public final class PendingInteractionService implements InteractionQuery {
     private static final List<String> CONFIGURATION_ANSWERS = List.of(
             "confirmed", "capability_absent", "target_config_unavailable", "capability_undetermined");
+    private static final List<String> PROTOCOL_UNAVAILABILITY_ANSWERS = List.of(
+            "capability_absent", "target_config_unavailable", "capability_undetermined");
 
     private final CaseExecutionRepository executions;
     private final TestCaseRegistry registry;
@@ -34,9 +37,14 @@ public final class PendingInteractionService implements InteractionQuery {
                     throw new IllegalStateException(
                             "Browser case does not expose server-defined instructions: " + execution.caseId());
                 }
+                var completionMode = testCase instanceof ProtocolEvidenceCase
+                        ? CompletionMode.TRANSCRIPT : CompletionMode.OPERATOR;
                 result.add(new PendingInteraction(
                         execution.caseId(), Kind.BROWSER, null, browser.browserInstructionsEn(),
-                        wait.startUrl(), wait.expiresAt(), List.of("completed")));
+                        wait.startUrl(), wait.expiresAt(),
+                        completionMode == CompletionMode.TRANSCRIPT
+                                ? List.of() : List.of("completed"),
+                        completionMode));
             } else if (execution.status() == CaseExecutionStatus.WAITING_CONFIG) {
                 var testCase = registry.require(execution.caseId());
                 if (!(testCase instanceof ConfigurationPrompt configuration)) {
@@ -46,7 +54,10 @@ public final class PendingInteractionService implements InteractionQuery {
                 result.add(new PendingInteraction(
                         execution.caseId(), Kind.CONFIGURATION, wait.promptKey(), configuration.instructionEn(),
                         null, wait.expiresAt(),
-                        CONFIGURATION_ANSWERS));
+                        testCase instanceof ProtocolEvidenceCase
+                                ? PROTOCOL_UNAVAILABILITY_ANSWERS : CONFIGURATION_ANSWERS,
+                        testCase instanceof ProtocolEvidenceCase
+                                ? CompletionMode.TRANSCRIPT_OR_OPERATOR : CompletionMode.OPERATOR));
             } else if (execution.status() == CaseExecutionStatus.WAITING_ATTESTATION) {
                 var testCase = registry.require(execution.caseId());
                 if (!(testCase instanceof AttestationPrompt attested)) {
@@ -56,7 +67,8 @@ public final class PendingInteractionService implements InteractionQuery {
                 result.add(new PendingInteraction(
                         execution.caseId(), Kind.ATTESTATION, wait.promptKey(), attested.promptEn(),
                         null, wait.expiresAt(),
-                        attested.options().stream().map(option -> option.value()).toList()));
+                        attested.options().stream().map(option -> option.value()).toList(),
+                        CompletionMode.OPERATOR));
             }
         }
         return List.copyOf(result);

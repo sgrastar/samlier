@@ -24,6 +24,7 @@ test('removes the fragment before exchanging it and keeps only the CSRF token in
       availableVariants: ['control'],
     })
     if (url.includes('/protocol-evidence')) return json({ eligibleCases: 0, readyCases: 0, cases: [] })
+    if (url.includes('/active-probe')) return json({ state: 'NOT_STARTED' })
     expect(window.location.hash).toBe('')
     expect(init?.body).toBe(JSON.stringify({ runId, token }))
     return new Response(JSON.stringify({ runId, csrfToken: 'c'.repeat(43) }), {

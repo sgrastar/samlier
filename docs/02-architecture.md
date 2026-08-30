@@ -107,6 +107,17 @@ ready case in one operation. Runner resumes only cases whose approved implementa
 protocol evidence; it never bulk-confirms the remaining configuration cases and never derives a target
 violation from a missing observation.
 
+The same rule applies to ordinary SSO traffic. Runner inspects validated, correlated AuthnRequest and
+Response entries and completes only cases for which the recorded messages cover every required variant.
+The operator cannot replace missing protocol evidence with a “completed” answer. Where a required
+variant needs another target configuration (for example, multiple assertions), the case remains pending
+until that configuration is exercised or the operator records that the setup is unavailable.
+
+Active abnormal-message scenarios use the persistent outbox and deterministic action IDs. Runner sends
+one fixture at a time, correlates its Response, and advances only after durable Transcript evidence is
+available. A missing browser response or unknown delivery becomes Suite-side `NOT_VERIFIED`; it is never
+converted into a target violation. A positive control failure also remains Suite-side uncertainty.
+
 ### Problem: SAML has no dynamic client registration
 
 The OIDC Conformance Suite can issue a new issuer / client for each test.

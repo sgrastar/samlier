@@ -8,6 +8,7 @@ import org.samlier.core.caseexec.CaseContext;
 import org.samlier.core.caseexec.CaseEvent;
 import org.samlier.core.caseexec.CaseExecution;
 import org.samlier.core.caseexec.CaseExecutionRepository;
+import org.samlier.runner.cases.IdpErrorResponseTestCase;
 
 /** Converts expired waits into explicit case events instead of leaving Runs stuck indefinitely. */
 public final class CaseTimeoutService {
@@ -32,6 +33,8 @@ public final class CaseTimeoutService {
         for (var execution : repository.list(runId)) {
             var wait = execution.waitCondition();
             if (wait == null || now.isBefore(wait.expiresAt())) continue;
+            // The Plan-specific active probe is expired by ActiveProbeCoordinator.
+            if (IdpErrorResponseTestCase.CASE_ID.equals(execution.caseId())) continue;
             var testCase = registry.require(execution.caseId());
             var waited = Duration.between(execution.updatedAt(), now);
             if (waited.isNegative()) waited = Duration.ZERO;

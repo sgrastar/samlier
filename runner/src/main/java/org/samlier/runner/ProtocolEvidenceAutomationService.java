@@ -31,7 +31,8 @@ public final class ProtocolEvidenceAutomationService {
         var context = contexts.contextFor(required(runId));
         var cases = new ArrayList<CaseStatus>();
         for (var execution : executions.list(runId)) {
-            if (execution.status() != CaseExecutionStatus.WAITING_CONFIG) continue;
+            if (execution.status() != CaseExecutionStatus.WAITING_CONFIG
+                    && execution.status() != CaseExecutionStatus.WAITING_BROWSER) continue;
             var testCase = registry.require(execution.caseId());
             if (!(testCase instanceof ProtocolEvidenceCase evidenceCase)) continue;
             var evidence = evidenceCase.evidenceStatus(context);
@@ -50,7 +51,11 @@ public final class ProtocolEvidenceAutomationService {
         for (var candidate : before.cases()) {
             if (!candidate.ready()) continue;
             var testCase = registry.require(candidate.caseId());
-            var execution = transitions.resume(runId, testCase, context, new CaseEvent.ConfigConfirmed());
+            var beforeExecution = executions.find(runId, candidate.caseId()).orElseThrow();
+            var event = beforeExecution.status() == CaseExecutionStatus.WAITING_BROWSER
+                    ? new CaseEvent.TranscriptReady()
+                    : new CaseEvent.ConfigConfirmed();
+            var execution = transitions.resume(runId, testCase, context, event);
             if (execution.status() != CaseExecutionStatus.FINISHED || execution.outcome() == null) {
                 throw new IllegalStateException("Evidence-driven case did not finish: " + candidate.caseId());
             }

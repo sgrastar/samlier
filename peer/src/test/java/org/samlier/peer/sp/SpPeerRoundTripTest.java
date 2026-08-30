@@ -22,6 +22,7 @@ import org.samlier.core.plan.TestPlan;
 import org.samlier.core.run.RunStatus;
 import org.samlier.runner.RunEventBus;
 import org.samlier.runner.RunService;
+import org.samlier.runner.ActiveProbeCorrelation;
 import org.samlier.saml.crypto.FilePlanKeyStore;
 import org.samlier.saml.crypto.XmlSigner;
 import org.samlier.saml.metadata.MetadataService;
@@ -55,12 +56,19 @@ class SpPeerRoundTripTest {
         cache.put(plan.id(), idpMetadata());
         var runService = new RunService(plans, runs, new RunEventBus(), clock);
         var run = runService.create(plan.id());
+        cache.putIfAbsent(run.id(), idpMetadata());
         var signer = new XmlSigner();
         var saml = new SamlProtocolService(URI.create("https://peer.example"),
                 new FilePlanKeyStore(directory, clock), signer, new OpenSamlReader(), clock);
         var recorder = new FileTranscriptRecorder(database, json, directory);
+        var routedAction = new java.util.concurrent.atomic.AtomicReference<String>();
         var peer = new SpPeerService(plans, runs, runService, cache, new TargetMetadataParser(),
-                saml, recorder, clock);
+                saml, recorder, clock, (routedRun, actionId, decodedSaml, evidence) -> {
+                    assertEquals(run.id(), routedRun);
+                    assertTrue(decodedSaml.length > 0);
+                    assertEquals("transcript", evidence.kind());
+                    routedAction.set(actionId);
+                });
 
         var redirect = peer.start(plan.id(), run.id());
         var request = saml.decodeRedirect(redirect.getRawQuery(), "SAMLRequest");
@@ -78,6 +86,9 @@ class SpPeerRoundTripTest {
         assertEquals(RunStatus.COMPLETED, completed.status());
         assertEquals("completed", completed.context().get("m0RoundTrip"));
         assertEquals(2, recorder.list(run.id()).size());
+        assertEquals(true, recorder.list(run.id()).stream()
+                .filter(entry -> entry.direction() == org.samlier.core.transcript.Direction.INBOUND)
+                .findFirst().orElseThrow().samlSummary().get("normalFlowAccepted"));
         assertTrue(completed.context().keySet().stream().noneMatch(key -> key.toLowerCase().contains("verdict")));
 
         var probeBody = "SAMLResponse=" + URLEncoder.encode(response.base64(), StandardCharsets.UTF_8);
@@ -87,6 +98,37 @@ class SpPeerRoundTripTest {
         assertEquals(RunStatus.COMPLETED, runs.find(run.id()).orElseThrow().status());
         assertEquals("completed", runs.find(run.id()).orElseThrow().context().get("m0RoundTrip"),
                 "probe traffic must not rewrite the normal round-trip state");
+
+        var actionId = "action_00000000000000000000000000000000";
+        var activeBody = "SAMLResponse=" + URLEncoder.encode(response.base64(), StandardCharsets.UTF_8)
+                + "&RelayState=" + URLEncoder.encode(
+                        ActiveProbeCorrelation.encode(run.id(), actionId), StandardCharsets.UTF_8);
+        var active = peer.consumeDetailed(
+                plan.id(), activeBody.getBytes(StandardCharsets.UTF_8), Map.of(),
+                "https://peer.example/p/" + plan.id() + "/sp/acs/0");
+        assertTrue(active.activeProbe());
+        assertEquals(run.id(), active.activeProbeRunId());
+        assertEquals(actionId, routedAction.get());
+        assertEquals(RunStatus.COMPLETED, runs.find(run.id()).orElseThrow().status(),
+                "active probes must not rewrite the baseline round-trip state");
+
+        var malformedAction = "action_11111111111111111111111111111111";
+        var malformedXml = "<samlp:Response".getBytes(StandardCharsets.UTF_8);
+        var malformedBody = "SAMLResponse=" + URLEncoder.encode(
+                Base64.getEncoder().encodeToString(malformedXml), StandardCharsets.UTF_8)
+                + "&RelayState=" + URLEncoder.encode(
+                        ActiveProbeCorrelation.encode(run.id(), malformedAction), StandardCharsets.UTF_8);
+        var malformed = peer.consumeDetailed(
+                plan.id(), malformedBody.getBytes(StandardCharsets.UTF_8), Map.of(),
+                "https://peer.example/p/" + plan.id() + "/sp/acs/0");
+
+        assertTrue(malformed.activeProbe());
+        assertEquals(malformedAction, routedAction.get());
+        var malformedEntry = recorder.list(run.id()).stream()
+                .filter(entry -> malformedAction.equals(entry.correlationId()))
+                .findFirst().orElseThrow();
+        assertEquals("error", malformedEntry.samlSummary().get("parseStatus"));
+        assertEquals("malformed-saml-response", malformedEntry.samlSummary().get("errorCategory"));
     }
 
     @Test

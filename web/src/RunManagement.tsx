@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useState } from 'react'
 import {
-  api, type BootstrapContract, type MetadataLab, type PendingInteraction, type Plan,
+  api, type ActiveProbeStatus, type BootstrapContract, type MetadataLab, type PendingInteraction, type Plan,
   type ProtocolEvidenceStatus,
 } from './api'
 
@@ -13,6 +13,7 @@ export function RunManagement({ runId, csrfToken, focusCaseId }: {
   const [bootstrapContracts, setBootstrapContracts] = useState<BootstrapContract[]>([])
   const [metadataLab, setMetadataLab] = useState<MetadataLab>()
   const [protocolEvidence, setProtocolEvidence] = useState<ProtocolEvidenceStatus>()
+  const [activeProbe, setActiveProbe] = useState<ActiveProbeStatus>()
   const [error, setError] = useState('')
   const [busy, setBusy] = useState('')
   const [planId, setPlanId] = useState('')
@@ -26,15 +27,16 @@ export function RunManagement({ runId, csrfToken, focusCaseId }: {
   const configurationInteractions = interactions.filter(interaction => interaction.kind === 'CONFIGURATION')
 
   const refresh = async () => {
-    const [nextInteractions, contracts, lab, evidence, run, plans, health] = await Promise.all([
+    const [nextInteractions, contracts, lab, evidence, probe, run, plans, health] = await Promise.all([
       api.interactions(runId), api.bootstrapContracts(runId), api.metadataLab(runId),
-      api.protocolEvidence(runId),
+      api.protocolEvidence(runId), api.activeProbe(runId),
       api.run(runId), api.plans(), api.health(),
     ])
     setInteractions(nextInteractions)
     setBootstrapContracts(contracts)
     setMetadataLab(lab)
     setProtocolEvidence(evidence)
+    setActiveProbe(probe)
     setPlanId(run.planId)
     const selectedPlan = plans.find(value => value.plan.id === run.planId)
     setPlan(selectedPlan)
@@ -200,9 +202,11 @@ export function RunManagement({ runId, csrfToken, focusCaseId }: {
     {interaction.promptEn && <pre>{resolvePrompt(interaction.promptEn, planId, runId)}</pre>}
     {interaction.kind === 'BROWSER' && <div className="actions">
       {interaction.startUrl && <a className="button" href={interaction.startUrl}>Open focused browser step</a>}
-      <button disabled={busy === interaction.caseId} onClick={() => void completeBrowser(interaction)}>
-        Browser steps completed
-      </button>
+      {interaction.completionMode === 'TRANSCRIPT'
+        ? <p>Waiting for the required correlated Transcript evidence. No completion answer is needed.</p>
+        : <button disabled={busy === interaction.caseId} onClick={() => void completeBrowser(interaction)}>
+            Browser steps completed
+          </button>}
     </div>}
     {interaction.kind === 'ATTESTATION' && <form onSubmit={event => void attest(event, interaction)}>
       <fieldset disabled={busy === interaction.caseId}>
@@ -216,7 +220,13 @@ export function RunManagement({ runId, csrfToken, focusCaseId }: {
     </form>}
     {interaction.kind === 'CONFIGURATION' && <form onSubmit={event => void configure(event, interaction)}>
       <fieldset disabled={busy === interaction.caseId}>
-        <legend>Manual fallback for this case</legend>
+        <legend>{interaction.completionMode === 'TRANSCRIPT_OR_OPERATOR'
+          ? 'Automatic protocol evidence with manual unavailability fallback'
+          : 'Manual configuration input'}</legend>
+        {interaction.completionMode === 'TRANSCRIPT_OR_OPERATOR' && <p>
+          This case completes automatically when all required correlated Transcript evidence is present.
+          Use the answers below only when the target capability or required setup cannot be exercised.
+        </p>}
         {interaction.answerValues.map(value => <label className="radio" key={value}>
           <input required type="radio" name="value" value={value} />{humanize(value)}
         </label>)}
@@ -254,10 +264,10 @@ export function RunManagement({ runId, csrfToken, focusCaseId }: {
         </form>}
         {contract.kind === 'STANDARD_METADATA' && protocolEvidence && protocolEvidence.eligibleCases > 0 && <div className="protocol-evidence">
           <p><strong>{protocolEvidence.eligibleCases}</strong> currently implemented case{protocolEvidence.eligibleCases === 1 ? '' : 's'} can derive outcomes directly from metadata fetches and correlated SAML traffic; <strong>{protocolEvidence.readyCases}</strong> ready now.</p>
-          <p>Because a public metadata fetch does not identify its caller, use this action only after you triggered the target's normal refresh or re-import and attempted the listed SAML flows.</p>
+          <p>Samlier normally evaluates these cases automatically as Transcript evidence arrives. Because a public metadata fetch does not identify its caller, use the recovery action only after you triggered the target's normal refresh or re-import and attempted the listed SAML flows.</p>
           <button disabled={busy === 'protocol-evidence' || protocolEvidence.readyCases === 0}
             onClick={() => void evaluateProtocolEvidence()}>
-            Refreshes and attempts completed — evaluate evidence
+            Re-evaluate recorded evidence
           </button>
           <details><summary>Protocol observation progress</summary><ul>
             {protocolEvidence.cases.map(value => <li key={value.caseId}>
@@ -294,6 +304,13 @@ export function RunManagement({ runId, csrfToken, focusCaseId }: {
     {plan && profile.startsWith('IDP') && <div className="actions">
       <a className="button" href={`/p/${plan.plan.id}/start/m0-roundtrip?run=${runId}`}>Start IdP round trip</a>
     </div>}
+    {activeProbe?.state === 'READY' && activeProbe.startUrl && <article className="interaction active-probe">
+      <header><strong>Active error-response probes</strong><span>AUTOMATED</span></header>
+      <p>Samlier will send one positive control and three abnormal AuthnRequest fixtures, then evaluate the correlated Responses automatically.</p>
+      {activeProbe.requiresFreshSession && <p>The first IsPassive probe must start in a private browser context with no active target session.</p>}
+      <a className="button" href={activeProbe.startUrl}>Open active probes</a>
+    </article>}
+    {activeProbe?.state === 'AWAITING_RESPONSE' && <p>Active probe dispatched; waiting for the correlated SAML Response.</p>}
     {plan && profile.startsWith('SP') && <p>Start login at the target SP after importing the Test Peer metadata.</p>}
     {focusCaseId && <div className="actions"><a className="button" href={`/manage/${runId}`}>Back to Run management</a></div>}
     {visibleInteractions.length === 0 ? <p className="quiet-success">

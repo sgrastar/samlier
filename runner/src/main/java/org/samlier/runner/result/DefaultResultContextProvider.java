@@ -17,14 +17,14 @@ public final class DefaultResultContextProvider implements ResultContextProvider
     private final ResultDocumentContext.EvaluationComponents components;
     private final URI requirementCatalog;
     private final URI caseCatalog;
-    private final Function<TestPlan, byte[]> targetMetadata;
+    private final Function<TestRun, byte[]> targetMetadata;
 
     public DefaultResultContextProvider(
             ResultDocumentContext.Suite suite,
             ResultDocumentContext.EvaluationComponents components,
             URI requirementCatalog,
             URI caseCatalog,
-            Function<TestPlan, byte[]> targetMetadata) {
+            Function<TestRun, byte[]> targetMetadata) {
         this.suite = Objects.requireNonNull(suite, "suite");
         this.components = Objects.requireNonNull(components, "components");
         this.requirementCatalog = absolute(requirementCatalog, "requirementCatalog");
@@ -44,7 +44,7 @@ public final class DefaultResultContextProvider implements ResultContextProvider
                 requirementUrls.put(value.id(), fragment(requirementCatalog, value.id())));
         var caseUrls = new LinkedHashMap<String, String>();
         cases.forEach(value -> caseUrls.put(value.id(), fragment(caseCatalog, value.id())));
-        var metadata = targetMetadata.apply(plan);
+        var metadata = targetMetadata.apply(run);
         if (metadata == null || metadata.length == 0) {
             throw new IllegalStateException("Target metadata is unavailable for public result provenance");
         }

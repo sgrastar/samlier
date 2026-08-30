@@ -21,7 +21,8 @@ class InteractionRoutesTest {
                 new InteractionQuery.PendingInteraction(
                         "IIP-G02-c-idp-01", InteractionQuery.Kind.ATTESTATION, "attestation.g02",
                         "Confirm that the approved evidence was observed.", null,
-                        Instant.parse("2026-08-29T04:00:00Z"), List.of("preserved", "truncated"))))).start(0);
+                        Instant.parse("2026-08-29T04:00:00Z"), List.of("preserved", "truncated"),
+                        InteractionQuery.CompletionMode.OPERATOR)))).start(0);
         try {
             var response = HttpClient.newHttpClient().send(
                     HttpRequest.newBuilder(URI.create(

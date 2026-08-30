@@ -27,6 +27,8 @@ import org.samlier.core.transcript.TranscriptEntry;
 import org.samlier.core.transcript.TranscriptInput;
 import org.samlier.core.transcript.TranscriptRecorder;
 import org.samlier.runner.cases.MetadataConsumerObservationTestCase;
+import org.samlier.runner.cases.BrowserPrompt;
+import org.samlier.runner.cases.ProtocolEvidenceCase;
 
 class ProtocolEvidenceAutomationServiceTest {
     private static final String RUN = "run_0123456789ABCDEFGHJKMNPQRS";
@@ -39,7 +41,9 @@ class ProtocolEvidenceAutomationServiceTest {
         var testCase = new MetadataConsumerObservationTestCase(
                 "IIP-MD05-ao-sp-01", TargetRole.SP,
                 MetadataConsumerObservationTestCase.Rule.OMITTED_KEY_INFO);
-        var entries = List.of(fetch("control", 1), use("control", 2), fetch("no-key-info", 3));
+        var entries = List.of(
+                fetch("control", 1), use("control", 2),
+                fetch("no-key-info", 3), use("no-key-info", 4));
         var context = context(entries);
         transitions.start(RUN, testCase, context);
         var service = new ProtocolEvidenceAutomationService(
@@ -51,7 +55,7 @@ class ProtocolEvidenceAutomationServiceTest {
 
         var evaluation = service.evaluateReady(RUN);
         assertEquals(List.of(new ProtocolEvidenceAutomationService.CompletedCase(
-                testCase.id(), Outcome.VIOLATED)), evaluation.completed());
+                testCase.id(), Outcome.SATISFIED)), evaluation.completed());
         assertEquals(0, evaluation.remaining().eligibleCases());
         assertEquals(CaseExecutionStatus.FINISHED,
                 repository.find(RUN, testCase.id()).orElseThrow().status());
@@ -75,9 +79,31 @@ class ProtocolEvidenceAutomationServiceTest {
                 repository.find(RUN, testCase.id()).orElseThrow().status());
     }
 
+    @Test
+    void advancesABrowserWaitOnlyFromSuiteObservedTranscriptReadiness() {
+        var repository = new MemoryExecutions();
+        var transitions = new CaseExecutionService(repository);
+        var testCase = new ReadyBrowserCase();
+        var context = context(List.of(), TargetRole.IDP);
+        transitions.start(RUN, testCase, context);
+        var service = new ProtocolEvidenceAutomationService(
+                repository, new TestCaseRegistry(List.of(testCase)), transitions, ignored -> context);
+
+        var evaluation = service.evaluateReady(RUN);
+
+        assertEquals(List.of(new ProtocolEvidenceAutomationService.CompletedCase(
+                testCase.id(), Outcome.SATISFIED)), evaluation.completed());
+        assertEquals(CaseExecutionStatus.FINISHED,
+                repository.find(RUN, testCase.id()).orElseThrow().status());
+    }
+
     private static CaseContext context(List<TranscriptEntry> entries) {
+        return context(entries, TargetRole.SP);
+    }
+
+    private static CaseContext context(List<TranscriptEntry> entries, TargetRole role) {
         return new DefaultCaseContext(
-                RUN, TargetRole.SP, Clock.fixed(NOW, ZoneOffset.UTC), TestPlan.Parameters.defaults(),
+                RUN, role, Clock.fixed(NOW, ZoneOffset.UTC), TestPlan.Parameters.defaults(),
                 TestPlan.Interaction.defaults(), Reachability.CONFIRMED, new MemoryTranscript(entries), true);
     }
 
@@ -131,5 +157,30 @@ class ProtocolEvidenceAutomationServiceTest {
                 String actionId, OutboxStatus expected, OutboxStatus next, Map<String, Object> sendResult,
                 String transcriptEntryId, Instant updatedAt) { return false; }
         @Override public int recoverSendingAsUnknownDelivery(Instant updatedAt) { return 0; }
+    }
+
+    private static final class ReadyBrowserCase
+            implements org.samlier.core.caseexec.TestCase, BrowserPrompt, ProtocolEvidenceCase {
+        @Override public String id() { return "IIP-SSO03-a-idp-01"; }
+        @Override public TargetRole role() { return TargetRole.IDP; }
+        @Override public String browserInstructionsEn() { return "Run the correlated SSO flow."; }
+        @Override public org.samlier.core.caseexec.CaseStep start(CaseContext context) {
+            return new org.samlier.core.caseexec.CaseStep.AwaitBrowser(
+                    new org.samlier.core.caseexec.CaseState("await", Map.of()), List.of(),
+                    java.net.URI.create("https://suite.example/start"), java.time.Duration.ofMinutes(5));
+        }
+        @Override public org.samlier.core.caseexec.CaseStep resume(
+                CaseContext context, org.samlier.core.caseexec.CaseState state,
+                org.samlier.core.caseexec.CaseEvent event) {
+            if (!(event instanceof org.samlier.core.caseexec.CaseEvent.TranscriptReady)) {
+                throw new IllegalArgumentException("Transcript evidence is required");
+            }
+            return new org.samlier.core.caseexec.CaseStep.Finish(
+                    org.samlier.core.evaluation.CaseOutcome.of(
+                            Outcome.SATISFIED, "transcript-ready", List.of()));
+        }
+        @Override public EvidenceStatus evidenceStatus(CaseContext context) {
+            return new EvidenceStatus(true, List.of("response"), List.of("response"), Map.of());
+        }
     }
 }

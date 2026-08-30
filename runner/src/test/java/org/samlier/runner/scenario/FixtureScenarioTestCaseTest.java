@@ -1,0 +1,224 @@
+package org.samlier.runner.scenario;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.util.List;
+import java.util.Map;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import org.samlier.core.caseexec.CaseEvent;
+import org.samlier.core.caseexec.CaseExecutionStatus;
+import org.samlier.core.caseexec.OutboundAction;
+import org.samlier.core.caseexec.OutboundKind;
+import org.samlier.core.evaluation.EvidenceRef;
+import org.samlier.core.evaluation.Outcome;
+import org.samlier.core.plan.MetadataDeliveryKind;
+import org.samlier.core.plan.MetadataSourceKind;
+import org.samlier.core.plan.PlanProfile;
+import org.samlier.core.plan.TargetKind;
+import org.samlier.core.plan.TargetRole;
+import org.samlier.core.plan.TestPlan;
+import org.samlier.core.run.Reachability;
+import org.samlier.core.run.RunStatus;
+import org.samlier.core.run.TestRun;
+import org.samlier.runner.CaseExecutionService;
+import org.samlier.runner.DefaultCaseContext;
+import org.samlier.store.FileTranscriptRecorder;
+import org.samlier.store.JsonCodec;
+import org.samlier.store.SqliteCaseExecutionRepository;
+import org.samlier.store.SqliteDatabase;
+import org.samlier.store.SqlitePlanRepository;
+import org.samlier.store.SqliteRunRepository;
+
+class FixtureScenarioTestCaseTest {
+    private static final String RUN = "run_0123456789ABCDEFGHJKMNPQRS";
+    private static final String CASE = "scenario-case";
+    private static final Instant NOW = Instant.parse("2026-08-30T00:00:00Z");
+
+    @TempDir java.nio.file.Path directory;
+    private SqliteCaseExecutionRepository repository;
+    private CaseExecutionService executions;
+    private DefaultCaseContext context;
+
+    @BeforeEach
+    void setUp() {
+        var database = new SqliteDatabase(directory);
+        var json = new JsonCodec();
+        var plan = new TestPlan(
+                "plan_0123456789ABCDEFGHJKMNPQRS", "Scenario", PlanProfile.IDP_CORE,
+                new TestPlan.Target(TargetKind.IDP, "https://idp.example/entity",
+                        new TestPlan.MetadataSource(MetadataSourceKind.URL, "https://idp.example/metadata")),
+                MetadataDeliveryKind.HTTP_URL, Map.of(), TestPlan.Parameters.defaults(),
+                TestPlan.Interaction.defaults(), NOW, NOW);
+        new SqlitePlanRepository(database, json).save(plan);
+        new SqliteRunRepository(database, json).save(new TestRun(
+                RUN, plan.id(), RunStatus.RUNNING, Reachability.CONFIRMED, Map.of(), NOW, NOW));
+        repository = new SqliteCaseExecutionRepository(database, json);
+        executions = new CaseExecutionService(repository);
+        var clock = Clock.fixed(NOW, ZoneOffset.UTC);
+        context = new DefaultCaseContext(
+                RUN, TargetRole.IDP, clock, plan.parameters(), plan.interaction(),
+                Reachability.CONFIRMED, new FileTranscriptRecorder(database, json, directory), false);
+    }
+
+    @Test
+    void persistsAndExecutesOnlyOneFixtureAtATimeAcrossEngineRecreation() {
+        var scenario = scenario(List.of(
+                fixture("first", FixtureObservation.SATISFIED),
+                fixture("second", FixtureObservation.VIOLATED),
+                fixture("third", FixtureObservation.NOT_VERIFIED)));
+
+        var first = executions.start(RUN, scenario, context);
+        assertEquals(CaseExecutionStatus.WAITING_INBOUND, first.status());
+        assertEquals("first", first.state().data().get("fixture_id"));
+        assertEquals(1, repository.listOutbox(RUN).size());
+
+        var second = executions.resume(RUN, scenario, context, inbound("tx-first"));
+        assertEquals("second", second.state().data().get("fixture_id"));
+        assertEquals(2, repository.listOutbox(RUN).size());
+
+        var recreated = scenario(List.of(
+                fixture("first", FixtureObservation.SATISFIED),
+                fixture("second", FixtureObservation.VIOLATED),
+                fixture("third", FixtureObservation.NOT_VERIFIED)));
+        var third = executions.resume(RUN, recreated, context, inbound("tx-second"));
+        assertEquals("third", third.state().data().get("fixture_id"));
+        assertEquals(3, repository.listOutbox(RUN).size());
+
+        var finished = executions.resume(RUN, recreated, context, inbound("tx-third"));
+        assertEquals(CaseExecutionStatus.FINISHED, finished.status());
+        assertEquals(Outcome.VIOLATED, finished.outcome().outcome());
+        assertEquals(List.of("second"), finished.outcome().details().get("violating_fixtures"));
+        assertEquals(List.of("third"), finished.outcome().details().get("unverifiable_fixtures"));
+        assertEquals(3, finished.outcome().evidence().size());
+    }
+
+    @Test
+    void controlFailureStopsTheSequenceAsSuiteUncertainty() {
+        var scenario = scenario(List.of(
+                fixture("control", FixtureObservation.CONTROL_FAILED),
+                fixture("must-not-run", FixtureObservation.VIOLATED)));
+        executions.start(RUN, scenario, context);
+
+        var finished = executions.resume(RUN, scenario, context, inbound("tx-control"));
+
+        assertEquals(CaseExecutionStatus.FINISHED, finished.status());
+        assertEquals(Outcome.NOT_VERIFIED, finished.outcome().outcome());
+        assertEquals("control_failed", finished.outcome().reasonCode());
+        assertEquals(1, repository.listOutbox(RUN).size());
+    }
+
+    @Test
+    void changedFixtureSequenceCannotResumePersistedState() {
+        var original = scenario(List.of(
+                fixture("first", FixtureObservation.SATISFIED),
+                fixture("second", FixtureObservation.SATISFIED)));
+        executions.start(RUN, original, context);
+        var changed = scenario(List.of(
+                fixture("first", FixtureObservation.SATISFIED),
+                fixture("replacement", FixtureObservation.SATISFIED)));
+
+        var finished = executions.resume(RUN, changed, context, inbound("tx-first"));
+
+        assertEquals(CaseExecutionStatus.FINISHED, finished.status());
+        assertEquals(Outcome.NOT_VERIFIED, finished.outcome().outcome());
+        assertEquals("scenario_definition_changed", finished.outcome().notVerifiedReason());
+        assertEquals(1, repository.listOutbox(RUN).size());
+    }
+
+    @Test
+    void changedFixtureSemanticsCannotHideBehindTheSameFixtureId() {
+        var original = scenario(List.of(fixture("same-id", FixtureObservation.SATISFIED)));
+        executions.start(RUN, original, context);
+        var changed = scenario(List.of(fixture("same-id", FixtureObservation.VIOLATED)));
+
+        var finished = executions.resume(RUN, changed, context, inbound("tx-same-id"));
+
+        assertEquals(CaseExecutionStatus.FINISHED, finished.status());
+        assertEquals(Outcome.NOT_VERIFIED, finished.outcome().outcome());
+        assertEquals("scenario_definition_changed", finished.outcome().notVerifiedReason());
+    }
+
+    @Test
+    void timeoutPreservesEvidenceFromCompletedFixtures() {
+        var scenario = scenario(List.of(
+                fixture("first", FixtureObservation.SATISFIED),
+                fixture("second", FixtureObservation.SATISFIED)));
+        executions.start(RUN, scenario, context);
+        var waiting = executions.resume(RUN, scenario, context, inbound("tx-first"));
+
+        var finished = executions.resume(
+                RUN, scenario, context, new CaseEvent.TimedOut(Duration.ofMinutes(1)));
+
+        assertEquals(CaseExecutionStatus.FINISHED, finished.status());
+        assertEquals(Outcome.NOT_VERIFIED, finished.outcome().outcome());
+        assertEquals("timeout", finished.outcome().notVerifiedReason());
+        assertEquals(List.of(new EvidenceRef("transcript", "tx-first")), finished.outcome().evidence());
+        assertEquals("second", finished.outcome().details().get("fixture_id"));
+        assertEquals(1, finished.outcome().details().get("completed_fixtures"));
+        assertEquals("second", waiting.state().data().get("fixture_id"));
+    }
+
+    @Test
+    void rejectsDuplicateFixtureIdsAndNondeterministicActions() {
+        assertThrows(IllegalArgumentException.class, () -> scenario(List.of(
+                fixture("same", FixtureObservation.SATISFIED),
+                fixture("same", FixtureObservation.SATISFIED))));
+        var bad = new ScenarioFixture() {
+            @Override public String id() { return "bad-action"; }
+            @Override public Prepared prepare(org.samlier.core.caseexec.CaseContext ignored, String actionId) {
+                return new Prepared(new OutboundAction(
+                        "action_wrong", OutboundKind.AUTHN_REQUEST, new byte[] {1},
+                        URI.create("https://idp.example/sso"), false), "_wrong");
+            }
+            @Override public FixtureObservation observe(String expected, byte[] decoded) {
+                return FixtureObservation.SATISFIED;
+            }
+            @Override public String definitionKey() { return "bad-action-v1"; }
+        };
+        assertThrows(IllegalArgumentException.class, () -> executions.start(
+                RUN, scenario(List.of(bad)), context));
+    }
+
+    private FixtureScenarioTestCase scenario(List<ScenarioFixture> fixtures) {
+        return new FixtureScenarioTestCase(
+                CASE, TargetRole.IDP, fixtures, ignored -> true,
+                new FixtureScenarioTestCase.Vocabulary(
+                        "precondition", "scenario.precondition",
+                        "timeout", "scenario.timeout",
+                        "aborted", "scenario.aborted",
+                        "scenario.control-failed",
+                        "scenario.violated", "scenario.violated",
+                        "scenario_inconclusive", "scenario.inconclusive", "scenario.inconclusive",
+                        "scenario.satisfied", "scenario.satisfied"));
+    }
+
+    private ScenarioFixture fixture(String id, FixtureObservation observation) {
+        return new ScenarioFixture() {
+            @Override public String id() { return id; }
+            @Override public Prepared prepare(org.samlier.core.caseexec.CaseContext ignored, String actionId) {
+                return new Prepared(new OutboundAction(
+                        actionId, OutboundKind.AUTHN_REQUEST,
+                        id.getBytes(StandardCharsets.UTF_8), URI.create("https://idp.example/sso"), false),
+                        "_" + actionId);
+            }
+            @Override public FixtureObservation observe(String expected, byte[] decoded) { return observation; }
+            @Override public Duration timeout() { return Duration.ofMinutes(1); }
+            @Override public String definitionKey() { return id + "|" + observation.name() + "|v1"; }
+        };
+    }
+
+    private CaseEvent.InboundMessage inbound(String evidence) {
+        return new CaseEvent.InboundMessage(
+                "<Response/>".getBytes(StandardCharsets.UTF_8),
+                new EvidenceRef("transcript", evidence));
+    }
+}

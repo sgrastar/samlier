@@ -1,40 +1,37 @@
 package org.samlier.runner.cases;
 
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import org.samlier.core.caseexec.ActionIds;
 import org.samlier.core.caseexec.CaseContext;
 import org.samlier.core.caseexec.CaseEvent;
 import org.samlier.core.caseexec.CaseState;
 import org.samlier.core.caseexec.CaseStep;
-import org.samlier.core.caseexec.InboundMatcher;
 import org.samlier.core.caseexec.OutboundAction;
 import org.samlier.core.caseexec.OutboundKind;
 import org.samlier.core.caseexec.TestCase;
-import org.samlier.core.evaluation.CaseOutcome;
-import org.samlier.core.evaluation.EvidenceRef;
-import org.samlier.core.evaluation.Outcome;
 import org.samlier.core.plan.TargetRole;
+import org.samlier.runner.scenario.FixtureObservation;
+import org.samlier.runner.scenario.FixtureScenarioTestCase;
+import org.samlier.runner.scenario.ScenarioFixture;
 import org.samlier.saml.normal.SamlErrorProbeRequestFactory;
 import org.samlier.saml.normal.SamlErrorProbeRequestFactory.Probe;
 import org.samlier.saml.normal.SamlException;
 import org.samlier.saml.normal.SecureXml;
 import org.w3c.dom.Element;
 
-/** Executes the three approved error-response probes through the persisted outbox. */
+/** The approved IdP error-response scenario, executed by the generic fixture scenario engine. */
 public final class IdpErrorResponseTestCase implements TestCase {
     public static final String CASE_ID = "IIP-IDP05-a-idp-01";
+    public static final String PASSIVE_FIXTURE_ID = "passive-without-session";
     private static final String PROTOCOL = "urn:oasis:names:tc:SAML:2.0:protocol";
+    private static final String ASSERTION = "urn:oasis:names:tc:SAML:2.0:assertion";
     private static final String SUCCESS = "urn:oasis:names:tc:SAML:2.0:status:Success";
     private static final String RESPONDER = "urn:oasis:names:tc:SAML:2.0:status:Responder";
     private static final List<Probe> PROBES = List.of(
+            Probe.PASSIVE_WITHOUT_SESSION,
+            Probe.BASELINE_SUCCESS,
             Probe.UNKNOWN_NAMEID_FORMAT,
-            Probe.UNSATISFIABLE_AUTHN_CONTEXT,
-            Probe.PASSIVE_WITHOUT_SESSION);
-    private final IdpErrorProbeConfiguration configuration;
-    private final SamlErrorProbeRequestFactory requests;
+            Probe.UNSATISFIABLE_AUTHN_CONTEXT);
+    private final FixtureScenarioTestCase scenario;
 
     public IdpErrorResponseTestCase(IdpErrorProbeConfiguration configuration) {
         this(configuration, new SamlErrorProbeRequestFactory());
@@ -42,134 +39,112 @@ public final class IdpErrorResponseTestCase implements TestCase {
 
     IdpErrorResponseTestCase(
             IdpErrorProbeConfiguration configuration, SamlErrorProbeRequestFactory requests) {
-        this.configuration = java.util.Objects.requireNonNull(configuration, "configuration");
-        this.requests = java.util.Objects.requireNonNull(requests, "requests");
+        java.util.Objects.requireNonNull(configuration, "configuration");
+        java.util.Objects.requireNonNull(requests, "requests");
+        var fixtures = PROBES.stream()
+                .<ScenarioFixture>map(probe -> new ErrorProbeFixture(probe, configuration, requests))
+                .toList();
+        scenario = new FixtureScenarioTestCase(
+                CASE_ID,
+                TargetRole.IDP,
+                fixtures,
+                ignored -> configuration.preconditionsSatisfied(),
+                new FixtureScenarioTestCase.Vocabulary(
+                        "error_response_preconditions_unmet", "idp.error-response.preconditions-unmet",
+                        "delivery_or_response_unknown", "idp.error-response.delivery-unknown",
+                        "probe_aborted", "idp.error-response.aborted",
+                        "case.idp.error-response.control-failed",
+                        "idp.error-response.violated", "case.idp.error-response.violated",
+                        "error_response_not_conclusive", "idp.error-response.inconclusive",
+                        "case.idp.error-response.inconclusive",
+                        "idp.error-response.satisfied", "case.idp.error-response.satisfied"));
     }
 
-    @Override public String id() { return CASE_ID; }
-    @Override public TargetRole role() { return TargetRole.IDP; }
+    @Override public String id() { return scenario.id(); }
+    @Override public TargetRole role() { return scenario.role(); }
+    @Override public CaseStep start(CaseContext context) { return scenario.start(context); }
+    @Override public CaseStep resume(CaseContext context, CaseState state, CaseEvent event) {
+        return scenario.resume(context, state, event);
+    }
 
-    @Override
-    public CaseStep start(CaseContext context) {
-        if (!configuration.preconditionsSatisfied()) {
-            return new CaseStep.Finish(CaseOutcome.notVerified(
-                    "error_response_preconditions_unmet", "idp.error-response.preconditions-unmet"));
+    private static final class ErrorProbeFixture implements ScenarioFixture {
+        private final Probe probe;
+        private final IdpErrorProbeConfiguration configuration;
+        private final SamlErrorProbeRequestFactory requests;
+
+        private ErrorProbeFixture(
+                Probe probe,
+                IdpErrorProbeConfiguration configuration,
+                SamlErrorProbeRequestFactory requests) {
+            this.probe = probe;
+            this.configuration = configuration;
+            this.requests = requests;
         }
-        return awaitProbe(context, 0, List.of(), List.of());
-    }
 
-    @Override
-    public CaseStep resume(CaseContext context, CaseState state, CaseEvent event) {
-        if (event instanceof CaseEvent.TimedOut) {
-            return new CaseStep.Finish(CaseOutcome.notVerified(
-                    "delivery_or_response_unknown", "idp.error-response.delivery-unknown"));
+        @Override
+        public String id() {
+            return probe.name().toLowerCase(java.util.Locale.ROOT).replace('_', '-');
         }
-        if (event instanceof CaseEvent.Aborted) {
-            return new CaseStep.Finish(CaseOutcome.notVerified(
-                    "probe_aborted", "idp.error-response.aborted"));
+
+        @Override
+        public Prepared prepare(CaseContext context, String actionId) {
+            var requestId = "_" + actionId;
+            var payload = requests.build(
+                    probe, requestId, configuration.ssoEndpoint(), configuration.suiteIssuer(),
+                    configuration.registeredAcs(), context.clock().instant());
+            return new Prepared(
+                    new OutboundAction(
+                            actionId, OutboundKind.AUTHN_REQUEST, payload,
+                            configuration.ssoEndpoint(), false),
+                    requestId);
         }
-        if (!(event instanceof CaseEvent.InboundMessage inbound)) {
-            throw new IllegalArgumentException("IdP error probe requires an inbound SAML Response");
-        }
-        var index = integer(state, "probe_index");
-        var requestId = string(state, "request_id");
-        var violations = strings(state, "violations");
-        var unverifiable = strings(state, "unverifiable");
-        var result = inspect(PROBES.get(index), requestId, inbound.decodedSaml());
-        if (result == ProbeResult.VIOLATION) violations.add(PROBES.get(index).name());
-        if (result == ProbeResult.NOT_VERIFIED) unverifiable.add(PROBES.get(index).name());
-        var evidence = strings(state, "evidence");
-        evidence.add(inbound.evidence().reference());
-        if (index + 1 < PROBES.size()) return awaitProbe(context, index + 1, violations, unverifiable, evidence);
-        var refs = evidence.stream().map(ref -> new EvidenceRef("transcript", ref)).toList();
-        if (!violations.isEmpty()) return new CaseStep.Finish(new CaseOutcome(
-                Outcome.VIOLATED, null, "idp.error-response.violated", "case.idp.error-response.violated",
-                refs, Map.of("violating_probes", violations, "unverifiable_probes", unverifiable)));
-        if (!unverifiable.isEmpty()) return new CaseStep.Finish(new CaseOutcome(
-                Outcome.NOT_VERIFIED, "error_response_not_conclusive", "idp.error-response.inconclusive",
-                "case.idp.error-response.inconclusive", refs, Map.of("unverifiable_probes", unverifiable)));
-        return new CaseStep.Finish(new CaseOutcome(
-                Outcome.SATISFIED, null, "idp.error-response.satisfied", "case.idp.error-response.satisfied",
-                refs, Map.of("completed_probes", PROBES.size())));
-    }
 
-    private CaseStep awaitProbe(
-            CaseContext context, int index, List<String> violations, List<String> unverifiable) {
-        return awaitProbe(context, index, violations, unverifiable, List.of());
-    }
-
-    private CaseStep awaitProbe(
-            CaseContext context,
-            int index,
-            List<String> violations,
-            List<String> unverifiable,
-            List<String> evidence) {
-        var phase = "await-" + PROBES.get(index).name().toLowerCase(java.util.Locale.ROOT).replace('_', '-');
-        var actionId = ActionIds.derive(context.runId(), id(), phase, 0);
-        var requestId = "_" + actionId;
-        var next = new CaseState(phase, Map.of(
-                "probe_index", index,
-                "request_id", requestId,
-                "violations", List.copyOf(violations),
-                "unverifiable", List.copyOf(unverifiable),
-                "evidence", List.copyOf(evidence)));
-        var payload = requests.build(
-                PROBES.get(index), requestId, configuration.ssoEndpoint(), configuration.suiteIssuer(),
-                configuration.registeredAcs(), context.clock().instant());
-        var action = new OutboundAction(
-                actionId, OutboundKind.AUTHN_REQUEST, payload, configuration.ssoEndpoint(), false);
-        return new CaseStep.AwaitInbound(
-                next,
-                List.of(action),
-                new InboundMatcher("saml-response", Map.of("InResponseTo", requestId)),
-                configuration.responseTimeout());
-    }
-
-    private ProbeResult inspect(Probe probe, String requestId, byte[] responseXml) {
-        try {
-            var document = SecureXml.parse(responseXml);
-            var root = document.getDocumentElement();
-            if (!PROTOCOL.equals(root.getNamespaceURI()) || !"Response".equals(root.getLocalName())
-                    || !requestId.equals(root.getAttribute("InResponseTo"))) return ProbeResult.NOT_VERIFIED;
-            var statusCodes = root.getElementsByTagNameNS(PROTOCOL, "StatusCode");
-            if (statusCodes.getLength() == 0) return ProbeResult.NOT_VERIFIED;
-            var topLevel = ((Element) statusCodes.item(0)).getAttribute("Value");
-            if (probe == Probe.UNSATISFIABLE_AUTHN_CONTEXT) {
-                if (RESPONDER.equals(topLevel)) return ProbeResult.SATISFIED;
-                if (SUCCESS.equals(topLevel)) {
-                    var classRefs = root.getElementsByTagNameNS(
-                            "urn:oasis:names:tc:SAML:2.0:assertion", "AuthnContextClassRef");
-                    if (classRefs.getLength() > 0 && requests.unavailableAuthnContext(requestId)
-                            .equals(classRefs.item(0).getTextContent())) return ProbeResult.NOT_VERIFIED;
+        @Override
+        public FixtureObservation observe(String requestId, byte[] responseXml) {
+            try {
+                var document = SecureXml.parse(responseXml);
+                var root = document.getDocumentElement();
+                if (!PROTOCOL.equals(root.getNamespaceURI()) || !"Response".equals(root.getLocalName())
+                        || !requestId.equals(root.getAttribute("InResponseTo"))) {
+                    return FixtureObservation.NOT_VERIFIED;
                 }
-                return ProbeResult.VIOLATION;
+                var statusCodes = root.getElementsByTagNameNS(PROTOCOL, "StatusCode");
+                if (statusCodes.getLength() == 0) return FixtureObservation.NOT_VERIFIED;
+                var topLevel = ((Element) statusCodes.item(0)).getAttribute("Value");
+                if (probe == Probe.BASELINE_SUCCESS) {
+                    if (!SUCCESS.equals(topLevel)) return FixtureObservation.CONTROL_FAILED;
+                    var assertions = root.getElementsByTagNameNS(ASSERTION, "Assertion").getLength();
+                    var encryptedAssertions = root.getElementsByTagNameNS(
+                            ASSERTION, "EncryptedAssertion").getLength();
+                    return assertions + encryptedAssertions > 0
+                            ? FixtureObservation.SATISFIED
+                            : FixtureObservation.CONTROL_FAILED;
+                }
+                if (probe == Probe.UNSATISFIABLE_AUTHN_CONTEXT) {
+                    if (RESPONDER.equals(topLevel)) return FixtureObservation.SATISFIED;
+                    if (SUCCESS.equals(topLevel)) {
+                        var classRefs = root.getElementsByTagNameNS(ASSERTION, "AuthnContextClassRef");
+                        if (classRefs.getLength() > 0 && requests.unavailableAuthnContext(requestId)
+                                .equals(classRefs.item(0).getTextContent())) {
+                            return FixtureObservation.NOT_VERIFIED;
+                        }
+                    }
+                    return FixtureObservation.VIOLATED;
+                }
+                return SUCCESS.equals(topLevel)
+                        ? FixtureObservation.VIOLATED
+                        : FixtureObservation.SATISFIED;
+            } catch (SamlException malformed) {
+                return FixtureObservation.NOT_VERIFIED;
             }
-            return SUCCESS.equals(topLevel) ? ProbeResult.VIOLATION : ProbeResult.SATISFIED;
-        } catch (SamlException malformed) {
-            return ProbeResult.NOT_VERIFIED;
+        }
+
+        @Override public java.time.Duration timeout() { return configuration.responseTimeout(); }
+
+        @Override
+        public String definitionKey() {
+            return String.join("|", probe.name(), configuration.ssoEndpoint().toString(),
+                    configuration.suiteIssuer(), configuration.registeredAcs().toString());
         }
     }
-
-    private int integer(CaseState state, String key) {
-        var value = state.data().get(key);
-        if (!(value instanceof Number number)) throw new IllegalStateException("Missing numeric state: " + key);
-        return number.intValue();
-    }
-
-    private String string(CaseState state, String key) {
-        var value = state.data().get(key);
-        if (!(value instanceof String text) || text.isBlank()) throw new IllegalStateException("Missing text state: " + key);
-        return text;
-    }
-
-    @SuppressWarnings("unchecked")
-    private ArrayList<String> strings(CaseState state, String key) {
-        var value = state.data().get(key);
-        if (!(value instanceof List<?> list) || list.stream().anyMatch(item -> !(item instanceof String))) {
-            throw new IllegalStateException("Missing string-list state: " + key);
-        }
-        return new ArrayList<>((List<String>) list);
-    }
-
-    private enum ProbeResult { SATISFIED, VIOLATION, NOT_VERIFIED }
 }

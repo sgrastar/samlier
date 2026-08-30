@@ -40,7 +40,10 @@ class DefaultResultContextProviderTest {
                 new ResultDocumentContext.Suite("Samlier", "0.1", digest('a'), "self-hosted"),
                 new ResultDocumentContext.EvaluationComponents(digest('b'), digest('c'), digest('d'), "1", "1"),
                 URI.create("https://docs.example/requirements"), URI.create("https://docs.example/cases"),
-                ignored -> "<md/>".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                snapshotRun -> {
+                    assertEquals(run.id(), snapshotRun.id());
+                    return "<md/>".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+                });
 
         var context = provider.context(run, plan, List.of(caseRun), result);
 

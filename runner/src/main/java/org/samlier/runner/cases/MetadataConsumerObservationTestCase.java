@@ -128,11 +128,19 @@ public final class MetadataConsumerObservationTestCase
         required.add("fetched:" + CONTROL);
         required.add("used:" + CONTROL);
         variants.forEach(variant -> required.add("fetched:" + variant));
+        required.add(rule == Rule.EXCLUDED_CONTENT ? "used:any-excluded-content" : "used:" + variants.getFirst());
         var completed = new ArrayList<String>();
         if (observation.fetched().contains(CONTROL)) completed.add("fetched:" + CONTROL);
         if (observation.used().contains(CONTROL)) completed.add("used:" + CONTROL);
         variants.stream().filter(observation.fetched()::contains)
                 .forEach(variant -> completed.add("fetched:" + variant));
+        if (rule == Rule.EXCLUDED_CONTENT) {
+            if (variants.stream().anyMatch(observation.used()::contains)) {
+                completed.add("used:any-excluded-content");
+            }
+        } else if (observation.used().contains(variants.getFirst())) {
+            completed.add("used:" + variants.getFirst());
+        }
         return new EvidenceStatus(
                 observation.ready(), required,
                 completed, observation.details());
@@ -166,8 +174,15 @@ public final class MetadataConsumerObservationTestCase
                 "required_variants", variants,
                 "fetched_variants", List.copyOf(fetched),
                 "used_variants", List.copyOf(used));
+        var conclusiveVariantObservation = rule == Rule.EXCLUDED_CONTENT
+                ? variants.stream().anyMatch(used::contains)
+                : used.containsAll(variants);
+        // A metadata fetch is not proof that the target attempted or rejected a SAML flow. Only a
+        // correlated message is conclusive: it proves acceptance, which is a violation for the
+        // excluded-content rule and the permitted/satisfied path for the other two rules.
         return new Observation(
-                fetched.contains(CONTROL) && used.contains(CONTROL) && fetched.containsAll(variants),
+                fetched.contains(CONTROL) && used.contains(CONTROL)
+                        && fetched.containsAll(variants) && conclusiveVariantObservation,
                 fetched, used, distinct(evidence), details);
     }
 

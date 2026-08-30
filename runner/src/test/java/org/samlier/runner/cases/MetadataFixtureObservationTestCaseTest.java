@@ -32,16 +32,16 @@ class MetadataFixtureObservationTestCaseTest {
 
         var ready = testCase.evidenceStatus(context(List.of(
                 fetch("control", 1), use("control", 2),
-                fetch("accepted", 3), use("accepted", 4), fetch("rejected", 5))));
+                fetch("accepted", 3), use("accepted", 4), fetch("rejected", 5), use("rejected", 6))));
         assertEquals(true, ready.ready());
-        assertEquals(4, ready.requiredObservations().size());
-        assertEquals(4, ready.completedObservations().size());
+        assertEquals(6, ready.requiredObservations().size());
+        assertEquals(6, ready.completedObservations().size());
     }
 
     @Test
     void judgesAcceptAndRejectFixturesWithoutUsingMissingObservationAsTargetFailure() {
         var testCase = testCase();
-        assertEquals(Outcome.SATISFIED, evaluate(testCase, List.of(
+        assertEquals(Outcome.NOT_VERIFIED, evaluate(testCase, List.of(
                 fetch("control", 1), use("control", 2),
                 fetch("accepted", 3), use("accepted", 4), fetch("rejected", 5))));
         assertEquals(Outcome.VIOLATED, evaluate(testCase, List.of(
@@ -49,6 +49,14 @@ class MetadataFixtureObservationTestCaseTest {
                 fetch("accepted", 3), fetch("rejected", 4), use("rejected", 5))));
         assertEquals(Outcome.NOT_VERIFIED, evaluate(testCase, List.of(
                 fetch("control", 1), use("control", 2), fetch("accepted", 3))));
+        var acceptOnly = new MetadataFixtureObservationTestCase(
+                "accept-only", TargetRole.IDP,
+                List.of(new MetadataFixtureObservationTestCase.Fixture(
+                        "accepted", MetadataFixtureObservationTestCase.Behavior.ACCEPT, "positive")),
+                ConfigurationFailureSemantics.TEST_PRECONDITION);
+        assertEquals(Outcome.SATISFIED, evaluate(acceptOnly, List.of(
+                fetch("control", 1), use("control", 2),
+                fetch("accepted", 3), use("accepted", 4))));
     }
 
     @Test

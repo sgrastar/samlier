@@ -106,6 +106,16 @@ class IdpPeerPreparseRecordingTest {
                   </md:SPSSODescriptor>
                 </md:EntityDescriptor>
                 """).getBytes(StandardCharsets.UTF_8));
+        cache.putIfAbsent(run.id(), ("""
+                <md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata"
+                    entityID="https://sp.example/entity">
+                  <md:SPSSODescriptor protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
+                    <md:AssertionConsumerService
+                        Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST"
+                        Location="https://sp.example/acs" index="0" isDefault="true"/>
+                  </md:SPSSODescriptor>
+                </md:EntityDescriptor>
+                """).getBytes(StandardCharsets.UTF_8));
         var saml = new SamlProtocolService(URI.create("https://peer.example"),
                 new FilePlanKeyStore(directory, clock), new XmlSigner(), new OpenSamlReader(), clock);
         var recorder = new FileTranscriptRecorder(database, json, directory);

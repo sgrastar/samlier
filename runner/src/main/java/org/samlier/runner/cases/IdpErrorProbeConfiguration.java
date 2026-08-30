@@ -10,7 +10,7 @@ public record IdpErrorProbeConfiguration(
         Duration responseTimeout,
         boolean userAgentAvailable,
         boolean acceptableResponseLocationKnown,
-        boolean noSessionConfirmed) {
+        boolean freshSessionGateAvailable) {
 
     public IdpErrorProbeConfiguration {
         java.util.Objects.requireNonNull(ssoEndpoint, "ssoEndpoint");
@@ -26,6 +26,6 @@ public record IdpErrorProbeConfiguration(
     }
 
     public boolean preconditionsSatisfied() {
-        return userAgentAvailable && acceptableResponseLocationKnown && noSessionConfirmed;
+        return userAgentAvailable && acceptableResponseLocationKnown && freshSessionGateAvailable;
     }
 }

@@ -29,6 +29,9 @@ import org.samlier.runner.cases.AttestationOption;
 import org.samlier.runner.cases.AttestedOutcomeTestCase;
 import org.samlier.runner.cases.ConfigurationGateTestCase;
 import org.samlier.runner.cases.BrowserEvidenceTestCase;
+import org.samlier.runner.cases.BrowserPrompt;
+import org.samlier.runner.cases.ConfigurationPrompt;
+import org.samlier.runner.cases.ProtocolEvidenceCase;
 import org.samlier.core.caseexec.ConfigurationFailureSemantics;
 
 class PendingInteractionServiceTest {
@@ -71,6 +74,7 @@ class PendingInteractionServiceTest {
         assertEquals(Kind.BROWSER, pending.get(0).kind());
         assertEquals(URI.create("https://suite.example/start"), pending.get(0).startUrl());
         assertEquals("Complete both browser controls.", pending.get(0).promptEn());
+        assertEquals(InteractionQuery.CompletionMode.OPERATOR, pending.get(0).completionMode());
         assertEquals(List.of(
                 "confirmed", "capability_absent", "target_config_unavailable", "capability_undetermined"),
                 pending.get(1).answerValues());
@@ -98,6 +102,42 @@ class PendingInteractionServiceTest {
         assertThrows(IllegalStateException.class, () -> opaqueService.pending("run"));
     }
 
+    @Test
+    void transcriptDrivenBrowserWaitDoesNotOfferAnOperatorCompletionAnswer() {
+        var browser = new TranscriptBrowserCase();
+        var service = new PendingInteractionService(
+                repository(List.of(execution(
+                        browser.id(), CaseExecutionStatus.WAITING_BROWSER,
+                        new WaitCondition(
+                                WaitCondition.Kind.BROWSER, null,
+                                URI.create("https://suite.example/start"), null, EXPIRES)))),
+                new TestCaseRegistry(List.of(browser)));
+
+        var pending = service.pending("run").get(0);
+
+        assertEquals(InteractionQuery.CompletionMode.TRANSCRIPT, pending.completionMode());
+        assertEquals(List.of(), pending.answerValues());
+    }
+
+    @Test
+    void transcriptDrivenConfigurationWaitKeepsOnlyTheUnavailabilityFallback() {
+        var configuration = new TranscriptConfigurationCase();
+        var service = new PendingInteractionService(
+                repository(List.of(execution(
+                        configuration.id(), CaseExecutionStatus.WAITING_CONFIG,
+                        new WaitCondition(
+                                WaitCondition.Kind.CONFIG, "metadata-fixture-probe",
+                                null, null, EXPIRES)))),
+                new TestCaseRegistry(List.of(configuration)));
+
+        var pending = service.pending("run").get(0);
+
+        assertEquals(InteractionQuery.CompletionMode.TRANSCRIPT_OR_OPERATOR, pending.completionMode());
+        assertEquals(List.of(
+                "capability_absent", "target_config_unavailable", "capability_undetermined"),
+                pending.answerValues());
+    }
+
     private CaseExecution execution(String caseId, CaseExecutionStatus status, WaitCondition wait) {
         return new CaseExecution(
                 "run", caseId, 0, status, new CaseState("test", Map.of("secret", "not exposed")), wait,
@@ -116,6 +156,34 @@ class PendingInteractionServiceTest {
                 throw new UnsupportedOperationException();
             }
         };
+    }
+
+    private static final class TranscriptBrowserCase
+            implements TestCase, BrowserPrompt, ProtocolEvidenceCase {
+        @Override public String id() { return "IIP-SSO03-a-idp-01"; }
+        @Override public TargetRole role() { return TargetRole.IDP; }
+        @Override public String browserInstructionsEn() { return "Run the correlated flow."; }
+        @Override public CaseStep start(CaseContext context) { throw new UnsupportedOperationException(); }
+        @Override public CaseStep resume(CaseContext context, CaseState state, CaseEvent event) {
+            throw new UnsupportedOperationException();
+        }
+        @Override public EvidenceStatus evidenceStatus(CaseContext context) {
+            return new EvidenceStatus(false, List.of("response"), List.of(), Map.of());
+        }
+    }
+
+    private static final class TranscriptConfigurationCase
+            implements TestCase, ConfigurationPrompt, ProtocolEvidenceCase {
+        @Override public String id() { return "IIP-MD05-an-sp-01"; }
+        @Override public TargetRole role() { return TargetRole.SP; }
+        @Override public String instructionEn() { return "Use the stable Suite metadata URL."; }
+        @Override public CaseStep start(CaseContext context) { throw new UnsupportedOperationException(); }
+        @Override public CaseStep resume(CaseContext context, CaseState state, CaseEvent event) {
+            throw new UnsupportedOperationException();
+        }
+        @Override public EvidenceStatus evidenceStatus(CaseContext context) {
+            return new EvidenceStatus(false, List.of("metadata-fetch"), List.of(), Map.of());
+        }
     }
 
     private CaseExecutionRepository repository(List<CaseExecution> values) {
