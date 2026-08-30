@@ -16,6 +16,7 @@ public record ResultDocumentContext(
         TargetDeclaration target,
         Map<String, String> requirementSpecUrls,
         Map<String, String> caseDefinitionUrls,
+        Map<String, String> caseEvidenceClasses,
         List<ResultDocument.AdvisoryView> advisories) {
 
     public ResultDocumentContext {
@@ -25,7 +26,20 @@ public record ResultDocumentContext(
         java.util.Objects.requireNonNull(target, "target");
         requirementSpecUrls = Map.copyOf(requirementSpecUrls == null ? Map.of() : requirementSpecUrls);
         caseDefinitionUrls = Map.copyOf(caseDefinitionUrls == null ? Map.of() : caseDefinitionUrls);
+        caseEvidenceClasses = Map.copyOf(caseEvidenceClasses == null ? Map.of() : caseEvidenceClasses);
         advisories = List.copyOf(advisories == null ? List.of() : advisories);
+    }
+
+    public ResultDocumentContext(
+            Suite suite,
+            EvaluationComponents evaluationComponents,
+            ProfileSpec profileSpec,
+            TargetDeclaration target,
+            Map<String, String> requirementSpecUrls,
+            Map<String, String> caseDefinitionUrls,
+            List<ResultDocument.AdvisoryView> advisories) {
+        this(suite, evaluationComponents, profileSpec, target, requirementSpecUrls,
+                caseDefinitionUrls, Map.of(), advisories);
     }
 
     public record Suite(String name, String version, String imageDigest, String executionMode) {

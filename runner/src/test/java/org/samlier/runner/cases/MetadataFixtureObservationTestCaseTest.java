@@ -41,7 +41,7 @@ class MetadataFixtureObservationTestCaseTest {
     @Test
     void judgesAcceptAndRejectFixturesWithoutUsingMissingObservationAsTargetFailure() {
         var testCase = testCase();
-        assertEquals(Outcome.NOT_VERIFIED, evaluate(testCase, List.of(
+        assertEquals(Outcome.SATISFIED, evaluate(testCase, List.of(
                 fetch("control", 1), use("control", 2),
                 fetch("accepted", 3), use("accepted", 4), fetch("rejected", 5))));
         assertEquals(Outcome.VIOLATED, evaluate(testCase, List.of(
@@ -49,6 +49,9 @@ class MetadataFixtureObservationTestCaseTest {
                 fetch("accepted", 3), fetch("rejected", 4), use("rejected", 5))));
         assertEquals(Outcome.NOT_VERIFIED, evaluate(testCase, List.of(
                 fetch("control", 1), use("control", 2), fetch("accepted", 3))));
+        assertEquals(Outcome.VIOLATED, evaluate(testCase, List.of(
+                fetch("control", 1), use("control", 2),
+                fetch("accepted", 3), fetch("rejected", 4))));
         var acceptOnly = new MetadataFixtureObservationTestCase(
                 "accept-only", TargetRole.IDP,
                 List.of(new MetadataFixtureObservationTestCase.Fixture(

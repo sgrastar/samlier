@@ -29,6 +29,7 @@ public record ResultDocument(
         List<AdvisoryView> advisories,
         List<SuiteIncidentView> suiteIncidents,
         SummaryView summary,
+        EvidenceSummaryView evidenceSummary,
         CoverageView coverage,
         List<RequirementView> requirements,
         List<UnresolvedView> unresolved,
@@ -48,6 +49,7 @@ public record ResultDocument(
         advisories = List.copyOf(advisories == null ? List.of() : advisories);
         suiteIncidents = List.copyOf(suiteIncidents == null ? List.of() : suiteIncidents);
         java.util.Objects.requireNonNull(summary, "summary");
+        java.util.Objects.requireNonNull(evidenceSummary, "evidenceSummary");
         java.util.Objects.requireNonNull(coverage, "coverage");
         requirements = List.copyOf(requirements == null ? List.of() : requirements);
         unresolved = List.copyOf(unresolved == null ? List.of() : unresolved);
@@ -148,6 +150,13 @@ public record ResultDocument(
 
     public record SummaryView(CountView requirements, CountView obligations, CountView cases) {}
 
+    public record EvidenceSummaryView(
+            int externallyVerified,
+            int selfAttested,
+            int notVerified,
+            double externallyVerifiedRatio,
+            double selfAttestedRatio) {}
+
     public record CountView(int total, Map<String, Integer> verdicts) {
         public CountView { verdicts = Map.copyOf(verdicts); }
     }
@@ -188,6 +197,7 @@ public record ResultDocument(
             String reasonCode,
             String reason,
             boolean attested,
+            String evidenceClass,
             List<EvidenceView> evidence,
             String definitionUrl) {
         public CaseView { evidence = List.copyOf(evidence); }

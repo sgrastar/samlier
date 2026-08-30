@@ -12,8 +12,8 @@ import org.samlier.core.caseexec.CaseStep;
 import org.samlier.core.caseexec.TestCase;
 import org.samlier.core.plan.TargetRole;
 
-/** Requires a real user-agent step before the separately attested evidence conclusion. */
-public final class BrowserEvidenceTestCase implements TestCase, BrowserPrompt, AttestationPrompt {
+/** Requires a real user-agent step without asking the operator to grade the target. */
+public final class BrowserEvidenceTestCase implements TestCase, BrowserPrompt {
     private static final String WAITING_PHASE = "await-browser";
     private final AttestedOutcomeTestCase evidence;
     private final URI publicBase;
@@ -41,8 +41,6 @@ public final class BrowserEvidenceTestCase implements TestCase, BrowserPrompt, A
     @Override public String id() { return evidence.id(); }
     @Override public TargetRole role() { return evidence.role(); }
     @Override public String browserInstructionsEn() { return browserInstructionsEn; }
-    @Override public String promptEn() { return evidence.promptEn(); }
-    @Override public List<AttestationOption> options() { return evidence.options(); }
 
     @Override
     public CaseStep start(CaseContext context) {
@@ -57,11 +55,20 @@ public final class BrowserEvidenceTestCase implements TestCase, BrowserPrompt, A
         Objects.requireNonNull(context, "context");
         Objects.requireNonNull(state, "state");
         Objects.requireNonNull(event, "event");
-        if (!WAITING_PHASE.equals(state.phase())) return evidence.resume(context, state, event);
+        if (!WAITING_PHASE.equals(state.phase())) {
+            throw new IllegalArgumentException("Unexpected browser evidence phase");
+        }
         if (!id().equals(state.data().get("case_id"))) {
             throw new IllegalArgumentException("Browser state belongs to another case");
         }
-        if (event instanceof CaseEvent.BrowserReturned) return evidence.start(context);
+        if (event instanceof CaseEvent.BrowserReturned) {
+            return new CaseStep.Finish(new org.samlier.core.evaluation.CaseOutcome(
+                    org.samlier.core.evaluation.Outcome.NOT_VERIFIED,
+                    "automatic_oracle_unavailable", "browser.oracle-unavailable",
+                    "browser.oracle-unavailable", List.of(),
+                    Map.of("browser_action_completed", true,
+                            "operator_verdict_requested", false)));
+        }
         if (event instanceof CaseEvent.TimedOut timedOut) {
             return new CaseStep.Finish(new org.samlier.core.evaluation.CaseOutcome(
                     org.samlier.core.evaluation.Outcome.NOT_VERIFIED,

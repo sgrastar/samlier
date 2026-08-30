@@ -180,6 +180,46 @@ test('evaluates only server-reported ready protocol evidence from the shared met
   expect(post.init?.headers).toEqual({ 'content-type': 'application/json', 'X-CSRF-Token': 'csrf' })
 })
 
+test('confirms one metadata campaign operation without collecting per-case verdict answers', async () => {
+  const calls: Array<{ url: string; init?: RequestInit }> = []
+  vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+    calls.push({ url, init })
+    if (url.includes('/protocol-evidence/confirm-attempts')) return json({
+      completed: [{ caseId: 'IIP-MD04-b-idp-01', outcome: 'SATISFIED' }],
+      remaining: { eligibleCases: 0, readyCases: 0, cases: [] },
+    })
+    if (url.includes('/bootstrap-contracts')) return json([{
+      id: 'metadata-feed', title: 'Suite-controlled metadata feed', description: 'Shared feed.',
+      kind: 'STANDARD_METADATA', readiness: 'FETCH_OBSERVED', setupUrl: metadataLab().metadataUrl,
+      setupInstruction: 'Use the stable URL.', pendingCases: 1,
+      caseIds: ['IIP-MD04-b-idp-01'],
+    }])
+    if (url.includes('/metadata-lab')) return json(metadataLab())
+    if (url.includes('/protocol-evidence')) return json({
+      eligibleCases: 1, readyCases: 0, cases: [{
+        caseId: 'IIP-MD04-b-idp-01', ready: false,
+        requiredObservations: ['fetched:expired', 'conclusive-rejection:expired'],
+        completedObservations: ['fetched:expired'], details: {},
+      }],
+    })
+    if (url.includes('/interactions')) return json([])
+    if (url === '/api/health') return json({ status: 'ok', version: 'test', mode: 'selfhosted' })
+    if (url.includes('/api/runs/')) return json({ id: 'run_0123456789ABCDEFGHJKMNPQRS', planId: 'plan' })
+    if (url === '/api/plans') return json([])
+    return json([])
+  }))
+
+  render(<RunManagement runId="run_0123456789ABCDEFGHJKMNPQRS" csrfToken="csrf" />)
+  fireEvent.click(await screen.findByRole('button', {
+    name: 'Confirm all listed refreshes and flows were attempted',
+  }))
+
+  expect(await screen.findByText(/IIP-MD04-b-idp-01: SATISFIED/)).toBeTruthy()
+  const post = calls.find(call => call.url.includes('/protocol-evidence/confirm-attempts'))!
+  expect(post.init?.method).toBe('POST')
+  expect(post.init?.headers).toEqual({ 'content-type': 'application/json', 'X-CSRF-Token': 'csrf' })
+})
+
 test('explains that protocol-driven configuration answers are only an unavailability fallback', async () => {
   vi.stubGlobal('fetch', vi.fn(async (url: string) => {
     if (url.includes('/active-probe')) return json({ state: 'NOT_STARTED' })
@@ -262,6 +302,121 @@ test('offers the server-generated active probe launch URL and explains fresh-ses
   expect(screen.getByText(/private browser context/)).toBeTruthy()
   expect(screen.getByRole('link', { name: 'Open scenario' }).getAttribute('href'))
     .toContain('/probe/action_probe')
+})
+
+test('shows plan action budgets and keeps self-attested evidence separate', async () => {
+  vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+    if (url.includes('/campaigns')) return json({
+      runId: 'run_0123456789ABCDEFGHJKMNPQRS', cases: 220,
+      casesByEvidenceClass: { PROTOCOL_OBSERVED: 143, OPERATOR_ASSISTED: 55, SELF_ATTESTED: 22 },
+      externallyVerifiedCases: 120, selfAttestedCases: 4, notVerifiedCases: 96,
+      plans: [
+        { plan: 'QUICK', cases: 143, deliberateUserActions: 12, remainingUserActions: 3,
+          loginActions: 5, configurationActions: 0, metadataRefreshActions: 0,
+          selfAttestationSections: 0, estimatedMinutesMin: 10, estimatedMinutesMax: 20,
+          actionBudget: 15, budgetMet: true },
+        { plan: 'STANDARD', cases: 198, deliberateUserActions: 31, remainingUserActions: 9,
+          loginActions: 9, configurationActions: 8, metadataRefreshActions: 2,
+          selfAttestationSections: 0, estimatedMinutesMin: 30, estimatedMinutesMax: 60,
+          actionBudget: 35, budgetMet: true },
+        { plan: 'FULL', cases: 220, deliberateUserActions: 39, remainingUserActions: 12,
+          loginActions: 9, configurationActions: 8, metadataRefreshActions: 2,
+          selfAttestationSections: 8, estimatedMinutesMin: 60, estimatedMinutesMax: 90,
+          actionBudget: 50, budgetMet: true },
+      ],
+      campaigns: [{
+        id: 'self-processing', title: 'XML and implementation processing', plan: 'FULL',
+        evidenceClass: 'SELF_ATTESTED', actionKind: 'SELF_CHECK', deliberateUserActions: 1,
+        remainingUserActions: 1, freshSessionRequired: false,
+        caseIds: ['IIP-G02-c-idp-01'], remainingCaseIds: ['IIP-G02-c-idp-01'],
+        expectedTranscriptEvidence: [],
+      }],
+    })
+    if (url.includes('/active-probe')) return json({ state: 'NOT_STARTED' })
+    if (url.includes('/bootstrap-contracts')) return json([])
+    if (url.includes('/metadata-lab')) return json(metadataLab())
+    if (url.includes('/protocol-evidence')) return json(protocolEvidence())
+    if (url.includes('/interactions')) return json([])
+    if (url === '/api/health') return json({ status: 'ok', version: 'test', mode: 'selfhosted' })
+    if (url.includes('/api/runs/')) return json({ id: 'run_0123456789ABCDEFGHJKMNPQRS', planId: 'plan' })
+    if (url === '/api/plans') return json([])
+    return json([])
+  }))
+
+  render(<RunManagement runId="run_0123456789ABCDEFGHJKMNPQRS" />)
+
+  expect(await screen.findByText('Choose evidence depth, not individual cases')).toBeTruthy()
+  expect(screen.getByText(/12 total \/ 3 remaining/)).toBeTruthy()
+  expect(screen.getByText(/Externally verified:/)).toBeTruthy()
+  expect(screen.getByText(/Self-attested:/)).toBeTruthy()
+  expect(screen.getByText('8')).toBeTruthy()
+})
+
+test('shares one section conclusion while preserving case-specific overrides', async () => {
+  const calls: Array<{ url: string; init?: RequestInit }> = []
+  let completed = false
+  vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+    calls.push({ url, init })
+    if (init?.method === 'POST') {
+      if (url.includes('/attest')) completed = true
+      return json({ status: url.includes('/configure') ? 'WAITING_ATTESTATION' : 'FINISHED' })
+    }
+    if (url.includes('/campaigns')) return json({
+      runId: 'run_0123456789ABCDEFGHJKMNPQRS', cases: 2,
+      casesByEvidenceClass: { PROTOCOL_OBSERVED: 0, OPERATOR_ASSISTED: 0, SELF_ATTESTED: 2 },
+      externallyVerifiedCases: 0, selfAttestedCases: completed ? 2 : 0, notVerifiedCases: completed ? 0 : 2,
+      plans: [], classifications: [],
+      campaigns: [{
+        id: 'self_attested-self_check-shared-self-metadata-acquisition',
+        title: 'Metadata acquisition, refresh, and trust', plan: 'FULL',
+        evidenceClass: 'SELF_ATTESTED', actionKind: 'SELF_CHECK', deliberateUserActions: 1,
+        remainingUserActions: completed ? 0 : 1, freshSessionRequired: false,
+        caseIds: ['IIP-MD03-b-idp-01', 'IIP-MD03-c-idp-01'],
+        remainingCaseIds: completed ? [] : ['IIP-MD03-b-idp-01', 'IIP-MD03-c-idp-01'],
+        expectedTranscriptEvidence: [],
+      }],
+    })
+    if (url.includes('/interactions')) return json(completed ? [] : [
+      {
+        caseId: 'IIP-MD03-b-idp-01', kind: 'CONFIGURATION', promptKey: 'case.config',
+        promptEn: 'Configure an out-of-band metadata verification key.', startUrl: null,
+        expiresAt: '2026-09-05T00:00:00Z',
+        answerValues: ['confirmed', 'capability_absent', 'target_config_unavailable', 'capability_undetermined'],
+        completionMode: 'OPERATOR',
+      },
+      {
+        caseId: 'IIP-MD03-c-idp-01', kind: 'ATTESTATION', promptKey: 'case.attest',
+        promptEn: 'Review the key-use isolation evidence.', startUrl: null,
+        expiresAt: '2026-09-05T00:00:00Z',
+        answerValues: ['evidence_satisfies', 'evidence_violates', 'unable'], completionMode: 'OPERATOR',
+      },
+    ])
+    if (url.includes('/active-probe')) return json({ state: 'NOT_STARTED' })
+    if (url.includes('/bootstrap-contracts')) return json([])
+    if (url.includes('/metadata-lab')) return json(metadataLab())
+    if (url.includes('/protocol-evidence')) return json(protocolEvidence())
+    if (url === '/api/health') return json({ status: 'ok', version: 'test', mode: 'selfhosted' })
+    if (url.includes('/api/runs/')) return json({ id: 'run_0123456789ABCDEFGHJKMNPQRS', planId: 'plan' })
+    if (url === '/api/plans') return json([])
+    return json([])
+  }))
+
+  render(<RunManagement runId="run_0123456789ABCDEFGHJKMNPQRS" csrfToken="csrf" />)
+
+  expect(await screen.findByText('Grouped self-check sections')).toBeTruthy()
+  fireEvent.change(screen.getByLabelText('Section evidence conclusion'), { target: { value: 'satisfied' } })
+  fireEvent.change(screen.getAllByLabelText('Case-specific override')[1], { target: { value: 'violated' } })
+  fireEvent.change(screen.getByLabelText('Shared evidence note'), { target: { value: 'Shared policy export' } })
+  fireEvent.click(screen.getByText('Record section'))
+
+  await waitFor(() => expect(completed).toBe(true))
+  const posts = calls.filter(call => call.init?.method === 'POST')
+  expect(posts).toHaveLength(3)
+  expect(posts[0].url).toContain('/configure')
+  expect(posts[1].url).toContain('/attest')
+  expect(posts[1].init?.body).toBe(JSON.stringify({ value: 'evidence_satisfies', note: 'Shared policy export' }))
+  expect(posts[2].url).toContain('/attest')
+  expect(posts[2].init?.body).toBe(JSON.stringify({ value: 'evidence_violates', note: 'Shared policy export' }))
 })
 
 function metadataLab() {

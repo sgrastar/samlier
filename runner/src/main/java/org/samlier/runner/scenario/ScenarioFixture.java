@@ -13,6 +13,16 @@ public interface ScenarioFixture {
 
     FixtureObservation observe(String expectedResponseCorrelation, byte[] decodedMessage);
 
+    /**
+     * Interprets an explicit operator report that browser navigation terminated without a SAML
+     * callback. Negative protocol fixtures may treat that as evidence that the request was
+     * discarded; positive controls should return {@link FixtureObservation#CONTROL_FAILED}.
+     * Delivery timeouts and generic aborts do not use this hook.
+     */
+    default FixtureObservation observeUnavailable(String reason) {
+        return FixtureObservation.NOT_VERIFIED;
+    }
+
     default String inboundType() { return "saml-response"; }
 
     default Duration timeout() { return Duration.ofMinutes(5); }

@@ -55,6 +55,10 @@ class LogoutTranscriptProfileCaseTest {
         var secondaryAtTop = fixture(inbound("response",
                 response("_response", "2.0", "_request", "urn:oasis:names:tc:SAML:2.0:status:PartialLogout"), null));
         assertEquals(Outcome.VIOLATED, secondaryAtTop.evaluate(LogoutTranscriptProfileCase.Rule.TOP_LEVEL_STATUS));
+        var successAtTop = fixture(inbound("response",
+                response("_response", "2.0", "_request", success()), null));
+        assertEquals(Outcome.SATISFIED,
+                successAtTop.evaluate(LogoutTranscriptProfileCase.Rule.TOP_LEVEL_STATUS));
     }
 
     @Test
@@ -68,9 +72,102 @@ class LogoutTranscriptProfileCaseTest {
         assertEquals(Outcome.VIOLATED, misplaced.evaluate(LogoutTranscriptProfileCase.Rule.ASYNC_PLACEMENT));
     }
 
+    @Test
+    void targetIssuedMessagesExposeIssuerSignatureAndUtcExpiryWithoutQuestionnaires() {
+        var entity = "https://idp.example/entity";
+        var request = request("_request", "2.0", "").replace(
+                "<saml:NameID>",
+                "<saml:Issuer Format=\"urn:oasis:names:tc:SAML:2.0:nameid-format:entity\">"
+                        + entity + "</saml:Issuer><saml:NameID>").replace(
+                "IssueInstant=\"2026-08-29T00:00:00Z\"",
+                "IssueInstant=\"2026-08-29T00:00:00Z\" NotOnOrAfter=\"2026-08-29T00:05:00Z\"");
+        var response = response("_response", "2.0", "_suite", success()).replace(
+                "<samlp:Status>",
+                "<saml:Issuer xmlns:saml=\"urn:oasis:names:tc:SAML:2.0:assertion\">"
+                        + entity + "</saml:Issuer><samlp:Status>");
+        var fixture = fixture(inbound("request", request, null), inbound("response", response, null));
+        assertEquals(Outcome.SATISFIED, fixture.evaluate(
+                LogoutTranscriptProfileCase.Rule.REQUEST_ISSUER_COUNT, entity));
+        assertEquals(Outcome.SATISFIED, fixture.evaluate(
+                LogoutTranscriptProfileCase.Rule.REQUEST_ISSUER_VALUE, entity));
+        assertEquals(Outcome.SATISFIED, fixture.evaluate(
+                LogoutTranscriptProfileCase.Rule.REQUEST_ISSUER_FORMAT, entity));
+        assertEquals(Outcome.SATISFIED, fixture.evaluate(
+                LogoutTranscriptProfileCase.Rule.RESPONSE_ISSUER_COUNT, entity));
+        assertEquals(Outcome.SATISFIED, fixture.evaluate(
+                LogoutTranscriptProfileCase.Rule.RESPONSE_ISSUER_VALUE, entity));
+        assertEquals(Outcome.SATISFIED, fixture.evaluate(
+                LogoutTranscriptProfileCase.Rule.RESPONSE_ISSUER_FORMAT, entity));
+        assertEquals(Outcome.SATISFIED, fixture.evaluate(
+                LogoutTranscriptProfileCase.Rule.REQUEST_NOT_ON_OR_AFTER, entity));
+        assertEquals(Outcome.VIOLATED, fixture.evaluate(
+                LogoutTranscriptProfileCase.Rule.REQUEST_SIGNATURE, entity));
+        assertEquals(Outcome.VIOLATED, fixture.evaluate(
+                LogoutTranscriptProfileCase.Rule.RESPONSE_SIGNATURE, entity));
+    }
+
+    @Test
+    void malformedIssuerAndNonUtcExpiryAreViolations() {
+        var request = request("_request", "2.0", "").replace(
+                "<saml:NameID>", "<saml:Issuer Format=\"wrong\">wrong</saml:Issuer><saml:NameID>")
+                .replace("IssueInstant=\"2026-08-29T00:00:00Z\"",
+                        "IssueInstant=\"2026-08-29T00:00:00Z\" NotOnOrAfter=\"2026-08-29T09:05:00+09:00\"");
+        var fixture = fixture(inbound("request", request, null));
+        assertEquals(Outcome.VIOLATED, fixture.evaluate(
+                LogoutTranscriptProfileCase.Rule.REQUEST_ISSUER_VALUE, "https://idp.example/entity"));
+        assertEquals(Outcome.VIOLATED, fixture.evaluate(
+                LogoutTranscriptProfileCase.Rule.REQUEST_ISSUER_FORMAT, "https://idp.example/entity"));
+        assertEquals(Outcome.VIOLATED, fixture.evaluate(
+                LogoutTranscriptProfileCase.Rule.REQUEST_NOT_ON_OR_AFTER, "https://idp.example/entity"));
+    }
+
+    @Test
+    void targetLogoutRequestIsCorrelatedWithTheIssuedIdentifierAndSessionExpiry() {
+        var assertion = """
+                <samlp:Response xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol"
+                  xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion">
+                  <saml:Assertion><saml:Subject><saml:NameID
+                    Format="urn:oasis:names:tc:SAML:2.0:nameid-format:persistent">user</saml:NameID>
+                  </saml:Subject><saml:Conditions NotOnOrAfter="2026-08-29T00:05:00Z"/></saml:Assertion>
+                </samlp:Response>
+                """;
+        var logout = request("_request", "2.0", "")
+                .replace("<saml:NameID>", "<saml:NameID Format=\"urn:oasis:names:tc:SAML:2.0:nameid-format:persistent\">")
+                .replace(
+                "IssueInstant=\"2026-08-29T00:00:00Z\"",
+                "IssueInstant=\"2026-08-29T00:00:00Z\" NotOnOrAfter=\"2026-08-29T00:05:00Z\"");
+        var fixture = fixture(inbound("assertion", assertion, null), inbound("request", logout, null));
+        assertEquals(Outcome.SATISFIED, fixture.evaluate(
+                LogoutTranscriptProfileCase.Rule.REQUEST_IDENTIFIER_MATCH));
+        assertEquals(Outcome.SATISFIED, fixture.evaluate(
+                LogoutTranscriptProfileCase.Rule.REQUEST_NOT_ON_OR_AFTER_BOUND));
+
+        var tooEarly = fixture(inbound("assertion", assertion, null), inbound("request", logout.replace(
+                "NotOnOrAfter=\"2026-08-29T00:05:00Z\"",
+                "NotOnOrAfter=\"2026-08-29T00:04:59Z\""), null));
+        assertEquals(Outcome.VIOLATED, tooEarly.evaluate(
+                LogoutTranscriptProfileCase.Rule.REQUEST_NOT_ON_OR_AFTER_BOUND));
+    }
+
+    @Test
+    void redirectLogoutRequestIsAcceptedOnlyWhenACorrelatedSuccessReturns() {
+        var fixture = fixture(
+                outboundRedirect("request", request("_request", "2.0", ""), "SAMLRequest=abc"),
+                inbound("response", response("_response", "2.0", "_request", success()), null));
+        assertEquals(Outcome.SATISFIED, fixture.evaluate(
+                LogoutTranscriptProfileCase.Rule.REDIRECT_LOGOUT_REQUEST_ACCEPTED));
+    }
+
     private Fixture fixture(Entry... entries) { return new Fixture(List.of(entries)); }
-    private Entry inbound(String id, String xml, String query) { return new Entry(id, Direction.INBOUND, xml, query); }
-    private Entry outbound(String id, String xml, String query) { return new Entry(id, Direction.OUTBOUND, xml, query); }
+    private Entry inbound(String id, String xml, String query) {
+        return new Entry(id, Direction.INBOUND, "POST", xml, query);
+    }
+    private Entry outbound(String id, String xml, String query) {
+        return new Entry(id, Direction.OUTBOUND, "POST", xml, query);
+    }
+    private Entry outboundRedirect(String id, String xml, String query) {
+        return new Entry(id, Direction.OUTBOUND, "GET", xml, query);
+    }
 
     private String request(String id, String version, String extra) {
         return "<samlp:LogoutRequest xmlns:samlp=\"urn:oasis:names:tc:SAML:2.0:protocol\" "
@@ -89,7 +186,7 @@ class LogoutTranscriptProfileCaseTest {
     }
     private String success() { return "urn:oasis:names:tc:SAML:2.0:status:Success"; }
 
-    private record Entry(String id, Direction direction, String xml, String rawQuery) {}
+    private record Entry(String id, Direction direction, String method, String xml, String rawQuery) {}
 
     private static final class Fixture {
         private static final String RUN = "run_0123456789ABCDEFGHJKMNPQRS";
@@ -103,13 +200,17 @@ class LogoutTranscriptProfileCaseTest {
                 var bytes = value.xml().getBytes(StandardCharsets.UTF_8);
                 entries.add(new TranscriptEntry(
                         value.id(), RUN, value.direction(), Instant.parse("2026-08-29T00:00:00Z").plusSeconds(sequence++),
-                        "corr", "POST", "https://suite.example/slo", 200, Map.of(), null, 0,
+                        "corr", value.method(), "https://suite.example/slo", 200, Map.of(), null, 0,
                         reference, bytes.length, "application/xml", value.rawQuery(), Map.of()));
                 content.put(reference, bytes);
             }
         }
 
         private Outcome evaluate(LogoutTranscriptProfileCase.Rule rule) {
+            return evaluate(rule, null);
+        }
+
+        private Outcome evaluate(LogoutTranscriptProfileCase.Rule rule, String entityId) {
             TranscriptRecorder recorder = new TranscriptRecorder() {
                 @Override public TranscriptEntry record(TranscriptInput input) { throw new UnsupportedOperationException(); }
                 @Override public TranscriptEntry updateSamlAnalysis(
@@ -119,7 +220,8 @@ class LogoutTranscriptProfileCaseTest {
                 @Override public List<TranscriptEntry> list(String runId) { return entries; }
             };
             TranscriptContentReader reader = entry -> content.get(entry.decodedSamlRef());
-            return new LogoutTranscriptProfileCase(rule, List.of()).evaluate(RUN, recorder, reader).outcome();
+            return new LogoutTranscriptProfileCase(rule, List.of(), entityId)
+                    .evaluate(RUN, recorder, reader).outcome();
         }
     }
 }

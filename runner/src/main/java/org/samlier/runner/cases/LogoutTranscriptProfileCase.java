@@ -27,23 +27,38 @@ public final class LogoutTranscriptProfileCase {
     public enum Rule {
         UNIQUE_IDS, IN_RESPONSE_TO, CONSENT_SIGNATURE, TOP_LEVEL_STATUS,
         RESPONSE_VERSION_CEILING, RESPONSE_VERSION_FLOOR, REQUEST_VERSION_SUPPORTED,
-        REQUEST_VERSION_2, SCHEMA_STRUCTURE, ASYNC_PLACEMENT, ASYNC_CHOICE
+        REQUEST_VERSION_2, SCHEMA_STRUCTURE, ASYNC_PLACEMENT, ASYNC_CHOICE,
+        RESPONSE_ISSUER_COUNT, RESPONSE_ISSUER_VALUE, RESPONSE_ISSUER_FORMAT, RESPONSE_SIGNATURE,
+        REQUEST_ISSUER_COUNT, REQUEST_ISSUER_VALUE, REQUEST_ISSUER_FORMAT, REQUEST_SIGNATURE,
+        REQUEST_NOT_ON_OR_AFTER, REQUEST_IDENTIFIER_MATCH, REQUEST_NOT_ON_OR_AFTER_BOUND,
+        REDIRECT_LOGOUT_REQUEST_ACCEPTED
     }
 
     private static final String PROTOCOL = "urn:oasis:names:tc:SAML:2.0:protocol";
     private static final String ASSERTION = "urn:oasis:names:tc:SAML:2.0:assertion";
     private static final String DS = "http://www.w3.org/2000/09/xmldsig#";
     private static final String ASYNC = "urn:oasis:names:tc:SAML:2.0:protocol:ext:async-slo";
+    private static final String STATUS_SUCCESS = "urn:oasis:names:tc:SAML:2.0:status:Success";
     private static final Set<String> TOP_STATUS = Set.of(
-            PROTOCOL + ":Success", PROTOCOL + ":Requester", PROTOCOL + ":Responder", PROTOCOL + ":VersionMismatch");
+            STATUS_SUCCESS,
+            "urn:oasis:names:tc:SAML:2.0:status:Requester",
+            "urn:oasis:names:tc:SAML:2.0:status:Responder",
+            "urn:oasis:names:tc:SAML:2.0:status:VersionMismatch");
     private final Rule rule;
     private final List<X509Certificate> verificationKeys;
+    private final String expectedTargetEntityId;
     private final XmlSignatureVerifier xmlSignatures = new XmlSignatureVerifier();
     private final RedirectSignatureVerifier redirectSignatures = new RedirectSignatureVerifier();
 
     public LogoutTranscriptProfileCase(Rule rule, List<X509Certificate> verificationKeys) {
+        this(rule, verificationKeys, null);
+    }
+
+    public LogoutTranscriptProfileCase(
+            Rule rule, List<X509Certificate> verificationKeys, String expectedTargetEntityId) {
         this.rule = java.util.Objects.requireNonNull(rule, "rule");
         this.verificationKeys = List.copyOf(verificationKeys == null ? List.of() : verificationKeys);
+        this.expectedTargetEntityId = expectedTargetEntityId;
     }
 
     public CaseOutcome evaluate(
@@ -64,7 +79,200 @@ public final class LogoutTranscriptProfileCase {
             case SCHEMA_STRUCTURE -> schema(targetLogout);
             case ASYNC_PLACEMENT -> asyncPlacement(target);
             case ASYNC_CHOICE -> informationalAsync(targetLogout);
+            case RESPONSE_ISSUER_COUNT -> issuerCount(targetLogout, "LogoutResponse");
+            case RESPONSE_ISSUER_VALUE -> issuerValue(targetLogout, "LogoutResponse");
+            case RESPONSE_ISSUER_FORMAT -> issuerFormat(targetLogout, "LogoutResponse");
+            case RESPONSE_SIGNATURE -> targetSignature(targetLogout, "LogoutResponse");
+            case REQUEST_ISSUER_COUNT -> issuerCount(targetLogout, "LogoutRequest");
+            case REQUEST_ISSUER_VALUE -> issuerValue(targetLogout, "LogoutRequest");
+            case REQUEST_ISSUER_FORMAT -> issuerFormat(targetLogout, "LogoutRequest");
+            case REQUEST_SIGNATURE -> targetSignature(targetLogout, "LogoutRequest");
+            case REQUEST_NOT_ON_OR_AFTER -> requestNotOnOrAfter(targetLogout);
+            case REQUEST_IDENTIFIER_MATCH -> requestIdentifierMatches(targetLogout, all);
+            case REQUEST_NOT_ON_OR_AFTER_BOUND -> requestNotOnOrAfterBound(targetLogout, all);
+            case REDIRECT_LOGOUT_REQUEST_ACCEPTED -> redirectLogoutRequestAccepted(targetLogout, all);
         };
+    }
+
+    private CaseOutcome requestIdentifierMatches(List<Message> targetLogout, List<Message> all) {
+        var issued = issuedNameIds(all);
+        if (issued.isEmpty()) return CaseOutcome.notVerified(
+                "issued_session_identifier_unavailable", "slo.identifier.assertion-unavailable");
+        var requests = targetLogout.stream().filter(value -> is(value.logout(), "LogoutRequest")).toList();
+        if (requests.isEmpty()) return optionalNotObserved("slo.LogoutRequest.not-observed");
+        var matched = new ArrayList<Message>();
+        for (var request : requests) {
+            var nameId = direct(request.logout(), ASSERTION, "NameID");
+            if (nameId == null) continue; // EncryptedID/BaseID needs a dedicated semantic/decryption oracle.
+            var key = identifierKey(nameId);
+            if (issued.containsKey(key)) matched.add(request);
+        }
+        if (matched.isEmpty()) return CaseOutcome.notVerified(
+                "logout_identifier_strong_match_unobservable", "slo.identifier.strong-match-unobservable");
+        return outcome(matched, List.of(), "slo.logout-request.identifier-strong-match");
+    }
+
+    private CaseOutcome requestNotOnOrAfterBound(List<Message> targetLogout, List<Message> all) {
+        var issued = issuedNameIds(all);
+        if (issued.isEmpty()) return CaseOutcome.notVerified(
+                "issued_session_expiry_unavailable", "slo.not-on-or-after.assertion-unavailable");
+        var inspected = new ArrayList<Message>();
+        var violations = new ArrayList<String>();
+        for (var request : targetLogout.stream().filter(value -> is(value.logout(), "LogoutRequest")).toList()) {
+            var nameId = direct(request.logout(), ASSERTION, "NameID");
+            if (nameId == null) continue;
+            var expiry = issued.get(identifierKey(nameId));
+            if (expiry == null) continue;
+            try {
+                var requestExpiry = java.time.Instant.parse(request.logout().getAttribute("NotOnOrAfter"));
+                inspected.add(request);
+                if (requestExpiry.isBefore(expiry)) violations.add(request.reference());
+            } catch (java.time.format.DateTimeParseException invalid) {
+                inspected.add(request);
+                violations.add(request.reference());
+            }
+        }
+        if (inspected.isEmpty()) return CaseOutcome.notVerified(
+                "logout_session_expiry_correlation_unavailable", "slo.not-on-or-after.correlation-unavailable");
+        return outcome(inspected, violations, "slo.logout-request.not-on-or-after-bound");
+    }
+
+    private CaseOutcome redirectLogoutRequestAccepted(List<Message> targetLogout, List<Message> all) {
+        var redirectRequests = all.stream()
+                .filter(value -> value.entry().direction() == Direction.OUTBOUND)
+                .filter(value -> is(value.logout(), "LogoutRequest"))
+                .filter(value -> "GET".equalsIgnoreCase(value.entry().method()))
+                .toList();
+        if (redirectRequests.isEmpty()) return optionalNotObserved("slo.redirect.logout-request.not-observed");
+        var ids = redirectRequests.stream().map(value -> value.logout().getAttribute("ID")).collect(
+                java.util.stream.Collectors.toSet());
+        var responses = targetLogout.stream()
+                .filter(value -> is(value.logout(), "LogoutResponse"))
+                .filter(value -> ids.contains(value.logout().getAttribute("InResponseTo")))
+                .toList();
+        if (responses.isEmpty()) return CaseOutcome.notVerified(
+                "redirect_logout_response_unavailable", "slo.redirect.logout-response-unavailable");
+        var violations = responses.stream()
+                .filter(value -> !STATUS_SUCCESS.equals(topStatus(value.logout())))
+                .map(Message::reference).toList();
+        return outcome(responses, violations, "slo.redirect.logout-request-accepted");
+    }
+
+    private Map<String, java.time.Instant> issuedNameIds(List<Message> all) {
+        var result = new LinkedHashMap<String, java.time.Instant>();
+        for (var message : all) {
+            if (message.entry().direction() != Direction.INBOUND || message.logout() != null) continue;
+            for (var assertion : elements(message.document().getDocumentElement(), ASSERTION, "Assertion")) {
+                var subject = direct(assertion, ASSERTION, "Subject");
+                var nameId = direct(subject, ASSERTION, "NameID");
+                if (nameId == null) continue;
+                java.time.Instant expiry = null;
+                var conditions = direct(assertion, ASSERTION, "Conditions");
+                if (conditions != null && !conditions.getAttribute("NotOnOrAfter").isBlank()) {
+                    try { expiry = java.time.Instant.parse(conditions.getAttribute("NotOnOrAfter")); }
+                    catch (java.time.format.DateTimeParseException ignored) { }
+                }
+                var current = result.get(identifierKey(nameId));
+                if (expiry != null && (current == null || expiry.isAfter(current))) {
+                    result.put(identifierKey(nameId), expiry);
+                } else if (!result.containsKey(identifierKey(nameId))) {
+                    result.put(identifierKey(nameId), null);
+                }
+            }
+        }
+        return result;
+    }
+
+    private String identifierKey(Element nameId) {
+        return String.join("\u0000", nameId.getAttribute("Format"), nameId.getAttribute("NameQualifier"),
+                nameId.getAttribute("SPNameQualifier"), nameId.getTextContent());
+    }
+
+    private List<Element> elements(Element parent, String namespace, String localName) {
+        var result = new ArrayList<Element>();
+        if (parent == null) return result;
+        var nodes = parent.getElementsByTagNameNS(namespace, localName);
+        for (var index = 0; index < nodes.getLength(); index++) result.add((Element) nodes.item(index));
+        return result;
+    }
+
+    private CaseOutcome issuerCount(List<Message> messages, String type) {
+        var scoped = messages.stream().filter(value -> is(value.logout(), type)).toList();
+        if (scoped.isEmpty()) return optionalNotObserved("slo." + type + ".not-observed");
+        var violations = scoped.stream().filter(value ->
+                directElements(value.logout(), ASSERTION, "Issuer").size() != 1)
+                .map(Message::reference).toList();
+        return outcome(scoped, violations, "slo." + type + ".issuer-count");
+    }
+
+    private CaseOutcome issuerValue(List<Message> messages, String type) {
+        if (expectedTargetEntityId == null || expectedTargetEntityId.isBlank()) {
+            return CaseOutcome.notVerified(
+                    "target_entity_id_unavailable", "slo.issuer.target-entity-id-unavailable");
+        }
+        var scoped = messages.stream().filter(value -> is(value.logout(), type)).toList();
+        if (scoped.isEmpty()) return optionalNotObserved("slo." + type + ".not-observed");
+        var violations = scoped.stream().filter(value -> {
+            var issuers = directElements(value.logout(), ASSERTION, "Issuer");
+            return issuers.size() != 1 || !expectedTargetEntityId.equals(issuers.getFirst().getTextContent());
+        }).map(Message::reference).toList();
+        return outcome(scoped, violations, "slo." + type + ".issuer-value");
+    }
+
+    private CaseOutcome issuerFormat(List<Message> messages, String type) {
+        var scoped = messages.stream().filter(value -> is(value.logout(), type)).toList();
+        if (scoped.isEmpty()) return optionalNotObserved("slo." + type + ".not-observed");
+        var entity = "urn:oasis:names:tc:SAML:2.0:nameid-format:entity";
+        var violations = scoped.stream().filter(value -> directElements(value.logout(), ASSERTION, "Issuer").stream()
+                .anyMatch(issuer -> !issuer.getAttribute("Format").isBlank()
+                        && !entity.equals(issuer.getAttribute("Format"))))
+                .map(Message::reference).toList();
+        return outcome(scoped, violations, "slo." + type + ".issuer-format");
+    }
+
+    private CaseOutcome targetSignature(List<Message> messages, String type) {
+        var scoped = messages.stream().filter(value -> is(value.logout(), type)).toList();
+        if (scoped.isEmpty()) return optionalNotObserved("slo." + type + ".not-observed");
+        var violations = new ArrayList<String>();
+        var unverifiable = new ArrayList<String>();
+        for (var message : scoped) {
+            var xml = direct(message.logout(), DS, "Signature") != null;
+            var redirect = message.entry().rawQuery() != null
+                    && message.entry().rawQuery().matches("(^|.*&)Signature=[^&]+(&.*|$)");
+            if (!xml && !redirect) {
+                violations.add(message.reference());
+                continue;
+            }
+            if (verificationKeys.isEmpty()) {
+                unverifiable.add(message.reference());
+                continue;
+            }
+            var valid = verificationKeys.stream().anyMatch(certificate ->
+                    xml && xmlSignatures.hasValidEnvelopedSignature(message.logout(), certificate)
+                            || redirect && redirectSignatures.isValid(message.entry().rawQuery(), certificate));
+            if (!valid) violations.add(message.reference());
+        }
+        if (violations.isEmpty() && !unverifiable.isEmpty()) return new CaseOutcome(
+                Outcome.NOT_VERIFIED, "target_signing_key_unavailable",
+                "slo.signature.key-unavailable", "slo.signature.key-unavailable",
+                evidence(scoped), Map.of("unverifiable", List.copyOf(unverifiable)));
+        return outcome(scoped, violations, "slo." + type + ".signature");
+    }
+
+    private CaseOutcome requestNotOnOrAfter(List<Message> messages) {
+        var requests = messages.stream().filter(value -> is(value.logout(), "LogoutRequest")).toList();
+        if (requests.isEmpty()) return optionalNotObserved("slo.LogoutRequest.not-observed");
+        var violations = new ArrayList<String>();
+        for (var request : requests) {
+            var lexical = request.logout().getAttribute("NotOnOrAfter");
+            try {
+                if (!lexical.endsWith("Z")) throw new java.time.format.DateTimeParseException("not UTC", lexical, 0);
+                java.time.Instant.parse(lexical);
+            } catch (java.time.format.DateTimeParseException invalid) {
+                violations.add(request.reference());
+            }
+        }
+        return outcome(requests, violations, "slo.logout-request.not-on-or-after");
     }
 
     private CaseOutcome unique(List<Message> messages) {
@@ -343,6 +551,15 @@ public final class LogoutTranscriptProfileCase {
                     && localName.equals(element.getLocalName())) return element;
         }
         return null;
+    }
+    private List<Element> directElements(Element parent, String namespace, String localName) {
+        var result = new ArrayList<Element>();
+        if (parent == null) return result;
+        for (var child = parent.getFirstChild(); child != null; child = child.getNextSibling()) {
+            if (child instanceof Element element && namespace.equals(element.getNamespaceURI())
+                    && localName.equals(element.getLocalName())) result.add(element);
+        }
+        return result;
     }
     private boolean is(Element value, String localName) {
         return value != null && PROTOCOL.equals(value.getNamespaceURI()) && localName.equals(value.getLocalName());

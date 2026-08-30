@@ -2,6 +2,7 @@ package org.samlier.api;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.net.URI;
@@ -89,6 +90,13 @@ class SamlierApplicationTest {
             assertEquals(200, protocolEvidence.statusCode(), protocolEvidence.body());
             assertTrue(protocolEvidence.body().contains("\"eligibleCases\":0"));
             assertTrue(protocolEvidence.body().contains("\"readyCases\":0"));
+            var confirmedCampaign = client.send(HttpRequest.newBuilder(base.resolve(
+                            "/api/runs/" + runId + "/protocol-evidence/confirm-attempts"))
+                            .header("Content-Type", "application/json")
+                            .POST(HttpRequest.BodyPublishers.ofString("{}"))
+                            .build(), HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, confirmedCampaign.statusCode(), confirmedCampaign.body());
+            assertTrue(confirmedCampaign.body().contains("\"completed\":[]"));
             var lab = client.send(HttpRequest.newBuilder(base.resolve(
                             "/api/runs/" + runId + "/metadata-lab")).build(),
                     HttpResponse.BodyHandlers.ofString());
@@ -171,6 +179,26 @@ class SamlierApplicationTest {
             assertTrue(transcript.body().contains("MetadataFetch"));
             assertTrue(transcript.body().contains("no-key-info"));
             assertTrue(transcript.body().contains("\"feed\":\"live\""));
+        } finally {
+            app.stop();
+        }
+    }
+
+    @Test
+    void receivesResponsesAtUncataloguedAcsIndexes() throws Exception {
+        var config = new AppConfig(AppConfig.Mode.SELFHOSTED,
+                URI.create("http://127.0.0.1:8080"), URI.create("http://127.0.0.1:8080"),
+                dataDirectory, 8080, true, false, false);
+        var app = SamlierApplication.create(config).start(0);
+        try {
+            var base = URI.create("http://127.0.0.1:" + app.port());
+            var response = HttpClient.newHttpClient().send(HttpRequest.newBuilder(base.resolve(
+                            "/p/plan_0123456789ABCDEFGHJKMNPQRS/sp/acs/999999"))
+                            .header("Content-Type", "application/x-www-form-urlencoded")
+                            .POST(HttpRequest.BodyPublishers.ofString(
+                                    "SAMLResponse=PFJlc3BvbnNlLz4%3D&RelayState=run_unknown"))
+                            .build(), HttpResponse.BodyHandlers.ofString());
+            assertNotEquals(404, response.statusCode(), response.body());
         } finally {
             app.stop();
         }

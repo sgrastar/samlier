@@ -5,7 +5,7 @@ import java.util.Map;
 import org.samlier.core.caseexec.CaseContext;
 
 /** A waiting case whose outcome can be derived from Suite-recorded protocol evidence. */
-public interface ProtocolEvidenceCase {
+public interface ProtocolEvidenceCase extends org.samlier.runner.ExternallyObservedCase {
     EvidenceStatus evidenceStatus(CaseContext context);
 
     record EvidenceStatus(

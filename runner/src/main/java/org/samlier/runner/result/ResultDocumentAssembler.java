@@ -61,7 +61,8 @@ public final class ResultDocumentAssembler {
                 obligations.add(new ObligationView(key, result.level(), plan.profile().role(), result.verdict()));
                 for (var caseId : result.caseIds()) {
                     cases.add(caseView(
-                            caseById.get(caseId), source, context.caseDefinitionUrls()));
+                            caseById.get(caseId), source, context.caseDefinitionUrls(),
+                            context.caseEvidenceClasses()));
                 }
             }
             requirements.add(new RequirementView(
@@ -124,6 +125,7 @@ public final class ResultDocumentAssembler {
                         value.kind(), value.caseId(), value.actionId(), value.note())).toList(),
                 new ResultDocument.SummaryView(
                         countRequirements(evaluation), countObligations(evaluation), countCases(caseRuns, sourceByKey)),
+                evidenceSummary(caseRuns, sourceByKey, context.caseEvidenceClasses()),
                 new ResultDocument.CoverageView(
                         coverage.obligationsTotal(), coverage.obligationsApplicable(), coverage.mustApplicable(),
                         coverage.mustObservable(), coverage.mustResolved(), coverage.mustUnresolved(),
@@ -170,7 +172,8 @@ public final class ResultDocumentAssembler {
     private static CaseView caseView(
             CaseRun value,
             CoverageCatalog.Obligation source,
-            Map<String, String> definitionUrls) {
+            Map<String, String> definitionUrls,
+            Map<String, String> evidenceClasses) {
         var outcome = value.outcome();
         var verdict = outcome == null ? Verdict.ERROR : Evaluator.toVerdict(source.level(), outcome);
         var reasonCode = outcome == null ? "suite_error"
@@ -181,9 +184,47 @@ public final class ResultDocumentAssembler {
                 value.id(), value.obligationKey(), outcome == null ? null : outcome.outcome(), verdict,
                 source.testability().name(), reasonCode, reason,
                 source.testability() == CoverageCatalog.Testability.ATTESTED,
+                evidenceClass(value.id(), source, evidenceClasses),
                 outcome == null ? List.of() : outcome.evidence().stream()
                         .map(ref -> new EvidenceView(ref.kind(), ref.reference())).toList(),
                 required(definitionUrls, value.id(), "case definition URL"));
+    }
+
+    private static ResultDocument.EvidenceSummaryView evidenceSummary(
+            List<CaseRun> cases,
+            Map<String, CoverageCatalog.Obligation> obligations,
+            Map<String, String> evidenceClasses) {
+        int external = 0;
+        int self = 0;
+        int unresolved = 0;
+        for (var value : cases) {
+            if (value.outcome() == null || switch (value.outcome().outcome()) {
+                case INDETERMINATE, INCONSISTENT, NOT_VERIFIED -> true;
+                case SATISFIED, SATISFIED_WITH_NOTE, VIOLATED -> false;
+            }) {
+                unresolved++;
+            } else if ("SELF_ATTESTED".equals(evidenceClass(
+                    value.id(), obligations.get(value.obligationKey()), evidenceClasses))) {
+                self++;
+            } else {
+                external++;
+            }
+        }
+        int total = cases.size();
+        return new ResultDocument.EvidenceSummaryView(
+                external, self, unresolved,
+                total == 0 ? 0 : (double) external / total,
+                total == 0 ? 0 : (double) self / total);
+    }
+
+    private static String evidenceClass(
+            String caseId,
+            CoverageCatalog.Obligation source,
+            Map<String, String> evidenceClasses) {
+        return evidenceClasses.getOrDefault(
+                caseId,
+                source.testability() == CoverageCatalog.Testability.ATTESTED
+                        ? "SELF_ATTESTED" : "PROTOCOL_OBSERVED");
     }
 
     private static CountView countRequirements(RunResult result) {

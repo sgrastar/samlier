@@ -30,6 +30,7 @@ import org.samlier.runner.PersistedApplicabilityInputProvider;
 import org.samlier.runner.ProtocolEvidenceAutomationService;
 import org.samlier.runner.QuickCheckService;
 import org.samlier.runner.RunEvaluationService;
+import org.samlier.runner.RunCampaignService;
 import org.samlier.runner.access.RunAccessService;
 import org.samlier.runner.cases.CachedTargetSigningCertificateProvider;
 import org.samlier.runner.cases.ApprovedAttestedCaseRegistry;
@@ -77,6 +78,7 @@ final class M1Runtime {
     private final SqlitePublicationRepository publications;
     private final ActiveProbeCoordinator activeProbes;
     private final CaseTimeoutService timeouts;
+    private final RunCampaignService campaigns;
 
     private M1Runtime(
             AppConfig config,
@@ -98,7 +100,8 @@ final class M1Runtime {
             SqliteCaseExecutionRepository caseExecutions,
             SqlitePublicationRepository publications,
             ActiveProbeCoordinator activeProbes,
-            CaseTimeoutService timeouts) {
+            CaseTimeoutService timeouts,
+            RunCampaignService campaigns) {
         this.config = config;
         this.quickCheck = quickCheck;
         this.results = results;
@@ -119,6 +122,7 @@ final class M1Runtime {
         this.publications = publications;
         this.activeProbes = activeProbes;
         this.timeouts = timeouts;
+        this.campaigns = campaigns;
     }
 
     static M1Runtime create(
@@ -163,7 +167,12 @@ final class M1Runtime {
                     endpoint,
                     config.peerBaseUrl().resolve("/p/" + plan.id()).toString(),
                     config.peerBaseUrl().resolve("/p/" + plan.id() + "/sp/acs/0"),
-                    java.time.Duration.ofMinutes(5),
+                    // Browser-assisted scenarios are queued together. The timeout belongs to the
+                    // target response after an operator starts a fixture, not to time spent waiting
+                    // behind earlier fixtures in the Run-level queue. Keep queued scenarios alive
+                    // for a normal interactive acceptance session; delivery uncertainty still maps
+                    // to NOT_VERIFIED rather than a target failure.
+                    java.time.Duration.ofHours(2),
                     plan.interaction().allowBrowserSteps(),
                     responseLocationKnown,
                     true);
@@ -174,21 +183,48 @@ final class M1Runtime {
         var applicability = new CatalogApplicabilityProvider(
                 coverage, predicates,
                 new PersistedApplicabilityInputProvider(new SqliteApplicabilityInputRepository(database, json)));
-        var m1Attested = ApprovedAttestedCaseRegistry.create(definitions);
-        var m1Config = ApprovedConfigCaseRegistry.create(definitions);
-        var m1Browser = ApprovedBrowserCaseRegistry.create(
-                definitions, config.publicBaseUrl(), transcriptContent,
+        var m1Attested = ApprovedAttestedCaseRegistry.create(
+                definitions, org.samlier.core.casedef.CaseDefinitionCatalog.Milestone.M1,
+                config.publicBaseUrl(),
                 runId -> {
-                    var run = runs.find(runId)
-                            .orElseThrow(() -> new IllegalArgumentException("Unknown Run"));
-                    return java.util.Optional.of(keys.getOrCreate(run.planId()).privateKey());
-                },
+                    var run = runs.find(runId).orElseThrow(() -> new IllegalArgumentException("Unknown Run"));
+                    var plan = plans.find(run.planId()).orElseThrow(() -> new IllegalStateException("Run has no Test Plan"));
+                    return probeConfigurations.apply(plan, runId);
+                }, transcriptContent,
                 runId -> runs.find(runId).flatMap(run -> plans.find(run.planId()))
                         .map(plan -> plan.target().entityId()),
                 runId -> {
                     var run = runs.find(runId).orElseThrow(() -> new IllegalArgumentException("Unknown Run"));
                     var plan = plans.find(run.planId()).orElseThrow(() -> new IllegalStateException("Run has no Test Plan"));
+                    try { return targetCertificates.certificatesFor(plan, runId); }
+                    catch (RuntimeException unavailable) { return List.of(); }
+                });
+        var runDecryptionKeys = (org.samlier.runner.cases.SamlDecryptionKeyProvider) runId -> {
+            var run = runs.find(runId)
+                    .orElseThrow(() -> new IllegalArgumentException("Unknown Run"));
+            return java.util.Optional.of(keys.getOrCreate(run.planId()).privateKey());
+        };
+        var m1Config = ApprovedConfigCaseRegistry.create(
+                definitions, org.samlier.core.casedef.CaseDefinitionCatalog.Milestone.M1,
+                runMetadata, transcriptContent, runDecryptionKeys);
+        var m1Browser = ApprovedBrowserCaseRegistry.create(
+                definitions, config.publicBaseUrl(), transcriptContent,
+                runDecryptionKeys,
+                runId -> runs.find(runId).flatMap(run -> plans.find(run.planId()))
+                        .map(plan -> plan.target().entityId()),
+                runId -> {
+                    var run = runs.find(runId).orElseThrow(() -> new IllegalArgumentException("Unknown Run"));
+                    var plan = plans.find(run.planId()).orElseThrow(() -> new IllegalStateException("Run has no Test Plan"));
+                    return targetCertificates.certificatesFor(plan, runId);
+                },
+                runId -> {
+                    var run = runs.find(runId).orElseThrow(() -> new IllegalArgumentException("Unknown Run"));
+                    var plan = plans.find(run.planId()).orElseThrow(() -> new IllegalStateException("Run has no Test Plan"));
                     return probeConfigurations.apply(plan, runId);
+                },
+                runId -> {
+                    var run = runs.find(runId).orElseThrow(() -> new IllegalArgumentException("Unknown Run"));
+                    return java.util.Optional.of(keys.getOrCreate(run.planId()));
                 });
         var m2Attested = ApprovedAttestedCaseRegistry.create(
                 definitions, org.samlier.core.casedef.CaseDefinitionCatalog.Milestone.M2);
@@ -206,12 +242,30 @@ final class M1Runtime {
             }
         });
         var m3Attested = ApprovedAttestedCaseRegistry.create(
-                definitions, org.samlier.core.casedef.CaseDefinitionCatalog.Milestone.M3);
+                definitions, org.samlier.core.casedef.CaseDefinitionCatalog.Milestone.M3,
+                config.publicBaseUrl(), null, transcriptContent,
+                runId -> runs.find(runId).flatMap(run -> plans.find(run.planId()))
+                        .map(plan -> plan.target().entityId()),
+                runId -> {
+                    var run = runs.find(runId).orElseThrow(() -> new IllegalArgumentException("Unknown Run"));
+                    var plan = plans.find(run.planId()).orElseThrow(() -> new IllegalStateException("Run has no Test Plan"));
+                    try { return targetCertificates.certificatesFor(plan, runId); }
+                    catch (RuntimeException unavailable) { return List.of(); }
+                });
         var m3Config = ApprovedConfigCaseRegistry.create(
                 definitions, org.samlier.core.casedef.CaseDefinitionCatalog.Milestone.M3);
         var m3Browser = ApprovedBrowserCaseRegistry.create(
                 definitions, config.publicBaseUrl(),
-                org.samlier.core.casedef.CaseDefinitionCatalog.Milestone.M3);
+                org.samlier.core.casedef.CaseDefinitionCatalog.Milestone.M3,
+                transcriptContent, runDecryptionKeys,
+                runId -> runs.find(runId).flatMap(run -> plans.find(run.planId()))
+                        .map(plan -> plan.target().entityId()),
+                runId -> {
+                    var run = runs.find(runId).orElseThrow(() -> new IllegalArgumentException("Unknown Run"));
+                    var plan = plans.find(run.planId()).orElseThrow(() -> new IllegalStateException("Run has no Test Plan"));
+                    try { return targetCertificates.certificatesFor(plan, runId); }
+                    catch (RuntimeException unavailable) { return List.of(); }
+                });
         var m3Automated = M3AutomatedCaseRegistry.create(
                 runId -> {
                     try { return runMetadata.apply(runId); }
@@ -262,6 +316,7 @@ final class M1Runtime {
         var configurations = new ConfigurationService(interactiveRegistry, executionService, caseContexts);
         var browserCompletions = new BrowserCompletionService(interactiveRegistry, executionService, caseContexts);
         var timeouts = new CaseTimeoutService(caseExecutions, interactiveRegistry, executionService);
+        var campaigns = new RunCampaignService(caseExecutions, definitions, interactiveRegistry, caseContexts);
         var evaluator = new RunEvaluationService(
                 coverage, plans, runs,
                 new CaseRunProjection(caseExecutions, definitions.byId().keySet()), applicability,
@@ -279,7 +334,8 @@ final class M1Runtime {
                     components,
                     URI.create("https://github.com/sgrastar/samlier/blob/main/docs/04-requirement-coverage.md"),
                     URI.create("https://github.com/sgrastar/samlier/blob/main/tests/cases.yaml"),
-                    run -> metadataCache.getRunSnapshot(run.id(), run.planId()));
+                    run -> metadataCache.getRunSnapshot(run.id(), run.planId()),
+                    campaigns::report);
             results = new ResultPublicationService(
                     coverage, evaluator, contexts, new ResultJsonWriter(), artifacts);
         }
@@ -289,7 +345,8 @@ final class M1Runtime {
         return new M1Runtime(
                 config, quickCheck, results, artifacts, access, plans, runs, transcript, clock,
                 starters, pendingInteractions, bootstrapContracts, protocolEvidence, attestations,
-                configurations, browserCompletions, caseExecutions, publications, activeProbes, timeouts);
+                configurations, browserCompletions, caseExecutions, publications, activeProbes, timeouts,
+                campaigns);
     }
 
     QuickCheckService.QuickCheckResult quickCheck(String runId) {
@@ -350,6 +407,12 @@ final class M1Runtime {
         return pendingInteractions.pending(runId);
     }
 
+    org.samlier.runner.RunCampaignQuery.CampaignReport campaigns(String runId) {
+        requireRun(runId);
+        reconcileTranscriptEvidence(runId);
+        return campaigns.report(runId);
+    }
+
     java.util.List<org.samlier.runner.BootstrapContractQuery.BootstrapContract> bootstrapContracts(String runId) {
         requireRun(runId);
         return bootstrapContracts.contracts(runId);
@@ -364,6 +427,14 @@ final class M1Runtime {
     org.samlier.runner.ProtocolEvidenceAutomationService.Evaluation evaluateProtocolEvidence(String runId) {
         requireRun(runId);
         var value = protocolEvidence.evaluateReady(runId);
+        if (results != null) results.generate(runId);
+        return value;
+    }
+
+    org.samlier.runner.ProtocolEvidenceAutomationService.Evaluation confirmProtocolEvidenceAttempts(
+            String runId) {
+        requireRun(runId);
+        var value = protocolEvidence.evaluateAttempted(runId);
         if (results != null) results.generate(runId);
         return value;
     }

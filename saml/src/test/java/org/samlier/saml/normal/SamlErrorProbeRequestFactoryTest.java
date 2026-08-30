@@ -41,6 +41,8 @@ class SamlErrorProbeRequestFactoryTest {
         assertFalse(unknown.getDocumentElement().hasAttribute("IsPassive"));
         assertEquals(1, context.getElementsByTagNameNS(protocol(), "RequestedAuthnContext").getLength());
         assertEquals("true", passive.getDocumentElement().getAttribute("IsPassive"));
+        assertEquals("2026-08-29T00:00:00.000123456Z",
+                request(Probe.SUBMILLISECOND_ISSUE_INSTANT).getDocumentElement().getAttribute("IssueInstant"));
     }
 
     private org.w3c.dom.Document request(Probe probe) {

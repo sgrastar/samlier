@@ -79,6 +79,44 @@ class TargetMetadataObservationTest {
     }
 
     @Test
+    void publisherStructureRemovesEightQuestionnaireItems() throws Exception {
+        var certificate = certificate();
+        assertOutcome("IIP-MD05-a6-idp-01", Outcome.SATISFIED, metadata(""));
+        assertOutcome("IIP-MD05-a6-idp-01", Outcome.VIOLATED,
+                metadata(role("IDPSSODescriptor", SAML2, "").replace(
+                        "protocolSupportEnumeration", "validUntil=\"2026-09-01T00:00:00Z\" protocolSupportEnumeration")));
+
+        assertOutcome("IIP-MD05-c8-idp-01", Outcome.SATISFIED,
+                metadata(role("IDPSSODescriptor", SAML2, keyDescriptor(
+                        "<ds:X509Data><ds:X509Certificate>" + certificate
+                                + "</ds:X509Certificate></ds:X509Data>"))));
+        assertOutcome("IIP-MD05-c8-idp-01", Outcome.VIOLATED,
+                metadata(role("IDPSSODescriptor", SAML2, keyDescriptor("<ds:KeyName>hint</ds:KeyName>"))));
+
+        assertOutcome("IIP-MD05-cb-idp-01", Outcome.SATISFIED_WITH_NOTE, metadata(""));
+        assertOutcome("IIP-MD05-cc-idp-01", Outcome.SATISFIED_WITH_NOTE,
+                metadata(role("IDPSSODescriptor", SAML2, keyDescriptor("<ds:KeyName>hint</ds:KeyName>"))));
+        assertOutcome("IIP-MD05-d9-idp-01", Outcome.SATISFIED_WITH_NOTE,
+                metadata(entityAttributesAssertion("https://idp.example/entity",
+                        "<saml:Conditions/><saml:Advice/><saml:AttributeStatement/>")));
+
+        var rsaDescriptor = "<md:KeyDescriptor use=\"encryption\"><ds:KeyInfo><ds:X509Data>"
+                + "<ds:X509Certificate>" + certificate + "</ds:X509Certificate>"
+                + "</ds:X509Data></ds:KeyInfo>"
+                + encryptionMethod("http://www.w3.org/2009/xmlenc11#rsa-oaep")
+                + "</md:KeyDescriptor>";
+        assertOutcome("IIP-MD05-e2-idp-01", Outcome.SATISFIED,
+                metadata(role("IDPSSODescriptor", SAML2, rsaDescriptor)));
+        assertOutcome("IIP-MD05-e3-idp-01", Outcome.SATISFIED,
+                metadata(role("IDPSSODescriptor", SAML2,
+                        "<md:KeyDescriptor use=\"encryption\"><ds:KeyInfo><ds:KeyName>shared"
+                                + "</ds:KeyName></ds:KeyInfo>"
+                                + encryptionMethod("http://www.w3.org/2009/xmlenc11#aes128-gcm")
+                                + "</md:KeyDescriptor>")));
+        assertOutcome("IIP-MD05-ed-idp-01", Outcome.SATISFIED_WITH_NOTE, metadata(""));
+    }
+
+    @Test
     void publisherCertificateValidityIsObservedWithoutChangingConsumerAcceptance() throws Exception {
         var certificate = certificate();
         assertOutcome("IIP-MD05-ce-idp-01", Outcome.SATISFIED,
@@ -214,11 +252,73 @@ class TargetMetadataObservationTest {
     }
 
     @Test
+    void metadataExtensionContentMustUseAnExtensionNamespace() {
+        assertOutcome("IIP-MD05-a3-idp-01", Outcome.SATISFIED_WITH_NOTE, metadata(""));
+        assertOutcome("IIP-MD05-a3-idp-01", Outcome.SATISFIED,
+                metadata("<md:Extensions><ext:Custom/></md:Extensions>"));
+        assertOutcome("IIP-MD05-a3-idp-01", Outcome.VIOLATED,
+                metadata("<md:Extensions><md:Organization/></md:Extensions>"));
+        assertOutcome("IIP-MD05-a3-idp-01", Outcome.VIOLATED,
+                metadata("<md:Extensions><saml:Attribute Name=\"wrong-extension-point\"/></md:Extensions>"));
+    }
+
+    @Test
+    void entityAttributesContainersAndAssertionsAreCheckedStructurally() {
+        var validAssertion = entityAttributesAssertion(
+                "https://idp.example/entity", "<saml:AttributeStatement/>");
+        assertOutcome("IIP-MD05-d2-idp-01", Outcome.SATISFIED, metadata(validAssertion));
+        assertOutcome("IIP-MD05-d3-idp-01", Outcome.SATISFIED, metadata(validAssertion));
+        assertOutcome("IIP-MD05-d4-idp-01", Outcome.SATISFIED, metadata(validAssertion));
+        assertOutcome("IIP-MD05-d5-idp-01", Outcome.SATISFIED, metadata(validAssertion));
+        assertOutcome("IIP-MD05-d6-idp-01", Outcome.SATISFIED, metadata(validAssertion));
+        assertOutcome("IIP-MD05-d7-idp-01", Outcome.SATISFIED, metadata(validAssertion));
+
+        var underEntities = ("""
+                <md:EntitiesDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata"
+                  xmlns:mdattr="urn:oasis:names:tc:SAML:metadata:attribute"
+                  xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion">
+                  <md:Extensions><mdattr:EntityAttributes>
+                    <saml:Assertion><saml:AttributeStatement/></saml:Assertion>
+                  </mdattr:EntityAttributes></md:Extensions>
+                </md:EntitiesDescriptor>
+                """).getBytes(StandardCharsets.UTF_8);
+        assertOutcome("IIP-MD05-d2-idp-01", Outcome.VIOLATED, underEntities);
+
+        assertOutcome("IIP-MD05-d3-idp-01", Outcome.VIOLATED,
+                metadata("<md:Extensions><mdattr:EntityAttributes/><mdattr:EntityAttributes/></md:Extensions>"));
+        assertOutcome("IIP-MD05-d4-idp-01", Outcome.VIOLATED,
+                metadata(entityAttributesAssertion("https://other.example/entity", "<saml:AttributeStatement/>")));
+        assertOutcome("IIP-MD05-d5-idp-01", Outcome.VIOLATED,
+                metadata(entityAttributesAssertion("https://idp.example/entity",
+                        "<saml:SubjectConfirmation Method=\"urn:test\"/><saml:AttributeStatement/>")));
+        assertOutcome("IIP-MD05-d6-idp-01", Outcome.VIOLATED,
+                metadata(entityAttributesAssertion("https://idp.example/entity", "")));
+        assertOutcome("IIP-MD05-d6-idp-01", Outcome.VIOLATED,
+                metadata(entityAttributesAssertion("https://idp.example/entity",
+                        "<saml:AttributeStatement/><saml:AttributeStatement/>")));
+        assertOutcome("IIP-MD05-d7-idp-01", Outcome.VIOLATED,
+                metadata(entityAttributesAssertion("https://idp.example/entity",
+                        "<saml:AttributeStatement/><saml:AuthnStatement/>")));
+    }
+
+    @Test
+    void entityAttributeAssertionSignatureNeverTreatsPresenceAsCryptographicProof() {
+        assertOutcome("IIP-MD05-d8-idp-01", Outcome.SATISFIED_WITH_NOTE, metadata(""));
+        assertOutcome("IIP-MD05-d8-idp-01", Outcome.VIOLATED,
+                metadata(entityAttributesAssertion("https://idp.example/entity", "<saml:AttributeStatement/>")));
+        assertTrue(TargetMetadataObservation.evaluate(
+                "IIP-MD05-d8-idp-01",
+                metadata(entityAttributesAssertion(
+                        "https://idp.example/entity", "<ds:Signature/><saml:AttributeStatement/>")),
+                NOW).isEmpty());
+    }
+
+    @Test
     void malformedMetadataAndUnsupportedCasesRemainManual() {
         assertTrue(TargetMetadataObservation.evaluate(
                 "IIP-MD05-e6-idp-01", "<broken".getBytes(StandardCharsets.UTF_8), NOW).isEmpty());
         assertTrue(TargetMetadataObservation.evaluate(
-                "IIP-MD05-a6-idp-01", metadata(""), NOW).isEmpty());
+                "IIP-MD05-a2-idp-01", metadata(""), NOW).isEmpty());
         assertTrue(TargetMetadataObservation.supports("IIP-MD05-f1-sp-01"));
         assertFalse(TargetMetadataObservation.supports("IIP-MD05-fc-sp-01"));
     }
@@ -267,10 +367,20 @@ class TargetMetadataObservationTest {
                   xmlns:ds="http://www.w3.org/2000/09/xmldsig#"
                   xmlns:alg="urn:oasis:names:tc:SAML:metadata:algsupport"
                   xmlns:ui="urn:oasis:names:tc:SAML:metadata:ui"
+                  xmlns:mdattr="urn:oasis:names:tc:SAML:metadata:attribute"
+                  xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion"
                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                   xmlns:ext="urn:example:role" xmlns:alt="urn:example:role"
                   entityID="%s">%s</md:EntityDescriptor>
                 """.formatted(entityId, contents);
+    }
+
+    private String entityAttributesAssertion(String subjectEntityId, String assertionContents) {
+        return "<md:Extensions><mdattr:EntityAttributes><saml:Assertion>"
+                + "<saml:Subject><saml:NameID Format=\"urn:oasis:names:tc:SAML:2.0:nameid-format:entity\">"
+                + subjectEntityId + "</saml:NameID></saml:Subject>"
+                + assertionContents
+                + "</saml:Assertion></mdattr:EntityAttributes></md:Extensions>";
     }
 
     private String role(String localName, String protocols, String children) {

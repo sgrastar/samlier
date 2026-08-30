@@ -8,6 +8,7 @@ import javax.crypto.KeyGenerator;
 import org.apache.xml.security.Init;
 import org.apache.xml.security.encryption.XMLCipher;
 import org.apache.xml.security.keys.KeyInfo;
+import org.apache.xml.security.utils.EncryptionConstants;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.samlier.saml.normal.SamlException;
@@ -45,7 +46,47 @@ class SamlXmlDecrypterTest {
         assertThrows(SamlException.class, () -> new SamlXmlDecrypter().decrypt(wrapper, wrong.getPrivate()));
     }
 
+    @Test
+    void decryptsKeycloakStyleAes256GcmAndRsaOaep11Sha256() throws Exception {
+        var keys = KeyPairGenerator.getInstance("RSA");
+        keys.initialize(3072);
+        var pair = keys.generateKeyPair();
+        var wrapper = encryptedWrapper(
+                "EncryptedAssertion",
+                """
+                <saml:Assertion xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion" ID="_keycloak"/>
+                """,
+                pair.getPublic(),
+                XMLCipher.AES_256_GCM,
+                XMLCipher.RSA_OAEP_11,
+                XMLCipher.SHA256,
+                EncryptionConstants.MGF1_SHA256);
+
+        var plaintext = new SamlXmlDecrypter().decrypt(wrapper, pair.getPrivate());
+
+        assertEquals("Assertion", plaintext.getLocalName());
+        assertEquals("_keycloak", plaintext.getAttribute("ID"));
+    }
+
     static Element encryptedWrapper(String wrapperName, String plaintextXml, java.security.PublicKey publicKey) throws Exception {
+        return encryptedWrapper(
+                wrapperName,
+                plaintextXml,
+                publicKey,
+                XMLCipher.AES_128_GCM,
+                XMLCipher.RSA_OAEP,
+                null,
+                null);
+    }
+
+    static Element encryptedWrapper(
+            String wrapperName,
+            String plaintextXml,
+            java.security.PublicKey publicKey,
+            String dataAlgorithm,
+            String keyAlgorithm,
+            String digestAlgorithm,
+            String mgfAlgorithm) throws Exception {
         var document = SecureXml.parse(("""
                 <saml:%s xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion">%s</saml:%s>
                 """).formatted(wrapperName, plaintextXml, wrapperName).getBytes(java.nio.charset.StandardCharsets.UTF_8));
@@ -55,14 +96,18 @@ class SamlXmlDecrypterTest {
         }
         var plaintext = (Element) child;
         var keyGenerator = KeyGenerator.getInstance("AES");
-        keyGenerator.init(128);
+        keyGenerator.init(XMLCipher.AES_256_GCM.equals(dataAlgorithm) ? 256 : 128);
         var dataKey = keyGenerator.generateKey();
 
-        var dataCipher = XMLCipher.getInstance(XMLCipher.AES_128_GCM);
+        var dataCipher = XMLCipher.getInstance(dataAlgorithm);
         dataCipher.init(XMLCipher.ENCRYPT_MODE, dataKey);
-        var keyCipher = XMLCipher.getInstance(XMLCipher.RSA_OAEP);
+        var keyCipher = digestAlgorithm == null
+                ? XMLCipher.getInstance(keyAlgorithm)
+                : XMLCipher.getInstance(keyAlgorithm, null, digestAlgorithm);
         keyCipher.init(XMLCipher.WRAP_MODE, publicKey);
-        var encryptedKey = keyCipher.encryptKey(document, dataKey);
+        var encryptedKey = mgfAlgorithm == null
+                ? keyCipher.encryptKey(document, dataKey)
+                : keyCipher.encryptKey(document, dataKey, mgfAlgorithm, null);
         var keyInfo = new KeyInfo(document);
         keyInfo.add(encryptedKey);
         dataCipher.getEncryptedData().setKeyInfo(keyInfo);

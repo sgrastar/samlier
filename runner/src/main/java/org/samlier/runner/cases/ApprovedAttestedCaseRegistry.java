@@ -4,6 +4,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Function;
 import org.samlier.core.casedef.CaseDefinitionCatalog;
 import org.samlier.core.casedef.CaseDefinitionCatalog.CaseDefinition;
 import org.samlier.core.casedef.CaseDefinitionCatalog.ExecutionMode;
@@ -23,20 +24,58 @@ public final class ApprovedAttestedCaseRegistry {
     }
 
     public static TestCaseRegistry create(CaseDefinitionCatalog definitions, Milestone milestone) {
+        return create(definitions, milestone, null, null, null, null, null);
+    }
+
+    public static TestCaseRegistry create(
+            CaseDefinitionCatalog definitions,
+            Milestone milestone,
+            java.net.URI publicBase,
+            Function<String, IdpErrorProbeConfiguration> idpScenarioConfigurations,
+            org.samlier.core.transcript.TranscriptContentReader transcriptContent,
+            Function<String, java.util.Optional<String>> targetEntityIds,
+            Function<String, List<java.security.cert.X509Certificate>> targetSigningCertificates) {
         Objects.requireNonNull(definitions, "definitions");
         Objects.requireNonNull(milestone, "milestone");
-        var cases = new ArrayList<AttestedOutcomeTestCase>();
+        var cases = new ArrayList<org.samlier.core.caseexec.TestCase>();
         definitions.cases().stream()
                 .filter(value -> value.milestone() == milestone)
                 .filter(value -> value.mode() == ExecutionMode.ATTESTED)
-                .map(ApprovedAttestedCaseRegistry::createCase)
+                .map(value -> createCase(
+                        value, idpScenarioConfigurations, transcriptContent,
+                        targetEntityIds, targetSigningCertificates, publicBase))
                 .forEach(cases::add);
         var registry = new TestCaseRegistry(cases);
         CaseImplementationAudit.requireExact(definitions, registry, milestone, ExecutionMode.ATTESTED);
         return registry;
     }
 
-    private static AttestedOutcomeTestCase createCase(CaseDefinition definition) {
+    private static org.samlier.core.caseexec.TestCase createCase(
+            CaseDefinition definition,
+            Function<String, IdpErrorProbeConfiguration> idpScenarioConfigurations,
+            org.samlier.core.transcript.TranscriptContentReader transcriptContent,
+            Function<String, java.util.Optional<String>> targetEntityIds,
+            Function<String, List<java.security.cert.X509Certificate>> targetSigningCertificates,
+            java.net.URI publicBase) {
+        if (List.of("IIP-IDP13-b-idp-01", "IIP-IDP14-b-idp-01").contains(definition.id())) {
+            return new InformationalChoiceTestCase(definition.id(), definition.role());
+        }
+        if (idpScenarioConfigurations != null
+                && IdpForceAuthnScenarioTestCase.MECHANISM_ACCESS_CASE.equals(definition.id())) {
+            return new IdpForceAuthnScenarioTestCase(definition.id(), idpScenarioConfigurations);
+        }
+        if (idpScenarioConfigurations != null
+                && IdpTimePrecisionScenarioTestCase.CASE_ID.equals(definition.id())) {
+            return new IdpTimePrecisionScenarioTestCase(idpScenarioConfigurations);
+        }
+        if (transcriptContent != null && publicBase != null
+                && "IIP-IDP17-ak-idp-01".equals(definition.id())) {
+            return new LogoutAttestedEvidenceTestCase(
+                    definition.id(), definition.role(), publicBase, transcriptContent,
+                    targetEntityIds == null ? ignored -> java.util.Optional.empty() : targetEntityIds,
+                    targetSigningCertificates == null ? ignored -> List.of() : targetSigningCertificates,
+                    LogoutTranscriptProfileCase.Rule.REQUEST_VERSION_2);
+        }
         return new AttestedOutcomeTestCase(
                 definition.id(),
                 definition.role(),

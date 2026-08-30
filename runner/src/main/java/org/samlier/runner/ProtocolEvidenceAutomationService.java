@@ -45,13 +45,28 @@ public final class ProtocolEvidenceAutomationService {
     }
 
     public Evaluation evaluateReady(String runId) {
+        return evaluate(runId, false);
+    }
+
+    /**
+     * Finishes a metadata campaign after the operator confirms that every selected fixture was
+     * refreshed or re-imported and the corresponding protocol operation was attempted. This is a
+     * single operation confirmation, not a per-case verdict questionnaire; each case still derives
+     * its own outcome from Transcript evidence.
+     */
+    public Evaluation evaluateAttempted(String runId) {
+        return evaluate(runId, true);
+    }
+
+    private Evaluation evaluate(String runId, boolean attemptsConfirmed) {
         var before = status(runId);
         var context = contexts.contextFor(runId);
         var completed = new ArrayList<CompletedCase>();
         for (var candidate : before.cases()) {
-            if (!candidate.ready()) continue;
+            if (!candidate.ready() && !attemptsConfirmed) continue;
             var testCase = registry.require(candidate.caseId());
             var beforeExecution = executions.find(runId, candidate.caseId()).orElseThrow();
+            if (attemptsConfirmed && beforeExecution.status() != CaseExecutionStatus.WAITING_CONFIG) continue;
             var event = beforeExecution.status() == CaseExecutionStatus.WAITING_BROWSER
                     ? new CaseEvent.TranscriptReady()
                     : new CaseEvent.ConfigConfirmed();

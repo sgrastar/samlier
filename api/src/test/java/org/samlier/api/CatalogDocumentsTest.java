@@ -18,9 +18,15 @@ import org.samlier.runner.cases.ApprovedAttestedCaseRegistry;
 import org.samlier.runner.cases.ApprovedConfigCaseRegistry;
 import org.samlier.runner.cases.ApprovedBrowserCaseRegistry;
 import org.samlier.runner.cases.BrowserEvidenceTestCase;
+import org.samlier.runner.cases.AttestationPrompt;
 import org.samlier.runner.cases.M2AutomatedCaseRegistry;
 import org.samlier.runner.cases.M3AutomatedCaseRegistry;
 import org.samlier.runner.cases.AttestedOutcomeTestCase;
+import org.samlier.runner.cases.ProtocolEvidenceCase;
+import org.samlier.runner.cases.InformationalChoiceTestCase;
+import org.samlier.runner.BrowserFrontChannelScenario;
+import org.samlier.runner.cases.IdpErrorProbeConfiguration;
+import org.samlier.core.plan.TargetRole;
 import org.samlier.core.casedef.CaseDefinitionCatalog.ExecutionMode;
 import org.samlier.core.casedef.CaseDefinitionCatalog.Milestone;
 
@@ -75,6 +81,114 @@ class CatalogDocumentsTest {
         assertFalse(digests.compositeDigest().isBlank());
         assertArrayEquals(Files.readAllBytes(repositoryRoot().resolve("tests/coverage.yaml")),
                 documents.bytes("tests/coverage.yaml"));
+    }
+
+    @Test
+    void browserAutomationCannotSilentlyRegressBackToQuestionnaires() {
+        var cases = CaseDefinitionCatalogMapper.fromDocument(
+                CatalogDocuments.load().parsed("tests/cases.yaml"));
+        var configuration = new IdpErrorProbeConfiguration(
+                java.net.URI.create("https://idp.example/sso"), "https://suite.example/sp",
+                java.net.URI.create("https://suite.example/sp/acs/0"),
+                java.time.Duration.ofMinutes(5), true, true, true);
+        var m1 = ApprovedBrowserCaseRegistry.create(
+                cases, java.net.URI.create("https://suite.example"), ignored -> new byte[0],
+                ignored -> java.util.Optional.empty(), ignored -> java.util.Optional.of("https://idp.example"),
+                ignored -> java.util.List.of(), ignored -> configuration,
+                ignored -> java.util.Optional.empty());
+        var automatedM1Idp = m1.forRole(TargetRole.IDP).stream().filter(value ->
+                value instanceof ProtocolEvidenceCase || value instanceof BrowserFrontChannelScenario).count();
+        assertEquals(59, automatedM1Idp,
+                "Update this explicit automatic-oracle inventory when adding or removing an oracle");
+        assertTrue(m1.forRole(TargetRole.IDP).stream().noneMatch(AttestationPrompt.class::isInstance),
+                "A browser action must never be followed by an operator-supplied verdict");
+
+        var m3 = ApprovedBrowserCaseRegistry.create(
+                cases, java.net.URI.create("https://suite.example"), Milestone.M3,
+                ignored -> new byte[0], ignored -> java.util.Optional.empty(),
+                ignored -> java.util.Optional.of("https://idp.example"), ignored -> java.util.List.of());
+        var automatedM3Idp = m3.forRole(TargetRole.IDP).stream()
+                .filter(ProtocolEvidenceCase.class::isInstance).count();
+        assertEquals(12, automatedM3Idp,
+                "Update this explicit no-questionnaire inventory when adding or removing an SLO oracle");
+        assertTrue(m3.forRole(TargetRole.IDP).stream().noneMatch(AttestationPrompt.class::isInstance),
+                "An SLO browser action must never be followed by an operator-supplied verdict");
+    }
+
+    @Test
+    void idpFullAutomaticOracleBudgetStaysAboveHalf() {
+        var cases = CaseDefinitionCatalogMapper.fromDocument(
+                CatalogDocuments.load().parsed("tests/cases.yaml"));
+        var publicBase = java.net.URI.create("https://suite.example");
+        var configuration = new IdpErrorProbeConfiguration(
+                java.net.URI.create("https://idp.example/sso"), "https://suite.example/sp",
+                java.net.URI.create("https://suite.example/sp/acs/0"),
+                java.time.Duration.ofMinutes(5), true, true, true);
+        org.samlier.core.transcript.TranscriptContentReader content = ignored -> new byte[0];
+
+        var m1Browser = ApprovedBrowserCaseRegistry.create(
+                cases, publicBase, content,
+                ignored -> java.util.Optional.empty(), ignored -> java.util.Optional.of("https://idp.example"),
+                ignored -> java.util.List.of(), ignored -> configuration,
+                ignored -> java.util.Optional.empty());
+        var m3Browser = ApprovedBrowserCaseRegistry.create(
+                cases, publicBase, Milestone.M3, content,
+                ignored -> java.util.Optional.empty(), ignored -> java.util.Optional.of("https://idp.example"),
+                ignored -> java.util.List.of());
+        var m2Browser = ApprovedBrowserCaseRegistry.create(cases, publicBase, Milestone.M2);
+        var m1Attested = ApprovedAttestedCaseRegistry.create(
+                cases, Milestone.M1, publicBase, ignored -> configuration, content,
+                ignored -> java.util.Optional.of("https://idp.example"), ignored -> java.util.List.of());
+        var m3Attested = ApprovedAttestedCaseRegistry.create(
+                cases, Milestone.M3, publicBase, null, content,
+                ignored -> java.util.Optional.of("https://idp.example"), ignored -> java.util.List.of());
+        var m2Config = ApprovedConfigCaseRegistry.create(
+                cases, Milestone.M2, ignored -> """
+                        <md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata"
+                          entityID="https://idp.example"/>
+                        """.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        var m1Config = ApprovedConfigCaseRegistry.create(
+                cases, Milestone.M1, ignored -> """
+                        <md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata"
+                          entityID="https://idp.example"/>
+                        """.getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                content, ignored -> java.util.Optional.empty());
+
+        var automated = cases.cases().stream()
+                .filter(value -> value.role() == TargetRole.IDP)
+                .filter(value -> value.mode() == ExecutionMode.AUTOMATED).count();
+        var conclusiveBrowser = java.util.stream.Stream.concat(
+                        m1Browser.forRole(TargetRole.IDP).stream(),
+                        m3Browser.forRole(TargetRole.IDP).stream())
+                .filter(value -> value instanceof ProtocolEvidenceCase
+                        || value instanceof BrowserFrontChannelScenario
+                        || value instanceof InformationalChoiceTestCase)
+                .count();
+        var conclusiveAttested = java.util.stream.Stream.concat(
+                        m1Attested.forRole(TargetRole.IDP).stream(),
+                        m3Attested.forRole(TargetRole.IDP).stream())
+                .filter(value -> !(value instanceof AttestationPrompt)).count();
+        var conclusiveConfig = java.util.stream.Stream.concat(
+                        m1Config.forRole(TargetRole.IDP).stream(),
+                        m2Config.forRole(TargetRole.IDP).stream())
+                .filter(value -> !value.getClass().getSimpleName().equals("ConfigurationGateTestCase"))
+                .count();
+        var totalIdpFull = cases.cases().stream()
+                .filter(value -> value.role() == TargetRole.IDP).count();
+        var conclusive = automated + conclusiveBrowser + conclusiveAttested + conclusiveConfig;
+        var browserActions = java.util.stream.Stream.of(m1Browser, m2Browser, m3Browser)
+                .flatMap(registry -> registry.forRole(TargetRole.IDP).stream()).count();
+        var questionnaireFree = automated + browserActions + conclusiveAttested + conclusiveConfig;
+
+        assertEquals(413, totalIdpFull);
+        assertEquals(223, conclusive,
+                "Update this explicit IDP Full automatic-oracle inventory when an oracle changes: automated="
+                        + automated + ", browser=" + conclusiveBrowser + ", attested="
+                        + conclusiveAttested + ", config=" + conclusiveConfig);
+        assertTrue(conclusive * 2 > totalIdpFull,
+                "At least half of IDP Full must conclude without an operator-supplied verdict");
+        assertEquals(280, questionnaireFree,
+                "Update this explicit IDP Full no-questionnaire inventory when an interaction changes");
     }
 
     private Path repositoryRoot() {

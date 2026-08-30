@@ -6,6 +6,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Function;
+import org.samlier.runner.RunCampaignQuery;
 import org.samlier.core.evaluation.CaseRun;
 import org.samlier.core.evaluation.RunResult;
 import org.samlier.core.plan.TestPlan;
@@ -18,6 +19,7 @@ public final class DefaultResultContextProvider implements ResultContextProvider
     private final URI requirementCatalog;
     private final URI caseCatalog;
     private final Function<TestRun, byte[]> targetMetadata;
+    private final Function<String, RunCampaignQuery.CampaignReport> campaigns;
 
     public DefaultResultContextProvider(
             ResultDocumentContext.Suite suite,
@@ -25,11 +27,22 @@ public final class DefaultResultContextProvider implements ResultContextProvider
             URI requirementCatalog,
             URI caseCatalog,
             Function<TestRun, byte[]> targetMetadata) {
+        this(suite, components, requirementCatalog, caseCatalog, targetMetadata, null);
+    }
+
+    public DefaultResultContextProvider(
+            ResultDocumentContext.Suite suite,
+            ResultDocumentContext.EvaluationComponents components,
+            URI requirementCatalog,
+            URI caseCatalog,
+            Function<TestRun, byte[]> targetMetadata,
+            Function<String, RunCampaignQuery.CampaignReport> campaigns) {
         this.suite = Objects.requireNonNull(suite, "suite");
         this.components = Objects.requireNonNull(components, "components");
         this.requirementCatalog = absolute(requirementCatalog, "requirementCatalog");
         this.caseCatalog = absolute(caseCatalog, "caseCatalog");
         this.targetMetadata = Objects.requireNonNull(targetMetadata, "targetMetadata");
+        this.campaigns = campaigns;
     }
 
     @Override
@@ -48,6 +61,11 @@ public final class DefaultResultContextProvider implements ResultContextProvider
         if (metadata == null || metadata.length == 0) {
             throw new IllegalStateException("Target metadata is unavailable for public result provenance");
         }
+        var evidenceClasses = new LinkedHashMap<String, String>();
+        if (campaigns != null) {
+            campaigns.apply(run.id()).campaigns().forEach(campaign -> campaign.caseIds().forEach(caseId ->
+                    evidenceClasses.put(caseId, campaign.evidenceClass().name())));
+        }
         return new ResultDocumentContext(
                 suite, components,
                 new ResultDocumentContext.ProfileSpec(
@@ -56,7 +74,7 @@ public final class DefaultResultContextProvider implements ResultContextProvider
                         "Core and Full are Samlier test scopes; the RFC 2119 level of each obligation remains authoritative."),
                 new ResultDocumentContext.TargetDeclaration(
                         plan.name(), "Test Plan operator", EvaluationArtifactDigests.digestBytes(metadata)),
-                requirementUrls, caseUrls, List.of());
+                requirementUrls, caseUrls, evidenceClasses, List.of());
     }
 
     private static URI absolute(URI value, String name) {

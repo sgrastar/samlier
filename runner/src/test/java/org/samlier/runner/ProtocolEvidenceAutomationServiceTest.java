@@ -80,6 +80,40 @@ class ProtocolEvidenceAutomationServiceTest {
     }
 
     @Test
+    void oneCampaignConfirmationFinishesConfigCasesWithoutAskingForPerCaseVerdicts() {
+        var repository = new MemoryExecutions();
+        var transitions = new CaseExecutionService(repository);
+        var first = new MetadataConsumerObservationTestCase(
+                "IIP-MD05-an-sp-01", TargetRole.SP,
+                MetadataConsumerObservationTestCase.Rule.EXCLUDED_CONTENT);
+        var second = new MetadataConsumerObservationTestCase(
+                "IIP-MD05-an-sp-02", TargetRole.SP,
+                MetadataConsumerObservationTestCase.Rule.EXCLUDED_CONTENT);
+        var entries = List.of(
+                fetch("control", 1), use("control", 2),
+                fetch("xpath-exclude-role-descriptors", 3),
+                fetch("xpath-exclude-endpoints", 4),
+                fetch("xpath-exclude-key-descriptors", 5));
+        var context = context(entries);
+        transitions.start(RUN, first, context);
+        transitions.start(RUN, second, context);
+        var service = new ProtocolEvidenceAutomationService(
+                repository, new TestCaseRegistry(List.of(first, second)), transitions, ignored -> context);
+
+        assertEquals(0, service.status(RUN).readyCases(), "silence alone is not auto-conclusive");
+        var evaluation = service.evaluateAttempted(RUN);
+
+        assertEquals(List.of(
+                new ProtocolEvidenceAutomationService.CompletedCase(first.id(), Outcome.SATISFIED),
+                new ProtocolEvidenceAutomationService.CompletedCase(second.id(), Outcome.SATISFIED)),
+                evaluation.completed());
+        assertEquals(CaseExecutionStatus.FINISHED,
+                repository.find(RUN, first.id()).orElseThrow().status());
+        assertEquals(CaseExecutionStatus.FINISHED,
+                repository.find(RUN, second.id()).orElseThrow().status());
+    }
+
+    @Test
     void advancesABrowserWaitOnlyFromSuiteObservedTranscriptReadiness() {
         var repository = new MemoryExecutions();
         var transitions = new CaseExecutionService(repository);

@@ -5,6 +5,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.security.cert.X509Certificate;
 import org.samlier.core.casedef.CaseDefinitionCatalog;
 import org.samlier.core.casedef.CaseDefinitionCatalog.CaseDefinition;
 import org.samlier.core.casedef.CaseDefinitionCatalog.ExecutionMode;
@@ -29,7 +30,8 @@ public final class ApprovedBrowserCaseRegistry {
             CaseDefinitionCatalog definitions, URI publicBase, TranscriptContentReader transcriptContent) {
         return create(
                 definitions, publicBase, Milestone.M1, transcriptContent,
-                ignored -> java.util.Optional.empty(), ignored -> java.util.Optional.empty(), null);
+                ignored -> java.util.Optional.empty(), ignored -> java.util.Optional.empty(),
+                ignored -> List.of(), null, ignored -> java.util.Optional.empty());
     }
 
     public static TestCaseRegistry create(
@@ -39,7 +41,8 @@ public final class ApprovedBrowserCaseRegistry {
             SamlDecryptionKeyProvider decryptionKeys) {
         return create(
                 definitions, publicBase, Milestone.M1, transcriptContent, decryptionKeys,
-                ignored -> java.util.Optional.empty(), null);
+                ignored -> java.util.Optional.empty(), ignored -> List.of(), null,
+                ignored -> java.util.Optional.empty());
     }
 
     public static TestCaseRegistry create(
@@ -50,7 +53,8 @@ public final class ApprovedBrowserCaseRegistry {
             java.util.function.Function<String, java.util.Optional<String>> targetEntityIds) {
         return create(
                 definitions, publicBase, Milestone.M1, transcriptContent,
-                decryptionKeys, targetEntityIds, null);
+                decryptionKeys, targetEntityIds, ignored -> List.of(), null,
+                ignored -> java.util.Optional.empty());
     }
 
     public static TestCaseRegistry create(
@@ -60,14 +64,54 @@ public final class ApprovedBrowserCaseRegistry {
             SamlDecryptionKeyProvider decryptionKeys,
             java.util.function.Function<String, java.util.Optional<String>> targetEntityIds,
             java.util.function.Function<String, IdpErrorProbeConfiguration> idpScenarioConfigurations) {
+        return create(definitions, publicBase, transcriptContent, decryptionKeys, targetEntityIds,
+                ignored -> List.of(), idpScenarioConfigurations);
+    }
+
+    public static TestCaseRegistry create(
+            CaseDefinitionCatalog definitions,
+            URI publicBase,
+            TranscriptContentReader transcriptContent,
+            SamlDecryptionKeyProvider decryptionKeys,
+            java.util.function.Function<String, java.util.Optional<String>> targetEntityIds,
+            java.util.function.Function<String, List<X509Certificate>> targetSigningCertificates,
+            java.util.function.Function<String, IdpErrorProbeConfiguration> idpScenarioConfigurations) {
+        return create(definitions, publicBase, transcriptContent, decryptionKeys, targetEntityIds,
+                targetSigningCertificates, idpScenarioConfigurations,
+                ignored -> java.util.Optional.empty());
+    }
+
+    public static TestCaseRegistry create(
+            CaseDefinitionCatalog definitions,
+            URI publicBase,
+            TranscriptContentReader transcriptContent,
+            SamlDecryptionKeyProvider decryptionKeys,
+            java.util.function.Function<String, java.util.Optional<String>> targetEntityIds,
+            java.util.function.Function<String, List<X509Certificate>> targetSigningCertificates,
+            java.util.function.Function<String, IdpErrorProbeConfiguration> idpScenarioConfigurations,
+            SamlPlanCredentialsProvider suiteCredentials) {
         return create(
                 definitions, publicBase, Milestone.M1, transcriptContent,
-                decryptionKeys, targetEntityIds, idpScenarioConfigurations);
+                decryptionKeys, targetEntityIds, targetSigningCertificates,
+                idpScenarioConfigurations, suiteCredentials);
     }
 
     public static TestCaseRegistry create(
             CaseDefinitionCatalog definitions, URI publicBase, Milestone milestone) {
         return create(definitions, publicBase, milestone, null);
+    }
+
+    public static TestCaseRegistry create(
+            CaseDefinitionCatalog definitions,
+            URI publicBase,
+            Milestone milestone,
+            TranscriptContentReader transcriptContent,
+            SamlDecryptionKeyProvider decryptionKeys,
+            java.util.function.Function<String, java.util.Optional<String>> targetEntityIds,
+            java.util.function.Function<String, List<X509Certificate>> targetSigningCertificates) {
+        return create(
+                definitions, publicBase, milestone, transcriptContent, decryptionKeys,
+                targetEntityIds, targetSigningCertificates, null, ignored -> java.util.Optional.empty());
     }
 
     private static TestCaseRegistry create(
@@ -77,7 +121,8 @@ public final class ApprovedBrowserCaseRegistry {
             TranscriptContentReader transcriptContent) {
         return create(
                 definitions, publicBase, milestone, transcriptContent,
-                ignored -> java.util.Optional.empty(), ignored -> java.util.Optional.empty(), null);
+                ignored -> java.util.Optional.empty(), ignored -> java.util.Optional.empty(),
+                ignored -> List.of(), null, ignored -> java.util.Optional.empty());
     }
 
     private static TestCaseRegistry create(
@@ -87,7 +132,9 @@ public final class ApprovedBrowserCaseRegistry {
             TranscriptContentReader transcriptContent,
             SamlDecryptionKeyProvider decryptionKeys,
             java.util.function.Function<String, java.util.Optional<String>> targetEntityIds,
-            java.util.function.Function<String, IdpErrorProbeConfiguration> idpScenarioConfigurations) {
+            java.util.function.Function<String, List<X509Certificate>> targetSigningCertificates,
+            java.util.function.Function<String, IdpErrorProbeConfiguration> idpScenarioConfigurations,
+            SamlPlanCredentialsProvider suiteCredentials) {
         Objects.requireNonNull(definitions, "definitions");
         Objects.requireNonNull(publicBase, "publicBase");
         Objects.requireNonNull(milestone, "milestone");
@@ -98,7 +145,7 @@ public final class ApprovedBrowserCaseRegistry {
                 .filter(value -> value.mode() == ExecutionMode.BROWSER)
                 .map(value -> createCase(
                         value, publicBase, transcriptContent, decryptionKeys, targetEntityIds,
-                        idpScenarioConfigurations))
+                        targetSigningCertificates, idpScenarioConfigurations, suiteCredentials))
                 .forEach(cases::add);
         var registry = new TestCaseRegistry(cases);
         CaseImplementationAudit.requireExact(definitions, registry, milestone, ExecutionMode.BROWSER);
@@ -111,13 +158,77 @@ public final class ApprovedBrowserCaseRegistry {
             TranscriptContentReader transcriptContent,
             SamlDecryptionKeyProvider decryptionKeys,
             java.util.function.Function<String, java.util.Optional<String>> targetEntityIds,
-            java.util.function.Function<String, IdpErrorProbeConfiguration> idpScenarioConfigurations) {
+            java.util.function.Function<String, List<X509Certificate>> targetSigningCertificates,
+            java.util.function.Function<String, IdpErrorProbeConfiguration> idpScenarioConfigurations,
+            SamlPlanCredentialsProvider suiteCredentials) {
+        if (List.of(
+                "IIP-SSO01-bk-idp-01", "IIP-EXT01-b1-idp-01",
+                "IIP-EXT01-c1-idp-01", "IIP-ALG05-a-idp-01").contains(definition.id())) {
+            return new InformationalChoiceTestCase(definition.id(), definition.role());
+        }
         if (idpScenarioConfigurations != null && List.of(
                 IdpNameIdPolicyScenarioTestCase.PROCESSING_CASE,
                 IdpNameIdPolicyScenarioTestCase.REJECTION_CASE,
                 IdpNameIdPolicyScenarioTestCase.CONFORMANCE_CASE).contains(definition.id())) {
             return new IdpNameIdPolicyScenarioTestCase(
                     definition.id(), idpScenarioConfigurations, decryptionKeys);
+        }
+        if (idpScenarioConfigurations != null && List.of(
+                IdpErrorAssertionScenarioTestCase.SUBJECT_ERROR_CASE,
+                IdpErrorAssertionScenarioTestCase.ERROR_ASSERTION_CASE).contains(definition.id())) {
+            return new IdpErrorAssertionScenarioTestCase(
+                    definition.id(), idpScenarioConfigurations);
+        }
+        if (idpScenarioConfigurations != null
+                && IdpUnknownExtensionScenarioTestCase.CASE_ID.equals(definition.id())) {
+            return new IdpUnknownExtensionScenarioTestCase(idpScenarioConfigurations);
+        }
+        if (idpScenarioConfigurations != null
+                && IdpVersionScenarioTestCase.CASE_ID.equals(definition.id())) {
+            return new IdpVersionScenarioTestCase(idpScenarioConfigurations);
+        }
+        if (idpScenarioConfigurations != null
+                && IdpAuthnContextScenarioTestCase.CASE_ID.equals(definition.id())) {
+            return new IdpAuthnContextScenarioTestCase(idpScenarioConfigurations);
+        }
+        if (idpScenarioConfigurations != null
+                && IdpDestinationScenarioTestCase.CASE_ID.equals(definition.id())) {
+            return new IdpDestinationScenarioTestCase(idpScenarioConfigurations);
+        }
+        if (idpScenarioConfigurations != null
+                && IdpForceAuthnScenarioTestCase.CASE_ID.equals(definition.id())) {
+            return new IdpForceAuthnScenarioTestCase(idpScenarioConfigurations);
+        }
+        if (idpScenarioConfigurations != null && suiteCredentials != null && List.of(
+                IdpSignedRequestScenarioTestCase.VERIFY_CASE,
+                IdpSignedRequestScenarioTestCase.RELIANCE_CASE,
+                IdpSignedRequestScenarioTestCase.ERROR_CASE,
+                IdpSignedRequestScenarioTestCase.EXCLUDED_CONTENT_CASE,
+                IdpSignedRequestScenarioTestCase.SIGNED_OBJECT_CASE,
+                IdpSignedRequestScenarioTestCase.SHA256_DIGEST_CASE,
+                IdpSignedRequestScenarioTestCase.RSA_SHA256_CASE).contains(definition.id())) {
+            return new IdpSignedRequestScenarioTestCase(
+                    definition.id(), idpScenarioConfigurations, suiteCredentials);
+        }
+        if (idpScenarioConfigurations != null && List.of(
+                IdpInvalidRequestScenarioTestCase.STATUS_CASE,
+                IdpInvalidRequestScenarioTestCase.CORRELATION_CASE).contains(definition.id())) {
+            return new IdpInvalidRequestScenarioTestCase(
+                    definition.id(), idpScenarioConfigurations);
+        }
+        if (idpScenarioConfigurations != null && List.of(
+                IdpPassiveScenarioTestCase.PASSIVE_CASE,
+                IdpPassiveScenarioTestCase.FORCE_PASSIVE_CASE).contains(definition.id())) {
+            return new IdpPassiveScenarioTestCase(definition.id(), idpScenarioConfigurations);
+        }
+        if (idpScenarioConfigurations != null && List.of(
+                IdpAcsSelectionScenarioTestCase.INDEX_CASE,
+                IdpAcsSelectionScenarioTestCase.URL_CASE,
+                IdpAcsSelectionScenarioTestCase.BINDING_CASE,
+                IdpAcsSelectionScenarioTestCase.UNREGISTERED_URL_CASE,
+                IdpAcsSelectionScenarioTestCase.UNKNOWN_INDEX_CASE).contains(definition.id())) {
+            return new IdpAcsSelectionScenarioTestCase(
+                    definition.id(), idpScenarioConfigurations);
         }
         var transcriptDriven = transcriptContent != null && NormalFlowBrowserObservation.supports(definition.id());
         var evidence = new AttestedOutcomeTestCase(
@@ -133,9 +244,13 @@ public final class ApprovedBrowserCaseRegistry {
                                 "browser_evidence_unavailable")));
         var fallback = new BrowserEvidenceTestCase(
                 evidence, publicBase, browserPrompt(definition, transcriptDriven), BROWSER_TTL);
+        if (transcriptContent != null && LogoutBrowserEvidenceTestCase.supports(definition.id())) {
+            return new LogoutBrowserEvidenceTestCase(
+                    fallback, transcriptContent, targetEntityIds, targetSigningCertificates);
+        }
         if (transcriptDriven) {
             return new AutoBrowserEvidenceTestCase(
-                    fallback, transcriptContent, decryptionKeys, targetEntityIds);
+                    fallback, transcriptContent, decryptionKeys, targetEntityIds, targetSigningCertificates);
         }
         return fallback;
     }

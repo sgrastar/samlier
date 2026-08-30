@@ -32,6 +32,16 @@ export function ResultReport({ runId }: { runId: string }) {
       <Metric label="Unresolved MUST" value={String(result.coverage.mustUnresolved)} />
     </section>
 
+    <section className="panel report-section">
+      <h2>Evidence provenance</h2>
+      <p>Externally verified and self-attested evidence are reported separately; self-attestation is never presented as external verification.</p>
+      <dl>
+        <dt>Externally verified</dt><dd>{result.evidenceSummary.externallyVerified} cases</dd>
+        <dt>Self-attested</dt><dd>{result.evidenceSummary.selfAttested} cases</dd>
+        <dt>Not verified</dt><dd>{result.evidenceSummary.notVerified} cases</dd>
+      </dl>
+    </section>
+
     <section className="report-grid">
       <section className="panel">
         <h2>Target and provenance</h2>
