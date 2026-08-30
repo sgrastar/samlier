@@ -1,6 +1,7 @@
 package org.samlier.runner.cases;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
@@ -140,11 +141,86 @@ class TargetMetadataObservationTest {
     }
 
     @Test
+    void uiInfoPlacementContentCardinalityAndLanguagesAreObserved() {
+        assertOutcome("IIP-MD05-f1-idp-01", Outcome.SATISFIED_WITH_NOTE, metadata(""));
+        assertOutcome("IIP-MD05-f1-idp-01", Outcome.SATISFIED,
+                metadata(role("IDPSSODescriptor", SAML2,
+                        "<md:Extensions><ui:UIInfo><ui:DisplayName xml:lang=\"en\">Example</ui:DisplayName></ui:UIInfo></md:Extensions>")));
+        assertOutcome("IIP-MD05-f1-idp-01", Outcome.VIOLATED,
+                metadata("<md:Extensions><ui:UIInfo><ui:DisplayName xml:lang=\"en\">Example</ui:DisplayName></ui:UIInfo></md:Extensions>"));
+
+        assertOutcome("IIP-MD05-f2-idp-01", Outcome.VIOLATED,
+                metadata(role("IDPSSODescriptor", SAML2,
+                        "<md:Extensions><ui:UIInfo/></md:Extensions>")));
+        assertOutcome("IIP-MD05-f2-idp-01", Outcome.SATISFIED,
+                metadata(role("IDPSSODescriptor", SAML2,
+                        "<md:Extensions><ui:UIInfo><ext:Custom/></ui:UIInfo></md:Extensions>")));
+
+        assertOutcome("IIP-MD05-f3-sp-01", Outcome.VIOLATED,
+                metadata(role("SPSSODescriptor", SAML2,
+                        "<md:Extensions><ui:UIInfo/><ui:UIInfo/></md:Extensions>")));
+        assertOutcome("IIP-MD05-f3-sp-01", Outcome.SATISFIED,
+                metadata(role("SPSSODescriptor", SAML2,
+                        "<md:Extensions><ui:UIInfo/></md:Extensions>")));
+
+        assertOutcome("IIP-MD05-f4-idp-01", Outcome.VIOLATED,
+                metadata(role("IDPSSODescriptor", SAML2,
+                        "<md:Extensions><ui:UIInfo>"
+                                + "<ui:DisplayName xml:lang=\"en\">One</ui:DisplayName>"
+                                + "<ui:DisplayName xml:lang=\"en\">Two</ui:DisplayName>"
+                                + "</ui:UIInfo></md:Extensions>")));
+        assertOutcome("IIP-MD05-f4-idp-01", Outcome.SATISFIED,
+                metadata(role("IDPSSODescriptor", SAML2,
+                        "<md:Extensions><ui:UIInfo>"
+                                + "<ui:DisplayName xml:lang=\"en\">Name</ui:DisplayName>"
+                                + "<ui:Description xml:lang=\"en\">Description</ui:Description>"
+                                + "</ui:UIInfo></md:Extensions>")));
+    }
+
+    @Test
+    void discoHintsPlacementContentAndCardinalityAreObservedForIdpPublishers() {
+        assertOutcome("IIP-MD05-fc-idp-01", Outcome.SATISFIED_WITH_NOTE, metadata(""));
+        assertOutcome("IIP-MD05-fc-idp-01", Outcome.SATISFIED,
+                metadata(role("IDPSSODescriptor", SAML2,
+                        "<md:Extensions><ui:DiscoHints><ui:DomainHint>example.test</ui:DomainHint></ui:DiscoHints></md:Extensions>")));
+        assertOutcome("IIP-MD05-fc-idp-01", Outcome.VIOLATED,
+                metadata(role("SPSSODescriptor", SAML2,
+                        "<md:Extensions><ui:DiscoHints><ui:DomainHint>example.test</ui:DomainHint></ui:DiscoHints></md:Extensions>")));
+
+        assertOutcome("IIP-MD05-fd-idp-01", Outcome.VIOLATED,
+                metadata(role("IDPSSODescriptor", SAML2,
+                        "<md:Extensions><ui:DiscoHints/></md:Extensions>")));
+        assertOutcome("IIP-MD05-fd-idp-01", Outcome.SATISFIED,
+                metadata(role("IDPSSODescriptor", SAML2,
+                        "<md:Extensions><ui:DiscoHints><ext:Custom/></ui:DiscoHints></md:Extensions>")));
+
+        assertOutcome("IIP-MD05-fe-idp-01", Outcome.VIOLATED,
+                metadata(role("IDPSSODescriptor", SAML2,
+                        "<md:Extensions><ui:DiscoHints/><ui:DiscoHints/></md:Extensions>")));
+        assertOutcome("IIP-MD05-fe-idp-01", Outcome.SATISFIED,
+                metadata(role("IDPSSODescriptor", SAML2,
+                        "<md:Extensions><ui:DiscoHints/></md:Extensions>")));
+    }
+
+    @Test
+    void everyPublishedLogoCarriesBothDimensions() {
+        assertOutcome("IIP-MD05-fk-idp-01", Outcome.SATISFIED_WITH_NOTE, metadata(""));
+        assertOutcome("IIP-MD05-fk-idp-01", Outcome.SATISFIED,
+                metadata(role("IDPSSODescriptor", SAML2,
+                        "<md:Extensions><ui:UIInfo><ui:Logo height=\"32\" width=\"64\">https://example.test/logo.svg</ui:Logo></ui:UIInfo></md:Extensions>")));
+        assertOutcome("IIP-MD05-fk-idp-01", Outcome.VIOLATED,
+                metadata(role("IDPSSODescriptor", SAML2,
+                        "<md:Extensions><ui:UIInfo><ui:Logo height=\"32\">https://example.test/logo.svg</ui:Logo></ui:UIInfo></md:Extensions>")));
+    }
+
+    @Test
     void malformedMetadataAndUnsupportedCasesRemainManual() {
         assertTrue(TargetMetadataObservation.evaluate(
                 "IIP-MD05-e6-idp-01", "<broken".getBytes(StandardCharsets.UTF_8), NOW).isEmpty());
         assertTrue(TargetMetadataObservation.evaluate(
                 "IIP-MD05-a6-idp-01", metadata(""), NOW).isEmpty());
+        assertTrue(TargetMetadataObservation.supports("IIP-MD05-f1-sp-01"));
+        assertFalse(TargetMetadataObservation.supports("IIP-MD05-fc-sp-01"));
     }
 
     @Test
@@ -190,6 +266,7 @@ class TargetMetadataObservationTest {
                 <md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata"
                   xmlns:ds="http://www.w3.org/2000/09/xmldsig#"
                   xmlns:alg="urn:oasis:names:tc:SAML:metadata:algsupport"
+                  xmlns:ui="urn:oasis:names:tc:SAML:metadata:ui"
                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                   xmlns:ext="urn:example:role" xmlns:alt="urn:example:role"
                   entityID="%s">%s</md:EntityDescriptor>

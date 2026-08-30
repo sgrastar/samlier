@@ -28,7 +28,10 @@ final class TargetMetadataObservation {
     private static final String MD = "urn:oasis:names:tc:SAML:2.0:metadata";
     private static final String DS = "http://www.w3.org/2000/09/xmldsig#";
     private static final String ALG = "urn:oasis:names:tc:SAML:metadata:algsupport";
+    private static final String UI = "urn:oasis:names:tc:SAML:metadata:ui";
     private static final String SAML2 = "urn:oasis:names:tc:SAML:2.0:protocol";
+    private static final Set<String> LOCALIZED_UI_ELEMENTS = Set.of(
+            "DisplayName", "Description", "InformationURL", "PrivacyStatementURL", "Keywords");
     private static final Set<String> ROLE_ELEMENTS = Set.of(
             "RoleDescriptor", "IDPSSODescriptor", "SPSSODescriptor", "AuthnAuthorityDescriptor",
             "AttributeAuthorityDescriptor", "PDPDescriptor");
@@ -57,7 +60,9 @@ final class TargetMetadataObservation {
         return suffix(caseId, "a7") || suffix(caseId, "a9") || suffix(caseId, "ab")
                 || suffix(caseId, "c9") || suffix(caseId, "ca") || suffix(caseId, "ce")
                 || suffix(caseId, "e1") || suffix(caseId, "e4") || suffix(caseId, "e6")
-                || suffix(caseId, "ec");
+                || suffix(caseId, "ec") || suffix(caseId, "f1") || suffix(caseId, "f2")
+                || suffix(caseId, "f3") || suffix(caseId, "f4") || suffix(caseId, "fk")
+                || idpSuffix(caseId, "fc") || idpSuffix(caseId, "fd") || idpSuffix(caseId, "fe");
     }
 
     static Optional<CaseOutcome> evaluate(String caseId, byte[] metadata, Instant now) {
@@ -76,6 +81,18 @@ final class TargetMetadataObservation {
         if (suffix(caseId, "e4")) return Optional.of(requiredAlgorithm(document, MD, "EncryptionMethod", evidence));
         if (suffix(caseId, "e6")) return Optional.of(publishedSignatureAlgorithms(document, evidence));
         if (suffix(caseId, "ec")) return Optional.of(requiredAlgorithmElements(document, evidence));
+        if (suffix(caseId, "f1")) return Optional.of(uiInfoPlacement(document, evidence));
+        if (suffix(caseId, "f2")) return Optional.of(nonEmptyUiContainer(
+                document, "UIInfo", "metadata.publisher.ui-info-content", evidence));
+        if (suffix(caseId, "f3")) return Optional.of(singlePerExtensions(
+                document, "UIInfo", "metadata.publisher.ui-info-cardinality", evidence));
+        if (suffix(caseId, "f4")) return Optional.of(localizedUiLanguages(document, evidence));
+        if (idpSuffix(caseId, "fc")) return Optional.of(discoHintsPlacement(document, evidence));
+        if (idpSuffix(caseId, "fd")) return Optional.of(nonEmptyUiContainer(
+                document, "DiscoHints", "metadata.publisher.disco-hints-content", evidence));
+        if (idpSuffix(caseId, "fe")) return Optional.of(singlePerExtensions(
+                document, "DiscoHints", "metadata.publisher.disco-hints-cardinality", evidence));
+        if (suffix(caseId, "fk")) return Optional.of(logoDimensions(document, evidence));
         return Optional.empty();
     }
 
@@ -261,9 +278,115 @@ final class TargetMetadataObservation {
                 Map.of("elements", elements.size(), "missing_algorithm", violations));
     }
 
+    private static CaseOutcome uiInfoPlacement(Document document, List<EvidenceRef> evidence) {
+        var uiInfo = elements(document, UI, "UIInfo");
+        var invalid = new ArrayList<Integer>();
+        for (var index = 0; index < uiInfo.size(); index++) {
+            var extensions = parent(uiInfo.get(index));
+            var role = extensions == null ? null : parent(extensions);
+            if (extensions == null || !MD.equals(extensions.getNamespaceURI())
+                    || !"Extensions".equals(extensions.getLocalName())
+                    || role == null || !MD.equals(role.getNamespaceURI())
+                    || !ROLE_ELEMENTS.contains(role.getLocalName())) {
+                invalid.add(index);
+            }
+        }
+        return conditionalResult(
+                uiInfo.size(), invalid, "metadata.publisher.ui-info-placement", evidence,
+                Map.of("ui_info", uiInfo.size(), "invalid_placement", invalid));
+    }
+
+    private static CaseOutcome discoHintsPlacement(Document document, List<EvidenceRef> evidence) {
+        var hints = elements(document, UI, "DiscoHints");
+        var invalid = new ArrayList<Integer>();
+        for (var index = 0; index < hints.size(); index++) {
+            var extensions = parent(hints.get(index));
+            var role = extensions == null ? null : parent(extensions);
+            if (extensions == null || !MD.equals(extensions.getNamespaceURI())
+                    || !"Extensions".equals(extensions.getLocalName())
+                    || role == null || !MD.equals(role.getNamespaceURI())
+                    || !"IDPSSODescriptor".equals(role.getLocalName())) {
+                invalid.add(index);
+            }
+        }
+        return conditionalResult(
+                hints.size(), invalid, "metadata.publisher.disco-hints-placement", evidence,
+                Map.of("disco_hints", hints.size(), "invalid_placement", invalid));
+    }
+
+    private static CaseOutcome nonEmptyUiContainer(
+            Document document, String localName, String code, List<EvidenceRef> evidence) {
+        var containers = elements(document, UI, localName);
+        var empty = new ArrayList<Integer>();
+        for (var index = 0; index < containers.size(); index++) {
+            if (directElements(containers.get(index)).isEmpty()) empty.add(index);
+        }
+        return conditionalResult(
+                containers.size(), empty, code, evidence,
+                Map.of("containers", containers.size(), "empty", empty));
+    }
+
+    private static CaseOutcome singlePerExtensions(
+            Document document, String localName, String code, List<EvidenceRef> evidence) {
+        var observed = elements(document, UI, localName).size();
+        var invalid = new ArrayList<Integer>();
+        var extensions = elements(document, MD, "Extensions");
+        for (var index = 0; index < extensions.size(); index++) {
+            if (directElements(extensions.get(index), UI, localName).size() > 1) invalid.add(index);
+        }
+        return conditionalResult(
+                observed, invalid, code, evidence,
+                Map.of("elements", observed, "extensions_with_duplicates", invalid));
+    }
+
+    private static CaseOutcome localizedUiLanguages(Document document, List<EvidenceRef> evidence) {
+        var uiInfo = elements(document, UI, "UIInfo");
+        var localized = 0;
+        var duplicates = new ArrayList<String>();
+        for (var index = 0; index < uiInfo.size(); index++) {
+            var languages = new java.util.LinkedHashMap<String, Set<String>>();
+            for (var child : directElements(uiInfo.get(index))) {
+                if (!UI.equals(child.getNamespaceURI())
+                        || !LOCALIZED_UI_ELEMENTS.contains(child.getLocalName())) continue;
+                localized++;
+                var language = child.getAttributeNS(XMLConstants.XML_NS_URI, "lang");
+                var seen = languages.computeIfAbsent(child.getLocalName(), ignored -> new HashSet<>());
+                if (!seen.add(language)) duplicates.add(index + ":" + child.getLocalName() + ":" + language);
+            }
+        }
+        return conditionalResult(
+                localized, duplicates, "metadata.publisher.ui-info-languages", evidence,
+                Map.of("localized_elements", localized, "duplicates", duplicates));
+    }
+
+    private static CaseOutcome logoDimensions(Document document, List<EvidenceRef> evidence) {
+        var logos = elements(document, UI, "Logo");
+        var invalid = new ArrayList<Integer>();
+        for (var index = 0; index < logos.size(); index++) {
+            var logo = logos.get(index);
+            if (!logo.hasAttribute("height") || !logo.hasAttribute("width")) invalid.add(index);
+        }
+        return conditionalResult(
+                logos.size(), invalid, "metadata.publisher.logo-dimensions", evidence,
+                Map.of("logos", logos.size(), "missing_dimensions", invalid));
+    }
+
+    private static CaseOutcome conditionalResult(
+            int observed, List<?> violations, String code,
+            List<EvidenceRef> evidence, Map<String, Object> details) {
+        var outcome = !violations.isEmpty()
+                ? Outcome.VIOLATED
+                : observed == 0 ? Outcome.SATISFIED_WITH_NOTE : Outcome.SATISFIED;
+        return result(outcome, code, evidence, details);
+    }
+
     private static boolean suffix(String caseId, String suffix) {
         return caseId.startsWith("IIP-MD05-" + suffix + "-")
                 && (caseId.endsWith("-idp-01") || caseId.endsWith("-sp-01"));
+    }
+
+    private static boolean idpSuffix(String caseId, String suffix) {
+        return caseId.equals("IIP-MD05-" + suffix + "-idp-01");
     }
 
     private static List<Element> roleElements(Document document) {
@@ -313,6 +436,25 @@ final class TargetMetadataObservation {
                     && localName.equals(element.getLocalName())) return element;
         }
         return null;
+    }
+
+    private static Element parent(Element element) {
+        return element.getParentNode() instanceof Element parent ? parent : null;
+    }
+
+    private static List<Element> directElements(Element parent) {
+        var result = new ArrayList<Element>();
+        for (var child = parent.getFirstChild(); child != null; child = child.getNextSibling()) {
+            if (child instanceof Element element) result.add(element);
+        }
+        return result;
+    }
+
+    private static List<Element> directElements(Element parent, String namespace, String localName) {
+        return directElements(parent).stream()
+                .filter(value -> namespace.equals(value.getNamespaceURI())
+                        && localName.equals(value.getLocalName()))
+                .toList();
     }
 
     private static Set<String> tokens(String value) {
