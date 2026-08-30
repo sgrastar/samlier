@@ -390,6 +390,31 @@ and, for MUST, result in `conformance = INDETERMINATE` / `completeness = INCOMPL
 
 ### ★ Common Determination Procedure When Configuration Cannot Be Performed
 
+#### Shared bootstrap contracts (configuration is not a questionnaire)
+
+`mode: CONFIG` means that a case needs a known Target state. It does **not** mean that Runner must
+ask one question per case. Runner groups compatible prerequisites into a small set of Run-scoped
+bootstrap contracts and reuses the verified setup across cases.
+
+- **Standard metadata contract**: the operator registers one stable Suite metadata URL or MDQ
+  source. Samlier changes controlled fixtures behind that standard interface and records Target
+  fetches plus correlated SAML traffic. A vendor administration API is neither required nor used.
+- **Operator-policy contracts**: where SAML defines no management protocol (for example attribute
+  release or local algorithm policy), the operator prepares a small set of fixed Test Peer policy
+  states once. Protocol cases then exercise those states.
+- A metadata fetch proves only that the bootstrap channel was reached. It is not evidence that a
+  particular obligation was satisfied. Each case still needs its approved positive and negative
+  controls and must derive its outcome from observed behavior.
+- If the Target supports only static file import, the manual fallback remains available. Cases that
+  require refresh behavior remain `NOT_VERIFIED` unless the required behavior can actually be
+  observed; static import is not silently treated as dynamic consumption.
+- A Run-level evidence evaluation may resume multiple ready cases at once, but only when each case's
+  approved implementation declares its own required observations complete. Incomplete cases remain in
+  `WAITING_CONFIG`; the shared action cannot convert them to `NOT_VERIFIED`, `satisfied`, or `violated`.
+
+Product-specific adapters may exist only as development fixtures and cannot be part of a published
+conformance determination.
+
 Many obligations require the **capability** to “**be able to …**”
 (*MUST support the ability to …* / *MUST be configurable with …* / *MUST be capable of …*).
 The fact that the target could not be configured into the desired state

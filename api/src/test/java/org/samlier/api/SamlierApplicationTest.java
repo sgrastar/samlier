@@ -71,6 +71,41 @@ class SamlierApplicationTest {
             assertTrue(createdRun.body().contains("\"managementUrl\":null"));
             var runId = createdRun.body().replaceFirst("(?s).*\"id\":\"(run_[0-9A-Z]+)\".*", "$1");
             assertTrue(runId.matches("run_[0-9A-HJKMNP-TV-Z]{26}"));
+            var protocolEvidence = client.send(HttpRequest.newBuilder(base.resolve(
+                            "/api/runs/" + runId + "/protocol-evidence")).build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, protocolEvidence.statusCode(), protocolEvidence.body());
+            assertTrue(protocolEvidence.body().contains("\"eligibleCases\":0"));
+            assertTrue(protocolEvidence.body().contains("\"readyCases\":0"));
+            var lab = client.send(HttpRequest.newBuilder(base.resolve(
+                            "/api/runs/" + runId + "/metadata-lab")).build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, lab.statusCode(), lab.body());
+            assertTrue(lab.body().contains("\"selectedVariant\":\"control\""));
+            assertTrue(lab.body().contains("/p/" + planId + "/metadata/live?run=" + runId));
+            assertFalse(lab.body().contains("\"baseline\""));
+
+            var uncorrelated = client.send(HttpRequest.newBuilder(base.resolve(
+                            "/api/runs/" + runId + "/metadata-lab/variant"))
+                            .header("Content-Type", "application/json")
+                            .POST(HttpRequest.BodyPublishers.ofString("{\"variant\":\"baseline\"}"))
+                            .build(), HttpResponse.BodyHandlers.ofString());
+            assertEquals(400, uncorrelated.statusCode(), uncorrelated.body());
+
+            var selected = client.send(HttpRequest.newBuilder(base.resolve(
+                            "/api/runs/" + runId + "/metadata-lab/variant"))
+                            .header("Content-Type", "application/json")
+                            .POST(HttpRequest.BodyPublishers.ofString("{\"variant\":\"no-key-info\"}"))
+                            .build(), HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, selected.statusCode(), selected.body());
+            assertTrue(selected.body().contains("\"selectedVariant\":\"no-key-info\""));
+            var liveMetadata = client.send(HttpRequest.newBuilder(base.resolve(
+                            "/p/" + planId + "/metadata/live?run=" + runId)).build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, liveMetadata.statusCode(), liveMetadata.body());
+            assertEquals("no-store", liveMetadata.headers().firstValue("Cache-Control").orElseThrow());
+            assertEquals(4, occurrences(liveMetadata.body(), "<ds:KeyInfo"), liveMetadata.body());
+            assertTrue(liveMetadata.body().contains("mdv=no-key-info&amp;run=" + runId));
             var reportShell = client.send(HttpRequest.newBuilder(base.resolve("/reports/" + runId)).build(),
                     HttpResponse.BodyHandlers.ofString());
             assertEquals(200, reportShell.statusCode());
@@ -106,6 +141,7 @@ class SamlierApplicationTest {
             assertEquals(200, transcript.statusCode());
             assertTrue(transcript.body().contains("MetadataFetch"));
             assertTrue(transcript.body().contains("no-key-info"));
+            assertTrue(transcript.body().contains("\"feed\":\"live\""));
         } finally {
             app.stop();
         }
@@ -120,5 +156,15 @@ class SamlierApplicationTest {
         assertTrue(page.contains("value=\"&lt;response&gt;\""));
         assertTrue(page.contains("value=\"&quot;relay&quot;\""));
         assertFalse(page.contains("<response>"));
+    }
+
+    private static int occurrences(String value, String needle) {
+        var count = 0;
+        var offset = 0;
+        while ((offset = value.indexOf(needle, offset)) >= 0) {
+            count++;
+            offset += needle.length();
+        }
+        return count;
     }
 }

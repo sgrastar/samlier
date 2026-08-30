@@ -21,7 +21,8 @@ import org.samlier.core.transcript.Direction;
  * Observes a target consuming controlled metadata variants. Configuration is a setup step; the
  * verdict is derived from Suite-recorded fetches and variant-correlated inbound SAML only.
  */
-public final class MetadataConsumerObservationTestCase implements TestCase, ConfigurationPrompt {
+public final class MetadataConsumerObservationTestCase
+        implements TestCase, ConfigurationPrompt, ProtocolEvidenceCase {
     public enum Rule { PERMITTED_IDENTITY_TRANSFORM, EXCLUDED_CONTENT, OMITTED_KEY_INFO }
 
     private static final String CONFIGURATION_PHASE = "await-metadata-consumer-probe";
@@ -79,35 +80,12 @@ public final class MetadataConsumerObservationTestCase implements TestCase, Conf
     }
 
     private CaseOutcome evaluate(CaseContext context) {
-        var entries = context.transcript().list(context.runId());
-        var fetched = new LinkedHashSet<String>();
-        var used = new LinkedHashSet<String>();
-        var evidence = new ArrayList<EvidenceRef>();
-        for (var entry : entries) {
-            if (entry.direction() != Direction.INBOUND) continue;
-            if ("MetadataFetch".equals(entry.samlSummary().get("type"))) {
-                var variant = String.valueOf(entry.samlSummary().get("variant"));
-                if (CONTROL.equals(variant) || variants.contains(variant)) {
-                    fetched.add(variant);
-                    evidence.add(new EvidenceRef("transcript", "transcript:" + entry.id()));
-                }
-            }
-            if (entry.decodedSamlBytes() > 0 && entry.url() != null) {
-                for (var variant : union(CONTROL, variants)) {
-                    if (entry.url().contains("mdv=" + variant)
-                            && entry.url().contains("run=" + context.runId())) {
-                        used.add(variant);
-                        evidence.add(new EvidenceRef("transcript", "transcript:" + entry.id()));
-                    }
-                }
-            }
-        }
-        var details = Map.<String, Object>of(
-                "required_variants", variants,
-                "fetched_variants", List.copyOf(fetched),
-                "used_variants", List.copyOf(used));
-        if (!fetched.contains(CONTROL) || !used.contains(CONTROL)
-                || !fetched.containsAll(variants)) {
+        var observation = observe(context);
+        var fetched = observation.fetched();
+        var used = observation.used();
+        var evidence = observation.evidence();
+        var details = observation.details();
+        if (!observation.ready()) {
             return new CaseOutcome(
                     Outcome.NOT_VERIFIED, "metadata_consumer_probe_incomplete",
                     "metadata.consumer-probe.incomplete", "metadata.consumer-probe.incomplete",
@@ -143,6 +121,56 @@ public final class MetadataConsumerObservationTestCase implements TestCase, Conf
         };
     }
 
+    @Override
+    public EvidenceStatus evidenceStatus(CaseContext context) {
+        var observation = observe(context);
+        var required = new ArrayList<String>();
+        required.add("fetched:" + CONTROL);
+        required.add("used:" + CONTROL);
+        variants.forEach(variant -> required.add("fetched:" + variant));
+        var completed = new ArrayList<String>();
+        if (observation.fetched().contains(CONTROL)) completed.add("fetched:" + CONTROL);
+        if (observation.used().contains(CONTROL)) completed.add("used:" + CONTROL);
+        variants.stream().filter(observation.fetched()::contains)
+                .forEach(variant -> completed.add("fetched:" + variant));
+        return new EvidenceStatus(
+                observation.ready(), required,
+                completed, observation.details());
+    }
+
+    private Observation observe(CaseContext context) {
+        var entries = context.transcript().list(context.runId());
+        var fetched = new LinkedHashSet<String>();
+        var used = new LinkedHashSet<String>();
+        var evidence = new ArrayList<EvidenceRef>();
+        for (var entry : entries) {
+            if (entry.direction() != Direction.INBOUND) continue;
+            if ("MetadataFetch".equals(entry.samlSummary().get("type"))) {
+                var variant = String.valueOf(entry.samlSummary().get("variant"));
+                if (CONTROL.equals(variant) || variants.contains(variant)) {
+                    fetched.add(variant);
+                    evidence.add(new EvidenceRef("transcript", "transcript:" + entry.id()));
+                }
+            }
+            if (entry.decodedSamlBytes() > 0 && entry.url() != null) {
+                for (var variant : union(CONTROL, variants)) {
+                    if (entry.url().contains("mdv=" + variant)
+                            && entry.url().contains("run=" + context.runId())) {
+                        used.add(variant);
+                        evidence.add(new EvidenceRef("transcript", "transcript:" + entry.id()));
+                    }
+                }
+            }
+        }
+        var details = Map.<String, Object>of(
+                "required_variants", variants,
+                "fetched_variants", List.copyOf(fetched),
+                "used_variants", List.copyOf(used));
+        return new Observation(
+                fetched.contains(CONTROL) && used.contains(CONTROL) && fetched.containsAll(variants),
+                fetched, used, distinct(evidence), details);
+    }
+
     private CaseOutcome unavailable(CaseEvent.ConfigUnavailable event) {
         return new CaseOutcome(
                 Outcome.NOT_VERIFIED, "metadata_consumer_probe_unavailable",
@@ -153,12 +181,13 @@ public final class MetadataConsumerObservationTestCase implements TestCase, Conf
     }
 
     private static String instruction(Rule rule, List<String> variants) {
-        return "Configure the target to consume the Suite metadata for this Run. First load "
-                + "`/p/<plan-id>/metadata?variant=control&run=<run-id>` and complete one SSO flow. "
-                + "Then, for each variant " + variants + ", load the same URL with that `variant` value and "
-                + "attempt the same SSO flow. Confirm only after every attempt has completed. Samlier determines "
-                + "the outcome from recorded metadata fetches and variant-correlated inbound SAML; do not enter "
-                + "an expected verdict. Probe rule: " + rule.name().toLowerCase(java.util.Locale.ROOT) + ".";
+        return "Configure the target once with the stable Suite metadata URL "
+                + "`/p/<plan-id>/metadata/live?run=<run-id>`. Select `control` in the metadata lab, trigger the "
+                + "target's standard metadata refresh or re-import, and complete one SSO flow. Then select each "
+                + "fixture " + variants + ", refresh or re-import through the same product-neutral metadata "
+                + "interface, and attempt the same flow. After all attempts, evaluate the recorded protocol "
+                + "evidence once for the Run. Samlier derives the outcome; do not enter an expected verdict. "
+                + "Probe rule: " + rule.name().toLowerCase(java.util.Locale.ROOT) + ".";
     }
 
     private static List<String> union(String first, List<String> rest) {
@@ -176,4 +205,11 @@ public final class MetadataConsumerObservationTestCase implements TestCase, Conf
         if (value == null || value.isBlank()) throw new IllegalArgumentException(name + " is required");
         return value;
     }
+
+    private record Observation(
+            boolean ready,
+            Set<String> fetched,
+            Set<String> used,
+            List<EvidenceRef> evidence,
+            Map<String, Object> details) {}
 }
