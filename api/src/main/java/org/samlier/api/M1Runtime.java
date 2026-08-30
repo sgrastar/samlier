@@ -184,7 +184,12 @@ final class M1Runtime {
                     return java.util.Optional.of(keys.getOrCreate(run.planId()).privateKey());
                 },
                 runId -> runs.find(runId).flatMap(run -> plans.find(run.planId()))
-                        .map(plan -> plan.target().entityId()));
+                        .map(plan -> plan.target().entityId()),
+                runId -> {
+                    var run = runs.find(runId).orElseThrow(() -> new IllegalArgumentException("Unknown Run"));
+                    var plan = plans.find(run.planId()).orElseThrow(() -> new IllegalStateException("Run has no Test Plan"));
+                    return probeConfigurations.apply(plan, runId);
+                });
         var m2Attested = ApprovedAttestedCaseRegistry.create(
                 definitions, org.samlier.core.casedef.CaseDefinitionCatalog.Milestone.M2);
         var m2Config = ApprovedConfigCaseRegistry.create(
@@ -232,7 +237,7 @@ final class M1Runtime {
                 runId, plans, runs, transcript, clock);
         var activeProbes = new ActiveProbeCoordinator(
                 config.peerBaseUrl(), plans, runs, caseExecutions, outboundDispatcher,
-                transcript, caseContexts, probeConfigurations, clock);
+                transcript, caseContexts, probeConfigurations, interactiveRegistry, clock);
         var starters = Map.of(
                 org.samlier.core.casedef.CaseDefinitionCatalog.Milestone.M1, List.of(
                         new ApprovedCaseStarter(coverage, definitions, m1Attested, executionService, applicability),
@@ -329,6 +334,13 @@ final class M1Runtime {
         if (status.state() == ActiveProbeCoordinator.State.FINISHED && results != null) {
             results.generate(runId);
         }
+        return status;
+    }
+
+    ActiveProbeCoordinator.Status abortActiveProbe(String runId) {
+        requireRun(runId);
+        var status = activeProbes.abort(runId);
+        if (results != null) results.generate(runId);
         return status;
     }
 

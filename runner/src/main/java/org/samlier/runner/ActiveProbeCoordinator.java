@@ -37,6 +37,7 @@ public final class ActiveProbeCoordinator {
     private final TranscriptRecorder transcript;
     private final CaseContextProvider contexts;
     private final BiFunction<TestPlan, String, IdpErrorProbeConfiguration> configurations;
+    private final TestCaseRegistry scenarioCases;
     private final Clock clock;
 
     public ActiveProbeCoordinator(
@@ -49,6 +50,21 @@ public final class ActiveProbeCoordinator {
             CaseContextProvider contexts,
             BiFunction<TestPlan, String, IdpErrorProbeConfiguration> configurations,
             Clock clock) {
+        this(publicBase, plans, runs, repository, dispatcher, transcript, contexts,
+                configurations, new TestCaseRegistry(List.of()), clock);
+    }
+
+    public ActiveProbeCoordinator(
+            URI publicBase,
+            PlanRepository plans,
+            RunRepository runs,
+            CaseExecutionRepository repository,
+            OutboundDispatcher dispatcher,
+            TranscriptRecorder transcript,
+            CaseContextProvider contexts,
+            BiFunction<TestPlan, String, IdpErrorProbeConfiguration> configurations,
+            TestCaseRegistry scenarioCases,
+            Clock clock) {
         this.publicBase = Objects.requireNonNull(publicBase, "publicBase");
         this.plans = Objects.requireNonNull(plans, "plans");
         this.runs = Objects.requireNonNull(runs, "runs");
@@ -57,23 +73,37 @@ public final class ActiveProbeCoordinator {
         this.transcript = Objects.requireNonNull(transcript, "transcript");
         this.contexts = Objects.requireNonNull(contexts, "contexts");
         this.configurations = Objects.requireNonNull(configurations, "configurations");
+        this.scenarioCases = Objects.requireNonNull(scenarioCases, "scenarioCases");
         this.clock = Objects.requireNonNull(clock, "clock");
     }
 
     public Status status(String runId) {
         var run = requireRun(runId);
-        var execution = repository.find(runId, IdpErrorResponseTestCase.CASE_ID);
-        if (execution.isEmpty()) return new Status(run.planId(), State.NOT_STARTED, null, null, false, null);
-        var current = execution.orElseThrow();
-        if (current.status() == CaseExecutionStatus.FINISHED) {
-            return new Status(run.planId(), State.FINISHED, null, null, false,
-                    current.outcome() == null ? null : current.outcome().outcome().name());
+        var candidates = repository.list(runId).stream()
+                .filter(value -> value.status() == CaseExecutionStatus.WAITING_INBOUND)
+                .filter(value -> scenario(value.caseId(), run).isPresent())
+                .sorted(java.util.Comparator.comparingInt((CaseExecution value) ->
+                                IdpErrorResponseTestCase.CASE_ID.equals(value.caseId()) ? 0 : 1)
+                        .thenComparing(CaseExecution::caseId))
+                .toList();
+        if (candidates.isEmpty()) {
+            var executions = repository.list(runId).stream()
+                    .filter(value -> scenario(value.caseId(), run).isPresent()).toList();
+            if (executions.isEmpty()) {
+                return new Status(run.planId(), State.NOT_STARTED, null, null, false, null, null, null);
+            }
+            var unfinished = executions.stream().anyMatch(value -> value.status() != CaseExecutionStatus.FINISHED);
+            var lastOutcome = executions.stream()
+                    .filter(value -> IdpErrorResponseTestCase.CASE_ID.equals(value.caseId()))
+                    .map(CaseExecution::outcome).filter(Objects::nonNull)
+                    .map(value -> value.outcome().name()).findFirst().orElse(null);
+            return new Status(run.planId(), unfinished ? State.UNAVAILABLE : State.FINISHED,
+                    null, null, false, lastOutcome, null, null);
         }
-        if (current.status() != CaseExecutionStatus.WAITING_INBOUND) {
-            return new Status(run.planId(), State.UNAVAILABLE, null, null, false, null);
-        }
+        var current = candidates.get(0);
+        var testCase = scenario(current.caseId(), run).orElseThrow();
         var action = repository.listOutbox(runId).stream()
-                .filter(value -> value.caseId().equals(IdpErrorResponseTestCase.CASE_ID))
+                .filter(value -> value.caseId().equals(current.caseId()))
                 .filter(value -> value.action().actionId().equals(
                         current.waitCondition().inboundMatcher().criteria().get("ScenarioActionId")))
                 .findFirst().orElseThrow(() -> new IllegalStateException("Active probe has no matching outbox action"));
@@ -82,9 +112,10 @@ public final class ActiveProbeCoordinator {
                 ? publicBase.resolve("/p/" + run.planId() + "/probe/" + action.action().actionId()
                         + "?run=" + url(runId))
                 : null;
+        var browserScenario = (BrowserFrontChannelScenario) testCase;
         return new Status(run.planId(), state, action.action().actionId(), startUrl,
-                IdpErrorResponseTestCase.PASSIVE_FIXTURE_ID.equals(
-                        current.state().data().get("fixture_id")), null);
+                browserScenario.requiresFreshSession(current.state()), null,
+                current.caseId(), browserScenario.instructionsEn(current.state()));
     }
 
     /** Expires this coordinator's Plan-specific case without exposing it to a static registry. */
@@ -115,6 +146,9 @@ public final class ActiveProbeCoordinator {
             throw new IllegalArgumentException("The passive probe requires a browser context with no target session");
         }
         var relayState = ActiveProbeCorrelation.encode(runId, actionId);
+        requireRun(runId);
+        var current = repository.findOutbox(actionId).orElseThrow();
+        var execution = repository.find(runId, current.caseId()).orElseThrow();
         var dispatch = dispatcher.dispatchFrontChannel(actionId, action -> {
             var encodedRequest = Base64.getEncoder().encodeToString(action.payload());
             var body = "SAMLRequest=" + url(encodedRequest) + "&RelayState=" + url(relayState);
@@ -125,7 +159,9 @@ public final class ActiveProbeCoordinator {
                     body.getBytes(StandardCharsets.UTF_8), "application/x-www-form-urlencoded",
                     null, action.payload(),
                     Map.of("type", "AuthnRequest", "active_probe", true,
-                            "action_id", action.actionId()))).id();
+                            "action_id", action.actionId(),
+                            "scenario_case_id", current.caseId(),
+                            "fixture_id", execution.state().data().get("fixture_id")))).id();
         });
         return new PreparedProbe(
                 dispatch.action().target(),
@@ -142,8 +178,8 @@ public final class ActiveProbeCoordinator {
         requireRun(runId);
         var outbox = repository.findOutbox(actionId)
                 .orElseThrow(() -> new IllegalArgumentException("Unknown active-probe action"));
-        if (!outbox.runId().equals(runId)
-                || !outbox.caseId().equals(IdpErrorResponseTestCase.CASE_ID)) {
+        var run = requireRun(runId);
+        if (!outbox.runId().equals(runId) || scenario(outbox.caseId(), run).isEmpty()) {
             throw new IllegalArgumentException("Active-probe correlation belongs to another execution");
         }
         if (outbox.status() == OutboxStatus.UNKNOWN_DELIVERY) {
@@ -151,7 +187,7 @@ public final class ActiveProbeCoordinator {
         } else if (outbox.status() != OutboxStatus.SENT) {
             throw new IllegalStateException("Inbound response arrived before front-channel dispatch");
         }
-        var current = repository.find(runId, IdpErrorResponseTestCase.CASE_ID)
+        var current = repository.find(runId, outbox.caseId())
                 .orElseThrow(() -> new IllegalStateException("Active-probe execution is missing"));
         if (current.status() == CaseExecutionStatus.FINISHED) {
             // A response may cross the timeout boundary after the raw message has already been
@@ -166,9 +202,7 @@ public final class ActiveProbeCoordinator {
             // already represented by Transcript evidence and must not advance the next fixture.
             return status(runId);
         }
-        var run = requireRun(runId);
-        var plan = plans.find(run.planId()).orElseThrow(() -> new IllegalStateException("Run has no Test Plan"));
-        var testCase = new IdpErrorResponseTestCase(configurations.apply(plan, runId));
+        var testCase = scenario(outbox.caseId(), run).orElseThrow();
         var router = new InboundCaseRouter(
                 repository, new TestCaseRegistry(List.of(testCase)), new CaseExecutionService(repository));
         router.route(
@@ -178,9 +212,36 @@ public final class ActiveProbeCoordinator {
         return status(runId);
     }
 
+    /** Marks only the current fixture unavailable and continues the remaining scenario controls. */
+    public Status abort(String runId) {
+        var currentStatus = status(runId);
+        if (currentStatus.state() != State.AWAITING_RESPONSE || currentStatus.caseId() == null) {
+            throw new IllegalStateException("No dispatched browser scenario is awaiting a response");
+        }
+        var run = requireRun(runId);
+        var current = repository.find(runId, currentStatus.caseId())
+                .orElseThrow(() -> new IllegalStateException("Browser scenario execution is missing"));
+        var testCase = scenario(current.caseId(), run).orElseThrow();
+        new CaseExecutionService(repository).resume(
+                runId, testCase, contexts.contextFor(runId),
+                new CaseEvent.InboundUnavailable("operator-reported-no-saml-response"));
+        return status(runId);
+    }
+
     private org.samlier.core.run.TestRun requireRun(String runId) {
         if (runId == null || runId.isBlank()) throw new IllegalArgumentException("runId must not be blank");
         return runs.find(runId).orElseThrow(() -> new IllegalArgumentException("Unknown Run"));
+    }
+
+    private Optional<org.samlier.core.caseexec.TestCase> scenario(
+            String caseId, org.samlier.core.run.TestRun run) {
+        if (IdpErrorResponseTestCase.CASE_ID.equals(caseId)) {
+            var plan = plans.find(run.planId())
+                    .orElseThrow(() -> new IllegalStateException("Run has no Test Plan"));
+            return Optional.of(new IdpErrorResponseTestCase(configurations.apply(plan, run.id())));
+        }
+        return scenarioCases.find(caseId)
+                .filter(value -> value instanceof BrowserFrontChannelScenario);
     }
 
     private static String url(String value) {
@@ -193,7 +254,9 @@ public final class ActiveProbeCoordinator {
             String actionId,
             URI startUrl,
             boolean requiresFreshSession,
-            String outcome) {
+            String outcome,
+            String caseId,
+            String instructionsEn) {
         public Status {
             if (planId == null || planId.isBlank()) throw new IllegalArgumentException("planId is required");
         }

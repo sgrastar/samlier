@@ -103,11 +103,13 @@ public final class AutoBrowserEvidenceTestCase
             // Inbound SAML is recorded before protocol parsing and then updated atomically with
             // the validated summary. Never conclude from the durable-but-unvalidated first form.
             var parsedType = entry.samlSummary().get("type");
+            var activeScenario = isActiveScenarioCorrelation(entry.correlationId());
+            if (activeScenario && !NormalFlowBrowserObservation.acceptsActiveScenarioEvidence(id())) continue;
             if (entry.direction() == Direction.INBOUND
                     && (!"Response".equals(parsedType)
-                    || !Boolean.TRUE.equals(entry.samlSummary().get("normalFlowAccepted")))) continue;
+                    || !Boolean.TRUE.equals(entry.samlSummary().get(
+                    activeScenario ? "activeProbeAccepted" : "normalFlowAccepted")))) continue;
             if (entry.direction() == Direction.OUTBOUND && !"AuthnRequest".equals(parsedType)) continue;
-            if (entry.correlationId() != null && entry.correlationId().startsWith("action_")) continue;
             if (entry.url() != null && entry.url().contains("mdv=")) continue;
             var xml = content.readDecodedSaml(entry);
             messages.add(new NormalFlowBrowserObservation.Message(
@@ -116,6 +118,11 @@ public final class AutoBrowserEvidenceTestCase
         }
         return NormalFlowBrowserObservation.evaluate(
                 id(), messages, targetEntityIds.apply(context.runId()).orElse(null));
+    }
+
+    private static boolean isActiveScenarioCorrelation(String correlationId) {
+        if (correlationId == null) return false;
+        return correlationId.startsWith("action_") || correlationId.startsWith("_action_");
     }
 
     /** Produces an in-memory observation view; plaintext is never submitted to TranscriptRecorder. */

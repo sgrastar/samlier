@@ -174,6 +174,28 @@ class NormalFlowBrowserObservationTest {
     }
 
     @Test
+    void correlatedPolicyRequestProvesPersistentAndTransientSupport() {
+        var persistentRequest = requestWithNameId("_persistent", NormalFlowBrowserObservation.PERSISTENT);
+        var persistentResponse = response(
+                "POST", "https://suite.example/acs", "2.0", "_persistent",
+                assertionWithNameId("issuer", NormalFlowBrowserObservation.PERSISTENT, "persistent-id"));
+        assertOutcome("IIP-SSO05-a-idp-01", Outcome.SATISFIED,
+                persistentRequest, persistentResponse);
+
+        var transientRequest = requestWithNameId("_transient", NormalFlowBrowserObservation.TRANSIENT);
+        assertOutcome("IIP-SSO05-b-idp-01", Outcome.SATISFIED, transientRequest,
+                response("POST", "https://suite.example/acs", "2.0", "_transient",
+                        assertionWithNameId("issuer", NormalFlowBrowserObservation.TRANSIENT, "transient-id")));
+        assertOutcome("IIP-SSO05-b-idp-01", Outcome.VIOLATED, transientRequest,
+                response("POST", "https://suite.example/acs", "2.0", "_transient",
+                        assertionWithNameId("issuer", NormalFlowBrowserObservation.PERSISTENT, "wrong-id")));
+        assertEmpty("IIP-SSO05-a-idp-01", persistentResponse);
+
+        assertTrue(NormalFlowBrowserObservation.acceptsActiveScenarioEvidence("IIP-SSO05-a-idp-01"));
+        assertTrue(!NormalFlowBrowserObservation.acceptsActiveScenarioEvidence("IIP-SSO01-h-idp-01"));
+    }
+
+    @Test
     void optionalEncryptionIsRecordedWithoutFabricatingAViolation() {
         var outcome = evaluate("IIP-IDP09-b-idp-01",
                 response("POST", "https://suite.example/acs", "2.0", "_request",
@@ -225,6 +247,16 @@ class NormalFlowBrowserObservationTest {
                   %s
                 </samlp:Response>
                 """.formatted(version, inResponseTo, assertions));
+    }
+
+    private NormalFlowBrowserObservation.Message requestWithNameId(String id, String format) {
+        return message("POST", "https://idp.example/sso", """
+                <samlp:AuthnRequest xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol"
+                  xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion" ID="%s" Version="2.0">
+                  <saml:Issuer>https://suite.example/sp</saml:Issuer>
+                  <samlp:NameIDPolicy Format="%s"/>
+                </samlp:AuthnRequest>
+                """.formatted(id, format));
     }
 
     private NormalFlowBrowserObservation.Message responseWithIssuer(String issuer, String format) {

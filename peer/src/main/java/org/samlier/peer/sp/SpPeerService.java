@@ -120,7 +120,14 @@ public final class SpPeerService {
         var expected = String.valueOf(run.context().getOrDefault("authnRequestId", ""));
         var actual = String.valueOf(message.parsed().summary().getOrDefault("inResponseTo", ""));
         var analyzedSummary = new LinkedHashMap<String, Object>(message.parsed().summary());
-        if (!metadataProbe && activeProbe.isEmpty()) {
+        if (activeProbe.isPresent()) {
+            // Active browser scenarios use a request ID derived from the action ID. This is
+            // protocol correlation evidence only; the scenario case remains the owner of the
+            // target outcome, and other oracles must explicitly opt in before reusing it.
+            analyzedSummary.put(
+                    "activeProbeAccepted",
+                    ("_" + activeProbe.orElseThrow().actionId()).equals(actual));
+        } else if (!metadataProbe) {
             analyzedSummary.put("normalFlowAccepted", !expected.isBlank() && expected.equals(actual));
         }
         transcript.updateSamlAnalysis(transcriptEntry.id(), actual, analyzedSummary);

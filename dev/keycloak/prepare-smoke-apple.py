@@ -125,7 +125,9 @@ def keycloak_run_command(*, network: str, name: str) -> list[str]:
     return [
         "container", "run", "--detach", "--name", name, "--network", network,
         "--publish", "8180:8080",
-        "--volume", f"{ROOT / 'dev/keycloak'}:/opt/keycloak/data/import:ro",
+        "--volume",
+        f"{ROOT / 'dev/keycloak/realm-samlier.json'}:"
+        "/opt/keycloak/data/import/realm-samlier.json:ro",
         "--env", "KC_BOOTSTRAP_ADMIN_USERNAME=admin",
         "--env", "KC_BOOTSTRAP_ADMIN_PASSWORD=admin",
         "--env", "KC_HOSTNAME=http://localhost:8180",

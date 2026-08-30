@@ -43,6 +43,11 @@ public sealed interface CaseEvent {
         }
     }
 
+    /** The browser returned no protocol message for the current inbound fixture. */
+    record InboundUnavailable(String reason) implements CaseEvent {
+        public InboundUnavailable { text(reason, "reason"); }
+    }
+
     record Aborted(String reason) implements CaseEvent {
         public Aborted { text(reason, "reason"); }
     }

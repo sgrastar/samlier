@@ -313,10 +313,24 @@ public final class Evaluator {
             var caseRun = byId.get(incident.caseId());
             if (caseRun != null && caseRun.outcome() != null
                     && caseRun.outcome().outcome() == Outcome.VIOLATED) {
+                var violatingActionIds = stringList(
+                        caseRun.outcome().details().get("violating_action_ids"));
+                if (!violatingActionIds.isEmpty()
+                        && !violatingActionIds.contains(incident.actionId())) {
+                    continue;
+                }
                 throw new IllegalArgumentException(
                         "UNKNOWN_DELIVERY must not become a target violation: " + incident.caseId());
             }
         }
+    }
+
+    private static List<String> stringList(Object value) {
+        if (!(value instanceof List<?> values)
+                || values.stream().anyMatch(item -> !(item instanceof String))) {
+            return List.of();
+        }
+        return values.stream().map(String.class::cast).toList();
     }
 
     private static List<ScopeQualification> scopeQualifications(

@@ -70,7 +70,7 @@ public final class FixtureScenarioTestCase implements TestCase {
             return new CaseStep.Finish(CaseOutcome.notVerified(
                     vocabulary.preconditionReason(), vocabulary.preconditionMessageKey()));
         }
-        return awaitFixture(context, 0, List.of(), List.of(), List.of());
+        return awaitFixture(context, 0, List.of(), List.of(), List.of(), List.of());
     }
 
     @Override
@@ -85,11 +85,28 @@ public final class FixtureScenarioTestCase implements TestCase {
             return new CaseStep.Finish(notVerified(
                     state, vocabulary.abortedReason(), vocabulary.abortedMessageKey(), Map.of()));
         }
+        if (event instanceof CaseEvent.InboundUnavailable unavailable) {
+            if (!matchesScenario(state)) {
+                return new CaseStep.Finish(notVerified(
+                        state, "scenario_definition_changed", "scenario.definition-changed", Map.of()));
+            }
+            var index = fixtureIndex(state);
+            var violations = strings(state, "violations");
+            var violatingActionIds = optionalStrings(state, "violating_action_ids");
+            var unverifiable = strings(state, "unverifiable");
+            var evidence = strings(state, "evidence");
+            unverifiable.add(fixtures.get(index).id());
+            if (index + 1 < fixtures.size()) {
+                return awaitFixture(
+                        context, index + 1, violations, violatingActionIds, unverifiable, evidence);
+            }
+            return finishScenario(violations, violatingActionIds, unverifiable, evidence,
+                    Map.of("unavailable_reason", unavailable.reason()));
+        }
         if (!(event instanceof CaseEvent.InboundMessage inbound)) {
             throw new IllegalArgumentException("Fixture scenario requires an inbound message");
         }
-        if (!id.equals(state.data().get("scenario_case_id"))
-                || !scenarioFingerprint.equals(state.data().get("scenario_fingerprint"))) {
+        if (!matchesScenario(state)) {
             return new CaseStep.Finish(notVerified(
                     state, "scenario_definition_changed", "scenario.definition-changed", Map.of()));
         }
@@ -97,16 +114,13 @@ public final class FixtureScenarioTestCase implements TestCase {
             return new CaseStep.Finish(notVerified(
                     state, "scenario_transcript_missing", "scenario.transcript-missing", Map.of()));
         }
-        var index = integer(state, "fixture_index");
-        if (index < 0 || index >= fixtures.size()) throw new IllegalStateException("Invalid fixture index");
+        var index = fixtureIndex(state);
         var fixture = fixtures.get(index);
-        if (!fixture.id().equals(string(state, "fixture_id"))) {
-            throw new IllegalStateException("Persisted fixture does not match the scenario definition");
-        }
         var observation = fixture.observe(
                 string(state, "expected_response_correlation"), inbound.decodedSaml());
         if (observation == null) throw new IllegalStateException("Fixture returned no observation");
         var violations = strings(state, "violations");
+        var violatingActionIds = optionalStrings(state, "violating_action_ids");
         var unverifiable = strings(state, "unverifiable");
         var evidence = strings(state, "evidence");
         evidence.add(inbound.evidence().reference());
@@ -116,22 +130,42 @@ public final class FixtureScenarioTestCase implements TestCase {
                     vocabulary.controlFailedMessageKey(), refs(evidence),
                     Map.of("failed_control", fixture.id())));
         }
-        if (observation == FixtureObservation.VIOLATED) violations.add(fixture.id());
+        if (observation == FixtureObservation.VIOLATED) {
+            violations.add(fixture.id());
+            violatingActionIds.add(ActionIds.derive(context.runId(), id, state.phase(), 0));
+        }
         if (observation == FixtureObservation.NOT_VERIFIED) unverifiable.add(fixture.id());
         if (index + 1 < fixtures.size()) {
-            return awaitFixture(context, index + 1, violations, unverifiable, evidence);
+            return awaitFixture(
+                    context, index + 1, violations, violatingActionIds, unverifiable, evidence);
         }
+        return finishScenario(violations, violatingActionIds, unverifiable, evidence, Map.of());
+    }
+
+    private CaseStep finishScenario(
+            List<String> violations,
+            List<String> violatingActionIds,
+            List<String> unverifiable,
+            List<String> evidence,
+            Map<String, Object> additionalDetails) {
         if (!violations.isEmpty()) {
+            var details = new java.util.LinkedHashMap<String, Object>();
+            details.put("violating_fixtures", List.copyOf(violations));
+            details.put("violating_action_ids", List.copyOf(violatingActionIds));
+            details.put("unverifiable_fixtures", List.copyOf(unverifiable));
+            details.putAll(additionalDetails);
             return new CaseStep.Finish(new CaseOutcome(
                     Outcome.VIOLATED, null, vocabulary.violatedReasonCode(),
-                    vocabulary.violatedMessageKey(), refs(evidence),
-                    Map.of("violating_fixtures", violations, "unverifiable_fixtures", unverifiable)));
+                    vocabulary.violatedMessageKey(), refs(evidence), Map.copyOf(details)));
         }
         if (!unverifiable.isEmpty()) {
+            var details = new java.util.LinkedHashMap<String, Object>();
+            details.put("unverifiable_fixtures", List.copyOf(unverifiable));
+            details.putAll(additionalDetails);
             return new CaseStep.Finish(new CaseOutcome(
                     Outcome.NOT_VERIFIED, vocabulary.inconclusiveReason(),
                     vocabulary.inconclusiveReasonCode(), vocabulary.inconclusiveMessageKey(),
-                    refs(evidence), Map.of("unverifiable_fixtures", unverifiable)));
+                    refs(evidence), Map.copyOf(details)));
         }
         return new CaseStep.Finish(new CaseOutcome(
                 Outcome.SATISFIED, null, vocabulary.satisfiedReasonCode(),
@@ -139,10 +173,25 @@ public final class FixtureScenarioTestCase implements TestCase {
                 Map.of("completed_fixtures", fixtures.size())));
     }
 
+    private boolean matchesScenario(CaseState state) {
+        return id.equals(state.data().get("scenario_case_id"))
+                && scenarioFingerprint.equals(state.data().get("scenario_fingerprint"));
+    }
+
+    private int fixtureIndex(CaseState state) {
+        var index = integer(state, "fixture_index");
+        if (index < 0 || index >= fixtures.size()) throw new IllegalStateException("Invalid fixture index");
+        if (!fixtures.get(index).id().equals(string(state, "fixture_id"))) {
+            throw new IllegalStateException("Persisted fixture does not match the scenario definition");
+        }
+        return index;
+    }
+
     private CaseStep awaitFixture(
             CaseContext context,
             int index,
             List<String> violations,
+            List<String> violatingActionIds,
             List<String> unverifiable,
             List<String> evidence) {
         var fixture = fixtures.get(index);
@@ -159,6 +208,7 @@ public final class FixtureScenarioTestCase implements TestCase {
                 "fixture_id", fixture.id(),
                 "expected_response_correlation", prepared.expectedResponseCorrelation(),
                 "violations", List.copyOf(violations),
+                "violating_action_ids", List.copyOf(violatingActionIds),
                 "unverifiable", List.copyOf(unverifiable),
                 "evidence", List.copyOf(evidence)));
         return new CaseStep.AwaitInbound(
@@ -203,6 +253,16 @@ public final class FixtureScenarioTestCase implements TestCase {
         var value = state.data().get(key);
         if (!(value instanceof List<?> list) || list.stream().anyMatch(item -> !(item instanceof String))) {
             throw new IllegalStateException("Missing string-list state: " + key);
+        }
+        return new ArrayList<>((List<String>) list);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static ArrayList<String> optionalStrings(CaseState state, String key) {
+        var value = state.data().get(key);
+        if (value == null) return new ArrayList<>();
+        if (!(value instanceof List<?> list) || list.stream().anyMatch(item -> !(item instanceof String))) {
+            throw new IllegalStateException("Invalid string-list state: " + key);
         }
         return new ArrayList<>((List<String>) list);
     }

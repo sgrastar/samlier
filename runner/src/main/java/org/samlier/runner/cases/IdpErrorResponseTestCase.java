@@ -12,6 +12,7 @@ import org.samlier.core.plan.TargetRole;
 import org.samlier.runner.scenario.FixtureObservation;
 import org.samlier.runner.scenario.FixtureScenarioTestCase;
 import org.samlier.runner.scenario.ScenarioFixture;
+import org.samlier.runner.BrowserFrontChannelScenario;
 import org.samlier.saml.normal.SamlErrorProbeRequestFactory;
 import org.samlier.saml.normal.SamlErrorProbeRequestFactory.Probe;
 import org.samlier.saml.normal.SamlException;
@@ -19,7 +20,7 @@ import org.samlier.saml.normal.SecureXml;
 import org.w3c.dom.Element;
 
 /** The approved IdP error-response scenario, executed by the generic fixture scenario engine. */
-public final class IdpErrorResponseTestCase implements TestCase {
+public final class IdpErrorResponseTestCase implements TestCase, BrowserFrontChannelScenario {
     public static final String CASE_ID = "IIP-IDP05-a-idp-01";
     public static final String PASSIVE_FIXTURE_ID = "passive-without-session";
     private static final String PROTOCOL = "urn:oasis:names:tc:SAML:2.0:protocol";
@@ -62,6 +63,12 @@ public final class IdpErrorResponseTestCase implements TestCase {
 
     @Override public String id() { return scenario.id(); }
     @Override public TargetRole role() { return scenario.role(); }
+    @Override public boolean requiresFreshSession(CaseState state) {
+        return PASSIVE_FIXTURE_ID.equals(state.data().get("fixture_id"));
+    }
+    @Override public String instructionsEn(CaseState state) {
+        return "Run the positive control and approved abnormal AuthnRequest fixtures. Samlier judges only correlated SAML Responses.";
+    }
     @Override public CaseStep start(CaseContext context) { return scenario.start(context); }
     @Override public CaseStep resume(CaseContext context, CaseState state, CaseEvent event) {
         return scenario.resume(context, state, event);

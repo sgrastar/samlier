@@ -53,7 +53,13 @@ class AppleContainerInspectionTest(unittest.TestCase):
     def test_keycloak_command_uses_pinned_image_and_imports_read_only(self) -> None:
         result = launcher.keycloak_run_command(network="samlier-smoke", name="keycloak")
         self.assertIn(launcher.KEYCLOAK_IMAGE, result)
-        self.assertTrue(any(value.endswith(":/opt/keycloak/data/import:ro") for value in result))
+        self.assertTrue(any(
+            value.endswith(
+                "/realm-samlier.json:/opt/keycloak/data/import/realm-samlier.json:ro"
+            )
+            for value in result
+        ))
+        self.assertFalse(any(value.endswith(":/opt/keycloak/data/import:ro") for value in result))
         self.assertEqual(["start-dev", "--import-realm"], result[-2:])
 
 

@@ -97,6 +97,10 @@ class FixtureScenarioTestCaseTest {
         assertEquals(CaseExecutionStatus.FINISHED, finished.status());
         assertEquals(Outcome.VIOLATED, finished.outcome().outcome());
         assertEquals(List.of("second"), finished.outcome().details().get("violating_fixtures"));
+        assertEquals(
+                List.of(org.samlier.core.caseexec.ActionIds.derive(
+                        RUN, CASE, "await-fixture-second", 0)),
+                finished.outcome().details().get("violating_action_ids"));
         assertEquals(List.of("third"), finished.outcome().details().get("unverifiable_fixtures"));
         assertEquals(3, finished.outcome().evidence().size());
     }
@@ -114,6 +118,28 @@ class FixtureScenarioTestCaseTest {
         assertEquals(Outcome.NOT_VERIFIED, finished.outcome().outcome());
         assertEquals("control_failed", finished.outcome().reasonCode());
         assertEquals(1, repository.listOutbox(RUN).size());
+    }
+
+    @Test
+    void missingInboundMarksOnlyThatFixtureUnverifiableAndContinues() {
+        var scenario = scenario(List.of(
+                fixture("html-error", FixtureObservation.SATISFIED),
+                fixture("observable", FixtureObservation.SATISFIED)));
+        executions.start(RUN, scenario, context);
+
+        var second = executions.resume(
+                RUN, scenario, context, new CaseEvent.InboundUnavailable("no-saml-response"));
+
+        assertEquals(CaseExecutionStatus.WAITING_INBOUND, second.status());
+        assertEquals("observable", second.state().data().get("fixture_id"));
+        assertEquals(List.of("html-error"), second.state().data().get("unverifiable"));
+        assertEquals(2, repository.listOutbox(RUN).size());
+
+        var finished = executions.resume(RUN, scenario, context, inbound("tx-observable"));
+        assertEquals(CaseExecutionStatus.FINISHED, finished.status());
+        assertEquals(Outcome.NOT_VERIFIED, finished.outcome().outcome());
+        assertEquals(List.of("html-error"), finished.outcome().details().get("unverifiable_fixtures"));
+        assertEquals(List.of(new EvidenceRef("transcript", "tx-observable")), finished.outcome().evidence());
     }
 
     @Test

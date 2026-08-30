@@ -237,6 +237,8 @@ test('offers the server-generated active probe launch URL and explains fresh-ses
       planId: 'plan', state: 'READY', actionId: 'action_probe',
       startUrl: 'https://peer.example/p/plan/probe/action_probe?run=run_0123456789ABCDEFGHJKMNPQRS',
       requiresFreshSession: true, outcome: null,
+      caseId: 'IIP-IDP05-a-idp-01',
+      instructionsEn: 'Run the positive control and approved abnormal AuthnRequest fixtures.',
     })
     if (url.includes('/bootstrap-contracts')) return json([])
     if (url.includes('/metadata-lab')) return json(metadataLab())
@@ -255,9 +257,10 @@ test('offers the server-generated active probe launch URL and explains fresh-ses
 
   render(<RunManagement runId="run_0123456789ABCDEFGHJKMNPQRS" />)
 
-  expect(await screen.findByText('Active error-response probes')).toBeTruthy()
+  expect(await screen.findByText('IIP-IDP05-a-idp-01')).toBeTruthy()
+  expect(screen.getByText(/positive control/)).toBeTruthy()
   expect(screen.getByText(/private browser context/)).toBeTruthy()
-  expect(screen.getByRole('link', { name: 'Open active probes' }).getAttribute('href'))
+  expect(screen.getByRole('link', { name: 'Open scenario' }).getAttribute('href'))
     .toContain('/probe/action_probe')
 })
 
