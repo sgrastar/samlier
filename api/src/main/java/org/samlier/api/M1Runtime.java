@@ -18,12 +18,14 @@ import org.samlier.runner.ApprovedCaseStarter;
 import org.samlier.runner.AttestationService;
 import org.samlier.runner.ConfigurationService;
 import org.samlier.runner.BrowserCompletionService;
+import org.samlier.runner.BootstrapContractService;
 import org.samlier.runner.CatalogApplicabilityProvider;
 import org.samlier.runner.CaseExecutionService;
 import org.samlier.runner.DefaultCaseContext;
 import org.samlier.runner.OutboxIncidentProjection;
 import org.samlier.runner.PendingInteractionService;
 import org.samlier.runner.PersistedApplicabilityInputProvider;
+import org.samlier.runner.ProtocolEvidenceAutomationService;
 import org.samlier.runner.QuickCheckService;
 import org.samlier.runner.RunEvaluationService;
 import org.samlier.runner.access.RunAccessService;
@@ -62,6 +64,8 @@ final class M1Runtime {
     private final Clock clock;
     private final Map<org.samlier.core.casedef.CaseDefinitionCatalog.Milestone, List<ApprovedCaseStarter>> starters;
     private final PendingInteractionService pendingInteractions;
+    private final BootstrapContractService bootstrapContracts;
+    private final ProtocolEvidenceAutomationService protocolEvidence;
     private final AttestationService attestations;
     private final ConfigurationService configurations;
     private final BrowserCompletionService browserCompletions;
@@ -80,6 +84,8 @@ final class M1Runtime {
             Clock clock,
             Map<org.samlier.core.casedef.CaseDefinitionCatalog.Milestone, List<ApprovedCaseStarter>> starters,
             PendingInteractionService pendingInteractions,
+            BootstrapContractService bootstrapContracts,
+            ProtocolEvidenceAutomationService protocolEvidence,
             AttestationService attestations,
             ConfigurationService configurations,
             BrowserCompletionService browserCompletions,
@@ -96,6 +102,8 @@ final class M1Runtime {
         this.clock = clock;
         this.starters = Map.copyOf(starters);
         this.pendingInteractions = pendingInteractions;
+        this.bootstrapContracts = bootstrapContracts;
+        this.protocolEvidence = protocolEvidence;
         this.attestations = attestations;
         this.configurations = configurations;
         this.browserCompletions = browserCompletions;
@@ -115,6 +123,7 @@ final class M1Runtime {
             TargetMetadataParser metadataParser,
             FilePlanKeyStore keys,
             SqliteCaseExecutionRepository caseExecutions,
+            org.samlier.runner.MetadataLabService metadataLab,
             Clock clock) {
         var documents = CatalogDocuments.load();
         var coverage = CoverageCatalogMapper.fromDocument(documents.parsed("tests/coverage.yaml"));
@@ -192,6 +201,10 @@ final class M1Runtime {
                         new ApprovedCaseStarter(coverage, definitions, m3Config, executionService, applicability),
                         new ApprovedCaseStarter(coverage, definitions, m3Browser, executionService, applicability)));
         var pendingInteractions = new PendingInteractionService(caseExecutions, interactiveRegistry);
+        var bootstrapContracts = new BootstrapContractService(
+                definitions, caseExecutions, plans, runs, transcript, metadataLab);
+        var protocolEvidence = new ProtocolEvidenceAutomationService(
+                caseExecutions, interactiveRegistry, executionService, caseContexts);
         var attestations = new AttestationService(interactiveRegistry, executionService, caseContexts);
         var configurations = new ConfigurationService(interactiveRegistry, executionService, caseContexts);
         var browserCompletions = new BrowserCompletionService(interactiveRegistry, executionService, caseContexts);
@@ -221,7 +234,7 @@ final class M1Runtime {
         var publications = new SqlitePublicationRepository(database);
         return new M1Runtime(
                 config, quickCheck, results, artifacts, access, plans, runs, transcript, clock,
-                starters, pendingInteractions, attestations,
+                starters, pendingInteractions, bootstrapContracts, protocolEvidence, attestations,
                 configurations, browserCompletions, caseExecutions, publications);
     }
 
@@ -237,6 +250,23 @@ final class M1Runtime {
     java.util.List<org.samlier.runner.InteractionQuery.PendingInteraction> pending(String runId) {
         requireRun(runId);
         return pendingInteractions.pending(runId);
+    }
+
+    java.util.List<org.samlier.runner.BootstrapContractQuery.BootstrapContract> bootstrapContracts(String runId) {
+        requireRun(runId);
+        return bootstrapContracts.contracts(runId);
+    }
+
+    org.samlier.runner.ProtocolEvidenceAutomationService.Status protocolEvidence(String runId) {
+        requireRun(runId);
+        return protocolEvidence.status(runId);
+    }
+
+    org.samlier.runner.ProtocolEvidenceAutomationService.Evaluation evaluateProtocolEvidence(String runId) {
+        requireRun(runId);
+        var value = protocolEvidence.evaluateReady(runId);
+        if (results != null) results.generate(runId);
+        return value;
     }
 
     org.samlier.runner.AttestationExecutor.Result attest(

@@ -77,6 +77,60 @@ class MetadataServiceTest {
     }
 
     @Test
+    void structuralFixturesPutTheCorrelatedEntityAtTheRequiredDepthAndPreserveSignatures() {
+        var clock = Clock.fixed(Instant.parse("2026-08-29T00:00:00Z"), ZoneOffset.UTC);
+        var keyStore = new FilePlanKeyStore(directory, clock);
+        var plan = SamlTestFixtures.idpPlan();
+        var service = new MetadataService(URI.create("https://peer.example"), keyStore, new XmlSigner(), clock);
+        var runId = "run_0123456789ABCDEFGHJKMNPQRS";
+
+        var fifty = SecureXml.parse(service.generate(
+                plan, MetadataService.Variant.ENTITIES_ROOT_FIFTY, runId));
+        assertEquals("EntitiesDescriptor", fifty.getDocumentElement().getLocalName());
+        assertEquals(50, fifty.getElementsByTagNameNS(MetadataService.MD, "EntityDescriptor").getLength());
+        var last = (org.w3c.dom.Element) fifty
+                .getElementsByTagNameNS(MetadataService.MD, "EntityDescriptor").item(49);
+        assertEquals("https://peer.example/p/" + plan.id(), last.getAttribute("entityID"));
+
+        var nested = SecureXml.parse(service.generate(
+                plan, MetadataService.Variant.NESTED_ENTITIES, runId));
+        assertEquals(2, nested.getElementsByTagNameNS(MetadataService.MD, "EntitiesDescriptor").getLength());
+
+        var cacheOnly = SecureXml.parse(service.generate(
+                plan, MetadataService.Variant.ENTITIES_CACHE_DURATION, runId)).getDocumentElement();
+        assertEquals("PT1H", cacheOnly.getAttribute("cacheDuration"));
+        assertTrue(!cacheOnly.hasAttribute("validUntil"));
+    }
+
+    @Test
+    void extensionFixturesCoverEntityRoleEndpointAndInvalidNamespaceCases() {
+        var clock = Clock.fixed(Instant.parse("2026-08-29T00:00:00Z"), ZoneOffset.UTC);
+        var service = new MetadataService(
+                URI.create("https://peer.example"), new FilePlanKeyStore(directory, clock),
+                new XmlSigner(), clock);
+        var plan = SamlTestFixtures.idpPlan();
+        var runId = "run_0123456789ABCDEFGHJKMNPQRS";
+
+        var entity = SecureXml.parse(service.generate(plan, MetadataService.Variant.UNKNOWN_EXTENSION, runId));
+        assertEquals(1, entity.getElementsByTagNameNS(
+                "urn:samlier:test:metadata-extension", "Probe").getLength());
+        var role = SecureXml.parse(service.generate(plan, MetadataService.Variant.UNKNOWN_ROLE_EXTENSION, runId));
+        var sp = (org.w3c.dom.Element) role
+                .getElementsByTagNameNS(MetadataService.MD, "SPSSODescriptor").item(0);
+        assertEquals(1, sp.getElementsByTagNameNS(
+                "urn:samlier:test:metadata-extension", "Probe").getLength());
+        var endpoint = SecureXml.parse(service.generate(
+                plan, MetadataService.Variant.UNKNOWN_ENDPOINT_EXTENSION, runId));
+        var acs = (org.w3c.dom.Element) endpoint
+                .getElementsByTagNameNS(MetadataService.MD, "AssertionConsumerService").item(0);
+        assertEquals("endpoint-attribute", acs.getAttributeNS(
+                "urn:samlier:test:metadata-extension", "probe"));
+        var invalid = SecureXml.parse(service.generate(
+                plan, MetadataService.Variant.INVALID_SAML_EXTENSION, runId));
+        assertEquals(1, invalid.getElementsByTagNameNS(MetadataService.SAML, "Attribute").getLength());
+    }
+
+    @Test
     void secondaryIdpUsesADistinctEntityAndSigningKey() throws Exception {
         var clock = Clock.fixed(Instant.parse("2026-08-29T00:00:00Z"), ZoneOffset.UTC);
         var keyStore = new FilePlanKeyStore(directory, clock);

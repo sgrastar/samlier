@@ -8,6 +8,7 @@ import org.samlier.core.casedef.CaseDefinitionCatalog;
 import org.samlier.core.casedef.CaseDefinitionCatalog.CaseDefinition;
 import org.samlier.core.casedef.CaseDefinitionCatalog.ExecutionMode;
 import org.samlier.core.casedef.CaseDefinitionCatalog.Milestone;
+import org.samlier.core.caseexec.TestCase;
 import org.samlier.core.evaluation.Outcome;
 import org.samlier.runner.CaseImplementationAudit;
 import org.samlier.runner.TestCaseRegistry;
@@ -26,7 +27,7 @@ public final class ApprovedConfigCaseRegistry {
     public static TestCaseRegistry create(CaseDefinitionCatalog definitions, Milestone milestone) {
         Objects.requireNonNull(definitions, "definitions");
         Objects.requireNonNull(milestone, "milestone");
-        var cases = new ArrayList<ConfigurationGateTestCase>();
+        var cases = new ArrayList<TestCase>();
         definitions.cases().stream()
                 .filter(value -> value.milestone() == milestone)
                 .filter(value -> value.mode() == ExecutionMode.CONFIG)
@@ -37,7 +38,9 @@ public final class ApprovedConfigCaseRegistry {
         return registry;
     }
 
-    private static ConfigurationGateTestCase createCase(CaseDefinition definition) {
+    private static TestCase createCase(CaseDefinition definition) {
+        var metadata = MetadataConfigCaseFactory.create(definition);
+        if (metadata.isPresent()) return metadata.orElseThrow();
         var evidence = new AttestedOutcomeTestCase(
                 definition.id(), definition.role(), "case." + definition.id() + ".evidence",
                 evidencePrompt(definition), EVIDENCE_TTL,

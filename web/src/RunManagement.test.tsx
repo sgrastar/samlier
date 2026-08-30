@@ -1,8 +1,11 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import { RunManagement } from './RunManagement'
 
-afterEach(() => vi.restoreAllMocks())
+afterEach(() => {
+  cleanup()
+  vi.restoreAllMocks()
+})
 
 test('shows approved instructions and submits only an option plus evidence note', async () => {
   const calls: Array<{ url: string; init?: RequestInit }> = []
@@ -15,11 +18,18 @@ test('shows approved instructions and submits only an option plus evidence note'
         status: 200, headers: { 'content-type': 'application/json' },
       })
     }
-    return new Response(JSON.stringify(pending ? [{
+    if (url.includes('/bootstrap-contracts')) return json([])
+    if (url.includes('/metadata-lab')) return json(metadataLab())
+    if (url.includes('/protocol-evidence')) return json(protocolEvidence())
+    if (url === '/api/health') return json({ status: 'ok', version: 'test', mode: 'selfhosted' })
+    if (url.includes('/interactions')) return json(pending ? [{
       caseId: 'IIP-G02-c-idp-01', kind: 'ATTESTATION', promptKey: 'case.g02',
       promptEn: 'Compare the complete value through the approved readback path.', startUrl: null,
       expiresAt: '2026-09-05T00:00:00Z', answerValues: ['satisfied', 'violated', 'unable_to_verify'],
-    }] : []), { status: 200, headers: { 'content-type': 'application/json' } })
+    }] : [])
+    if (url.includes('/api/runs/')) return json({ id: 'run_0123456789ABCDEFGHJKMNPQRS', planId: 'plan' })
+    if (url === '/api/plans') return json([])
+    return json([])
   }))
 
   render(<RunManagement runId="run_0123456789ABCDEFGHJKMNPQRS" csrfToken="csrf" />)
@@ -46,7 +56,15 @@ test('keeps configuration status separate from the later evidence conclusion', a
         status: 200, headers: { 'content-type': 'application/json' },
       })
     }
-    return new Response(JSON.stringify(stage === 'config' ? [{
+    if (url.includes('/bootstrap-contracts')) return json(stage === 'config' ? [{
+      id: 'authentication-policy', title: 'Authentication and identifier policy', description: 'Shared setup.',
+      kind: 'OPERATOR_POLICY', readiness: 'SETUP_REQUIRED', setupUrl: null,
+      setupInstruction: 'Prepare this policy once.', pendingCases: 1, caseIds: ['IIP-SSO01-u-sp-01'],
+    }] : [])
+    if (url.includes('/metadata-lab')) return json(metadataLab())
+    if (url.includes('/protocol-evidence')) return json(protocolEvidence())
+    if (url === '/api/health') return json({ status: 'ok', version: 'test', mode: 'selfhosted' })
+    if (url.includes('/interactions')) return json(stage === 'config' ? [{
       caseId: 'IIP-SSO01-u-sp-01', kind: 'CONFIGURATION', promptKey: 'case.config',
       promptEn: 'Activate the approved target configuration.', startUrl: null,
       expiresAt: '2026-09-05T00:00:00Z',
@@ -56,10 +74,17 @@ test('keeps configuration status separate from the later evidence conclusion', a
       promptEn: 'Execute both approved controls.', startUrl: null,
       expiresAt: '2026-09-05T00:00:00Z',
       answerValues: ['evidence_satisfies', 'evidence_violates', 'unable_to_verify'],
-    }]), { status: 200, headers: { 'content-type': 'application/json' } })
+    }])
+    if (url.includes('/api/runs/')) return json({ id: 'run_0123456789ABCDEFGHJKMNPQRS', planId: 'plan' })
+    if (url === '/api/plans') return json([])
+    return json([])
   }))
 
-  render(<RunManagement runId="run_0123456789ABCDEFGHJKMNPQRS" csrfToken="csrf" />)
+  render(<RunManagement
+    runId="run_0123456789ABCDEFGHJKMNPQRS"
+    focusCaseId="IIP-SSO01-u-sp-01"
+    csrfToken="csrf"
+  />)
   expect(await screen.findByText(/approved target configuration/)).toBeTruthy()
   fireEvent.click(screen.getByLabelText('Confirmed'))
   fireEvent.click(screen.getByText('Continue case'))
@@ -71,18 +96,27 @@ test('keeps configuration status separate from the later evidence conclusion', a
 })
 
 test('a focused browser URL shows only the requested case', async () => {
-  vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify([
-    {
-      caseId: 'IIP-ALG01-a-idp-01', kind: 'BROWSER', promptKey: null,
-      promptEn: 'Inspect the target DigestMethod.', startUrl: 'https://suite.example/browser/one',
-      expiresAt: '2026-09-05T00:00:00Z', answerValues: ['completed'],
-    },
-    {
-      caseId: 'IIP-ALG02-a-idp-01', kind: 'BROWSER', promptKey: null,
-      promptEn: 'Inspect the target SignatureMethod.', startUrl: 'https://suite.example/browser/two',
-      expiresAt: '2026-09-05T00:00:00Z', answerValues: ['completed'],
-    },
-  ]), { status: 200, headers: { 'content-type': 'application/json' } })))
+  vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+    if (url.includes('/bootstrap-contracts')) return json([])
+    if (url.includes('/metadata-lab')) return json(metadataLab())
+    if (url.includes('/protocol-evidence')) return json(protocolEvidence())
+    if (url === '/api/health') return json({ status: 'ok', version: 'test', mode: 'selfhosted' })
+    if (url.includes('/interactions')) return json([
+      {
+        caseId: 'IIP-ALG01-a-idp-01', kind: 'BROWSER', promptKey: null,
+        promptEn: 'Inspect the target DigestMethod.', startUrl: 'https://suite.example/browser/one',
+        expiresAt: '2026-09-05T00:00:00Z', answerValues: ['completed'],
+      },
+      {
+        caseId: 'IIP-ALG02-a-idp-01', kind: 'BROWSER', promptKey: null,
+        promptEn: 'Inspect the target SignatureMethod.', startUrl: 'https://suite.example/browser/two',
+        expiresAt: '2026-09-05T00:00:00Z', answerValues: ['completed'],
+      },
+    ])
+    if (url.includes('/api/runs/')) return json({ id: 'run_0123456789ABCDEFGHJKMNPQRS', planId: 'plan' })
+    if (url === '/api/plans') return json([])
+    return json([])
+  }))
 
   render(<RunManagement
     runId="run_0123456789ABCDEFGHJKMNPQRS"
@@ -94,3 +128,69 @@ test('a focused browser URL shows only the requested case', async () => {
   expect(screen.getByRole('link', { name: 'Back to Run management' }).getAttribute('href'))
     .toBe('/manage/run_0123456789ABCDEFGHJKMNPQRS')
 })
+
+test('evaluates only server-reported ready protocol evidence from the shared metadata contract', async () => {
+  const calls: Array<{ url: string; init?: RequestInit }> = []
+  let evaluated = false
+  vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+    calls.push({ url, init })
+    if (url.includes('/protocol-evidence/evaluate')) {
+      evaluated = true
+      return json({
+        completed: [{ caseId: 'IIP-MD05-an-idp-01', outcome: 'SATISFIED' }],
+        remaining: { eligibleCases: 0, readyCases: 0, cases: [] },
+      })
+    }
+    if (url.includes('/bootstrap-contracts')) return json([{
+      id: 'metadata-feed', title: 'Suite-controlled metadata feed', description: 'Shared feed.',
+      kind: 'STANDARD_METADATA', readiness: 'FETCH_OBSERVED', setupUrl: metadataLab().metadataUrl,
+      setupInstruction: 'Use the stable URL.', pendingCases: evaluated ? 0 : 1,
+      caseIds: evaluated ? [] : ['IIP-MD05-an-idp-01'],
+    }])
+    if (url.includes('/metadata-lab')) return json(metadataLab())
+    if (url.includes('/protocol-evidence')) return json(evaluated ? protocolEvidence() : {
+      eligibleCases: 1, readyCases: 1, cases: [{
+        caseId: 'IIP-MD05-an-idp-01', ready: true,
+        requiredObservations: ['fetched:control', 'used:control'],
+        completedObservations: ['fetched:control', 'used:control'], details: {},
+      }],
+    })
+    if (url.includes('/interactions')) return json(evaluated ? [] : [{
+      caseId: 'IIP-MD05-an-idp-01', kind: 'CONFIGURATION', promptKey: 'metadata.probe',
+      promptEn: 'Use the shared metadata feed.', startUrl: null,
+      expiresAt: '2026-09-05T00:00:00Z', answerValues: ['confirmed'],
+    }])
+    if (url === '/api/health') return json({ status: 'ok', version: 'test', mode: 'selfhosted' })
+    if (url.includes('/api/runs/')) return json({ id: 'run_0123456789ABCDEFGHJKMNPQRS', planId: 'plan' })
+    if (url === '/api/plans') return json([])
+    return json([])
+  }))
+
+  render(<RunManagement runId="run_0123456789ABCDEFGHJKMNPQRS" csrfToken="csrf" />)
+  const button = await screen.findByRole('button', {
+    name: 'Refreshes and attempts completed — evaluate evidence',
+  })
+  expect(button.hasAttribute('disabled')).toBe(false)
+  fireEvent.click(button)
+
+  expect(await screen.findByText(/IIP-MD05-an-idp-01: SATISFIED/)).toBeTruthy()
+  const post = calls.find(call => call.url.includes('/protocol-evidence/evaluate'))!
+  expect(post.init?.method).toBe('POST')
+  expect(post.init?.headers).toEqual({ 'content-type': 'application/json', 'X-CSRF-Token': 'csrf' })
+})
+
+function metadataLab() {
+  return {
+    runId: 'run_0123456789ABCDEFGHJKMNPQRS', planId: 'plan', selectedVariant: 'control',
+    metadataUrl: 'https://suite.example/p/plan/metadata/live?run=run_0123456789ABCDEFGHJKMNPQRS',
+    availableVariants: ['control', 'no-key-info'],
+  }
+}
+
+function protocolEvidence() {
+  return { eligibleCases: 0, readyCases: 0, cases: [] }
+}
+
+function json(value: unknown) {
+  return new Response(JSON.stringify(value), { status: 200, headers: { 'content-type': 'application/json' } })
+}

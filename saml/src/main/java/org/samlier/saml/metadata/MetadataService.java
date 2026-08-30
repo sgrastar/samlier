@@ -105,6 +105,9 @@ public final class MetadataService {
         nameIdFormat(document, idp, "urn:oasis:names:tc:SAML:2.0:nameid-format:transient");
         root.appendChild(idp);
 
+        addExtensionFixture(document, root, variant);
+        root = applyStructureFixture(document, root, plan, variant, runId);
+        applyValidityFixture(root, variant);
         signer.sign(root, credentials, root.getFirstChild() instanceof Element e ? e : null, signatureOptions(variant));
         return SecureXml.serialize(document);
     }
@@ -112,7 +115,6 @@ public final class MetadataService {
     private XmlSigner.SignatureOptions signatureOptions(Variant variant) {
         var standard = XmlSigner.SignatureOptions.standard().transforms();
         return switch (variant) {
-            case BASELINE, CONTROL -> XmlSigner.SignatureOptions.standard();
             case NO_KEY_INFO -> new XmlSigner.SignatureOptions(false, standard);
             case XPATH_IDENTITY -> new XmlSigner.SignatureOptions(true, List.of(
                     XmlSigner.TransformSpec.algorithm(org.apache.xml.security.transforms.Transforms.TRANSFORM_ENVELOPED_SIGNATURE),
@@ -124,7 +126,126 @@ public final class MetadataService {
                     "not(ancestor-or-self::md:AssertionConsumerService or ancestor-or-self::md:SingleSignOnService or ancestor-or-self::md:SingleLogoutService)");
             case XPATH_EXCLUDE_KEY_DESCRIPTORS -> xpathExclusion(
                     "not(ancestor-or-self::md:KeyDescriptor)");
+            default -> XmlSigner.SignatureOptions.standard();
         };
+    }
+
+    private Element applyStructureFixture(
+            Document document, Element entity, TestPlan plan, Variant variant, String runId) {
+        return switch (variant) {
+            case ENTITIES_ROOT_ONE, ENTITIES_VALID_UNTIL, ENTITIES_CACHE_DURATION ->
+                    wrapEntities(document, entity, plan, 1, false, variant, runId);
+            case ENTITIES_ROOT_TWO -> wrapEntities(document, entity, plan, 2, false, variant, runId);
+            case ENTITIES_ROOT_FIFTY -> wrapEntities(document, entity, plan, 50, false, variant, runId);
+            case NESTED_ENTITIES -> wrapEntities(document,
+                    wrapEntities(document, entity, plan, 1, false, variant, runId),
+                    plan, 1, true, variant, runId);
+            case DISTINCT_ENTITY_IDS -> wrapEntities(document, entity, plan, 2, false, variant, runId);
+            case DUPLICATE_ENTITY_IDS, CONFLICTING_DUPLICATE_ENTITY_IDS ->
+                    wrapEntities(document, entity, plan, 2, true, variant, runId);
+            default -> entity;
+        };
+    }
+
+    private Element wrapEntities(
+            Document document,
+            Element child,
+            TestPlan plan,
+            int childCount,
+            boolean duplicateEntityId,
+            Variant variant,
+            String runId) {
+        document.removeChild(child);
+        var wrapper = element(document, MD, "md:EntitiesDescriptor");
+        wrapper.setAttributeNS(XMLConstants.XMLNS_ATTRIBUTE_NS_URI, "xmlns:md", MD);
+        wrapper.setAttributeNS(XMLConstants.XMLNS_ATTRIBUTE_NS_URI, "xmlns:ds", DS);
+        wrapper.setAttribute("ID", "_" + plan.id() + "_entities_" + variant.id().replace('-', '_'));
+        wrapper.setAttribute("validUntil", DateTimeFormatter.ISO_INSTANT.format(
+                clock.instant().plus(Duration.ofDays(14))));
+        for (var index = 1; index < childCount; index++) {
+            var copy = (Element) child.cloneNode(true);
+            copy.setAttribute("ID", "_" + plan.id() + "_fixture_" + index);
+            if (!duplicateEntityId) {
+                copy.setAttribute("entityID", endpoint(plan, "/fixture/entity/" + index));
+            } else if (variant == Variant.CONFLICTING_DUPLICATE_ENTITY_IDS) {
+                rewriteLocations(copy, endpoint(plan, "/fixture/conflict/" + index, variant, runId));
+            }
+            wrapper.appendChild(copy);
+        }
+        wrapper.appendChild(child);
+        document.appendChild(wrapper);
+        return wrapper;
+    }
+
+    private void rewriteLocations(Element root, String location) {
+        var elements = root.getElementsByTagNameNS(MD, "*");
+        for (var index = 0; index < elements.getLength(); index++) {
+            var element = (Element) elements.item(index);
+            if (element.hasAttribute("Location")) element.setAttribute("Location", location);
+            if (element.hasAttribute("ResponseLocation")) element.setAttribute("ResponseLocation", location);
+        }
+    }
+
+    private void applyValidityFixture(Element root, Variant variant) {
+        switch (variant) {
+            case NO_VALID_UNTIL -> root.removeAttribute("validUntil");
+            case EXPIRED -> root.setAttribute(
+                    "validUntil", DateTimeFormatter.ISO_INSTANT.format(clock.instant().minus(Duration.ofDays(1))));
+            case ENTITY_CACHE_DURATION, ENTITIES_CACHE_DURATION -> {
+                root.removeAttribute("validUntil");
+                root.setAttribute("cacheDuration", "PT1H");
+            }
+            default -> { }
+        }
+    }
+
+    private void addExtensionFixture(Document document, Element entity, Variant variant) {
+        if (variant != Variant.UNKNOWN_EXTENSION
+                && variant != Variant.UNKNOWN_ROLE_EXTENSION
+                && variant != Variant.UNKNOWN_ENDPOINT_EXTENSION
+                && variant != Variant.INVALID_SAML_EXTENSION
+                && variant != Variant.MDRPI_REGISTRATION_INFO) return;
+        if (variant == Variant.UNKNOWN_ROLE_EXTENSION) {
+            var role = (Element) entity.getElementsByTagNameNS(MD, "SPSSODescriptor").item(0);
+            var extensions = element(document, MD, "md:Extensions");
+            extensions.appendChild(probeExtension(document, "role-extension"));
+            role.insertBefore(extensions, role.getFirstChild());
+            return;
+        }
+        if (variant == Variant.UNKNOWN_ENDPOINT_EXTENSION) {
+            var endpoint = (Element) entity.getElementsByTagNameNS(MD, "AssertionConsumerService").item(0);
+            endpoint.setAttributeNS(
+                    "urn:samlier:test:metadata-extension", "samlier:probe", "endpoint-attribute");
+            endpoint.setAttributeNS(XMLConstants.XMLNS_ATTRIBUTE_NS_URI,
+                    "xmlns:samlier", "urn:samlier:test:metadata-extension");
+            endpoint.appendChild(probeExtension(document, "endpoint-element"));
+            return;
+        }
+        var extensions = element(document, MD, "md:Extensions");
+        if (variant == Variant.UNKNOWN_EXTENSION) {
+            extensions.appendChild(probeExtension(document, "entity-extension"));
+        } else if (variant == Variant.INVALID_SAML_EXTENSION) {
+            var invalid = element(document, SAML, "saml:Attribute");
+            invalid.setAttributeNS(XMLConstants.XMLNS_ATTRIBUTE_NS_URI, "xmlns:saml", SAML);
+            invalid.setAttribute("Name", "invalid-at-this-extension-point");
+            extensions.appendChild(invalid);
+        } else {
+            var registration = element(document,
+                    "urn:oasis:names:tc:SAML:metadata:rpi", "mdrpi:RegistrationInfo");
+            registration.setAttributeNS(XMLConstants.XMLNS_ATTRIBUTE_NS_URI,
+                    "xmlns:mdrpi", "urn:oasis:names:tc:SAML:metadata:rpi");
+            registration.setAttribute("registrationAuthority", "https://samlier.example/registrar");
+            extensions.appendChild(registration);
+        }
+        entity.insertBefore(extensions, entity.getFirstChild());
+    }
+
+    private Element probeExtension(Document document, String value) {
+        var extension = element(document, "urn:samlier:test:metadata-extension", "samlier:Probe");
+        extension.setAttributeNS(XMLConstants.XMLNS_ATTRIBUTE_NS_URI,
+                "xmlns:samlier", "urn:samlier:test:metadata-extension");
+        extension.setTextContent(value);
+        return extension;
     }
 
     private XmlSigner.SignatureOptions xpathExclusion(String expression) {
@@ -181,6 +302,27 @@ public final class MetadataService {
     public enum Variant {
         BASELINE("baseline"),
         CONTROL("control"),
+        REDIRECT_301("redirect-301"),
+        REDIRECT_302("redirect-302"),
+        REDIRECT_307("redirect-307"),
+        ENTITY_ROOT("entity-root"),
+        ENTITIES_ROOT_ONE("entities-root-one"),
+        ENTITIES_ROOT_TWO("entities-root-two"),
+        ENTITIES_ROOT_FIFTY("entities-root-fifty"),
+        NESTED_ENTITIES("nested-entities"),
+        DISTINCT_ENTITY_IDS("distinct-entity-ids"),
+        DUPLICATE_ENTITY_IDS("duplicate-entity-ids"),
+        CONFLICTING_DUPLICATE_ENTITY_IDS("conflicting-duplicate-entity-ids"),
+        NO_VALID_UNTIL("no-valid-until"),
+        EXPIRED("expired"),
+        ENTITY_CACHE_DURATION("entity-cache-duration"),
+        ENTITIES_CACHE_DURATION("entities-cache-duration"),
+        ENTITIES_VALID_UNTIL("entities-valid-until"),
+        UNKNOWN_EXTENSION("unknown-extension"),
+        UNKNOWN_ROLE_EXTENSION("unknown-role-extension"),
+        UNKNOWN_ENDPOINT_EXTENSION("unknown-endpoint-extension"),
+        INVALID_SAML_EXTENSION("invalid-saml-extension"),
+        MDRPI_REGISTRATION_INFO("mdrpi-registration-info"),
         XPATH_IDENTITY("xpath-identity"),
         XPATH_EXCLUDE_ROLE_DESCRIPTORS("xpath-exclude-role-descriptors"),
         XPATH_EXCLUDE_ENDPOINTS("xpath-exclude-endpoints"),

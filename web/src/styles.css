@@ -41,6 +41,20 @@ dt { color: #687168; } dd { margin: 0; overflow-wrap: anywhere; }
 .interaction .radio { display: flex; align-items: center; gap: 9px; font-size: .9rem; }
 .interaction .radio input { width: auto; }
 .interaction textarea { min-height: 90px; resize: vertical; }
+.bootstrap-contracts { margin: 28px 0; }
+.protocol-evidence { margin-top: 14px; padding: 14px; border: 1px solid var(--line); border-radius: 10px; }
+.protocol-evidence p { margin-top: 0; }
+.contract-list { display: grid; gap: 16px; }
+.contract { border: 1px solid #b8c8bd; background: #f7faf7; padding: 18px; }
+.contract > header { display: flex; justify-content: space-between; gap: 20px; }
+.contract > header p { margin-bottom: 0; }
+.contract > header > span { white-space: nowrap; font-size: .8rem; letter-spacing: .04em; text-transform: uppercase; }
+.contract details { margin-top: 14px; }
+.contract summary { cursor: pointer; font-weight: 650; }
+.fixture-selector { display: flex; align-items: end; gap: 12px; margin: 14px 0; }
+.fixture-selector label { flex: 1; }
+.case-links { columns: 2; padding-left: 20px; }
+.case-links li { break-inside: avoid; margin: 4px 0; }
 
 .report { max-width: 1240px; }
 .report-header { max-width: none; display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 48px; align-items: end; }

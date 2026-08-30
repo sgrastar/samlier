@@ -125,6 +125,43 @@ export interface PendingInteraction {
   answerValues: string[]
 }
 
+export interface BootstrapContract {
+  id: string
+  title: string
+  description: string
+  kind: 'STANDARD_METADATA' | 'OPERATOR_POLICY'
+  readiness: 'SETUP_REQUIRED' | 'FETCH_OBSERVED' | 'MANUAL_ONLY'
+  setupUrl: string | null
+  setupInstruction: string
+  pendingCases: number
+  caseIds: string[]
+}
+
+export interface MetadataLab {
+  runId: string
+  planId: string
+  selectedVariant: string
+  metadataUrl: string
+  availableVariants: string[]
+}
+
+export interface ProtocolEvidenceStatus {
+  eligibleCases: number
+  readyCases: number
+  cases: Array<{
+    caseId: string
+    ready: boolean
+    requiredObservations: string[]
+    completedObservations: string[]
+    details: Record<string, unknown>
+  }>
+}
+
+export interface ProtocolEvidenceEvaluation {
+  completed: Array<{ caseId: string; outcome: string }>
+  remaining: ProtocolEvidenceStatus
+}
+
 export interface Health { status: string; version: string; mode: 'selfhosted' | 'hosted' }
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
@@ -174,6 +211,19 @@ export const api = {
     '/api/manage/session', { method: 'POST', body: JSON.stringify({ runId, token }) },
   ),
   interactions: (runId: string) => request<PendingInteraction[]>(`/api/runs/${runId}/interactions`),
+  bootstrapContracts: (runId: string) => request<BootstrapContract[]>(`/api/runs/${runId}/bootstrap-contracts`),
+  metadataLab: (runId: string) => request<MetadataLab>(`/api/runs/${runId}/metadata-lab`),
+  selectMetadataVariant: (runId: string, variant: string, csrfToken?: string) =>
+    request<MetadataLab>(`/api/runs/${runId}/metadata-lab/variant`, {
+      method: 'POST', body: JSON.stringify({ variant }),
+      headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : {},
+    }),
+  protocolEvidence: (runId: string) =>
+    request<ProtocolEvidenceStatus>(`/api/runs/${runId}/protocol-evidence`),
+  evaluateProtocolEvidence: (runId: string, csrfToken?: string) =>
+    request<ProtocolEvidenceEvaluation>(`/api/runs/${runId}/protocol-evidence/evaluate`, {
+      method: 'POST', body: '{}', headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : {},
+    }),
   attest: (runId: string, caseId: string, value: string, note: string, csrfToken?: string) =>
     request<unknown>(`/api/runs/${runId}/cases/${caseId}/attest`, {
       method: 'POST', body: JSON.stringify({ value, note }),

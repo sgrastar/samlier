@@ -83,6 +83,30 @@ The two points marked ★ are specific to SAML and have the greatest architectur
 
 ## 3. Test Peer Design ★ Core of this design
 
+### Stable metadata lab
+
+For metadata-consumer tests, each Run exposes one stable endpoint:
+
+```text
+/p/{plan}/metadata/live?run={run}
+```
+
+Runner selects a signed fixture behind this URL without changing the URL registered at the Target.
+The selected fixture is persisted in Run context, and every fetch is recorded in Transcript with its
+variant identifier. A fetch alone does not identify the caller or prove Target use. Variant endpoints
+include the same Run and variant correlation so that later inbound SAML can demonstrate actual use
+rather than mere retrieval.
+
+The management API selects only the Suite fixture; it never configures the Target. In particular,
+Samlier does not call Keycloak Admin API or any equivalent vendor interface. A Target is connected by
+standard SAML metadata/MDQ or by an explicit one-time manual import.
+
+Evidence-driven cases expose their observation progress at Run scope. After the operator has triggered
+the target's normal refresh/re-import and attempted the correlated SAML flows, Runner can finish every
+ready case in one operation. Runner resumes only cases whose approved implementation reports complete
+protocol evidence; it never bulk-confirms the remaining configuration cases and never derives a target
+violation from a missing observation.
+
 ### Problem: SAML has no dynamic client registration
 
 The OIDC Conformance Suite can issue a new issuer / client for each test.

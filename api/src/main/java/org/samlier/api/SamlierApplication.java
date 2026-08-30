@@ -33,6 +33,7 @@ import org.samlier.runner.PreflightService;
 import org.samlier.runner.RunEvent;
 import org.samlier.runner.RunEventBus;
 import org.samlier.runner.RunService;
+import org.samlier.runner.MetadataLabService;
 import org.samlier.saml.crypto.FilePlanKeyStore;
 import org.samlier.saml.crypto.XmlSigner;
 import org.samlier.saml.ecp.EcpProbeEnvelopeFactory;
@@ -68,6 +69,7 @@ public final class SamlierApplication {
         var metadataCache = new MetadataCache(config.dataDirectory());
         var eventBus = new RunEventBus();
         var runService = new RunService(plans, runs, eventBus, clock);
+        var metadataLab = new MetadataLabService(config.peerBaseUrl(), plans, runs, runService, clock);
         var keyStore = new FilePlanKeyStore(config.dataDirectory(), clock);
         var signer = new XmlSigner();
         var metadataParser = new TargetMetadataParser();
@@ -92,7 +94,7 @@ public final class SamlierApplication {
                 new EcpProbeService(caseExecutions, ephemeralCredentials, outboundDispatcher, clock));
         var m1 = M1Runtime.create(
                 config, database, json, plans, runs, transcript, transcript, metadataCache,
-                metadataParser, keyStore, caseExecutions, clock);
+                metadataParser, keyStore, caseExecutions, metadataLab, clock);
         var hostedRateLimiter = new HostedRateLimiter(clock);
         var hostedRunProvisioner = new org.samlier.store.SqliteHostedRunProvisioner(database, json);
 
@@ -111,6 +113,10 @@ public final class SamlierApplication {
             ResultRoutes.register(javalin, m1::requireResult, m1::requireReport);
             PublicationRoutes.register(javalin, m1::publish);
             InteractionRoutes.register(javalin, m1::pending);
+            BootstrapContractRoutes.register(javalin, m1::bootstrapContracts);
+            MetadataLabRoutes.register(javalin, metadataLab);
+            ProtocolEvidenceRoutes.register(
+                    javalin, m1::protocolEvidence, m1::evaluateProtocolEvidence);
             AttestationRoutes.register(javalin, m1::attest);
             ConfigurationRoutes.register(javalin, m1::configure);
             BrowserCompletionRoutes.register(javalin, m1::completeBrowser);
@@ -156,6 +162,22 @@ public final class SamlierApplication {
                                 ctx.header("X-CSRF-Token")));
                 javalin.routes.before("/api/runs/{id}/interactions", ctx ->
                         m1.authorize(ctx.pathParam("id"), ctx.cookie(ManagementSessionRoutes.COOKIE_NAME)));
+                javalin.routes.before("/api/runs/{id}/bootstrap-contracts", ctx ->
+                        m1.authorize(ctx.pathParam("id"), ctx.cookie(ManagementSessionRoutes.COOKIE_NAME)));
+                javalin.routes.before("/api/runs/{id}/metadata-lab", ctx ->
+                        m1.authorize(ctx.pathParam("id"), ctx.cookie(ManagementSessionRoutes.COOKIE_NAME)));
+                javalin.routes.before("/api/runs/{id}/metadata-lab/variant", ctx ->
+                        m1.authorizeMutation(
+                                ctx.pathParam("id"),
+                                ctx.cookie(ManagementSessionRoutes.COOKIE_NAME),
+                                ctx.header("X-CSRF-Token")));
+                javalin.routes.before("/api/runs/{id}/protocol-evidence", ctx ->
+                        m1.authorize(ctx.pathParam("id"), ctx.cookie(ManagementSessionRoutes.COOKIE_NAME)));
+                javalin.routes.before("/api/runs/{id}/protocol-evidence/evaluate", ctx ->
+                        m1.authorizeMutation(
+                                ctx.pathParam("id"),
+                                ctx.cookie(ManagementSessionRoutes.COOKIE_NAME),
+                                ctx.header("X-CSRF-Token")));
                 javalin.routes.before("/api/runs/{id}/cases/{caseId}/attest", ctx ->
                         m1.authorizeMutation(
                                 ctx.pathParam("id"),
@@ -198,7 +220,7 @@ public final class SamlierApplication {
                         m1.authorize(ctx.pathParam("id"), ctx.cookie(ManagementSessionRoutes.COOKIE_NAME)));
             }
             routes(javalin, config, plans, runs, transcript, eventBus, runService, preflight,
-                    metadata, spPeer, idpPeer, secondaryIdpPeer, sloPeer, m1,
+                    metadata, metadataLab, spPeer, idpPeer, secondaryIdpPeer, sloPeer, m1,
                     hostedRateLimiter, hostedRunProvisioner, clock);
             javalin.routes.exception(MisdirectedRequest.class, (error, ctx) ->
                     ctx.status(421).json(new ApiModels.ErrorView("misdirected_request", error.getMessage())));
@@ -223,7 +245,8 @@ public final class SamlierApplication {
                                PlanRepository plans, RunRepository runs,
                                org.samlier.core.transcript.TranscriptRecorder transcript,
                                RunEventBus eventBus, RunService runService, PreflightService preflight,
-                               MetadataService metadata, SpPeerService spPeer, IdpPeerService idpPeer,
+                               MetadataService metadata, MetadataLabService metadataLab,
+                               SpPeerService spPeer, IdpPeerService idpPeer,
                                IdpPeerService secondaryIdpPeer,
                                SloPeerService sloPeer,
                                M1Runtime m1, HostedRateLimiter hostedRateLimiter,
@@ -335,6 +358,44 @@ public final class SamlierApplication {
                 ctx.header("Cache-Control", "no-store");
             }
             ctx.contentType("application/samlmetadata+xml").result(metadata.generate(plan, variant, runId));
+        });
+        javalin.routes.get("/p/{plan}/metadata/live", ctx -> {
+            var plan = requirePlan(plans, ctx.pathParam("plan"));
+            var runId = requiredQuery(ctx, "run");
+            var variant = metadataLab.selected(runId, plan.id());
+            var run = requireRun(runs, runId);
+            var redirectStatus = metadataRedirectStatus(variant);
+            transcript.record(new org.samlier.core.transcript.TranscriptInput(
+                    run.id(), org.samlier.core.transcript.Direction.INBOUND, clock.instant(),
+                    "metadata-live:" + variant.id(), "GET", absoluteRequestUrl(ctx),
+                    redirectStatus == null ? 200 : redirectStatus.getCode(),
+                    headers(ctx), new byte[0], null, ctx.req().getQueryString(), new byte[0],
+                    Map.of("type", "MetadataFetch", "variant", variant.id(), "feed", "live")));
+            ctx.header("Cache-Control", "no-store");
+            if (redirectStatus != null) {
+                var location = config.peerBaseUrl().resolve(
+                        "/p/" + plan.id() + "/metadata/live/content?run=" + run.id()
+                                + "&variant=" + variant.id());
+                ctx.redirect(location.toString(), redirectStatus);
+                return;
+            }
+            ctx.contentType("application/samlmetadata+xml")
+                    .result(metadata.generate(plan, variant, runId));
+        });
+        javalin.routes.get("/p/{plan}/metadata/live/content", ctx -> {
+            var plan = requirePlan(plans, ctx.pathParam("plan"));
+            var runId = requiredQuery(ctx, "run");
+            var run = requireRun(runs, runId);
+            if (!plan.id().equals(run.planId())) {
+                throw new IllegalArgumentException("Run belongs to another Test Plan");
+            }
+            var variant = MetadataService.Variant.parse(requiredQuery(ctx, "variant"));
+            if (metadataRedirectStatus(variant) == null) {
+                throw new IllegalArgumentException("Metadata content route requires a redirect fixture");
+            }
+            ctx.header("Cache-Control", "no-store");
+            ctx.contentType("application/samlmetadata+xml")
+                    .result(metadata.generate(plan, variant, runId));
         });
         javalin.routes.get("/mdq/<entityId>", ctx -> {
             var entityId = URLDecoder.decode(ctx.pathParam("entityId"), StandardCharsets.UTF_8);
@@ -497,6 +558,15 @@ public final class SamlierApplication {
     private static String absoluteRequestUrl(Context ctx) {
         var query = ctx.req().getQueryString();
         return ctx.url() + (query == null ? "" : "?" + query);
+    }
+
+    private static HttpStatus metadataRedirectStatus(MetadataService.Variant variant) {
+        return switch (variant) {
+            case REDIRECT_301 -> HttpStatus.MOVED_PERMANENTLY;
+            case REDIRECT_302 -> HttpStatus.FOUND;
+            case REDIRECT_307 -> HttpStatus.TEMPORARY_REDIRECT;
+            default -> null;
+        };
     }
 
     private static void securityHeaders(Context ctx) {
