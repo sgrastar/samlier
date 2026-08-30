@@ -47,7 +47,9 @@ final class NormalFlowBrowserObservation {
             case "IIP-SSO01-en-idp-01" -> responseVersionNotHigher(parsed);
             case "IIP-SSO01-h-idp-01" -> responseIssuer(parsed, expectedTargetEntityId);
             case "IIP-SSO03-a-idp-01" -> successfulPostResponse(parsed);
+            case "IIP-SSO05-a-idp-01" -> requestedNameIdFormat(parsed, PERSISTENT, "persistent");
             case "IIP-SSO05-a2-idp-01" -> nameIdLength(parsed, PERSISTENT, "persistent");
+            case "IIP-SSO05-b-idp-01" -> requestedNameIdFormat(parsed, TRANSIENT, "transient");
             case "IIP-SSO05-b1-idp-01" -> nameIdLength(parsed, TRANSIENT, "transient");
             case "IIP-IDP09-b-idp-01" -> encryptionChoice(parsed);
             default -> Optional.empty();
@@ -61,7 +63,17 @@ final class NormalFlowBrowserObservation {
                     "IIP-SSO01-ad-idp-01", "IIP-SSO01-ap-idp-01", "IIP-SSO01-en-idp-01",
                     "IIP-SSO01-h-idp-01",
                     "IIP-SSO03-a-idp-01",
-                    "IIP-SSO05-a2-idp-01", "IIP-SSO05-b1-idp-01", "IIP-IDP09-b-idp-01" -> true;
+                    "IIP-SSO05-a-idp-01", "IIP-SSO05-a2-idp-01",
+                    "IIP-SSO05-b-idp-01", "IIP-SSO05-b1-idp-01",
+                    "IIP-IDP09-b-idp-01" -> true;
+            default -> false;
+        };
+    }
+
+    static boolean acceptsActiveScenarioEvidence(String caseId) {
+        return switch (caseId) {
+            case "IIP-SSO05-a-idp-01", "IIP-SSO05-a2-idp-01",
+                    "IIP-SSO05-b-idp-01", "IIP-SSO05-b1-idp-01" -> true;
             default -> false;
         };
     }
@@ -359,6 +371,37 @@ final class NormalFlowBrowserObservation {
         return observed == 0 ? Optional.empty() : Optional.of(outcome(
                 Outcome.SATISFIED, "browser.normal-flow." + label + "-nameid-length",
                 evidence, Map.of("observed_nameids", observed, "longest_code_points", longest)));
+    }
+
+    private static Optional<CaseOutcome> requestedNameIdFormat(
+            List<Parsed> messages, String requestedFormat, String label) {
+        var requests = new LinkedHashMap<String, Parsed>();
+        for (var message : messages) {
+            if (!isRoot(message.document(), PROTOCOL, "AuthnRequest")) continue;
+            var root = message.document().getDocumentElement();
+            var policies = elements(root, PROTOCOL, "NameIDPolicy");
+            if (policies.stream().anyMatch(value -> requestedFormat.equals(value.getAttribute("Format")))) {
+                requests.put(root.getAttribute("ID"), message);
+            }
+        }
+        if (requests.isEmpty()) return Optional.empty();
+        for (var response : successfulResponses(messages)) {
+            var root = response.document().getDocumentElement();
+            var request = requests.get(root.getAttribute("InResponseTo"));
+            if (request == null) continue;
+            var nameIds = elements(response.document(), ASSERTION, "NameID");
+            if (nameIds.isEmpty()) return Optional.empty();
+            var evidence = List.of(request.evidence(), response.evidence());
+            if (nameIds.stream().noneMatch(value -> requestedFormat.equals(value.getAttribute("Format")))) {
+                return Optional.of(outcome(
+                        Outcome.VIOLATED, "browser.normal-flow." + label + "-nameid-not-returned",
+                        evidence, Map.of("requested_format", requestedFormat)));
+            }
+            return Optional.of(outcome(
+                    Outcome.SATISFIED, "browser.normal-flow." + label + "-nameid-returned",
+                    evidence, Map.of("requested_format", requestedFormat)));
+        }
+        return Optional.empty();
     }
 
     private static Optional<CaseOutcome> encryptionChoice(List<Parsed> messages) {

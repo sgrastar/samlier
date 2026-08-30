@@ -170,6 +170,8 @@ export interface ActiveProbeStatus {
   startUrl: string | null
   requiresFreshSession: boolean
   outcome: string | null
+  caseId: string | null
+  instructionsEn: string | null
 }
 
 export interface Health { status: string; version: string; mode: 'selfhosted' | 'hosted' }
@@ -215,6 +217,10 @@ export const api = {
     method: 'POST', headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : {},
   }),
   activeProbe: (runId: string) => request<ActiveProbeStatus>(`/api/runs/${runId}/active-probe`),
+  abortActiveProbe: (runId: string, csrfToken?: string) =>
+    request<ActiveProbeStatus>(`/api/runs/${runId}/active-probe/abort`, {
+      method: 'POST', headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : {},
+    }),
   result: async (runId: string) => camelize(
     await request<unknown>(`/api/runs/${runId}/result.json`),
   ) as PublicResult,

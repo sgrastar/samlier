@@ -100,7 +100,13 @@ class SpPeerRoundTripTest {
                 "probe traffic must not rewrite the normal round-trip state");
 
         var actionId = "action_00000000000000000000000000000000";
-        var activeBody = "SAMLResponse=" + URLEncoder.encode(response.base64(), StandardCharsets.UTF_8)
+        var normalRequestId = request.parsed().document().getDocumentElement().getAttribute("ID");
+        var activeRequestXml = new String(request.xml(), StandardCharsets.UTF_8)
+                .replace(normalRequestId, "_" + actionId).getBytes(StandardCharsets.UTF_8);
+        var activeRequest = saml.parse(new SamlProtocolService.RawDecodedMessage(activeRequestXml, run.id()));
+        var activeResponse = saml.buildResponse(responsePlan, activeRequest,
+                URI.create("https://peer.example/p/" + plan.id() + "/sp/acs/0"), "smoke-user");
+        var activeBody = "SAMLResponse=" + URLEncoder.encode(activeResponse.base64(), StandardCharsets.UTF_8)
                 + "&RelayState=" + URLEncoder.encode(
                         ActiveProbeCorrelation.encode(run.id(), actionId), StandardCharsets.UTF_8);
         var active = peer.consumeDetailed(
@@ -109,6 +115,10 @@ class SpPeerRoundTripTest {
         assertTrue(active.activeProbe());
         assertEquals(run.id(), active.activeProbeRunId());
         assertEquals(actionId, routedAction.get());
+        assertEquals(true, active.summary().get("activeProbeAccepted"));
+        assertEquals(true, recorder.list(run.id()).stream()
+                .filter(entry -> ("_" + actionId).equals(entry.correlationId()))
+                .findFirst().orElseThrow().samlSummary().get("activeProbeAccepted"));
         assertEquals(RunStatus.COMPLETED, runs.find(run.id()).orElseThrow().status(),
                 "active probes must not rewrite the baseline round-trip state");
 

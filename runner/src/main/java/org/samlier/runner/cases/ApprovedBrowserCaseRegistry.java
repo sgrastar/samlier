@@ -29,7 +29,7 @@ public final class ApprovedBrowserCaseRegistry {
             CaseDefinitionCatalog definitions, URI publicBase, TranscriptContentReader transcriptContent) {
         return create(
                 definitions, publicBase, Milestone.M1, transcriptContent,
-                ignored -> java.util.Optional.empty(), ignored -> java.util.Optional.empty());
+                ignored -> java.util.Optional.empty(), ignored -> java.util.Optional.empty(), null);
     }
 
     public static TestCaseRegistry create(
@@ -39,7 +39,7 @@ public final class ApprovedBrowserCaseRegistry {
             SamlDecryptionKeyProvider decryptionKeys) {
         return create(
                 definitions, publicBase, Milestone.M1, transcriptContent, decryptionKeys,
-                ignored -> java.util.Optional.empty());
+                ignored -> java.util.Optional.empty(), null);
     }
 
     public static TestCaseRegistry create(
@@ -50,7 +50,19 @@ public final class ApprovedBrowserCaseRegistry {
             java.util.function.Function<String, java.util.Optional<String>> targetEntityIds) {
         return create(
                 definitions, publicBase, Milestone.M1, transcriptContent,
-                decryptionKeys, targetEntityIds);
+                decryptionKeys, targetEntityIds, null);
+    }
+
+    public static TestCaseRegistry create(
+            CaseDefinitionCatalog definitions,
+            URI publicBase,
+            TranscriptContentReader transcriptContent,
+            SamlDecryptionKeyProvider decryptionKeys,
+            java.util.function.Function<String, java.util.Optional<String>> targetEntityIds,
+            java.util.function.Function<String, IdpErrorProbeConfiguration> idpScenarioConfigurations) {
+        return create(
+                definitions, publicBase, Milestone.M1, transcriptContent,
+                decryptionKeys, targetEntityIds, idpScenarioConfigurations);
     }
 
     public static TestCaseRegistry create(
@@ -65,7 +77,7 @@ public final class ApprovedBrowserCaseRegistry {
             TranscriptContentReader transcriptContent) {
         return create(
                 definitions, publicBase, milestone, transcriptContent,
-                ignored -> java.util.Optional.empty(), ignored -> java.util.Optional.empty());
+                ignored -> java.util.Optional.empty(), ignored -> java.util.Optional.empty(), null);
     }
 
     private static TestCaseRegistry create(
@@ -74,7 +86,8 @@ public final class ApprovedBrowserCaseRegistry {
             Milestone milestone,
             TranscriptContentReader transcriptContent,
             SamlDecryptionKeyProvider decryptionKeys,
-            java.util.function.Function<String, java.util.Optional<String>> targetEntityIds) {
+            java.util.function.Function<String, java.util.Optional<String>> targetEntityIds,
+            java.util.function.Function<String, IdpErrorProbeConfiguration> idpScenarioConfigurations) {
         Objects.requireNonNull(definitions, "definitions");
         Objects.requireNonNull(publicBase, "publicBase");
         Objects.requireNonNull(milestone, "milestone");
@@ -84,7 +97,8 @@ public final class ApprovedBrowserCaseRegistry {
                 .filter(value -> value.milestone() == milestone)
                 .filter(value -> value.mode() == ExecutionMode.BROWSER)
                 .map(value -> createCase(
-                        value, publicBase, transcriptContent, decryptionKeys, targetEntityIds))
+                        value, publicBase, transcriptContent, decryptionKeys, targetEntityIds,
+                        idpScenarioConfigurations))
                 .forEach(cases::add);
         var registry = new TestCaseRegistry(cases);
         CaseImplementationAudit.requireExact(definitions, registry, milestone, ExecutionMode.BROWSER);
@@ -96,7 +110,15 @@ public final class ApprovedBrowserCaseRegistry {
             URI publicBase,
             TranscriptContentReader transcriptContent,
             SamlDecryptionKeyProvider decryptionKeys,
-            java.util.function.Function<String, java.util.Optional<String>> targetEntityIds) {
+            java.util.function.Function<String, java.util.Optional<String>> targetEntityIds,
+            java.util.function.Function<String, IdpErrorProbeConfiguration> idpScenarioConfigurations) {
+        if (idpScenarioConfigurations != null && List.of(
+                IdpNameIdPolicyScenarioTestCase.PROCESSING_CASE,
+                IdpNameIdPolicyScenarioTestCase.REJECTION_CASE,
+                IdpNameIdPolicyScenarioTestCase.CONFORMANCE_CASE).contains(definition.id())) {
+            return new IdpNameIdPolicyScenarioTestCase(
+                    definition.id(), idpScenarioConfigurations, decryptionKeys);
+        }
         var transcriptDriven = transcriptContent != null && NormalFlowBrowserObservation.supports(definition.id());
         var evidence = new AttestedOutcomeTestCase(
                 definition.id(), definition.role(), "case." + definition.id() + ".browser-evidence",

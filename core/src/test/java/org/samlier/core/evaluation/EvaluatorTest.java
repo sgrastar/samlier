@@ -286,6 +286,45 @@ class EvaluatorTest {
                 List.of(incident)));
     }
 
+    @Test
+    void acceptsViolationProvenByADifferentConfirmedActionInTheSameScenario() {
+        var catalog = catalog(obligation(
+                "REQ.a", Rfc2119Level.MUST, Testability.AUTOMATED, ProfileScope.CORE, null));
+        var incident = new SuiteIncident("UNKNOWN_DELIVERY", "case-a", "action-1", "delivery unknown");
+        var outcome = new CaseOutcome(
+                Outcome.VIOLATED, null, "test", "test",
+                List.of(new EvidenceRef("test", "evidence:action-2")),
+                Map.of("violating_action_ids", List.of("action-2")));
+
+        var result = Evaluator.evaluate(
+                catalog,
+                plan(PlanProfile.IDP_CORE),
+                List.of(),
+                List.of(CaseRun.completed("case-a", "REQ.a", outcome)),
+                List.of(incident));
+
+        assertEquals(Verdict.FAIL, result.obligations().getFirst().verdict());
+        assertEquals(List.of(incident), result.suiteIncidents());
+    }
+
+    @Test
+    void rejectsViolationProvenByTheSameUnknownAction() {
+        var catalog = catalog(obligation(
+                "REQ.a", Rfc2119Level.MUST, Testability.AUTOMATED, ProfileScope.CORE, null));
+        var incident = new SuiteIncident("UNKNOWN_DELIVERY", "case-a", "action-1", "delivery unknown");
+        var outcome = new CaseOutcome(
+                Outcome.VIOLATED, null, "test", "test",
+                List.of(new EvidenceRef("test", "evidence:action-1")),
+                Map.of("violating_action_ids", List.of("action-1")));
+
+        assertThrows(IllegalArgumentException.class, () -> Evaluator.evaluate(
+                catalog,
+                plan(PlanProfile.IDP_CORE),
+                List.of(),
+                List.of(CaseRun.completed("case-a", "REQ.a", outcome)),
+                List.of(incident)));
+    }
+
     private static CaseRun completed(String id, String obligation, Outcome outcome) {
         return CaseRun.completed(id, obligation, CaseOutcome.of(
                 outcome, "test", List.of(new EvidenceRef("test", "evidence:" + id))));

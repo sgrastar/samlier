@@ -129,6 +129,8 @@ public final class SamlierApplication {
             EcpProbeRoutes.register(javalin, ecpProbe::execute);
             javalin.routes.get("/api/runs/{id}/active-probe", ctx ->
                     ctx.json(m1.activeProbeStatus(ctx.pathParam("id"))));
+            javalin.routes.post("/api/runs/{id}/active-probe/abort", ctx ->
+                    ctx.json(m1.abortActiveProbe(ctx.pathParam("id"))));
             if (config.mode() == AppConfig.Mode.HOSTED) {
                 ManagementSessionRoutes.register(javalin, config.publicBaseUrl(), m1::exchange);
                 javalin.routes.before("/api/plans/{id}", ctx -> {
@@ -169,6 +171,11 @@ public final class SamlierApplication {
                                 ctx.header("X-CSRF-Token")));
                 javalin.routes.before("/api/runs/{id}/active-probe", ctx ->
                         m1.authorize(ctx.pathParam("id"), ctx.cookie(ManagementSessionRoutes.COOKIE_NAME)));
+                javalin.routes.before("/api/runs/{id}/active-probe/abort", ctx ->
+                        m1.authorizeMutation(
+                                ctx.pathParam("id"),
+                                ctx.cookie(ManagementSessionRoutes.COOKIE_NAME),
+                                ctx.header("X-CSRF-Token")));
                 javalin.routes.before("/api/runs/{id}/interactions", ctx ->
                         m1.authorize(ctx.pathParam("id"), ctx.cookie(ManagementSessionRoutes.COOKIE_NAME)));
                 javalin.routes.before("/api/runs/{id}/bootstrap-contracts", ctx ->
@@ -504,10 +511,11 @@ public final class SamlierApplication {
                         + "This browser context has no active target IdP session.</label>"
                 : "";
         return "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><title>Active SAML probes</title></head>"
-                + "<body><h1>Run active SAML probes</h1>"
-                + "<p>Samlier will send one positive control and the three approved abnormal AuthnRequest fixtures in sequence, then evaluate each correlated Response.</p>"
+                + "<body><h1>Run browser-assisted SAML scenario</h1>"
+                + "<p><strong>" + htmlEscape(status.caseId()) + "</strong></p>"
+                + "<p>" + htmlEscape(status.instructionsEn()) + "</p>"
                 + "<form method=\"post\">" + fresh
-                + "<p><button type=\"submit\">Start active probes</button></p></form></body></html>";
+                + "<p><button type=\"submit\">Continue scenario</button></p></form></body></html>";
     }
 
     private static void renderActiveProbe(

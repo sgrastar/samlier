@@ -106,6 +106,20 @@ export function RunManagement({ runId, csrfToken, focusCaseId }: {
     }
   }
 
+  const abortActiveProbe = async () => {
+    setBusy('active-probe-abort')
+    setError('')
+    try {
+      await api.abortActiveProbe(runId, csrfToken)
+      setNotice('No correlated SAML Response was returned. This fixture was marked unavailable, never as a target failure; any remaining scenario controls will continue.')
+      await refresh()
+    } catch (cause) {
+      setError((cause as Error).message)
+    } finally {
+      setBusy('')
+    }
+  }
+
   const runPreflight = async () => {
     setBusy('preflight')
     setError('')
@@ -305,12 +319,18 @@ export function RunManagement({ runId, csrfToken, focusCaseId }: {
       <a className="button" href={`/p/${plan.plan.id}/start/m0-roundtrip?run=${runId}`}>Start IdP round trip</a>
     </div>}
     {activeProbe?.state === 'READY' && activeProbe.startUrl && <article className="interaction active-probe">
-      <header><strong>Active error-response probes</strong><span>AUTOMATED</span></header>
-      <p>Samlier will send one positive control and three abnormal AuthnRequest fixtures, then evaluate the correlated Responses automatically.</p>
+      <header><strong>{activeProbe.caseId ?? 'Browser-assisted SAML scenario'}</strong><span>AUTOMATED ORACLE</span></header>
+      <p>{activeProbe.instructionsEn}</p>
       {activeProbe.requiresFreshSession && <p>The first IsPassive probe must start in a private browser context with no active target session.</p>}
-      <a className="button" href={activeProbe.startUrl}>Open active probes</a>
+      <a className="button" href={activeProbe.startUrl}>Open scenario</a>
     </article>}
-    {activeProbe?.state === 'AWAITING_RESPONSE' && <p>Active probe dispatched; waiting for the correlated SAML Response.</p>}
+    {activeProbe?.state === 'AWAITING_RESPONSE' && <article className="interaction active-probe">
+      <header><strong>{activeProbe.caseId ?? 'Browser-assisted SAML scenario'}</strong><span>WAITING</span></header>
+      <p>The request was dispatched. Complete target login or consent in that browser. Samlier will continue automatically after a correlated SAML Response.</p>
+      <button disabled={busy === 'active-probe-abort'} onClick={() => void abortActiveProbe()}>
+        No SAML Response was returned
+      </button>
+    </article>}
     {plan && profile.startsWith('SP') && <p>Start login at the target SP after importing the Test Peer metadata.</p>}
     {focusCaseId && <div className="actions"><a className="button" href={`/manage/${runId}`}>Back to Run management</a></div>}
     {visibleInteractions.length === 0 ? <p className="quiet-success">

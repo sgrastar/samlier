@@ -11,6 +11,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -30,6 +31,7 @@ import org.samlier.core.run.RunStatus;
 import org.samlier.core.run.TestRun;
 import org.samlier.runner.cases.IdpErrorProbeConfiguration;
 import org.samlier.runner.cases.IdpErrorResponseTestCase;
+import org.samlier.runner.cases.IdpNameIdPolicyScenarioTestCase;
 import org.samlier.runner.outbox.OutboundDispatcher;
 import org.samlier.runner.outbox.OutboundSender;
 import org.samlier.store.FileTranscriptRecorder;
@@ -47,6 +49,7 @@ class ActiveProbeCoordinatorTest {
     @TempDir java.nio.file.Path directory;
     private SqliteCaseExecutionRepository executions;
     private SqliteRunRepository runs;
+    private SqlitePlanRepository plans;
     private FileTranscriptRecorder transcript;
     private ActiveProbeCoordinator coordinator;
     private CaseContextProvider contexts;
@@ -55,7 +58,7 @@ class ActiveProbeCoordinatorTest {
     void setUp() {
         var database = new SqliteDatabase(directory);
         var json = new JsonCodec();
-        var plans = new SqlitePlanRepository(database, json);
+        plans = new SqlitePlanRepository(database, json);
         var plan = new TestPlan(
                 PLAN, "Active probe", PlanProfile.IDP_CORE,
                 new TestPlan.Target(TargetKind.IDP, "https://idp.example/entity",
@@ -235,6 +238,44 @@ class ActiveProbeCoordinatorTest {
         assertEquals(Outcome.NOT_VERIFIED.name(), status.outcome());
         assertEquals(OutboxStatus.SENT,
                 executions.findOutbox(current.actionId()).orElseThrow().status());
+    }
+
+    @Test
+    void missingBrowserResponseSkipsOnlyTheCurrentFixtureAndContinuesTheScenario() {
+        var runId = "run_2123456789ABCDEFGHJKMNPQRS";
+        runs.save(new TestRun(runId, PLAN, RunStatus.COMPLETED, Reachability.CONFIRMED, Map.of(), NOW, NOW));
+        var configuration = configuration(true);
+        var scenario = new IdpNameIdPolicyScenarioTestCase(
+                IdpNameIdPolicyScenarioTestCase.PROCESSING_CASE, configuration);
+        var runContexts = (CaseContextProvider) ignored -> new DefaultCaseContext(
+                runId, org.samlier.core.plan.TargetRole.IDP, Clock.fixed(NOW, ZoneOffset.UTC),
+                TestPlan.Parameters.defaults(), TestPlan.Interaction.defaults(),
+                Reachability.CONFIRMED, transcript, true);
+        new CaseExecutionService(executions).start(runId, scenario, runContexts.contextFor(runId));
+        var dispatcher = new OutboundDispatcher(
+                executions,
+                (candidateRun, action, credential) -> new OutboundSender.SendResult(false, Map.of(), "unused"),
+                (candidateRun, actionId) -> Optional.empty(),
+                new OutboundPolicy(true), Clock.fixed(NOW, ZoneOffset.UTC));
+        var generic = new ActiveProbeCoordinator(
+                URI.create("https://suite.example"), plans, runs, executions, dispatcher,
+                transcript, runContexts, (ignored, candidateRun) -> configuration,
+                new TestCaseRegistry(java.util.List.of(scenario)), Clock.fixed(NOW, ZoneOffset.UTC));
+
+        var ready = generic.status(runId);
+        assertEquals(ActiveProbeCoordinator.State.READY, ready.state());
+        assertEquals(IdpNameIdPolicyScenarioTestCase.PROCESSING_CASE, ready.caseId());
+        assertTrue(ready.instructionsEn().contains("browser session"));
+        generic.prepare(runId, ready.actionId(), false);
+        assertEquals(ActiveProbeCoordinator.State.AWAITING_RESPONSE, generic.status(runId).state());
+
+        var next = generic.abort(runId);
+        assertEquals(ActiveProbeCoordinator.State.READY, next.state());
+        assertEquals(IdpNameIdPolicyScenarioTestCase.PROCESSING_CASE, next.caseId());
+        var execution = executions.find(runId, scenario.id()).orElseThrow();
+        assertEquals(CaseExecutionStatus.WAITING_INBOUND, execution.status());
+        assertEquals(1, execution.state().data().get("fixture_index"));
+        assertEquals(List.of("policy-omitted"), execution.state().data().get("unverifiable"));
     }
 
     private byte[] response(String status) {

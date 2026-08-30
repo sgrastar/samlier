@@ -157,7 +157,8 @@ public final class CaseExecutionService {
             case WAITING_CONFIG -> event instanceof CaseEvent.ConfigConfirmed
                     || event instanceof CaseEvent.ConfigUnavailable;
             case WAITING_ATTESTATION -> event instanceof CaseEvent.Attested;
-            case WAITING_INBOUND -> event instanceof CaseEvent.InboundMessage;
+            case WAITING_INBOUND -> event instanceof CaseEvent.InboundMessage
+                    || event instanceof CaseEvent.InboundUnavailable;
             case FINISHED -> false;
         };
         if (!accepted) {

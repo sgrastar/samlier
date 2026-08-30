@@ -185,6 +185,68 @@ class BrowserEvidenceTestCaseTest {
                 testCase.start(context(new FixedTranscript(List.of(rejected)))));
     }
 
+    @Test
+    void explicitlyAllowedNameIdOracleReusesCorrelatedActiveScenarioEvidence() {
+        var action = "action_00000000000000000000000000000000";
+        var requestId = "_" + action;
+        var request = ("""
+                <samlp:AuthnRequest xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol"
+                    ID="%s" Version="2.0">
+                  <samlp:NameIDPolicy Format="urn:oasis:names:tc:SAML:2.0:nameid-format:persistent"/>
+                </samlp:AuthnRequest>
+                """).formatted(requestId).getBytes(StandardCharsets.UTF_8);
+        var response = ("""
+                <samlp:Response xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol"
+                    xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion"
+                    Version="2.0" InResponseTo="%s">
+                  <samlp:Status><samlp:StatusCode Value="urn:oasis:names:tc:SAML:2.0:status:Success"/></samlp:Status>
+                  <saml:Assertion><saml:Subject><saml:NameID
+                    Format="urn:oasis:names:tc:SAML:2.0:nameid-format:persistent">opaque</saml:NameID>
+                  </saml:Subject></saml:Assertion>
+                </samlp:Response>
+                """).formatted(requestId).getBytes(StandardCharsets.UTF_8);
+        var outbound = new TranscriptEntry(
+                "entry-active-request", RUN_ID, org.samlier.core.transcript.Direction.OUTBOUND, NOW, action,
+                "POST", "https://idp.example/sso", 200, Map.of(), null, 0,
+                "request-ref", request.length, "application/xml", null,
+                Map.of("type", "AuthnRequest", "active_probe", true));
+        var inbound = new TranscriptEntry(
+                "entry-active-response", RUN_ID, org.samlier.core.transcript.Direction.INBOUND, NOW, requestId,
+                "POST", "https://suite.example/acs", 200, Map.of(), null, 0,
+                "response-ref", response.length, "application/x-www-form-urlencoded", null,
+                Map.of("type", "Response", "activeProbeAccepted", true));
+        var content = Map.of("entry-active-request", request, "entry-active-response", response);
+        var testCase = new AutoBrowserEvidenceTestCase(
+                browserCase("IIP-SSO05-a-idp-01"), entry -> content.get(entry.id()));
+
+        var finish = assertInstanceOf(CaseStep.Finish.class,
+                testCase.start(context(new FixedTranscript(List.of(outbound, inbound)))));
+
+        assertEquals(Outcome.SATISFIED, finish.outcome().outcome());
+        assertEquals(2, finish.outcome().evidence().size());
+    }
+
+    @Test
+    void activeScenarioEvidenceCannotLeakIntoAnUnrelatedNormalFlowOracle() {
+        var response = """
+                <samlp:Response xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol"
+                    Version="2.0" InResponseTo="_action_00000000000000000000000000000000">
+                  <samlp:Status><samlp:StatusCode Value="urn:oasis:names:tc:SAML:2.0:status:Success"/></samlp:Status>
+                </samlp:Response>
+                """.getBytes(StandardCharsets.UTF_8);
+        var inbound = new TranscriptEntry(
+                "entry-active-response", RUN_ID, org.samlier.core.transcript.Direction.INBOUND, NOW,
+                "_action_00000000000000000000000000000000", "POST", "https://suite.example/acs",
+                200, Map.of(), null, 0, "response-ref", response.length,
+                "application/x-www-form-urlencoded", null,
+                Map.of("type", "Response", "activeProbeAccepted", true));
+        var testCase = new AutoBrowserEvidenceTestCase(
+                browserCase("IIP-SSO03-a-idp-01"), ignored -> response);
+
+        assertInstanceOf(CaseStep.AwaitBrowser.class,
+                testCase.start(context(new FixedTranscript(List.of(inbound)))));
+    }
+
     private BrowserEvidenceTestCase browserCase(String id) {
         var evidence = new AttestedOutcomeTestCase(
                 id, TargetRole.IDP, "browser.evidence", "Review browser evidence.",
