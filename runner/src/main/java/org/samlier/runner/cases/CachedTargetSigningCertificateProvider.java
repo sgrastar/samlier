@@ -18,8 +18,10 @@ public final class CachedTargetSigningCertificateProvider implements TargetSigni
     }
 
     @Override
-    public List<X509Certificate> certificatesFor(TestPlan plan) {
+    public List<X509Certificate> certificatesFor(TestPlan plan, String runId) {
         Objects.requireNonNull(plan, "plan");
-        return parser.parse(cache.get(plan.id()), plan.target().entityId()).signingCertificates();
+        return parser.parse(
+                cache.getRunSnapshot(runId, plan.id()), plan.target().entityId())
+                .signingCertificates();
     }
 }

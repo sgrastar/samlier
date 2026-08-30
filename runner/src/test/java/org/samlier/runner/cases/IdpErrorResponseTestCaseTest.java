@@ -26,36 +26,44 @@ class IdpErrorResponseTestCaseTest {
     private final IdpErrorResponseTestCase testCase = new IdpErrorResponseTestCase(configuration(true, true, true));
 
     @Test
-    void runsAllThreeProbesThroughDeterministicOutboxActions() {
+    void runsThePositiveControlAndAllThreeProbesThroughDeterministicOutboxActions() {
         var first = assertInstanceOf(CaseStep.AwaitInbound.class, testCase.start(context()));
-        assertAction(first, "await-unknown-nameid-format");
-        assertTrue(new String(first.actions().get(0).payload(), StandardCharsets.UTF_8).contains("NameIDPolicy"));
+        assertAction(first, "await-fixture-passive-without-session");
+        assertTrue(new String(first.actions().get(0).payload(), StandardCharsets.UTF_8).contains("IsPassive=\"true\""));
 
         var second = assertInstanceOf(CaseStep.AwaitInbound.class, testCase.resume(
-                context(), first.next(), inbound(error(first.next(), "Responder", null), "unknown-format")));
-        assertAction(second, "await-unsatisfiable-authn-context");
-        assertTrue(new String(second.actions().get(0).payload(), StandardCharsets.UTF_8).contains("RequestedAuthnContext"));
+                context(), first.next(), inbound(error(first.next(), "Requester", null), "passive")));
+        assertAction(second, "await-fixture-baseline-success");
+        var baseline = new String(second.actions().get(0).payload(), StandardCharsets.UTF_8);
+        assertTrue(!baseline.contains("NameIDPolicy") && !baseline.contains("RequestedAuthnContext"));
 
         var third = assertInstanceOf(CaseStep.AwaitInbound.class, testCase.resume(
-                context(), second.next(), inbound(error(second.next(), "Responder", null), "authn-context")));
-        assertAction(third, "await-passive-without-session");
-        assertTrue(new String(third.actions().get(0).payload(), StandardCharsets.UTF_8).contains("IsPassive=\"true\""));
+                context(), second.next(), inbound(error(second.next(), "Success", null), "baseline")));
+        assertAction(third, "await-fixture-unknown-nameid-format");
+        assertTrue(new String(third.actions().get(0).payload(), StandardCharsets.UTF_8).contains("NameIDPolicy"));
+
+        var fourth = assertInstanceOf(CaseStep.AwaitInbound.class, testCase.resume(
+                context(), third.next(), inbound(error(third.next(), "Responder", null), "unknown-format")));
+        assertAction(fourth, "await-fixture-unsatisfiable-authn-context");
+        assertTrue(new String(fourth.actions().get(0).payload(), StandardCharsets.UTF_8).contains("RequestedAuthnContext"));
 
         var finish = assertInstanceOf(CaseStep.Finish.class, testCase.resume(
-                context(), third.next(), inbound(error(third.next(), "Requester", null), "passive")));
+                context(), fourth.next(), inbound(error(fourth.next(), "Responder", null), "authn-context")));
         assertEquals(Outcome.SATISFIED, finish.outcome().outcome());
-        assertEquals(3, finish.outcome().evidence().size());
+        assertEquals(4, finish.outcome().evidence().size());
     }
 
     @Test
     void aSuccessResponseForAnErrorProbeProducesViolatedOnlyAfterAllControlsRun() {
         var first = (CaseStep.AwaitInbound) testCase.start(context());
         var second = (CaseStep.AwaitInbound) testCase.resume(
-                context(), first.next(), inbound(error(first.next(), "Success", null), "unexpected-success"));
+                context(), first.next(), inbound(error(first.next(), "Requester", null), "passive"));
         var third = (CaseStep.AwaitInbound) testCase.resume(
-                context(), second.next(), inbound(error(second.next(), "Responder", null), "expected-error"));
+                context(), second.next(), inbound(error(second.next(), "Success", null), "baseline"));
+        var fourth = (CaseStep.AwaitInbound) testCase.resume(
+                context(), third.next(), inbound(error(third.next(), "Success", null), "unexpected-success"));
         var finish = (CaseStep.Finish) testCase.resume(
-                context(), third.next(), inbound(error(third.next(), "Responder", null), "expected-passive-error"));
+                context(), fourth.next(), inbound(error(fourth.next(), "Responder", null), "expected-error"));
 
         assertEquals(Outcome.VIOLATED, finish.outcome().outcome());
     }
@@ -64,15 +72,44 @@ class IdpErrorResponseTestCaseTest {
     void aTargetThatActuallyReturnsTheProbeAuthnContextDoesNotGetAFalseViolation() {
         var first = (CaseStep.AwaitInbound) testCase.start(context());
         var second = (CaseStep.AwaitInbound) testCase.resume(
-                context(), first.next(), inbound(error(first.next(), "Responder", null), "first"));
-        var requestId = (String) second.next().data().get("request_id");
-        var requested = new org.samlier.saml.normal.SamlErrorProbeRequestFactory().unavailableAuthnContext(requestId);
+                context(), first.next(), inbound(error(first.next(), "Requester", null), "passive"));
         var third = (CaseStep.AwaitInbound) testCase.resume(
-                context(), second.next(), inbound(error(second.next(), "Success", requested), "supported-context"));
+                context(), second.next(), inbound(error(second.next(), "Success", null), "baseline"));
+        var fourth = (CaseStep.AwaitInbound) testCase.resume(
+                context(), third.next(), inbound(error(third.next(), "Responder", null), "unknown-format"));
+        var requestId = (String) fourth.next().data().get("expected_response_correlation");
+        var requested = new org.samlier.saml.normal.SamlErrorProbeRequestFactory().unavailableAuthnContext(requestId);
         var finish = (CaseStep.Finish) testCase.resume(
-                context(), third.next(), inbound(error(third.next(), "Responder", null), "third"));
+                context(), fourth.next(), inbound(error(fourth.next(), "Success", requested), "supported-context"));
 
         assertEquals(Outcome.NOT_VERIFIED, finish.outcome().outcome());
+    }
+
+    @Test
+    void blanketRejectionFailsThePositiveControlInsteadOfPassingTheTarget() {
+        var passive = (CaseStep.AwaitInbound) testCase.start(context());
+        var baseline = (CaseStep.AwaitInbound) testCase.resume(
+                context(), passive.next(), inbound(error(passive.next(), "Requester", null), "passive"));
+
+        var finish = (CaseStep.Finish) testCase.resume(
+                context(), baseline.next(), inbound(error(baseline.next(), "Responder", null), "blanket-reject"));
+
+        assertEquals(Outcome.NOT_VERIFIED, finish.outcome().outcome());
+        assertEquals("control_failed", finish.outcome().reasonCode());
+        assertEquals(2, finish.outcome().evidence().size());
+    }
+
+    @Test
+    void anEmptySuccessResponseDoesNotSatisfyThePositiveControl() {
+        var passive = (CaseStep.AwaitInbound) testCase.start(context());
+        var baseline = (CaseStep.AwaitInbound) testCase.resume(
+                context(), passive.next(), inbound(error(passive.next(), "Requester", null), "passive"));
+
+        var finish = (CaseStep.Finish) testCase.resume(
+                context(), baseline.next(), inbound(emptyResponse(baseline.next(), "Success"), "empty-success"));
+
+        assertEquals(Outcome.NOT_VERIFIED, finish.outcome().outcome());
+        assertEquals("control_failed", finish.outcome().reasonCode());
     }
 
     @Test
@@ -89,7 +126,7 @@ class IdpErrorResponseTestCaseTest {
     private void assertAction(CaseStep.AwaitInbound step, String phase) {
         assertEquals(phase, step.next().phase());
         assertEquals(ActionIds.derive(RUN_ID, testCase.id(), phase, 0), step.actions().get(0).actionId());
-        assertEquals(step.next().data().get("request_id"), step.matcher().criteria().get("InResponseTo"));
+        assertEquals(step.actions().get(0).actionId(), step.matcher().criteria().get("ScenarioActionId"));
     }
 
     private CaseEvent.InboundMessage inbound(String xml, String evidence) {
@@ -98,7 +135,9 @@ class IdpErrorResponseTestCaseTest {
     }
 
     private String error(CaseState state, String status, String authnContext) {
-        var context = authnContext == null ? "" : """
+        var context = authnContext == null
+                ? ("Success".equals(status) ? "<saml:Assertion/>" : "")
+                : """
                 <saml:Assertion><saml:AuthnStatement><saml:AuthnContext>
                   <saml:AuthnContextClassRef>%s</saml:AuthnContextClassRef>
                 </saml:AuthnContext></saml:AuthnStatement></saml:Assertion>
@@ -108,7 +147,16 @@ class IdpErrorResponseTestCaseTest {
                   xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion" InResponseTo="%s">
                   <samlp:Status><samlp:StatusCode Value="urn:oasis:names:tc:SAML:2.0:status:%s"/></samlp:Status>%s
                 </samlp:Response>
-                """.formatted(state.data().get("request_id"), status, context);
+                """.formatted(state.data().get("expected_response_correlation"), status, context);
+    }
+
+    private String emptyResponse(CaseState state, String status) {
+        return """
+                <samlp:Response xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol"
+                  InResponseTo="%s">
+                  <samlp:Status><samlp:StatusCode Value="urn:oasis:names:tc:SAML:2.0:status:%s"/></samlp:Status>
+                </samlp:Response>
+                """.formatted(state.data().get("expected_response_correlation"), status);
     }
 
     private IdpErrorProbeConfiguration configuration(boolean agent, boolean location, boolean noSession) {

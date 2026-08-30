@@ -4,6 +4,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Function;
 import org.samlier.core.casedef.CaseDefinitionCatalog;
 import org.samlier.core.casedef.CaseDefinitionCatalog.CaseDefinition;
 import org.samlier.core.casedef.CaseDefinitionCatalog.ExecutionMode;
@@ -25,20 +26,25 @@ public final class ApprovedConfigCaseRegistry {
     }
 
     public static TestCaseRegistry create(CaseDefinitionCatalog definitions, Milestone milestone) {
+        return create(definitions, milestone, null);
+    }
+
+    public static TestCaseRegistry create(
+            CaseDefinitionCatalog definitions, Milestone milestone, Function<String, byte[]> targetMetadata) {
         Objects.requireNonNull(definitions, "definitions");
         Objects.requireNonNull(milestone, "milestone");
         var cases = new ArrayList<TestCase>();
         definitions.cases().stream()
                 .filter(value -> value.milestone() == milestone)
                 .filter(value -> value.mode() == ExecutionMode.CONFIG)
-                .map(ApprovedConfigCaseRegistry::createCase)
+                .map(value -> createCase(value, targetMetadata))
                 .forEach(cases::add);
         var registry = new TestCaseRegistry(cases);
         CaseImplementationAudit.requireExact(definitions, registry, milestone, ExecutionMode.CONFIG);
         return registry;
     }
 
-    private static TestCase createCase(CaseDefinition definition) {
+    private static TestCase createCase(CaseDefinition definition, Function<String, byte[]> targetMetadata) {
         var metadata = MetadataConfigCaseFactory.create(definition);
         if (metadata.isPresent()) return metadata.orElseThrow();
         var evidence = new AttestedOutcomeTestCase(
@@ -52,12 +58,16 @@ public final class ApprovedConfigCaseRegistry {
                         AttestationOption.notVerified(
                                 "unable_to_verify", "configuration.evidence-unavailable",
                                 "configuration_evidence_unavailable")));
-        return new ConfigurationGateTestCase(
+        var fallback = new ConfigurationGateTestCase(
                 evidence,
                 "case." + definition.id() + ".configuration",
                 configurationPrompt(definition),
                 CONFIG_TTL,
                 definition.configurationFailureSemantics());
+        if (targetMetadata != null && TargetMetadataObservation.supports(definition.id())) {
+            return new AutoConfigurationEvidenceTestCase(fallback, targetMetadata);
+        }
+        return fallback;
     }
 
     private static String configurationPrompt(CaseDefinition definition) {

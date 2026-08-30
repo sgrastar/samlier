@@ -71,7 +71,8 @@ public final class IdpPeerService {
         var requestRoot = request.parsed().document().getDocumentElement();
         transcript.updateSamlAnalysis(
                 transcriptEntry.id(), requestRoot.getAttribute("ID"), request.parsed().summary());
-        var metadata = metadataParser.parse(metadataCache.get(plan.id()), plan.target().entityId());
+        var metadata = metadataParser.parse(
+                metadataCache.getRunSnapshot(run.id(), plan.id()), plan.target().entityId());
         var requestedAcs = requestRoot.getAttribute("AssertionConsumerServiceURL");
         URI acs;
         if (!requestedAcs.isBlank()) {

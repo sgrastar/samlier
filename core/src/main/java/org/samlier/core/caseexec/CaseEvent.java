@@ -21,6 +21,9 @@ public sealed interface CaseEvent {
         public BrowserReturned { text(acsPath, "acsPath"); }
     }
 
+    /** Internal signal that the Suite, not the operator, observed sufficient Transcript evidence. */
+    record TranscriptReady() implements CaseEvent {}
+
     record ConfigConfirmed() implements CaseEvent {}
 
     record ConfigUnavailable(ConfigurationIssue issue, String note) implements CaseEvent {

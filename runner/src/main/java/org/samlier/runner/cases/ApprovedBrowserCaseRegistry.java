@@ -10,6 +10,7 @@ import org.samlier.core.casedef.CaseDefinitionCatalog.CaseDefinition;
 import org.samlier.core.casedef.CaseDefinitionCatalog.ExecutionMode;
 import org.samlier.core.casedef.CaseDefinitionCatalog.Milestone;
 import org.samlier.core.evaluation.Outcome;
+import org.samlier.core.transcript.TranscriptContentReader;
 import org.samlier.runner.CaseImplementationAudit;
 import org.samlier.runner.TestCaseRegistry;
 
@@ -21,26 +22,82 @@ public final class ApprovedBrowserCaseRegistry {
     private ApprovedBrowserCaseRegistry() {}
 
     public static TestCaseRegistry create(CaseDefinitionCatalog definitions, URI publicBase) {
-        return create(definitions, publicBase, Milestone.M1);
+        return create(definitions, publicBase, Milestone.M1, null);
+    }
+
+    public static TestCaseRegistry create(
+            CaseDefinitionCatalog definitions, URI publicBase, TranscriptContentReader transcriptContent) {
+        return create(
+                definitions, publicBase, Milestone.M1, transcriptContent,
+                ignored -> java.util.Optional.empty(), ignored -> java.util.Optional.empty());
+    }
+
+    public static TestCaseRegistry create(
+            CaseDefinitionCatalog definitions,
+            URI publicBase,
+            TranscriptContentReader transcriptContent,
+            SamlDecryptionKeyProvider decryptionKeys) {
+        return create(
+                definitions, publicBase, Milestone.M1, transcriptContent, decryptionKeys,
+                ignored -> java.util.Optional.empty());
+    }
+
+    public static TestCaseRegistry create(
+            CaseDefinitionCatalog definitions,
+            URI publicBase,
+            TranscriptContentReader transcriptContent,
+            SamlDecryptionKeyProvider decryptionKeys,
+            java.util.function.Function<String, java.util.Optional<String>> targetEntityIds) {
+        return create(
+                definitions, publicBase, Milestone.M1, transcriptContent,
+                decryptionKeys, targetEntityIds);
     }
 
     public static TestCaseRegistry create(
             CaseDefinitionCatalog definitions, URI publicBase, Milestone milestone) {
+        return create(definitions, publicBase, milestone, null);
+    }
+
+    private static TestCaseRegistry create(
+            CaseDefinitionCatalog definitions,
+            URI publicBase,
+            Milestone milestone,
+            TranscriptContentReader transcriptContent) {
+        return create(
+                definitions, publicBase, milestone, transcriptContent,
+                ignored -> java.util.Optional.empty(), ignored -> java.util.Optional.empty());
+    }
+
+    private static TestCaseRegistry create(
+            CaseDefinitionCatalog definitions,
+            URI publicBase,
+            Milestone milestone,
+            TranscriptContentReader transcriptContent,
+            SamlDecryptionKeyProvider decryptionKeys,
+            java.util.function.Function<String, java.util.Optional<String>> targetEntityIds) {
         Objects.requireNonNull(definitions, "definitions");
         Objects.requireNonNull(publicBase, "publicBase");
         Objects.requireNonNull(milestone, "milestone");
-        var cases = new ArrayList<BrowserEvidenceTestCase>();
+        Objects.requireNonNull(decryptionKeys, "decryptionKeys");
+        var cases = new ArrayList<org.samlier.core.caseexec.TestCase>();
         definitions.cases().stream()
                 .filter(value -> value.milestone() == milestone)
                 .filter(value -> value.mode() == ExecutionMode.BROWSER)
-                .map(value -> createCase(value, publicBase))
+                .map(value -> createCase(
+                        value, publicBase, transcriptContent, decryptionKeys, targetEntityIds))
                 .forEach(cases::add);
         var registry = new TestCaseRegistry(cases);
         CaseImplementationAudit.requireExact(definitions, registry, milestone, ExecutionMode.BROWSER);
         return registry;
     }
 
-    private static BrowserEvidenceTestCase createCase(CaseDefinition definition, URI publicBase) {
+    private static org.samlier.core.caseexec.TestCase createCase(
+            CaseDefinition definition,
+            URI publicBase,
+            TranscriptContentReader transcriptContent,
+            SamlDecryptionKeyProvider decryptionKeys,
+            java.util.function.Function<String, java.util.Optional<String>> targetEntityIds) {
+        var transcriptDriven = transcriptContent != null && NormalFlowBrowserObservation.supports(definition.id());
         var evidence = new AttestedOutcomeTestCase(
                 definition.id(), definition.role(), "case." + definition.id() + ".browser-evidence",
                 evidencePrompt(definition), EVIDENCE_TTL,
@@ -52,15 +109,24 @@ public final class ApprovedBrowserCaseRegistry {
                         AttestationOption.notVerified(
                                 "unable_to_verify", "browser.evidence-unavailable",
                                 "browser_evidence_unavailable")));
-        return new BrowserEvidenceTestCase(
-                evidence, publicBase, browserPrompt(definition), BROWSER_TTL);
+        var fallback = new BrowserEvidenceTestCase(
+                evidence, publicBase, browserPrompt(definition, transcriptDriven), BROWSER_TTL);
+        if (transcriptDriven) {
+            return new AutoBrowserEvidenceTestCase(
+                    fallback, transcriptContent, decryptionKeys, targetEntityIds);
+        }
+        return fallback;
     }
 
-    private static String browserPrompt(CaseDefinition definition) {
+    private static String browserPrompt(CaseDefinition definition, boolean transcriptDriven) {
         var value = new StringBuilder()
                 .append("Use a real browser as the SAML user agent for approved case ")
                 .append(definition.id())
-                .append(". Complete every applicable target instruction before marking the browser step complete.\n\nInstructions:\n");
+                .append(transcriptDriven
+                        ? ". Complete every applicable target instruction. Samlier completes this case when the "
+                                + "correlated Transcript becomes conclusive; do not submit a completion answer."
+                        : ". Complete every applicable target instruction before marking the browser step complete.")
+                .append("\n\nInstructions:\n");
         definition.variantPlan().forEach(item -> value.append("- ").append(item.instructionEn()).append('\n'));
         // G2 controls prove the Suite's oracle against baseline and mutant fixtures. They are not
         // additional actions to perform against the real target represented by this Run.

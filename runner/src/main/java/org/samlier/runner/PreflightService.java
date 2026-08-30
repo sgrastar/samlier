@@ -67,8 +67,12 @@ public final class PreflightService {
             try {
                 var response = fetch(URI.create(plan.target().metadataSource().location()), 0);
                 targetMetadata = response.body();
-                metadataCache.put(plan.id(), targetMetadata);
                 var parsed = metadataParser.parse(targetMetadata, plan.target().entityId());
+                metadataCache.put(plan.id(), targetMetadata);
+                // A Plan-level copy supports peer operations, while the Run-scoped copy is the
+                // immutable input for conformance evaluation. A later Run must not rewrite the
+                // evidence used by an earlier Run.
+                metadataCache.putIfAbsent(run.id(), targetMetadata);
                 observations.put("targetEntityId", parsed.entityId());
                 observations.put("singleSignOnServices", parsed.singleSignOnServices().size());
                 observations.put("assertionConsumerServices", parsed.assertionConsumerServices().size());

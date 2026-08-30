@@ -92,6 +92,18 @@ class CaseTimeoutServiceTest {
         assertEquals(0, timeouts.expireReady(RUN_ID, context(START.plusSeconds(3))).size());
     }
 
+    @Test
+    void ignoresExpiredWaitsOwnedByAnotherCoordinator() {
+        var externallyOwned = waitingCase("IIP-IDP05-a-idp-01", Duration.ofSeconds(1));
+        executions.start(RUN_ID, externallyOwned, context(START));
+        var timeouts = new CaseTimeoutService(
+                repository, new TestCaseRegistry(List.of()), executions);
+
+        assertEquals(List.of(), timeouts.expireReady(RUN_ID, context(START.plusSeconds(2))));
+        assertEquals(CaseExecutionStatus.WAITING_INBOUND,
+                repository.find(RUN_ID, externallyOwned.id()).orElseThrow().status());
+    }
+
     private TestCase waitingCase(String id, Duration ttl) {
         return new TestCase() {
             @Override public String id() { return id; }

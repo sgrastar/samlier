@@ -5,10 +5,13 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.net.URI;
+import java.net.InetSocketAddress;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -71,6 +74,15 @@ class SamlierApplicationTest {
             assertTrue(createdRun.body().contains("\"managementUrl\":null"));
             var runId = createdRun.body().replaceFirst("(?s).*\"id\":\"(run_[0-9A-Z]+)\".*", "$1");
             assertTrue(runId.matches("run_[0-9A-HJKMNP-TV-Z]{26}"));
+            var activeProbe = client.send(HttpRequest.newBuilder(base.resolve(
+                            "/api/runs/" + runId + "/active-probe")).build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, activeProbe.statusCode(), activeProbe.body());
+            assertTrue(activeProbe.body().contains("\"state\":\"NOT_STARTED\""));
+            var prematureProbe = client.send(HttpRequest.newBuilder(base.resolve(
+                            "/p/" + planId + "/probe/action_not_ready?run=" + runId)).build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(400, prematureProbe.statusCode(), prematureProbe.body());
             var protocolEvidence = client.send(HttpRequest.newBuilder(base.resolve(
                             "/api/runs/" + runId + "/protocol-evidence")).build(),
                     HttpResponse.BodyHandlers.ofString());
@@ -173,6 +185,84 @@ class SamlierApplicationTest {
         assertTrue(page.contains("value=\"&lt;response&gt;\""));
         assertTrue(page.contains("value=\"&quot;relay&quot;\""));
         assertFalse(page.contains("<response>"));
+
+        var requestPage = HtmlPostPage.renderRequest(
+                URI.create("https://idp.example/sso"), "request+base64", "sp1:run:action", "probe-nonce");
+        assertTrue(requestPage.contains("name=\"SAMLRequest\""));
+        assertTrue(requestPage.contains("value=\"request+base64\""));
+        assertTrue(requestPage.contains("sp1:run:action"));
+        assertFalse(requestPage.contains("name=\"SAMLResponse\""));
+    }
+
+    @Test
+    void preflightKeepsAnImmutableTargetMetadataSnapshotForEachRun() throws Exception {
+        var metadata = """
+                <md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata"
+                    entityID="https://idp.example/entity">
+                  <md:IDPSSODescriptor protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
+                    <md:SingleSignOnService
+                      Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST"
+                      Location="https://idp.example/sso"/>
+                  </md:IDPSSODescriptor>
+                </md:EntityDescriptor>
+                """;
+        var currentMetadata = new java.util.concurrent.atomic.AtomicReference<>(metadata);
+        var source = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        source.createContext("/metadata", exchange -> {
+            var bytes = currentMetadata.get().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().add("Content-Type", "application/samlmetadata+xml");
+            exchange.sendResponseHeaders(200, bytes.length);
+            try (var body = exchange.getResponseBody()) { body.write(bytes); }
+        });
+        source.start();
+        var config = new AppConfig(AppConfig.Mode.SELFHOSTED,
+                URI.create("http://127.0.0.1:8080"), URI.create("http://127.0.0.1:8080"),
+                dataDirectory, 8080, true, false, false);
+        var app = SamlierApplication.create(config).start(0);
+        try {
+            var base = URI.create("http://127.0.0.1:" + app.port());
+            var client = HttpClient.newHttpClient();
+            var requestBody = """
+                    {"name":"Snapshot IdP","profile":"IDP_CORE","targetKind":"IDP",
+                     "targetEntityId":"https://idp.example/entity","metadataSourceKind":"URL",
+                     "metadataSourceLocation":"http://127.0.0.1:%d/metadata",
+                     "suiteMetadataDelivery":"HTTP_URL","declaredFeatures":{},
+                     "parameters":{"clockSkewToleranceSeconds":180,"metadataRefreshWaitSeconds":300,"testUserHint":""},
+                     "interaction":{"allowBrowserSteps":true,"allowAttestation":true},"authorizedTarget":true}
+                    """.formatted(source.getAddress().getPort());
+            var created = client.send(HttpRequest.newBuilder(base.resolve("/api/plans"))
+                            .header("Content-Type", "application/json")
+                            .POST(HttpRequest.BodyPublishers.ofString(requestBody)).build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(201, created.statusCode(), created.body());
+            var planId = created.body().replaceFirst("(?s).*\"id\":\"(plan_[0-9A-Z]+)\".*", "$1");
+            var createdRun = client.send(HttpRequest.newBuilder(base.resolve("/api/plans/" + planId + "/runs"))
+                            .POST(HttpRequest.BodyPublishers.noBody()).build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(201, createdRun.statusCode(), createdRun.body());
+            var runId = createdRun.body().replaceFirst("(?s).*\"id\":\"(run_[0-9A-Z]+)\".*", "$1");
+
+            var preflight = client.send(HttpRequest.newBuilder(base.resolve("/api/runs/" + runId + "/preflight"))
+                            .POST(HttpRequest.BodyPublishers.noBody()).build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, preflight.statusCode(), preflight.body());
+            var snapshots = dataDirectory.resolve("target-metadata");
+            assertEquals(metadata, Files.readString(snapshots.resolve(planId + ".xml")));
+            assertEquals(metadata, Files.readString(snapshots.resolve(runId + ".xml")));
+
+            var changed = metadata.replace("https://idp.example/sso", "https://idp.example/sso-v2");
+            currentMetadata.set(changed);
+            var repeated = client.send(
+                    HttpRequest.newBuilder(base.resolve("/api/runs/" + runId + "/preflight"))
+                            .POST(HttpRequest.BodyPublishers.noBody()).build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, repeated.statusCode(), repeated.body());
+            assertEquals(changed, Files.readString(snapshots.resolve(planId + ".xml")));
+            assertEquals(metadata, Files.readString(snapshots.resolve(runId + ".xml")));
+        } finally {
+            app.stop();
+            source.stop(0);
+        }
     }
 
     private static int occurrences(String value, String needle) {

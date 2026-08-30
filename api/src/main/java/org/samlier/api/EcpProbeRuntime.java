@@ -61,7 +61,8 @@ final class EcpProbeRuntime {
         if (plan.profile() != PlanProfile.IDP_FULL) {
             throw new IllegalArgumentException("The ECP probe is available only for an IdP Full Profile Run");
         }
-        var target = metadataParser.parse(metadataCache.get(plan.id()), plan.target().entityId());
+        var target = metadataParser.parse(
+                metadataCache.getRunSnapshot(run.id(), plan.id()), plan.target().entityId());
         var endpoint = target.singleSignOnServices().stream()
                 .filter(value -> MetadataService.SOAP.equals(value.binding()))
                 .map(org.samlier.saml.metadata.TargetMetadata.Endpoint::location)

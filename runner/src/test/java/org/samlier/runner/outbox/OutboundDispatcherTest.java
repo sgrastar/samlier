@@ -3,6 +3,7 @@ package org.samlier.runner.outbox;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -166,6 +167,38 @@ class OutboundDispatcherTest {
         var stored = repository.findOutbox(action.actionId()).orElseThrow();
         assertEquals(OutboxStatus.SENT, stored.status());
         assertEquals("tx-response", stored.transcriptEntryId());
+    }
+
+    @Test
+    void browserFrontChannelIsPersistedAsUnknownUntilInboundAndCannotBeReplayed() {
+        var action = persist(OutboundKind.AUTHN_REQUEST, false);
+        var dispatcher = dispatcher((runId, ignored, credential) -> success(), Optional.empty());
+
+        var handedOff = dispatcher.dispatchFrontChannel(action.actionId(), ignored -> "tx-front-channel");
+
+        assertEquals(action.actionId(), handedOff.action().actionId());
+        assertArrayEquals(action.payload(), handedOff.action().payload());
+        assertEquals(OutboxStatus.UNKNOWN_DELIVERY,
+                repository.findOutbox(action.actionId()).orElseThrow().status());
+        assertThrows(IllegalStateException.class,
+                () -> dispatcher.dispatchFrontChannel(action.actionId(), ignored -> "tx-replay"));
+        dispatcher.confirmInboundDelivery(action.actionId(), "tx-response");
+        assertEquals(OutboxStatus.SENT,
+                repository.findOutbox(action.actionId()).orElseThrow().status());
+    }
+
+    @Test
+    void failedBrowserHandoffBecomesUnknownAndCannotBeRetried() {
+        var action = persist(OutboundKind.AUTHN_REQUEST, false);
+        var dispatcher = dispatcher((runId, ignored, credential) -> success(), Optional.empty());
+
+        assertThrows(IllegalStateException.class, () -> dispatcher.dispatchFrontChannel(
+                action.actionId(), ignored -> { throw new IllegalStateException("render failed"); }));
+
+        assertEquals(OutboxStatus.UNKNOWN_DELIVERY,
+                repository.findOutbox(action.actionId()).orElseThrow().status());
+        assertThrows(IllegalStateException.class,
+                () -> dispatcher.dispatchFrontChannel(action.actionId(), ignored -> "tx-replay"));
     }
 
     private OutboundAction persist(OutboundKind kind, boolean credential) {

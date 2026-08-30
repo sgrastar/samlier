@@ -6,5 +6,5 @@ import org.samlier.core.plan.TestPlan;
 
 @FunctionalInterface
 public interface TargetSigningCertificateProvider {
-    List<X509Certificate> certificatesFor(TestPlan plan);
+    List<X509Certificate> certificatesFor(TestPlan plan, String runId);
 }

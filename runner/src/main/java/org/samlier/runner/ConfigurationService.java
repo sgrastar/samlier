@@ -1,6 +1,7 @@
 package org.samlier.runner;
 
 import java.util.Objects;
+import org.samlier.runner.cases.ProtocolEvidenceCase;
 
 /** Resumes the shared configuration branch using a fixed answer vocabulary. */
 public final class ConfigurationService implements ConfigurationExecutor {
@@ -21,9 +22,15 @@ public final class ConfigurationService implements ConfigurationExecutor {
     public Result answer(String runId, String caseId, String value, String note) {
         text(runId, "runId");
         text(caseId, "caseId");
-        var event = ConfigurationAnswer.parse(value).event(note);
+        var testCase = registry.require(caseId);
+        var answer = ConfigurationAnswer.parse(value);
+        if (testCase instanceof ProtocolEvidenceCase && answer == ConfigurationAnswer.CONFIRMED) {
+            throw new IllegalStateException(
+                    "Transcript-driven configuration cases cannot be confirmed by an operator");
+        }
+        var event = answer.event(note);
         var execution = executions.resume(
-                runId, registry.require(caseId), contexts.contextFor(runId), event);
+                runId, testCase, contexts.contextFor(runId), event);
         return new Result(runId, caseId, execution.status(), execution.outcome());
     }
 

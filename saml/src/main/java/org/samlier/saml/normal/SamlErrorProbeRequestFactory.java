@@ -7,12 +7,17 @@ import javax.xml.XMLConstants;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
-/** Builds deterministic AuthnRequest fixtures for the three approved IdP error probes. */
+/** Builds deterministic AuthnRequest fixtures for the approved IdP error probes and their control. */
 public final class SamlErrorProbeRequestFactory {
     private static final String PROTOCOL = "urn:oasis:names:tc:SAML:2.0:protocol";
     private static final String ASSERTION = "urn:oasis:names:tc:SAML:2.0:assertion";
 
-    public enum Probe { UNKNOWN_NAMEID_FORMAT, UNSATISFIABLE_AUTHN_CONTEXT, PASSIVE_WITHOUT_SESSION }
+    public enum Probe {
+        PASSIVE_WITHOUT_SESSION,
+        BASELINE_SUCCESS,
+        UNKNOWN_NAMEID_FORMAT,
+        UNSATISFIABLE_AUTHN_CONTEXT
+    }
 
     public byte[] build(
             Probe probe, String requestId, URI destination, String issuer, URI acs, Instant issueInstant) {
@@ -53,6 +58,7 @@ public final class SamlErrorProbeRequestFactory {
                 request.appendChild(requested);
             }
             case PASSIVE_WITHOUT_SESSION -> { }
+            case BASELINE_SUCCESS -> { }
         }
         return SecureXml.serialize(document);
     }

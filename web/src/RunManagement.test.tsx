@@ -158,7 +158,8 @@ test('evaluates only server-reported ready protocol evidence from the shared met
     if (url.includes('/interactions')) return json(evaluated ? [] : [{
       caseId: 'IIP-MD05-an-idp-01', kind: 'CONFIGURATION', promptKey: 'metadata.probe',
       promptEn: 'Use the shared metadata feed.', startUrl: null,
-      expiresAt: '2026-09-05T00:00:00Z', answerValues: ['confirmed'],
+      expiresAt: '2026-09-05T00:00:00Z', answerValues: ['target_config_unavailable'],
+      completionMode: 'TRANSCRIPT_OR_OPERATOR',
     }])
     if (url === '/api/health') return json({ status: 'ok', version: 'test', mode: 'selfhosted' })
     if (url.includes('/api/runs/')) return json({ id: 'run_0123456789ABCDEFGHJKMNPQRS', planId: 'plan' })
@@ -168,7 +169,7 @@ test('evaluates only server-reported ready protocol evidence from the shared met
 
   render(<RunManagement runId="run_0123456789ABCDEFGHJKMNPQRS" csrfToken="csrf" />)
   const button = await screen.findByRole('button', {
-    name: 'Refreshes and attempts completed — evaluate evidence',
+    name: 'Re-evaluate recorded evidence',
   })
   expect(button.hasAttribute('disabled')).toBe(false)
   fireEvent.click(button)
@@ -177,6 +178,87 @@ test('evaluates only server-reported ready protocol evidence from the shared met
   const post = calls.find(call => call.url.includes('/protocol-evidence/evaluate'))!
   expect(post.init?.method).toBe('POST')
   expect(post.init?.headers).toEqual({ 'content-type': 'application/json', 'X-CSRF-Token': 'csrf' })
+})
+
+test('explains that protocol-driven configuration answers are only an unavailability fallback', async () => {
+  vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+    if (url.includes('/active-probe')) return json({ state: 'NOT_STARTED' })
+    if (url.includes('/bootstrap-contracts')) return json([])
+    if (url.includes('/metadata-lab')) return json(metadataLab())
+    if (url.includes('/protocol-evidence')) return json(protocolEvidence())
+    if (url.includes('/interactions')) return json([{
+      caseId: 'IIP-MD05-an-idp-01', kind: 'CONFIGURATION', promptKey: 'metadata.probe',
+      promptEn: 'Use the shared metadata feed.', startUrl: null,
+      expiresAt: '2026-09-05T00:00:00Z', answerValues: ['target_config_unavailable'],
+      completionMode: 'TRANSCRIPT_OR_OPERATOR',
+    }])
+    if (url === '/api/health') return json({ status: 'ok', version: 'test', mode: 'selfhosted' })
+    if (url.includes('/api/runs/')) return json({ id: 'run_0123456789ABCDEFGHJKMNPQRS', planId: 'plan' })
+    if (url === '/api/plans') return json([])
+    return json([])
+  }))
+
+  render(<RunManagement
+    runId="run_0123456789ABCDEFGHJKMNPQRS"
+    focusCaseId="IIP-MD05-an-idp-01"
+  />)
+
+  expect(await screen.findByText(/completes automatically when all required correlated Transcript evidence/))
+    .toBeTruthy()
+  expect(screen.getByText('Target config unavailable')).toBeTruthy()
+})
+
+test('does not offer completed for a transcript-driven browser case', async () => {
+  vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+    if (url.includes('/active-probe')) return json({ state: 'NOT_STARTED' })
+    if (url.includes('/bootstrap-contracts')) return json([])
+    if (url.includes('/metadata-lab')) return json(metadataLab())
+    if (url.includes('/protocol-evidence')) return json(protocolEvidence())
+    if (url.includes('/interactions')) return json([{
+      caseId: 'IIP-SSO03-a-idp-01', kind: 'BROWSER', promptKey: null,
+      promptEn: 'Perform the ordinary SSO flow.', startUrl: 'https://suite.example/start',
+      expiresAt: '2026-09-05T00:00:00Z', answerValues: [], completionMode: 'TRANSCRIPT',
+    }])
+    if (url === '/api/health') return json({ status: 'ok', version: 'test', mode: 'selfhosted' })
+    if (url.includes('/api/runs/')) return json({ id: 'run_0123456789ABCDEFGHJKMNPQRS', planId: 'plan' })
+    if (url === '/api/plans') return json([])
+    return json([])
+  }))
+
+  render(<RunManagement runId="run_0123456789ABCDEFGHJKMNPQRS" />)
+
+  expect(await screen.findByText(/No completion answer is needed/)).toBeTruthy()
+  expect(screen.queryByRole('button', { name: 'Browser steps completed' })).toBeNull()
+})
+
+test('offers the server-generated active probe launch URL and explains fresh-session isolation', async () => {
+  vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+    if (url.includes('/active-probe')) return json({
+      planId: 'plan', state: 'READY', actionId: 'action_probe',
+      startUrl: 'https://peer.example/p/plan/probe/action_probe?run=run_0123456789ABCDEFGHJKMNPQRS',
+      requiresFreshSession: true, outcome: null,
+    })
+    if (url.includes('/bootstrap-contracts')) return json([])
+    if (url.includes('/metadata-lab')) return json(metadataLab())
+    if (url.includes('/protocol-evidence')) return json(protocolEvidence())
+    if (url.includes('/interactions')) return json([])
+    if (url === '/api/health') return json({ status: 'ok', version: 'test', mode: 'selfhosted' })
+    if (url.includes('/api/runs/')) return json({ id: 'run_0123456789ABCDEFGHJKMNPQRS', planId: 'plan' })
+    if (url === '/api/plans') return json([{
+      plan: { id: 'plan', name: 'Target IdP', profile: 'IDP_CORE', target: { kind: 'IDP', entityId: 'https://idp.example' } },
+      entityId: 'https://suite.example/p/plan', metadataUrl: 'https://suite.example/p/plan/metadata',
+      mdqUrl: 'https://suite.example/mdq/plan', secondaryIdpEntityId: 'https://suite.example/p/plan/idp/secondary',
+      secondaryIdpMetadataUrl: 'https://suite.example/p/plan/idp/secondary/metadata',
+    }])
+    return json([])
+  }))
+
+  render(<RunManagement runId="run_0123456789ABCDEFGHJKMNPQRS" />)
+
+  expect(await screen.findByText('Active error-response probes')).toBeTruthy()
+  expect(screen.getByText(/private browser context/)).toBeTruthy()
+  expect(screen.getByRole('link', { name: 'Open active probes' }).getAttribute('href'))
+    .toContain('/probe/action_probe')
 })
 
 function metadataLab() {

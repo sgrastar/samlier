@@ -33,6 +33,7 @@ import org.samlier.runner.PreflightService;
 import org.samlier.runner.RunEvent;
 import org.samlier.runner.RunEventBus;
 import org.samlier.runner.RunService;
+import org.samlier.runner.TranscriptAutomationRecorder;
 import org.samlier.runner.MetadataLabService;
 import org.samlier.saml.crypto.FilePlanKeyStore;
 import org.samlier.saml.crypto.XmlSigner;
@@ -65,7 +66,8 @@ public final class SamlierApplication {
         var database = new SqliteDatabase(config.dataDirectory());
         PlanRepository plans = new SqlitePlanRepository(database, json);
         RunRepository runs = new SqliteRunRepository(database, json);
-        var transcript = new FileTranscriptRecorder(database, json, config.dataDirectory());
+        var storedTranscript = new FileTranscriptRecorder(database, json, config.dataDirectory());
+        var transcript = new TranscriptAutomationRecorder(storedTranscript, storedTranscript);
         var metadataCache = new MetadataCache(config.dataDirectory());
         var eventBus = new RunEventBus();
         var runService = new RunService(plans, runs, eventBus, clock);
@@ -77,7 +79,6 @@ public final class SamlierApplication {
         var metadata = new MetadataService(config.peerBaseUrl(), keyStore, signer, clock);
         var preflight = new PreflightService(config.publicBaseUrl(), plans, runs, runService, metadataCache,
                 metadataParser, new OutboundPolicy(config.outboundAllowPrivate()), clock, json.mapper());
-        var spPeer = new SpPeerService(plans, runs, runService, metadataCache, metadataParser, saml, transcript, clock);
         var idpPeer = new IdpPeerService(plans, runs, runService, metadataCache, metadataParser, saml, transcript, clock);
         var secondaryIdpPeer = new IdpPeerService(
                 plans, runs, runService, metadataCache, metadataParser, saml, transcript, clock, true);
@@ -94,7 +95,11 @@ public final class SamlierApplication {
                 new EcpProbeService(caseExecutions, ephemeralCredentials, outboundDispatcher, clock));
         var m1 = M1Runtime.create(
                 config, database, json, plans, runs, transcript, transcript, metadataCache,
-                metadataParser, keyStore, caseExecutions, metadataLab, clock);
+                metadataParser, keyStore, caseExecutions, metadataLab, outboundDispatcher, clock);
+        transcript.onRecorded(m1::reconcileTranscriptEvidence);
+        var spPeer = new SpPeerService(
+                plans, runs, runService, metadataCache, metadataParser, saml, transcript, clock,
+                m1::acceptActiveProbe);
         var hostedRateLimiter = new HostedRateLimiter(clock);
         var hostedRunProvisioner = new org.samlier.store.SqliteHostedRunProvisioner(database, json);
 
@@ -122,6 +127,8 @@ public final class SamlierApplication {
             BrowserCompletionRoutes.register(javalin, m1::completeBrowser);
             MilestoneRoutes.register(javalin, m1::startMilestone);
             EcpProbeRoutes.register(javalin, ecpProbe::execute);
+            javalin.routes.get("/api/runs/{id}/active-probe", ctx ->
+                    ctx.json(m1.activeProbeStatus(ctx.pathParam("id"))));
             if (config.mode() == AppConfig.Mode.HOSTED) {
                 ManagementSessionRoutes.register(javalin, config.publicBaseUrl(), m1::exchange);
                 javalin.routes.before("/api/plans/{id}", ctx -> {
@@ -160,6 +167,8 @@ public final class SamlierApplication {
                                 ctx.pathParam("id"),
                                 ctx.cookie(ManagementSessionRoutes.COOKIE_NAME),
                                 ctx.header("X-CSRF-Token")));
+                javalin.routes.before("/api/runs/{id}/active-probe", ctx ->
+                        m1.authorize(ctx.pathParam("id"), ctx.cookie(ManagementSessionRoutes.COOKIE_NAME)));
                 javalin.routes.before("/api/runs/{id}/interactions", ctx ->
                         m1.authorize(ctx.pathParam("id"), ctx.cookie(ManagementSessionRoutes.COOKIE_NAME)));
                 javalin.routes.before("/api/runs/{id}/bootstrap-contracts", ctx ->
@@ -414,8 +423,39 @@ public final class SamlierApplication {
         });
         javalin.routes.get("/p/{plan}/start/m0-roundtrip", ctx ->
                 ctx.redirect(spPeer.start(ctx.pathParam("plan"), requiredQuery(ctx, "run")).toString()));
+        javalin.routes.get("/p/{plan}/probe/{action}", ctx -> {
+            var runId = requiredQuery(ctx, "run");
+            var status = m1.activeProbeStatus(runId);
+            requireActiveProbeRoute(ctx, status);
+            ctx.header("Cache-Control", "no-store");
+            ctx.header("Content-Security-Policy", "default-src 'none'; form-action 'self'; "
+                    + "frame-ancestors 'none'; base-uri 'none'; object-src 'none'");
+            ctx.contentType("text/html; charset=utf-8").result(activeProbeStartPage(status));
+        });
+        javalin.routes.post("/p/{plan}/probe/{action}", ctx -> {
+            var runId = requiredQuery(ctx, "run");
+            var status = m1.activeProbeStatus(runId);
+            requireActiveProbeRoute(ctx, status);
+            var fresh = "true".equals(ctx.formParam("freshSessionConfirmed"));
+            renderActiveProbe(ctx, m1.prepareActiveProbe(
+                    runId, ctx.pathParam("action"), fresh));
+        });
         javalin.routes.post("/p/{plan}/sp/acs/0", ctx -> {
-            var summary = spPeer.consume(ctx.pathParam("plan"), ctx.bodyAsBytes(), headers(ctx), absoluteRequestUrl(ctx));
+            var consumed = spPeer.consumeDetailed(
+                    ctx.pathParam("plan"), ctx.bodyAsBytes(), headers(ctx), absoluteRequestUrl(ctx));
+            if (consumed.activeProbe()) {
+                var status = m1.activeProbeStatus(consumed.activeProbeRunId());
+                if (status.state() == org.samlier.runner.ActiveProbeCoordinator.State.READY) {
+                    renderActiveProbe(ctx, m1.prepareActiveProbe(
+                            consumed.activeProbeRunId(), status.actionId(), false));
+                    return;
+                }
+                ctx.header("Cache-Control", "no-store").contentType("text/html; charset=utf-8")
+                        .result("<!doctype html><html lang=\"en\"><body><h1>Active probes completed</h1>"
+                                + "<p>The responses were recorded and evaluated automatically.</p></body></html>");
+                return;
+            }
+            var summary = consumed.summary();
             ctx.contentType("text/html; charset=utf-8").result("<!doctype html><html lang=\"en\"><body>"
                     + "<h1>M0 SSO round trip completed</h1><p>Return to Samlier.</p><pre>"
                     + htmlEscape(summary.toString()) + "</pre></body></html>");
@@ -445,6 +485,42 @@ public final class SamlierApplication {
                     ctx.bodyAsBytes(), Map.of("type", "EcpPaosResponse")));
             ctx.status(HttpStatus.NO_CONTENT);
         });
+    }
+
+    private static void requireActiveProbeRoute(
+            Context ctx, org.samlier.runner.ActiveProbeCoordinator.Status status) {
+        if (!ctx.pathParam("plan").equals(status.planId())
+                || status.state() != org.samlier.runner.ActiveProbeCoordinator.State.READY
+                || !ctx.pathParam("action").equals(status.actionId())) {
+            throw new IllegalArgumentException("Active probe route does not match the ready action");
+        }
+    }
+
+    private static String activeProbeStartPage(
+            org.samlier.runner.ActiveProbeCoordinator.Status status) {
+        var fresh = status.requiresFreshSession()
+                ? "<p>This first probe verifies IsPassive with no existing IdP session. Open this page in a new private browser window, then confirm below.</p>"
+                        + "<label><input required type=\"checkbox\" name=\"freshSessionConfirmed\" value=\"true\"> "
+                        + "This browser context has no active target IdP session.</label>"
+                : "";
+        return "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><title>Active SAML probes</title></head>"
+                + "<body><h1>Run active SAML probes</h1>"
+                + "<p>Samlier will send one positive control and the three approved abnormal AuthnRequest fixtures in sequence, then evaluate each correlated Response.</p>"
+                + "<form method=\"post\">" + fresh
+                + "<p><button type=\"submit\">Start active probes</button></p></form></body></html>";
+    }
+
+    private static void renderActiveProbe(
+            Context ctx, org.samlier.runner.ActiveProbeCoordinator.PreparedProbe probe) {
+        var nonceBytes = new byte[18];
+        NONCE_RANDOM.nextBytes(nonceBytes);
+        var nonce = Base64.getUrlEncoder().withoutPadding().encodeToString(nonceBytes);
+        ctx.header("Content-Security-Policy", "default-src 'none'; script-src 'nonce-" + nonce
+                        + "'; form-action " + origin(probe.destination())
+                        + "; frame-ancestors 'none'; base-uri 'none'; object-src 'none'");
+        ctx.header("Cache-Control", "no-store").contentType("text/html; charset=utf-8")
+                .result(HtmlPostPage.renderRequest(
+                        probe.destination(), probe.samlRequest(), probe.relayState(), nonce));
     }
 
     private static void serveSlo(Context ctx, SloPeerService service, SloPeerService.Transport transport) {

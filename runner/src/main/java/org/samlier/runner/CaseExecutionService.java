@@ -152,7 +152,8 @@ public final class CaseExecutionService {
         }
         var accepted = event instanceof CaseEvent.TimedOut || event instanceof CaseEvent.Aborted || switch (current.status()) {
             case RUNNING -> event instanceof CaseEvent.Custom;
-            case WAITING_BROWSER -> event instanceof CaseEvent.BrowserReturned;
+            case WAITING_BROWSER -> event instanceof CaseEvent.BrowserReturned
+                    || event instanceof CaseEvent.TranscriptReady;
             case WAITING_CONFIG -> event instanceof CaseEvent.ConfigConfirmed
                     || event instanceof CaseEvent.ConfigUnavailable;
             case WAITING_ATTESTATION -> event instanceof CaseEvent.Attested;
