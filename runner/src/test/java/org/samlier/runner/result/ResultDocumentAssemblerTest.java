@@ -67,6 +67,10 @@ class ResultDocumentAssemblerTest {
         assertEquals(1, document.coverage().excludedByDeclaration());
         assertEquals(2, document.requirements().size());
         assertEquals(2, document.summary().cases().total());
+        assertEquals(1, document.evidenceSummary().externallyVerified());
+        assertEquals(1, document.evidenceSummary().selfAttested());
+        assertEquals(0, document.evidenceSummary().notVerified());
+        assertEquals("SELF_ATTESTED", document.requirements().get(0).cases().get(1).evidenceClass());
         assertEquals(1, document.notObservable().size());
         assertTrue(document.conformanceStatement().contains("REQ.c"));
         assertTrue(document.conformanceStatement().contains("not a certification"));

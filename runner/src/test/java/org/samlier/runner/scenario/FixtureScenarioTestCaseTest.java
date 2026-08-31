@@ -143,6 +143,36 @@ class FixtureScenarioTestCaseTest {
     }
 
     @Test
+    void aNegativeFixtureCanTreatAnExplicitMissingCallbackAsSatisfied() {
+        var discarded = new ScenarioFixture() {
+            @Override public String id() { return "discarded-negative"; }
+            @Override public Prepared prepare(
+                    org.samlier.core.caseexec.CaseContext ignored, String actionId) {
+                return new Prepared(new OutboundAction(
+                        actionId, OutboundKind.AUTHN_REQUEST, new byte[] {1},
+                        URI.create("https://idp.example/sso"), false), "_" + actionId);
+            }
+            @Override public FixtureObservation observe(String expected, byte[] decoded) {
+                return FixtureObservation.VIOLATED;
+            }
+            @Override public FixtureObservation observeUnavailable(String reason) {
+                return "operator-reported-no-saml-response".equals(reason)
+                        ? FixtureObservation.SATISFIED : FixtureObservation.NOT_VERIFIED;
+            }
+            @Override public String definitionKey() { return "discarded-negative|v1"; }
+        };
+        var scenario = scenario(List.of(discarded));
+        executions.start(RUN, scenario, context);
+
+        var finished = executions.resume(
+                RUN, scenario, context,
+                new CaseEvent.InboundUnavailable("operator-reported-no-saml-response"));
+
+        assertEquals(CaseExecutionStatus.FINISHED, finished.status());
+        assertEquals(Outcome.SATISFIED, finished.outcome().outcome());
+    }
+
+    @Test
     void changedFixtureSequenceCannotResumePersistedState() {
         var original = scenario(List.of(
                 fixture("first", FixtureObservation.SATISFIED),

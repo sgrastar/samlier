@@ -12,7 +12,7 @@ import org.samlier.core.plan.TargetRole;
 
 /** Uses target metadata first and falls back to the approved CONFIG interaction when inconclusive. */
 public final class AutoConfigurationEvidenceTestCase
-        implements TestCase, ConfigurationPrompt, AttestationPrompt {
+        implements TestCase, ConfigurationPrompt, AttestationPrompt, org.samlier.runner.EvidenceCampaignCase {
     private final TestCase fallback;
     private final Function<String, byte[]> targetMetadata;
 
@@ -29,6 +29,11 @@ public final class AutoConfigurationEvidenceTestCase
 
     @Override public String id() { return fallback.id(); }
     @Override public TargetRole role() { return fallback.role(); }
+    @Override public String evidenceCampaignId() { return "target-metadata-inspection"; }
+    @Override public String evidenceCampaignTitle() { return "Passive target metadata inspection"; }
+    @Override public org.samlier.runner.RunCampaignQuery.ActionKind evidenceActionKind() {
+        return org.samlier.runner.RunCampaignQuery.ActionKind.NONE;
+    }
     @Override public String instructionEn() { return ((ConfigurationPrompt) fallback).instructionEn(); }
     @Override public String promptEn() { return ((AttestationPrompt) fallback).promptEn(); }
     @Override public java.util.List<AttestationOption> options() {

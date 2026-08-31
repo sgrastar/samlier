@@ -86,7 +86,29 @@ public final class SpPeerService {
 
     public ConsumeResult consumeDetailed(
             String planId, byte[] rawBody, Map<String, List<String>> headers, String requestUrl) {
-        var rawMessage = saml.decodePostRaw(rawBody, "SAMLResponse");
+        return consumeRaw(
+                planId, saml.decodePostRaw(rawBody, "SAMLResponse"), "POST", rawBody,
+                "application/x-www-form-urlencoded", null, headers, requestUrl);
+    }
+
+    /** Records a Redirect-bound Response without reconstructing its signature-covered query. */
+    public ConsumeResult consumeRedirectDetailed(
+            String planId, String rawQuery, Map<String, List<String>> headers, String requestUrl) {
+        if (rawQuery == null || rawQuery.isBlank()) throw new SamlException("Redirect Response has no query");
+        return consumeRaw(
+                planId, saml.decodeRedirectRaw(rawQuery, "SAMLResponse"), "GET", new byte[0],
+                null, rawQuery, headers, requestUrl);
+    }
+
+    private ConsumeResult consumeRaw(
+            String planId,
+            SamlProtocolService.RawDecodedMessage rawMessage,
+            String method,
+            byte[] rawBody,
+            String contentType,
+            String rawQuery,
+            Map<String, List<String>> headers,
+            String requestUrl) {
         var variant = queryParameter(requestUrl, "mdv");
         var correlatedRun = queryParameter(requestUrl, "run");
         var metadataProbe = variant != null && correlatedRun != null;
@@ -97,8 +119,8 @@ public final class SpPeerService {
         var run = runs.find(runId).orElseThrow(() -> new SamlException("Unknown RelayState"));
         if (!run.planId().equals(planId)) throw new SamlException("RelayState belongs to another Test Plan");
         var transcriptCorrelation = activeProbe.map(ActiveProbeCorrelation.Value::actionId).orElse(run.id());
-        var transcriptEntry = transcript.record(new TranscriptInput(run.id(), Direction.INBOUND, clock.instant(), transcriptCorrelation, "POST",
-                requestUrl, 200, headers, rawBody, "application/x-www-form-urlencoded", null,
+        var transcriptEntry = transcript.record(new TranscriptInput(run.id(), Direction.INBOUND, clock.instant(), transcriptCorrelation, method,
+                requestUrl, 200, headers, rawBody, contentType, rawQuery,
                 rawMessage.xml(), Map.of("type", "SAMLResponse", "parseStatus", "not-yet-parsed")));
         org.samlier.saml.normal.SamlProtocolService.DecodedMessage message;
         try {
@@ -127,6 +149,11 @@ public final class SpPeerService {
             analyzedSummary.put(
                     "activeProbeAccepted",
                     ("_" + activeProbe.orElseThrow().actionId()).equals(actual));
+        } else if (metadataProbe) {
+            // The Run and fixture are correlated by the Suite-generated ACS URL. This flag says
+            // only that a syntactically valid SAML Response reached that controlled endpoint; it
+            // does not claim that the target accepted metadata or satisfied any obligation.
+            analyzedSummary.put("metadataProbeAccepted", true);
         } else if (!metadataProbe) {
             analyzedSummary.put("normalFlowAccepted", !expected.isBlank() && expected.equals(actual));
         }

@@ -13,6 +13,7 @@ import org.samlier.core.caseexec.TestCase;
 import org.samlier.core.evaluation.Outcome;
 import org.samlier.runner.CaseImplementationAudit;
 import org.samlier.runner.TestCaseRegistry;
+import org.samlier.core.transcript.TranscriptContentReader;
 
 /** Builds the M1 CONFIG slice as a configuration gate followed by explicit evidence review. */
 public final class ApprovedConfigCaseRegistry {
@@ -26,25 +27,44 @@ public final class ApprovedConfigCaseRegistry {
     }
 
     public static TestCaseRegistry create(CaseDefinitionCatalog definitions, Milestone milestone) {
-        return create(definitions, milestone, null);
+        return create(definitions, milestone, null, null, null);
     }
 
     public static TestCaseRegistry create(
             CaseDefinitionCatalog definitions, Milestone milestone, Function<String, byte[]> targetMetadata) {
+        return create(definitions, milestone, targetMetadata, null, null);
+    }
+
+    public static TestCaseRegistry create(
+            CaseDefinitionCatalog definitions,
+            Milestone milestone,
+            Function<String, byte[]> targetMetadata,
+            TranscriptContentReader transcriptContent,
+            SamlDecryptionKeyProvider decryptionKeys) {
         Objects.requireNonNull(definitions, "definitions");
         Objects.requireNonNull(milestone, "milestone");
         var cases = new ArrayList<TestCase>();
         definitions.cases().stream()
                 .filter(value -> value.milestone() == milestone)
                 .filter(value -> value.mode() == ExecutionMode.CONFIG)
-                .map(value -> createCase(value, targetMetadata))
+                .map(value -> createCase(value, targetMetadata, transcriptContent, decryptionKeys))
                 .forEach(cases::add);
         var registry = new TestCaseRegistry(cases);
         CaseImplementationAudit.requireExact(definitions, registry, milestone, ExecutionMode.CONFIG);
         return registry;
     }
 
-    private static TestCase createCase(CaseDefinition definition, Function<String, byte[]> targetMetadata) {
+    private static TestCase createCase(
+            CaseDefinition definition,
+            Function<String, byte[]> targetMetadata,
+            TranscriptContentReader transcriptContent,
+            SamlDecryptionKeyProvider decryptionKeys) {
+        if (List.of(
+                "IIP-MD03-e-idp-01", "IIP-MD05-at-idp-01", "IIP-MD05-au-idp-01",
+                "IIP-MD05-c4-idp-01", "IIP-MD06-a4-idp-01", "IIP-MD06-aa-idp-01")
+                .contains(definition.id())) {
+            return new InformationalChoiceTestCase(definition.id(), definition.role());
+        }
         var metadata = MetadataConfigCaseFactory.create(definition);
         if (metadata.isPresent()) return metadata.orElseThrow();
         var evidence = new AttestedOutcomeTestCase(
@@ -66,6 +86,11 @@ public final class ApprovedConfigCaseRegistry {
                 definition.configurationFailureSemantics());
         if (targetMetadata != null && TargetMetadataObservation.supports(definition.id())) {
             return new AutoConfigurationEvidenceTestCase(fallback, targetMetadata);
+        }
+        if (transcriptContent != null && decryptionKeys != null
+                && TranscriptConfigurationObservation.supports(definition.id())) {
+            return new AutoConfigurationTranscriptEvidenceTestCase(
+                    fallback, transcriptContent, decryptionKeys);
         }
         return fallback;
     }

@@ -14,6 +14,7 @@ test('renders the authoritative determination and its non-certification boundary
     target: { declared_product: 'Example IdP', declared_by: 'operator', verified: false, entity_id: 'https://idp.example/entity', metadata_digest: 'sha256:c', role: 'IDP', kind: 'IDP' },
     advisories: [], suite_incidents: [],
     summary: { requirements: { total: 1, verdicts: { pass: 1 } }, obligations: { total: 1, verdicts: { pass: 1 } }, cases: { total: 1, verdicts: { pass: 1 } } },
+    evidenceSummary: { externallyVerified: 1, selfAttested: 0, notVerified: 0, externallyVerifiedRatio: 1, selfAttestedRatio: 0 },
     coverage: { obligations_total: 1, obligations_applicable: 1, must_applicable: 1, must_observable: 1, must_resolved: 1, must_unresolved: 0, must_not_observable: 0, verified_ratio: 1 },
     requirements: [{ id: 'IIP-G03', verdict: 'PASS', spec_url: 'https://example.test/spec', obligations: [{ key: 'IIP-G03.a', level: 'MUST_NOT', role: 'IDP', verdict: 'PASS' }], cases: [] }],
     unresolved: [], not_observable: [],
@@ -24,6 +25,9 @@ test('renders the authoritative determination and its non-certification boundary
 
   expect(await screen.findByText('Conformant with warnings')).toBeTruthy()
   expect(screen.getByText('Example IdP', { exact: false })).toBeTruthy()
+  expect(screen.getByText('Evidence provenance')).toBeTruthy()
+  expect(screen.getByText('Externally verified')).toBeTruthy()
+  expect(screen.getByText('Self-attested')).toBeTruthy()
   expect(screen.getAllByText(/This is a test result, not a certification/)).toHaveLength(2)
   expect(screen.getByText('IIP-G03')).toBeTruthy()
 })

@@ -1,6 +1,7 @@
 package org.samlier.saml.metadata;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -33,6 +34,13 @@ class MetadataServiceTest {
         document.getDocumentElement().setIdAttribute("ID", true);
         assertEquals(1, document.getElementsByTagNameNS(MetadataService.MD, "SPSSODescriptor").getLength());
         assertEquals(1, document.getElementsByTagNameNS(MetadataService.MD, "IDPSSODescriptor").getLength());
+        var acs = document.getElementsByTagNameNS(MetadataService.MD, "AssertionConsumerService");
+        assertEquals(4, acs.getLength());
+        assertEquals("0", ((org.w3c.dom.Element) acs.item(0)).getAttribute("index"));
+        assertEquals("1", ((org.w3c.dom.Element) acs.item(1)).getAttribute("index"));
+        assertEquals(MetadataService.REDIRECT,
+                ((org.w3c.dom.Element) acs.item(3)).getAttribute("Binding"));
+        assertEquals("3", ((org.w3c.dom.Element) acs.item(3)).getAttribute("index"));
         var signatureElement = (org.w3c.dom.Element) document
                 .getElementsByTagNameNS(MetadataService.DS, "Signature").item(0);
         var signature = new XMLSignature(signatureElement, "");
@@ -52,13 +60,80 @@ class MetadataServiceTest {
             var xml = service.generate(plan, variant, runId);
             var document = SecureXml.parse(xml);
             document.getDocumentElement().setIdAttribute("ID", true);
-            var signatureElement = (org.w3c.dom.Element) document
-                    .getElementsByTagNameNS(MetadataService.DS, "Signature").item(0);
-            assertTrue(new XMLSignature(signatureElement, "")
-                    .checkSignatureValue(keyStore.getOrCreate(plan.id()).certificate()), variant.name());
+            var signatures = document.getElementsByTagNameNS(MetadataService.DS, "Signature");
+            if (variant == MetadataService.Variant.UNSIGNED) {
+                assertEquals(0, signatures.getLength(), variant.name());
+            } else {
+                var signature = new XMLSignature((org.w3c.dom.Element) signatures.item(0), "");
+                if (variant == MetadataService.Variant.BAD_SIGNATURE) {
+                    assertFalse(signature.checkSignatureValue(keyStore.getOrCreate(plan.id()).certificate()),
+                            variant.name());
+                } else if (variant == MetadataService.Variant.SIGNED_OTHER_KEY
+                        || variant == MetadataService.Variant.SIGNED_OTHER_KEY_PRIMARY_KEYINFO) {
+                    assertTrue(signature.checkSignatureValue(
+                            keyStore.getOrCreate(plan.id(), "metadata-other").certificate()), variant.name());
+                    assertFalse(signature.checkSignatureValue(keyStore.getOrCreate(plan.id()).certificate()),
+                            variant.name());
+                } else {
+                    assertTrue(signature.checkSignatureValue(keyStore.getOrCreate(plan.id()).certificate()),
+                            variant.name());
+                }
+            }
             assertTrue(new String(xml, java.nio.charset.StandardCharsets.UTF_8)
                     .contains("mdv=" + variant.id() + "&amp;run=" + runId), variant.name());
         }
+    }
+
+    @Test
+    void keyDescriptorFixturesExposeOnlyTheIntendedStandardKeyForms() {
+        var clock = Clock.fixed(Instant.parse("2026-08-29T00:00:00Z"), ZoneOffset.UTC);
+        var service = new MetadataService(
+                URI.create("https://peer.example"), new FilePlanKeyStore(directory, clock),
+                new XmlSigner(), clock);
+        var plan = SamlTestFixtures.idpPlan();
+        var runId = "run_0123456789ABCDEFGHJKMNPQRS";
+
+        var keyValue = SecureXml.parse(service.generate(
+                plan, MetadataService.Variant.KEYVALUE_ONLY, runId));
+        assertEquals(2, keyValue.getElementsByTagNameNS(MetadataService.DS, "RSAKeyValue").getLength());
+        assertEquals(1, keyValue.getElementsByTagNameNS(MetadataService.DS, "X509Data").getLength(),
+                "only the root signature KeyInfo retains X509Data");
+
+        var omitted = SecureXml.parse(service.generate(
+                plan, MetadataService.Variant.KEY_USE_OMITTED, runId));
+        var descriptors = omitted.getElementsByTagNameNS(MetadataService.MD, "KeyDescriptor");
+        assertFalse(((org.w3c.dom.Element) descriptors.item(0)).hasAttribute("use"));
+
+        var three = SecureXml.parse(service.generate(
+                plan, MetadataService.Variant.THREE_SIGNING_KEYS, runId));
+        var sp = (org.w3c.dom.Element) three
+                .getElementsByTagNameNS(MetadataService.MD, "SPSSODescriptor").item(0);
+        int signing = 0;
+        var keys = sp.getElementsByTagNameNS(MetadataService.MD, "KeyDescriptor");
+        for (int i = 0; i < keys.getLength(); i++) {
+            if ("signing".equals(((org.w3c.dom.Element) keys.item(i)).getAttribute("use"))) signing++;
+        }
+        assertEquals(3, signing);
+    }
+
+    @Test
+    void outOfBandKeyFixtureDoesNotAdvertiseTheActualSignatureKey() throws Exception {
+        var clock = Clock.fixed(Instant.parse("2026-08-29T00:00:00Z"), ZoneOffset.UTC);
+        var keyStore = new FilePlanKeyStore(directory, clock);
+        var plan = SamlTestFixtures.idpPlan();
+        var xml = new MetadataService(URI.create("https://peer.example"), keyStore, new XmlSigner(), clock)
+                .generate(plan, MetadataService.Variant.SIGNED_OTHER_KEY_PRIMARY_KEYINFO,
+                        "run_0123456789ABCDEFGHJKMNPQRS");
+        var document = SecureXml.parse(xml);
+        document.getDocumentElement().setIdAttribute("ID", true);
+        var signatureElement = (org.w3c.dom.Element) document
+                .getElementsByTagNameNS(MetadataService.DS, "Signature").item(0);
+        var signature = new XMLSignature(signatureElement, "");
+        assertTrue(signature.checkSignatureValue(keyStore.getOrCreate(plan.id(), "metadata-other").certificate()));
+        var advertised = signatureElement.getElementsByTagNameNS(MetadataService.DS, "X509Certificate")
+                .item(0).getTextContent().replaceAll("\\s", "");
+        assertEquals(java.util.Base64.getEncoder().encodeToString(
+                keyStore.getOrCreate(plan.id()).certificate().getEncoded()), advertised);
     }
 
     @Test

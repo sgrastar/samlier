@@ -69,6 +69,13 @@ export interface PublicResult {
     obligations: ResultCount
     cases: ResultCount
   }
+  evidenceSummary: {
+    externallyVerified: number
+    selfAttested: number
+    notVerified: number
+    externallyVerifiedRatio: number
+    selfAttestedRatio: number
+  }
   coverage: {
     obligationsTotal: number
     obligationsApplicable: number
@@ -84,7 +91,7 @@ export interface PublicResult {
     verdict: string
     specUrl: string
     obligations: Array<{ key: string; level: string; role: string; verdict: string }>
-    cases: Array<{ id: string; obligation: string; outcome: string | null; verdict: string; mode: string; reason: string }>
+    cases: Array<{ id: string; obligation: string; outcome: string | null; verdict: string; mode: string; reason: string; evidenceClass: string }>
   }>
   unresolved: Array<{ obligation: string; level: string; verdict: string; reasons: string[]; howToResolve: string }>
   notObservable: Array<{ obligation: string; level: string; reason: string }>
@@ -174,6 +181,52 @@ export interface ActiveProbeStatus {
   instructionsEn: string | null
 }
 
+export interface CampaignReport {
+  runId: string
+  cases: number
+  casesByEvidenceClass: Record<'PROTOCOL_OBSERVED' | 'OPERATOR_ASSISTED' | 'SELF_ATTESTED', number>
+  externallyVerifiedCases: number
+  selfAttestedCases: number
+  notVerifiedCases: number
+  plans: Array<{
+    plan: 'QUICK' | 'STANDARD' | 'FULL'
+    cases: number
+    deliberateUserActions: number
+    remainingUserActions: number
+    loginActions: number
+    configurationActions: number
+    metadataRefreshActions: number
+    selfAttestationSections: number
+    estimatedMinutesMin: number
+    estimatedMinutesMax: number
+    actionBudget: number
+    budgetMet: boolean
+  }>
+  campaigns: Array<{
+    id: string
+    title: string
+    plan: 'QUICK' | 'STANDARD' | 'FULL'
+    evidenceClass: 'PROTOCOL_OBSERVED' | 'OPERATOR_ASSISTED' | 'SELF_ATTESTED'
+    actionKind: 'NONE' | 'LOGIN' | 'CONTINUE' | 'CONFIGURATION' | 'METADATA_REFRESH' | 'SELF_CHECK'
+    deliberateUserActions: number
+    remainingUserActions: number
+    freshSessionRequired: boolean
+    caseIds: string[]
+    remainingCaseIds: string[]
+    expectedTranscriptEvidence: string[]
+  }>
+  classifications: Array<{
+    caseId: string
+    plan: 'QUICK' | 'STANDARD' | 'FULL'
+    evidenceClass: 'PROTOCOL_OBSERVED' | 'OPERATOR_ASSISTED' | 'SELF_ATTESTED'
+    campaignId: string
+    actionKind: 'NONE' | 'LOGIN' | 'CONTINUE' | 'CONFIGURATION' | 'METADATA_REFRESH' | 'SELF_CHECK'
+    freshSessionRequired: boolean
+    resolved: boolean
+    expectedTranscriptEvidence: string[]
+  }>
+}
+
 export interface Health { status: string; version: string; mode: 'selfhosted' | 'hosted' }
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
@@ -228,6 +281,7 @@ export const api = {
     '/api/manage/session', { method: 'POST', body: JSON.stringify({ runId, token }) },
   ),
   interactions: (runId: string) => request<PendingInteraction[]>(`/api/runs/${runId}/interactions`),
+  campaigns: (runId: string) => request<CampaignReport>(`/api/runs/${runId}/campaigns`),
   bootstrapContracts: (runId: string) => request<BootstrapContract[]>(`/api/runs/${runId}/bootstrap-contracts`),
   metadataLab: (runId: string) => request<MetadataLab>(`/api/runs/${runId}/metadata-lab`),
   selectMetadataVariant: (runId: string, variant: string, csrfToken?: string) =>
@@ -239,6 +293,10 @@ export const api = {
     request<ProtocolEvidenceStatus>(`/api/runs/${runId}/protocol-evidence`),
   evaluateProtocolEvidence: (runId: string, csrfToken?: string) =>
     request<ProtocolEvidenceEvaluation>(`/api/runs/${runId}/protocol-evidence/evaluate`, {
+      method: 'POST', body: '{}', headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : {},
+    }),
+  confirmProtocolEvidenceAttempts: (runId: string, csrfToken?: string) =>
+    request<ProtocolEvidenceEvaluation>(`/api/runs/${runId}/protocol-evidence/confirm-attempts`, {
       method: 'POST', body: '{}', headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : {},
     }),
   attest: (runId: string, caseId: string, value: string, note: string, csrfToken?: string) =>

@@ -12,6 +12,7 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Map;
 import java.util.Base64;
+import java.util.zip.Deflater;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.samlier.core.plan.MetadataDeliveryKind;
@@ -95,6 +96,9 @@ class SpPeerRoundTripTest {
         peer.consume(plan.id(), probeBody.getBytes(StandardCharsets.UTF_8), Map.of(),
                 "https://peer.example/p/" + plan.id() + "/sp/acs/0?mdv=no-key-info&run=" + run.id());
         assertEquals(3, recorder.list(run.id()).size());
+        assertEquals(true, recorder.list(run.id()).stream()
+                .filter(entry -> entry.url().contains("mdv=no-key-info"))
+                .findFirst().orElseThrow().samlSummary().get("metadataProbeAccepted"));
         assertEquals(RunStatus.COMPLETED, runs.find(run.id()).orElseThrow().status());
         assertEquals("completed", runs.find(run.id()).orElseThrow().context().get("m0RoundTrip"),
                 "probe traffic must not rewrite the normal round-trip state");
@@ -142,6 +146,49 @@ class SpPeerRoundTripTest {
     }
 
     @Test
+    void recordsRedirectBoundResponsesFromTheRawQuery() {
+        var now = Instant.parse("2026-08-29T00:00:00Z");
+        var clock = Clock.fixed(now, ZoneOffset.UTC);
+        var database = new SqliteDatabase(directory);
+        var json = new JsonCodec();
+        var plans = new SqlitePlanRepository(database, json);
+        var runs = new SqliteRunRepository(database, json);
+        var cache = new MetadataCache(directory);
+        var plan = plan("plan_0123456789ABCDEFGHJKMNPQRS", PlanProfile.IDP_CORE, TargetKind.IDP,
+                "https://idp.example/entity", now);
+        plans.save(plan);
+        cache.put(plan.id(), idpMetadata());
+        var runService = new RunService(plans, runs, new RunEventBus(), clock);
+        var run = runService.create(plan.id());
+        cache.putIfAbsent(run.id(), idpMetadata());
+        var saml = new SamlProtocolService(URI.create("https://peer.example"),
+                new FilePlanKeyStore(directory, clock), new XmlSigner(), new OpenSamlReader(), clock);
+        var recorder = new FileTranscriptRecorder(database, json, directory);
+        var peer = new SpPeerService(plans, runs, runService, cache, new TargetMetadataParser(),
+                saml, recorder, clock);
+        var redirect = peer.start(plan.id(), run.id());
+        var request = saml.decodeRedirect(redirect.getRawQuery(), "SAMLRequest");
+        var responsePlan = plan("plan_1123456789ABCDEFGHJKMNPQRS", PlanProfile.SP_CORE, TargetKind.SP,
+                "https://peer.example/p/" + plan.id(), now);
+        var response = saml.buildResponse(responsePlan, request,
+                URI.create("https://peer.example/p/" + plan.id() + "/sp/acs/3"), "smoke-user");
+        var rawQuery = "SAMLResponse=" + URLEncoder.encode(
+                Base64.getEncoder().encodeToString(deflate(response.xml())), StandardCharsets.UTF_8)
+                + "&RelayState=" + URLEncoder.encode(run.id(), StandardCharsets.UTF_8);
+
+        peer.consumeRedirectDetailed(
+                plan.id(), rawQuery, Map.of(),
+                "https://peer.example/p/" + plan.id() + "/sp/acs/3?" + rawQuery);
+
+        var inbound = recorder.list(run.id()).stream()
+                .filter(value -> value.direction() == org.samlier.core.transcript.Direction.INBOUND)
+                .findFirst().orElseThrow();
+        assertEquals("GET", inbound.method());
+        assertEquals(rawQuery, inbound.rawQuery());
+        assertEquals(true, inbound.samlSummary().get("normalFlowAccepted"));
+    }
+
+    @Test
     void recordsTargetResponseBeforeDtdRejection() {
         var now = Instant.parse("2026-08-29T00:00:00Z");
         var clock = Clock.fixed(now, ZoneOffset.UTC);
@@ -172,6 +219,18 @@ class SpPeerRoundTripTest {
         var entry = recorder.list(run.id()).getFirst();
         assertTrue(XmlDoctypeDetector.containsDoctype(recorder.readDecodedSaml(entry)));
         assertEquals("not-yet-parsed", entry.samlSummary().get("parseStatus"));
+    }
+
+    private byte[] deflate(byte[] xml) {
+        var deflater = new Deflater(Deflater.DEFAULT_COMPRESSION, true);
+        try {
+            deflater.setInput(xml);
+            deflater.finish();
+            var buffer = new byte[xml.length + 128];
+            return java.util.Arrays.copyOf(buffer, deflater.deflate(buffer));
+        } finally {
+            deflater.end();
+        }
     }
 
     private TestPlan plan(String id, PlanProfile profile, TargetKind kind, String entityId, Instant now) {

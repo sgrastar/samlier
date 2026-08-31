@@ -22,7 +22,7 @@ import org.samlier.core.transcript.Direction;
 
 /** Evaluates accept/reject metadata fixtures using fetches plus Run-correlated SAML traffic. */
 public final class MetadataFixtureObservationTestCase
-        implements TestCase, ConfigurationPrompt, ProtocolEvidenceCase {
+        implements TestCase, ConfigurationPrompt, ProtocolEvidenceCase, org.samlier.runner.EvidenceCampaignCase {
     private static final String PHASE = "await-metadata-fixture-probe";
     private static final String CONTROL = "control";
     private final String id;
@@ -52,6 +52,17 @@ public final class MetadataFixtureObservationTestCase
 
     @Override public String id() { return id; }
     @Override public TargetRole role() { return role; }
+    @Override public String evidenceCampaignId() { return "metadata-fixture-refresh"; }
+    @Override public String evidenceCampaignTitle() { return "Refresh or re-import Suite metadata fixtures"; }
+    @Override public org.samlier.runner.RunCampaignQuery.ActionKind evidenceActionKind() {
+        return org.samlier.runner.RunCampaignQuery.ActionKind.METADATA_REFRESH;
+    }
+    @Override public List<String> evidenceActionKeys() {
+        var keys = new ArrayList<String>();
+        keys.add(CONTROL);
+        fixtures.forEach(fixture -> keys.add(fixture.variant()));
+        return List.copyOf(keys);
+    }
 
     @Override
     public String instructionEn() {
@@ -76,7 +87,7 @@ public final class MetadataFixtureObservationTestCase
     @Override
     public CaseStep resume(CaseContext context, CaseState state, CaseEvent event) {
         if (!PHASE.equals(state.phase())) throw new IllegalArgumentException("Unexpected metadata fixture phase");
-        if (event instanceof CaseEvent.ConfigConfirmed) return new CaseStep.Finish(evaluate(context));
+        if (event instanceof CaseEvent.ConfigConfirmed) return new CaseStep.Finish(evaluate(context, true));
         if (event instanceof CaseEvent.ConfigUnavailable unavailable) {
             if (unavailable.issue() == CaseEvent.ConfigurationIssue.CAPABILITY_ABSENT
                     && configurationSemantics == ConfigurationFailureSemantics.NORMATIVE_CAPABILITY) {
@@ -129,9 +140,10 @@ public final class MetadataFixtureObservationTestCase
         return new EvidenceStatus(observation.ready(), required, completed, observation.details());
     }
 
-    private CaseOutcome evaluate(CaseContext context) {
+    private CaseOutcome evaluate(CaseContext context, boolean attemptsConfirmed) {
         var observation = observe(context);
-        if (!observation.ready()) {
+        var ready = observation.ready() || attemptsConfirmed && observation.attemptPrerequisitesComplete();
+        if (!ready) {
             return new CaseOutcome(
                     Outcome.NOT_VERIFIED, "metadata_fixture_probe_incomplete",
                     "metadata.fixture-probe.incomplete", "metadata.fixture-probe.incomplete",
@@ -147,6 +159,7 @@ public final class MetadataFixtureObservationTestCase
             }
         }
         var details = new LinkedHashMap<String, Object>(observation.details());
+        details.put("attempts_confirmed", attemptsConfirmed);
         details.put("mismatches", List.copyOf(mismatches));
         return new CaseOutcome(
                 mismatches.isEmpty() ? Outcome.SATISFIED : Outcome.VIOLATED,
@@ -198,6 +211,7 @@ public final class MetadataFixtureObservationTestCase
         return new Observation(
                 fetched.contains(CONTROL) && used.contains(CONTROL)
                         && allFetched && conclusive,
+                fetched.contains(CONTROL) && used.contains(CONTROL) && allFetched,
                 fetched, used, distinct(evidence), details);
     }
 
@@ -222,6 +236,7 @@ public final class MetadataFixtureObservationTestCase
 
     private record Observation(
             boolean ready,
+            boolean attemptPrerequisitesComplete,
             Set<String> fetched,
             Set<String> used,
             List<EvidenceRef> evidence,

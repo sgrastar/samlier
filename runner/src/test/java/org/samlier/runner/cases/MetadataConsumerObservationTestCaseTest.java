@@ -32,7 +32,7 @@ class MetadataConsumerObservationTestCaseTest {
         safe.add(use("control", 2));
         var sequence = 3;
         for (var variant : variants) safe.add(fetch(variant, sequence++));
-        assertEquals(Outcome.NOT_VERIFIED, evaluate(
+        assertEquals(Outcome.SATISFIED, evaluate(
                 MetadataConsumerObservationTestCase.Rule.EXCLUDED_CONTENT, safe));
 
         safe.add(use("xpath-exclude-endpoints", sequence));
@@ -46,7 +46,7 @@ class MetadataConsumerObservationTestCaseTest {
                 fetch("no-key-info", 3), use("no-key-info", 4));
         assertEquals(Outcome.SATISFIED, evaluate(
                 MetadataConsumerObservationTestCase.Rule.OMITTED_KEY_INFO, complete));
-        assertEquals(Outcome.NOT_VERIFIED, evaluate(
+        assertEquals(Outcome.VIOLATED, evaluate(
                 MetadataConsumerObservationTestCase.Rule.OMITTED_KEY_INFO,
                 complete.subList(0, 3)));
         assertEquals(Outcome.NOT_VERIFIED, evaluate(
@@ -57,7 +57,7 @@ class MetadataConsumerObservationTestCaseTest {
     @Test
     void permittedUnauthorizedTransformRecordsEitherChoiceWithoutInventingViolation() {
         var rejected = List.of(fetch("control", 1), use("control", 2), fetch("xpath-identity", 3));
-        assertEquals(Outcome.NOT_VERIFIED, evaluate(
+        assertEquals(Outcome.SATISFIED_WITH_NOTE, evaluate(
                 MetadataConsumerObservationTestCase.Rule.PERMITTED_IDENTITY_TRANSFORM, rejected));
         var accepted = new ArrayList<>(rejected);
         accepted.add(use("xpath-identity", 4));

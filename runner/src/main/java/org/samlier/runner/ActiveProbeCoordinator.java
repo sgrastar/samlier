@@ -152,16 +152,20 @@ public final class ActiveProbeCoordinator {
         var dispatch = dispatcher.dispatchFrontChannel(actionId, action -> {
             var encodedRequest = Base64.getEncoder().encodeToString(action.payload());
             var body = "SAMLRequest=" + url(encodedRequest) + "&RelayState=" + url(relayState);
+            var summary = new java.util.LinkedHashMap<String, Object>();
+            summary.put("type", "AuthnRequest");
+            summary.put("active_probe", true);
+            summary.put("action_id", action.actionId());
+            summary.put("scenario_case_id", current.caseId());
+            var fixtureId = execution.state().data().get("fixture_id");
+            if (fixtureId != null) summary.put("fixture_id", fixtureId);
             return transcript.record(new TranscriptInput(
                     runId, Direction.OUTBOUND, clock.instant(), action.actionId(), "POST",
                     action.target().toString(), null,
                     Map.of("Content-Type", List.of("application/x-www-form-urlencoded")),
                     body.getBytes(StandardCharsets.UTF_8), "application/x-www-form-urlencoded",
                     null, action.payload(),
-                    Map.of("type", "AuthnRequest", "active_probe", true,
-                            "action_id", action.actionId(),
-                            "scenario_case_id", current.caseId(),
-                            "fixture_id", execution.state().data().get("fixture_id")))).id();
+                    Map.copyOf(summary))).id();
         });
         return new PreparedProbe(
                 dispatch.action().target(),

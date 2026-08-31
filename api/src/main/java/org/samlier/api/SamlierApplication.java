@@ -118,10 +118,12 @@ public final class SamlierApplication {
             ResultRoutes.register(javalin, m1::requireResult, m1::requireReport);
             PublicationRoutes.register(javalin, m1::publish);
             InteractionRoutes.register(javalin, m1::pending);
+            CampaignRoutes.register(javalin, m1::campaigns);
             BootstrapContractRoutes.register(javalin, m1::bootstrapContracts);
             MetadataLabRoutes.register(javalin, metadataLab);
             ProtocolEvidenceRoutes.register(
-                    javalin, m1::protocolEvidence, m1::evaluateProtocolEvidence);
+                    javalin, m1::protocolEvidence, m1::evaluateProtocolEvidence,
+                    m1::confirmProtocolEvidenceAttempts);
             AttestationRoutes.register(javalin, m1::attest);
             ConfigurationRoutes.register(javalin, m1::configure);
             BrowserCompletionRoutes.register(javalin, m1::completeBrowser);
@@ -178,6 +180,8 @@ public final class SamlierApplication {
                                 ctx.header("X-CSRF-Token")));
                 javalin.routes.before("/api/runs/{id}/interactions", ctx ->
                         m1.authorize(ctx.pathParam("id"), ctx.cookie(ManagementSessionRoutes.COOKIE_NAME)));
+                javalin.routes.before("/api/runs/{id}/campaigns", ctx ->
+                        m1.authorize(ctx.pathParam("id"), ctx.cookie(ManagementSessionRoutes.COOKIE_NAME)));
                 javalin.routes.before("/api/runs/{id}/bootstrap-contracts", ctx ->
                         m1.authorize(ctx.pathParam("id"), ctx.cookie(ManagementSessionRoutes.COOKIE_NAME)));
                 javalin.routes.before("/api/runs/{id}/metadata-lab", ctx ->
@@ -190,6 +194,11 @@ public final class SamlierApplication {
                 javalin.routes.before("/api/runs/{id}/protocol-evidence", ctx ->
                         m1.authorize(ctx.pathParam("id"), ctx.cookie(ManagementSessionRoutes.COOKIE_NAME)));
                 javalin.routes.before("/api/runs/{id}/protocol-evidence/evaluate", ctx ->
+                        m1.authorizeMutation(
+                                ctx.pathParam("id"),
+                                ctx.cookie(ManagementSessionRoutes.COOKIE_NAME),
+                                ctx.header("X-CSRF-Token")));
+                javalin.routes.before("/api/runs/{id}/protocol-evidence/confirm-attempts", ctx ->
                         m1.authorizeMutation(
                                 ctx.pathParam("id"),
                                 ctx.cookie(ManagementSessionRoutes.COOKIE_NAME),
@@ -447,25 +456,19 @@ public final class SamlierApplication {
             renderActiveProbe(ctx, m1.prepareActiveProbe(
                     runId, ctx.pathParam("action"), fresh));
         });
-        javalin.routes.post("/p/{plan}/sp/acs/0", ctx -> {
+        // Publish only the catalogued ACS endpoints in metadata, but receive a response sent to
+        // any Suite-controlled ACS index. Negative ACS-selection fixtures deliberately request an
+        // unregistered path; recording that POST is what lets the scenario prove that the target
+        // followed the unregistered URL instead of rejecting it or falling back to the default.
+        javalin.routes.post("/p/{plan}/sp/acs/{index}", ctx -> {
             var consumed = spPeer.consumeDetailed(
                     ctx.pathParam("plan"), ctx.bodyAsBytes(), headers(ctx), absoluteRequestUrl(ctx));
-            if (consumed.activeProbe()) {
-                var status = m1.activeProbeStatus(consumed.activeProbeRunId());
-                if (status.state() == org.samlier.runner.ActiveProbeCoordinator.State.READY) {
-                    renderActiveProbe(ctx, m1.prepareActiveProbe(
-                            consumed.activeProbeRunId(), status.actionId(), false));
-                    return;
-                }
-                ctx.header("Cache-Control", "no-store").contentType("text/html; charset=utf-8")
-                        .result("<!doctype html><html lang=\"en\"><body><h1>Active probes completed</h1>"
-                                + "<p>The responses were recorded and evaluated automatically.</p></body></html>");
-                return;
-            }
-            var summary = consumed.summary();
-            ctx.contentType("text/html; charset=utf-8").result("<!doctype html><html lang=\"en\"><body>"
-                    + "<h1>M0 SSO round trip completed</h1><p>Return to Samlier.</p><pre>"
-                    + htmlEscape(summary.toString()) + "</pre></body></html>");
+            renderSpResponse(ctx, consumed, m1);
+        });
+        javalin.routes.get("/p/{plan}/sp/acs/{index}", ctx -> {
+            var consumed = spPeer.consumeRedirectDetailed(
+                    ctx.pathParam("plan"), ctx.req().getQueryString(), headers(ctx), absoluteRequestUrl(ctx));
+            renderSpResponse(ctx, consumed, m1);
         });
         javalin.routes.get("/p/{plan}/idp/sso", ctx -> serveIdp(ctx, idpPeer));
         javalin.routes.post("/p/{plan}/idp/sso", ctx -> serveIdp(ctx, idpPeer));
@@ -529,6 +532,26 @@ public final class SamlierApplication {
         ctx.header("Cache-Control", "no-store").contentType("text/html; charset=utf-8")
                 .result(HtmlPostPage.renderRequest(
                         probe.destination(), probe.samlRequest(), probe.relayState(), nonce));
+    }
+
+    private static void renderSpResponse(
+            Context ctx, org.samlier.peer.sp.SpPeerService.ConsumeResult consumed, M1Runtime m1) {
+        if (consumed.activeProbe()) {
+            var status = m1.activeProbeStatus(consumed.activeProbeRunId());
+            if (status.state() == org.samlier.runner.ActiveProbeCoordinator.State.READY) {
+                renderActiveProbe(ctx, m1.prepareActiveProbe(
+                        consumed.activeProbeRunId(), status.actionId(), false));
+                return;
+            }
+            ctx.header("Cache-Control", "no-store").contentType("text/html; charset=utf-8")
+                    .result("<!doctype html><html lang=\"en\"><body><h1>Active probes completed</h1>"
+                            + "<p>The responses were recorded and evaluated automatically.</p></body></html>");
+            return;
+        }
+        ctx.header("Cache-Control", "no-store").contentType("text/html; charset=utf-8")
+                .result("<!doctype html><html lang=\"en\"><body>"
+                        + "<h1>SAML Response recorded</h1><p>Return to Samlier.</p><pre>"
+                        + htmlEscape(consumed.summary().toString()) + "</pre></body></html>");
     }
 
     private static void serveSlo(Context ctx, SloPeerService service, SloPeerService.Transport transport) {

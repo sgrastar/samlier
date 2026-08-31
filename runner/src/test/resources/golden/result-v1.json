@@ -127,6 +127,13 @@
       }
     }
   },
+  "evidence_summary" : {
+    "externally_verified" : 1,
+    "self_attested" : 1,
+    "not_verified" : 0,
+    "externally_verified_ratio" : 0.5,
+    "self_attested_ratio" : 0.5
+  },
   "coverage" : {
     "obligations_total" : 4,
     "obligations_applicable" : 3,
@@ -169,6 +176,7 @@
       "reason_code" : "ok",
       "reason" : "ok",
       "attested" : false,
+      "evidence_class" : "PROTOCOL_OBSERVED",
       "evidence" : [ ],
       "definition_url" : "https://example.test/cases/REQ-a-idp-01"
     }, {
@@ -180,6 +188,7 @@
       "reason_code" : "recommendation",
       "reason" : "recommendation",
       "attested" : true,
+      "evidence_class" : "SELF_ATTESTED",
       "evidence" : [ ],
       "definition_url" : "https://example.test/cases/REQ-b-idp-01"
     } ]

@@ -43,6 +43,12 @@ public final class XmlSigner {
                     xpath.setAttributeNS(
                             "http://www.w3.org/2000/xmlns/", "xmlns:md",
                             "urn:oasis:names:tc:SAML:2.0:metadata");
+                    xpath.setAttributeNS(
+                            "http://www.w3.org/2000/xmlns/", "xmlns:samlp",
+                            "urn:oasis:names:tc:SAML:2.0:protocol");
+                    xpath.setAttributeNS(
+                            "http://www.w3.org/2000/xmlns/", "xmlns:saml",
+                            "urn:oasis:names:tc:SAML:2.0:assertion");
                     xpath.setTextContent(transform.xpath());
                     transforms.addTransform(transform.algorithm(), xpath);
                 }

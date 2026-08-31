@@ -68,6 +68,13 @@ def permit_localhost_http_cookies(cookie_jar: http.cookiejar.CookieJar, page_url
             cookie.secure = False
 
 
+def require_samlier_completion_page(document: str) -> None:
+    """Accept the current ACS receipt while remaining compatible with older M0 fixtures."""
+    markers = ("SAML Response recorded", "M0 SSO round trip completed")
+    if not any(marker in document for marker in markers):
+        raise RuntimeError("Samlier ACS did not return the completion marker")
+
+
 def request_text(opener, url: str, fields: dict[str, str] | None = None) -> tuple[str, str]:
     data = urlencode(fields).encode("utf-8") if fields is not None else None
     request = Request(url, data=data, headers={
@@ -114,8 +121,7 @@ def complete_round_trip(start_url: str, run_url: str, username: str, password: s
     _, saml_post_page = request_text(opener, login.action, login.fields)
     saml_post = require_form(saml_post_page, {"SAMLResponse"})
     _, completion_page = request_text(opener, saml_post.action, saml_post.fields)
-    if "M0 SSO round trip completed" not in completion_page:
-        raise RuntimeError("Samlier ACS did not return the completion marker")
+    require_samlier_completion_page(completion_page)
 
     _, run_document = request_text(opener, run_url)
     run = json.loads(run_document)

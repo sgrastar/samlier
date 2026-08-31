@@ -31,6 +31,7 @@ import org.samlier.core.run.RunStatus;
 import org.samlier.core.run.TestRun;
 import org.samlier.runner.cases.IdpErrorProbeConfiguration;
 import org.samlier.runner.cases.IdpErrorResponseTestCase;
+import org.samlier.runner.cases.IdpForceAuthnScenarioTestCase;
 import org.samlier.runner.cases.IdpNameIdPolicyScenarioTestCase;
 import org.samlier.runner.outbox.OutboundDispatcher;
 import org.samlier.runner.outbox.OutboundSender;
@@ -276,6 +277,36 @@ class ActiveProbeCoordinatorTest {
         assertEquals(CaseExecutionStatus.WAITING_INBOUND, execution.status());
         assertEquals(1, execution.state().data().get("fixture_index"));
         assertEquals(List.of("policy-omitted"), execution.state().data().get("unverifiable"));
+    }
+
+    @Test
+    void recordsStageBasedScenarioWithoutAnOptionalFixtureId() {
+        var runId = "run_3123456789ABCDEFGHJKMNPQRS";
+        runs.save(new TestRun(runId, PLAN, RunStatus.COMPLETED, Reachability.CONFIRMED, Map.of(), NOW, NOW));
+        var configuration = configuration(true);
+        var scenario = new IdpForceAuthnScenarioTestCase(ignored -> configuration);
+        var runContexts = (CaseContextProvider) ignored -> new DefaultCaseContext(
+                runId, org.samlier.core.plan.TargetRole.IDP, Clock.fixed(NOW, ZoneOffset.UTC),
+                TestPlan.Parameters.defaults(), TestPlan.Interaction.defaults(),
+                Reachability.CONFIRMED, transcript, true);
+        new CaseExecutionService(executions).start(runId, scenario, runContexts.contextFor(runId));
+        var dispatcher = new OutboundDispatcher(
+                executions,
+                (candidateRun, action, credential) -> new OutboundSender.SendResult(false, Map.of(), "unused"),
+                (candidateRun, actionId) -> Optional.empty(),
+                new OutboundPolicy(true), Clock.fixed(NOW, ZoneOffset.UTC));
+        var generic = new ActiveProbeCoordinator(
+                URI.create("https://suite.example"), plans, runs, executions, dispatcher,
+                transcript, runContexts, (ignored, candidateRun) -> configuration,
+                new TestCaseRegistry(List.of(scenario)), Clock.fixed(NOW, ZoneOffset.UTC));
+
+        var ready = generic.status(runId);
+        generic.prepare(runId, ready.actionId(), true);
+
+        var recorded = transcript.list(runId).getFirst();
+        assertEquals(scenario.id(), recorded.samlSummary().get("scenario_case_id"));
+        assertFalse(recorded.samlSummary().containsKey("fixture_id"));
+        assertEquals(ActiveProbeCoordinator.State.AWAITING_RESPONSE, generic.status(runId).state());
     }
 
     private byte[] response(String status) {

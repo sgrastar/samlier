@@ -29,6 +29,9 @@ final class TargetMetadataObservation {
     private static final String DS = "http://www.w3.org/2000/09/xmldsig#";
     private static final String ALG = "urn:oasis:names:tc:SAML:metadata:algsupport";
     private static final String UI = "urn:oasis:names:tc:SAML:metadata:ui";
+    private static final String MDATTR = "urn:oasis:names:tc:SAML:metadata:attribute";
+    private static final String ASSERTION = "urn:oasis:names:tc:SAML:2.0:assertion";
+    private static final String PROTOCOL = "urn:oasis:names:tc:SAML:2.0:protocol";
     private static final String SAML2 = "urn:oasis:names:tc:SAML:2.0:protocol";
     private static final Set<String> LOCALIZED_UI_ELEMENTS = Set.of(
             "DisplayName", "Description", "InformationURL", "PrivacyStatementURL", "Keywords");
@@ -57,9 +60,15 @@ final class TargetMetadataObservation {
     private TargetMetadataObservation() {}
 
     static boolean supports(String caseId) {
-        return suffix(caseId, "a7") || suffix(caseId, "a9") || suffix(caseId, "ab")
-                || suffix(caseId, "c9") || suffix(caseId, "ca") || suffix(caseId, "ce")
-                || suffix(caseId, "e1") || suffix(caseId, "e4") || suffix(caseId, "e6")
+        return suffix(caseId, "a3") || suffix(caseId, "a6") || suffix(caseId, "a7")
+                || suffix(caseId, "a9") || suffix(caseId, "ab")
+                || suffix(caseId, "c8") || suffix(caseId, "c9") || suffix(caseId, "ca")
+                || suffix(caseId, "cb") || suffix(caseId, "cc") || suffix(caseId, "ce")
+                || suffix(caseId, "d2") || suffix(caseId, "d3") || suffix(caseId, "d4")
+                || suffix(caseId, "d5") || suffix(caseId, "d6") || suffix(caseId, "d7")
+                || suffix(caseId, "d8") || suffix(caseId, "d9")
+                || suffix(caseId, "e1") || suffix(caseId, "e2") || suffix(caseId, "e3")
+                || suffix(caseId, "e4") || suffix(caseId, "e6") || suffix(caseId, "ed")
                 || suffix(caseId, "ec") || suffix(caseId, "f1") || suffix(caseId, "f2")
                 || suffix(caseId, "f3") || suffix(caseId, "f4") || suffix(caseId, "fk")
                 || idpSuffix(caseId, "fc") || idpSuffix(caseId, "fd") || idpSuffix(caseId, "fe");
@@ -71,16 +80,32 @@ final class TargetMetadataObservation {
         try { document = SecureXml.parse(metadata); }
         catch (SamlException invalid) { return Optional.empty(); }
         var evidence = List.of(new EvidenceRef("target-metadata", digest(metadata)));
+        if (suffix(caseId, "a3")) return Optional.of(extensionNamespaces(document, evidence));
+        if (suffix(caseId, "a6")) return Optional.of(rootOnlyExpiration(document, evidence));
         if (suffix(caseId, "a7")) return Optional.of(roleOverlap(document, evidence));
         if (suffix(caseId, "a9")) return Optional.of(saml2RoleProtocol(document, evidence));
         if (suffix(caseId, "ab")) return Optional.of(oneDirectionResponseLocation(document, evidence));
+        if (suffix(caseId, "c8")) return keyDescriptorCardinality(document, evidence);
         if (suffix(caseId, "c9")) return Optional.of(keyInfoRepresentation(document, evidence));
         if (suffix(caseId, "ca")) return Optional.of(singleCertificate(document, evidence));
+        if (suffix(caseId, "cb")) return Optional.of(coRepresentedKey(document, evidence));
+        if (suffix(caseId, "cc")) return Optional.of(informationalKeyHints(document, evidence));
         if (suffix(caseId, "ce")) return certificateValidity(document, evidence, now);
+        if (suffix(caseId, "d2")) return Optional.of(noAssertionsUnderEntitiesDescriptor(document, evidence));
+        if (suffix(caseId, "d3")) return Optional.of(singleEntityAttributesPerExtensions(document, evidence));
+        if (suffix(caseId, "d4")) return Optional.of(entityAttributeAssertionSubject(document, evidence));
+        if (suffix(caseId, "d5")) return Optional.of(entityAttributeAssertionConfirmation(document, evidence));
+        if (suffix(caseId, "d6")) return Optional.of(entityAttributeStatementCardinality(document, evidence));
+        if (suffix(caseId, "d7")) return Optional.of(entityAttributeStatementTypes(document, evidence));
+        if (suffix(caseId, "d8")) return entityAttributeAssertionSignature(document, evidence);
+        if (suffix(caseId, "d9")) return Optional.of(informationalAssertionContent(document, evidence));
         if (suffix(caseId, "e1")) return Optional.of(encryptionAlgorithmCategories(document, evidence));
+        if (suffix(caseId, "e2")) return encryptionKeyCompatibility(document, evidence);
+        if (suffix(caseId, "e3")) return Optional.of(symmetricKeyAlgorithms(document, evidence));
         if (suffix(caseId, "e4")) return Optional.of(requiredAlgorithm(document, MD, "EncryptionMethod", evidence));
         if (suffix(caseId, "e6")) return Optional.of(publishedSignatureAlgorithms(document, evidence));
         if (suffix(caseId, "ec")) return Optional.of(requiredAlgorithmElements(document, evidence));
+        if (suffix(caseId, "ed")) return Optional.of(informationalOtherEncryptionAlgorithms(document, evidence));
         if (suffix(caseId, "f1")) return Optional.of(uiInfoPlacement(document, evidence));
         if (suffix(caseId, "f2")) return Optional.of(nonEmptyUiContainer(
                 document, "UIInfo", "metadata.publisher.ui-info-content", evidence));
@@ -94,6 +119,309 @@ final class TargetMetadataObservation {
                 document, "DiscoHints", "metadata.publisher.disco-hints-cardinality", evidence));
         if (suffix(caseId, "fk")) return Optional.of(logoDimensions(document, evidence));
         return Optional.empty();
+    }
+
+    private static CaseOutcome rootOnlyExpiration(Document document, List<EvidenceRef> evidence) {
+        var root = document.getDocumentElement();
+        var violations = new ArrayList<String>();
+        var nodes = document.getElementsByTagNameNS(MD, "*");
+        for (var index = 0; index < nodes.getLength(); index++) {
+            var element = (Element) nodes.item(index);
+            if (element != root && (element.hasAttribute("validUntil") || element.hasAttribute("cacheDuration"))) {
+                violations.add(element.getTagName());
+            }
+        }
+        return result(
+                violations.isEmpty() ? Outcome.SATISFIED : Outcome.VIOLATED,
+                "metadata.publisher.root-only-expiration", evidence,
+                Map.of("root", root.getTagName(), "non_root_expiration_attributes", violations));
+    }
+
+    private static Optional<CaseOutcome> keyDescriptorCardinality(
+            Document document, List<EvidenceRef> evidence) {
+        var descriptors = elements(document, MD, "KeyDescriptor");
+        var violations = new ArrayList<Integer>();
+        var ambiguous = new ArrayList<Integer>();
+        for (var index = 0; index < descriptors.size(); index++) {
+            var keyInfo = direct(descriptors.get(index), DS, "KeyInfo");
+            if (keyInfo == null) {
+                violations.add(index);
+                continue;
+            }
+            var keyValues = elements(keyInfo, DS, "KeyValue").size();
+            var certificates = elements(keyInfo, DS, "X509Certificate").size();
+            if (keyValues == 0 && certificates == 0) violations.add(index);
+            else if (keyValues > 1 || certificates > 1) violations.add(index);
+            else if (keyValues == 1 && certificates == 1) ambiguous.add(index);
+        }
+        if (!violations.isEmpty()) return Optional.of(result(
+                Outcome.VIOLATED, "metadata.publisher.key-descriptor-cardinality", evidence,
+                Map.of("descriptors", descriptors.size(), "invalid_descriptors", violations)));
+        if (!ambiguous.isEmpty()) return Optional.empty();
+        return Optional.of(result(
+                descriptors.isEmpty() ? Outcome.SATISFIED_WITH_NOTE : Outcome.SATISFIED,
+                "metadata.publisher.key-descriptor-cardinality", evidence,
+                Map.of("descriptors", descriptors.size())));
+    }
+
+    private static CaseOutcome coRepresentedKey(Document document, List<EvidenceRef> evidence) {
+        var inspected = 0;
+        var unresolved = new ArrayList<Integer>();
+        var descriptors = elements(document, MD, "KeyDescriptor");
+        for (var index = 0; index < descriptors.size(); index++) {
+            var keyInfo = direct(descriptors.get(index), DS, "KeyInfo");
+            if (keyInfo == null) continue;
+            if (!elements(keyInfo, DS, "KeyValue").isEmpty()
+                    && !elements(keyInfo, DS, "X509Certificate").isEmpty()) {
+                inspected++;
+                unresolved.add(index);
+            }
+        }
+        if (!unresolved.isEmpty()) return new CaseOutcome(
+                Outcome.NOT_VERIFIED, "co_represented_key_comparison_unavailable",
+                "metadata.publisher.co-represented-key-unresolved",
+                "metadata.publisher.co-represented-key-unresolved", evidence,
+                Map.of("descriptors", inspected, "unresolved_descriptors", unresolved));
+        return result(Outcome.SATISFIED_WITH_NOTE, "metadata.publisher.no-co-represented-keys", evidence,
+                Map.of("descriptors", descriptors.size(), "co_represented", 0));
+    }
+
+    private static CaseOutcome informationalKeyHints(Document document, List<EvidenceRef> evidence) {
+        var observed = keyDescriptorElements(document, DS, "KeyName").size()
+                + keyDescriptorElements(document, DS, "X509SubjectName").size()
+                + keyDescriptorElements(document, DS, "X509IssuerSerial").size();
+        return result(Outcome.SATISFIED_WITH_NOTE, "metadata.publisher.key-hints-recorded", evidence,
+                Map.of("observed_hints", observed));
+    }
+
+    private static CaseOutcome informationalAssertionContent(Document document, List<EvidenceRef> evidence) {
+        var assertions = entityAttributeAssertions(document);
+        var conditions = assertions.stream().mapToInt(value -> elements(value, ASSERTION, "Conditions").size()).sum();
+        var advice = assertions.stream().mapToInt(value -> elements(value, ASSERTION, "Advice").size()).sum();
+        return result(Outcome.SATISFIED_WITH_NOTE, "metadata.publisher.assertion-content-recorded", evidence,
+                Map.of("assertions", assertions.size(), "conditions", conditions, "advice", advice));
+    }
+
+    private static Optional<CaseOutcome> encryptionKeyCompatibility(
+            Document document, List<EvidenceRef> evidence) {
+        var inspected = 0;
+        var violations = new ArrayList<String>();
+        var unresolved = new ArrayList<String>();
+        for (var descriptor : elements(document, MD, "KeyDescriptor")) {
+            var methods = directElements(descriptor, MD, "EncryptionMethod");
+            if (methods.isEmpty()) continue;
+            String keyType = null;
+            var certificates = elements(descriptor, DS, "X509Certificate");
+            if (certificates.size() == 1) {
+                try { keyType = certificate(certificates.getFirst()).getPublicKey().getAlgorithm(); }
+                catch (RuntimeException invalid) { unresolved.add("invalid-certificate"); }
+            }
+            for (var method : methods) {
+                var algorithm = method.getAttribute("Algorithm");
+                if (!KEY_TRANSPORT_OR_AGREEMENT.contains(algorithm)) continue;
+                inspected++;
+                if (keyType == null) unresolved.add(algorithm);
+                else if (algorithm.contains("rsa-") && !"RSA".equalsIgnoreCase(keyType)) violations.add(algorithm);
+                else if (algorithm.endsWith("ECDH-ES") && !"EC".equalsIgnoreCase(keyType)) violations.add(algorithm);
+            }
+        }
+        if (!violations.isEmpty()) return Optional.of(result(
+                Outcome.VIOLATED, "metadata.publisher.incompatible-key-algorithm", evidence,
+                Map.of("inspected", inspected, "incompatible", violations)));
+        if (!unresolved.isEmpty()) return Optional.empty();
+        return Optional.of(result(
+                inspected == 0 ? Outcome.SATISFIED_WITH_NOTE : Outcome.SATISFIED,
+                "metadata.publisher.key-algorithm-compatible", evidence, Map.of("inspected", inspected)));
+    }
+
+    private static CaseOutcome symmetricKeyAlgorithms(Document document, List<EvidenceRef> evidence) {
+        var inspected = 0;
+        var violations = new ArrayList<Integer>();
+        var descriptors = elements(document, MD, "KeyDescriptor");
+        for (var index = 0; index < descriptors.size(); index++) {
+            var descriptor = descriptors.get(index);
+            var keyInfo = direct(descriptor, DS, "KeyInfo");
+            if (keyInfo == null || direct(keyInfo, DS, "KeyName") == null
+                    || !elements(keyInfo, DS, "KeyValue").isEmpty()
+                    || !elements(keyInfo, DS, "X509Certificate").isEmpty()) continue;
+            inspected++;
+            if (directElements(descriptor, MD, "EncryptionMethod").stream()
+                    .noneMatch(value -> DATA_ENCRYPTION.contains(value.getAttribute("Algorithm")))) {
+                violations.add(index);
+            }
+        }
+        return result(
+                !violations.isEmpty() ? Outcome.VIOLATED
+                        : inspected == 0 ? Outcome.SATISFIED_WITH_NOTE : Outcome.SATISFIED,
+                "metadata.publisher.symmetric-key-algorithms", evidence,
+                Map.of("symmetric_descriptors", inspected, "missing_data_algorithm", violations));
+    }
+
+    private static CaseOutcome informationalOtherEncryptionAlgorithms(
+            Document document, List<EvidenceRef> evidence) {
+        var other = elements(document, MD, "EncryptionMethod").stream()
+                .map(value -> value.getAttribute("Algorithm"))
+                .filter(value -> !DATA_ENCRYPTION.contains(value)
+                        && !KEY_TRANSPORT_OR_AGREEMENT.contains(value))
+                .toList();
+        return result(Outcome.SATISFIED_WITH_NOTE, "metadata.publisher.other-encryption-algorithms-recorded",
+                evidence, Map.of("algorithms", other));
+    }
+
+    private static CaseOutcome extensionNamespaces(Document document, List<EvidenceRef> evidence) {
+        var extensionChildren = new ArrayList<Element>();
+        for (var extensions : elements(document, MD, "Extensions")) {
+            extensionChildren.addAll(directElements(extensions));
+        }
+        var violations = new ArrayList<String>();
+        for (var child : extensionChildren) {
+            var namespace = child.getNamespaceURI();
+            if (namespace == null || namespace.isBlank()
+                    || MD.equals(namespace) || ASSERTION.equals(namespace) || PROTOCOL.equals(namespace)) {
+                violations.add(child.getTagName());
+            }
+        }
+        return conditionalResult(
+                extensionChildren.size(), violations, "metadata.publisher.extension-namespace", evidence,
+                Map.of("extension_elements", extensionChildren.size(), "invalid_elements", violations));
+    }
+
+    private static CaseOutcome noAssertionsUnderEntitiesDescriptor(
+            Document document, List<EvidenceRef> evidence) {
+        var containers = elements(document, MDATTR, "EntityAttributes");
+        var invalid = new ArrayList<Integer>();
+        for (var index = 0; index < containers.size(); index++) {
+            var owner = metadataExtensionOwner(containers.get(index));
+            if (owner != null && "EntitiesDescriptor".equals(owner.getLocalName())
+                    && !elements(containers.get(index), ASSERTION, "Assertion").isEmpty()) {
+                invalid.add(index);
+            }
+        }
+        return conditionalResult(
+                containers.size(), invalid, "metadata.publisher.entity-attributes-entities-assertion", evidence,
+                Map.of("entity_attributes", containers.size(), "invalid_containers", invalid));
+    }
+
+    private static CaseOutcome singleEntityAttributesPerExtensions(
+            Document document, List<EvidenceRef> evidence) {
+        var observed = elements(document, MDATTR, "EntityAttributes").size();
+        var invalid = new ArrayList<Integer>();
+        var extensions = elements(document, MD, "Extensions");
+        for (var index = 0; index < extensions.size(); index++) {
+            if (directElements(extensions.get(index), MDATTR, "EntityAttributes").size() > 1) {
+                invalid.add(index);
+            }
+        }
+        return conditionalResult(
+                observed, invalid, "metadata.publisher.entity-attributes-cardinality", evidence,
+                Map.of("entity_attributes", observed, "extensions_with_duplicates", invalid));
+    }
+
+    private static CaseOutcome entityAttributeAssertionSubject(
+            Document document, List<EvidenceRef> evidence) {
+        var assertions = entityAttributeAssertions(document);
+        var invalid = new ArrayList<Integer>();
+        for (var index = 0; index < assertions.size(); index++) {
+            var assertion = assertions.get(index);
+            var entity = metadataExtensionOwner(assertion);
+            var subject = direct(assertion, ASSERTION, "Subject");
+            var nameId = subject == null ? null : direct(subject, ASSERTION, "NameID");
+            if (entity == null || !"EntityDescriptor".equals(entity.getLocalName())
+                    || nameId == null
+                    || !"urn:oasis:names:tc:SAML:2.0:nameid-format:entity".equals(nameId.getAttribute("Format"))
+                    || !entity.getAttribute("entityID").equals(nameId.getTextContent())) {
+                invalid.add(index);
+            }
+        }
+        return conditionalResult(
+                assertions.size(), invalid, "metadata.publisher.entity-attributes-subject", evidence,
+                Map.of("assertions", assertions.size(), "invalid_assertions", invalid));
+    }
+
+    private static CaseOutcome entityAttributeAssertionConfirmation(
+            Document document, List<EvidenceRef> evidence) {
+        var assertions = entityAttributeAssertions(document);
+        var invalid = new ArrayList<Integer>();
+        for (var index = 0; index < assertions.size(); index++) {
+            if (!elements(assertions.get(index), ASSERTION, "SubjectConfirmation").isEmpty()) {
+                invalid.add(index);
+            }
+        }
+        return conditionalResult(
+                assertions.size(), invalid, "metadata.publisher.entity-attributes-subject-confirmation", evidence,
+                Map.of("assertions", assertions.size(), "invalid_assertions", invalid));
+    }
+
+    private static CaseOutcome entityAttributeStatementCardinality(
+            Document document, List<EvidenceRef> evidence) {
+        var assertions = entityAttributeAssertions(document);
+        var invalid = new ArrayList<Integer>();
+        for (var index = 0; index < assertions.size(); index++) {
+            if (directElements(assertions.get(index), ASSERTION, "AttributeStatement").size() != 1) {
+                invalid.add(index);
+            }
+        }
+        return conditionalResult(
+                assertions.size(), invalid, "metadata.publisher.entity-attributes-statement-cardinality", evidence,
+                Map.of("assertions", assertions.size(), "invalid_assertions", invalid));
+    }
+
+    private static CaseOutcome entityAttributeStatementTypes(
+            Document document, List<EvidenceRef> evidence) {
+        var assertions = entityAttributeAssertions(document);
+        var invalid = new ArrayList<Integer>();
+        for (var index = 0; index < assertions.size(); index++) {
+            var otherStatement = directElements(assertions.get(index)).stream()
+                    .anyMatch(value -> ASSERTION.equals(value.getNamespaceURI())
+                            && ("Statement".equals(value.getLocalName())
+                            || (value.getLocalName().endsWith("Statement")
+                            && !"AttributeStatement".equals(value.getLocalName()))));
+            if (otherStatement) invalid.add(index);
+        }
+        return conditionalResult(
+                assertions.size(), invalid, "metadata.publisher.entity-attributes-statement-types", evidence,
+                Map.of("assertions", assertions.size(), "invalid_assertions", invalid));
+    }
+
+    private static Optional<CaseOutcome> entityAttributeAssertionSignature(
+            Document document, List<EvidenceRef> evidence) {
+        var assertions = entityAttributeAssertions(document);
+        if (assertions.isEmpty()) {
+            return Optional.of(result(
+                    Outcome.SATISFIED_WITH_NOTE, "metadata.publisher.no-entity-attribute-assertions",
+                    evidence, Map.of("assertions", 0)));
+        }
+        var unsigned = new ArrayList<Integer>();
+        for (var index = 0; index < assertions.size(); index++) {
+            if (direct(assertions.get(index), DS, "Signature") == null) unsigned.add(index);
+        }
+        if (!unsigned.isEmpty()) {
+            return Optional.of(result(
+                    Outcome.VIOLATED, "metadata.publisher.entity-attributes-assertion-unsigned",
+                    evidence, Map.of("assertions", assertions.size(), "unsigned", unsigned)));
+        }
+        // Presence alone does not prove cryptographic validity. Keep signed instances on the
+        // approved evidence path until a signature-verification oracle is available.
+        return Optional.empty();
+    }
+
+    private static List<Element> entityAttributeAssertions(Document document) {
+        var result = new ArrayList<Element>();
+        for (var container : elements(document, MDATTR, "EntityAttributes")) {
+            result.addAll(directElements(container, ASSERTION, "Assertion"));
+        }
+        return List.copyOf(result);
+    }
+
+    private static Element metadataExtensionOwner(Element element) {
+        for (var current = parent(element); current != null; current = parent(current)) {
+            if (MD.equals(current.getNamespaceURI())
+                    && ("EntityDescriptor".equals(current.getLocalName())
+                    || "EntitiesDescriptor".equals(current.getLocalName()))) {
+                return current;
+            }
+        }
+        return null;
     }
 
     private static CaseOutcome roleOverlap(Document document, List<EvidenceRef> evidence) {
@@ -414,6 +742,16 @@ final class TargetMetadataObservation {
             if (keyInfo != null) result.addAll(elements(keyInfo, namespace, localName));
         }
         return result;
+    }
+
+    private static X509Certificate certificate(Element element) {
+        try {
+            var encoded = element.getTextContent().replaceAll("\\s+", "");
+            return (X509Certificate) CertificateFactory.getInstance("X.509").generateCertificate(
+                    new ByteArrayInputStream(Base64.getDecoder().decode(encoded)));
+        } catch (Exception invalid) {
+            throw new IllegalArgumentException("Invalid metadata certificate", invalid);
+        }
     }
 
     private static List<Element> elements(Document document, String namespace, String localName) {

@@ -22,7 +22,7 @@ import org.samlier.core.transcript.Direction;
  * verdict is derived from Suite-recorded fetches and variant-correlated inbound SAML only.
  */
 public final class MetadataConsumerObservationTestCase
-        implements TestCase, ConfigurationPrompt, ProtocolEvidenceCase {
+        implements TestCase, ConfigurationPrompt, ProtocolEvidenceCase, org.samlier.runner.EvidenceCampaignCase {
     public enum Rule { PERMITTED_IDENTITY_TRANSFORM, EXCLUDED_CONTENT, OMITTED_KEY_INFO }
 
     private static final String CONFIGURATION_PHASE = "await-metadata-consumer-probe";
@@ -50,6 +50,11 @@ public final class MetadataConsumerObservationTestCase
 
     @Override public String id() { return id; }
     @Override public TargetRole role() { return role; }
+    @Override public String evidenceCampaignId() { return "metadata-fixture-refresh"; }
+    @Override public String evidenceCampaignTitle() { return "Refresh or re-import Suite metadata fixtures"; }
+    @Override public org.samlier.runner.RunCampaignQuery.ActionKind evidenceActionKind() {
+        return org.samlier.runner.RunCampaignQuery.ActionKind.METADATA_REFRESH;
+    }
     @Override public String instructionEn() { return instructionEn; }
 
     @Override
@@ -64,7 +69,7 @@ public final class MetadataConsumerObservationTestCase
         if (!CONFIGURATION_PHASE.equals(state.phase())) {
             throw new IllegalArgumentException("Metadata consumer case is not waiting for its probe");
         }
-        if (event instanceof CaseEvent.ConfigConfirmed) return new CaseStep.Finish(evaluate(context));
+        if (event instanceof CaseEvent.ConfigConfirmed) return new CaseStep.Finish(evaluate(context, true));
         if (event instanceof CaseEvent.ConfigUnavailable unavailable) {
             return new CaseStep.Finish(unavailable(unavailable));
         }
@@ -79,13 +84,14 @@ public final class MetadataConsumerObservationTestCase
         throw new IllegalArgumentException("Expected metadata consumer configuration completion");
     }
 
-    private CaseOutcome evaluate(CaseContext context) {
+    private CaseOutcome evaluate(CaseContext context, boolean attemptsConfirmed) {
         var observation = observe(context);
         var fetched = observation.fetched();
         var used = observation.used();
         var evidence = observation.evidence();
         var details = observation.details();
-        if (!observation.ready()) {
+        var ready = observation.ready() || attemptsConfirmed && observation.attemptPrerequisitesComplete();
+        if (!ready) {
             return new CaseOutcome(
                     Outcome.NOT_VERIFIED, "metadata_consumer_probe_incomplete",
                     "metadata.consumer-probe.incomplete", "metadata.consumer-probe.incomplete",
@@ -183,6 +189,8 @@ public final class MetadataConsumerObservationTestCase
         return new Observation(
                 fetched.contains(CONTROL) && used.contains(CONTROL)
                         && fetched.containsAll(variants) && conclusiveVariantObservation,
+                fetched.contains(CONTROL) && used.contains(CONTROL)
+                        && fetched.containsAll(variants),
                 fetched, used, distinct(evidence), details);
     }
 
@@ -223,6 +231,7 @@ public final class MetadataConsumerObservationTestCase
 
     private record Observation(
             boolean ready,
+            boolean attemptPrerequisitesComplete,
             Set<String> fetched,
             Set<String> used,
             List<EvidenceRef> evidence,

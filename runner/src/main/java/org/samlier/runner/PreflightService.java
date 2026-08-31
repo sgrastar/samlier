@@ -56,6 +56,7 @@ public final class PreflightService {
     public PreflightReport execute(String runId) {
         var run = runs.find(runId).orElseThrow(() -> new IllegalArgumentException("Unknown Run"));
         var plan = plans.find(run.planId()).orElseThrow(() -> new IllegalStateException("Run has no Test Plan"));
+        var priorStatus = run.status();
         run = runService.update(run, RunStatus.PREFLIGHT, run.targetToSuiteReachability(), run.context());
         var checks = new ArrayList<PreflightReport.Check>();
         var observations = new LinkedHashMap<String, Object>();
@@ -92,7 +93,13 @@ public final class PreflightService {
         var report = new PreflightReport(run.id(), clock.instant(), reachability, checks, observations);
         var context = new LinkedHashMap<String, Object>(run.context());
         context.put("preflight", mapper.convertValue(report, Map.class));
-        runService.update(run, report.hasFailure() ? RunStatus.CREATED : RunStatus.RUNNING, reachability, context);
+        // Re-running preflight refreshes configuration evidence; it must not erase an already
+        // completed protocol round trip. Quick checks and browser scenarios intentionally require
+        // COMPLETED, so regressing the lifecycle here would strand a valid Run.
+        var nextStatus = priorStatus == RunStatus.COMPLETED
+                ? RunStatus.COMPLETED
+                : report.hasFailure() ? RunStatus.CREATED : RunStatus.RUNNING;
+        runService.update(run, nextStatus, reachability, context);
         return report;
     }
 

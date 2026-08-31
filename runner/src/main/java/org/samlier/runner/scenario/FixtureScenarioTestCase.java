@@ -95,7 +95,20 @@ public final class FixtureScenarioTestCase implements TestCase {
             var violatingActionIds = optionalStrings(state, "violating_action_ids");
             var unverifiable = strings(state, "unverifiable");
             var evidence = strings(state, "evidence");
-            unverifiable.add(fixtures.get(index).id());
+            var fixture = fixtures.get(index);
+            var observation = fixture.observeUnavailable(unavailable.reason());
+            if (observation == null) throw new IllegalStateException("Fixture returned no unavailable observation");
+            if (observation == FixtureObservation.CONTROL_FAILED) {
+                return new CaseStep.Finish(new CaseOutcome(
+                        Outcome.NOT_VERIFIED, "control_failed", "control_failed",
+                        vocabulary.controlFailedMessageKey(), refs(evidence),
+                        Map.of("failed_control", fixture.id(), "unavailable_reason", unavailable.reason())));
+            }
+            if (observation == FixtureObservation.VIOLATED) {
+                violations.add(fixture.id());
+                violatingActionIds.add(ActionIds.derive(context.runId(), id, state.phase(), 0));
+            }
+            if (observation == FixtureObservation.NOT_VERIFIED) unverifiable.add(fixture.id());
             if (index + 1 < fixtures.size()) {
                 return awaitFixture(
                         context, index + 1, violations, violatingActionIds, unverifiable, evidence);
