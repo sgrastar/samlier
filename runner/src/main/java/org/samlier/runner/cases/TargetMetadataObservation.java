@@ -60,7 +60,8 @@ final class TargetMetadataObservation {
     private TargetMetadataObservation() {}
 
     static boolean supports(String caseId) {
-        return suffix(caseId, "a3") || suffix(caseId, "a6") || suffix(caseId, "a7")
+        return isAlgorithmPublicationCapability(caseId)
+                || suffix(caseId, "a3") || suffix(caseId, "a6") || suffix(caseId, "a7")
                 || suffix(caseId, "a9") || suffix(caseId, "ab")
                 || suffix(caseId, "c8") || suffix(caseId, "c9") || suffix(caseId, "ca")
                 || suffix(caseId, "cb") || suffix(caseId, "cc") || suffix(caseId, "ce")
@@ -80,6 +81,9 @@ final class TargetMetadataObservation {
         try { document = SecureXml.parse(metadata); }
         catch (SamlException invalid) { return Optional.empty(); }
         var evidence = List.of(new EvidenceRef("target-metadata", digest(metadata)));
+        if (isAlgorithmPublicationCapability(caseId)) {
+            return algorithmPublicationCapability(document, evidence);
+        }
         if (suffix(caseId, "a3")) return Optional.of(extensionNamespaces(document, evidence));
         if (suffix(caseId, "a6")) return Optional.of(rootOnlyExpiration(document, evidence));
         if (suffix(caseId, "a7")) return Optional.of(roleOverlap(document, evidence));
@@ -119,6 +123,24 @@ final class TargetMetadataObservation {
                 document, "DiscoHints", "metadata.publisher.disco-hints-cardinality", evidence));
         if (suffix(caseId, "fk")) return Optional.of(logoDimensions(document, evidence));
         return Optional.empty();
+    }
+
+    /**
+     * A metadata document that publishes both signature and encryption algorithm declarations is
+     * positive evidence of the MD09.a capability. Absence or a partial declaration is
+     * inconclusive, never a violation: the target might be capable of publishing the declarations
+     * in another runtime configuration.
+     */
+    private static Optional<CaseOutcome> algorithmPublicationCapability(
+            Document document, List<EvidenceRef> evidence) {
+        var signing = elements(document, ALG, "SigningMethod").stream()
+                .filter(value -> !value.getAttribute("Algorithm").isBlank()).count();
+        var encryption = elements(document, ALG, "EncryptionMethod").stream()
+                .filter(value -> !value.getAttribute("Algorithm").isBlank()).count();
+        if (signing == 0 || encryption == 0) return Optional.empty();
+        return Optional.of(result(
+                Outcome.SATISFIED, "metadata.publisher.algorithm-capability-published", evidence,
+                Map.of("signing_methods", signing, "encryption_methods", encryption)));
     }
 
     private static CaseOutcome rootOnlyExpiration(Document document, List<EvidenceRef> evidence) {
@@ -711,6 +733,10 @@ final class TargetMetadataObservation {
     private static boolean suffix(String caseId, String suffix) {
         return caseId.startsWith("IIP-MD05-" + suffix + "-")
                 && (caseId.endsWith("-idp-01") || caseId.endsWith("-sp-01"));
+    }
+
+    private static boolean isAlgorithmPublicationCapability(String caseId) {
+        return caseId.equals("IIP-MD09-a-idp-01") || caseId.equals("IIP-MD09-a-sp-01");
     }
 
     private static boolean idpSuffix(String caseId, String suffix) {

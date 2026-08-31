@@ -21,7 +21,9 @@ test('removes the fragment before exchanging it and keeps only the CSRF token in
     if (url.includes('/bootstrap-contracts')) return json([])
     if (url.includes('/metadata-lab')) return json({
       runId, planId: 'plan', selectedVariant: 'control', metadataUrl: 'https://suite.example/metadata',
-      availableVariants: ['control'],
+      availableVariants: ['control'], ingestionMode: 'MANUAL_REFRESH', campaignVariants: [],
+      campaignIndex: 0, campaignComplete: false, pollingDelaySeconds: 15, operatorContinuationActions: 0, automaticStartUrl: null, automaticContinueUrl: null, preloadedMetadataUrl: null, preloadedDownloadUrl: null,
+      preloadedStartUrl: null, preloadedVariants: [], preloadedFetched: false,
     })
     if (url.includes('/protocol-evidence')) return json({ eligibleCases: 0, readyCases: 0, cases: [] })
     if (url.includes('/active-probe')) return json({ state: 'NOT_STARTED' })
@@ -48,7 +50,9 @@ test('opens a self-hosted management page without a fragment secret', async () =
     url === '/api/health' ? { status: 'ok', version: 'test', mode: 'selfhosted' }
       : url.includes('/metadata-lab') ? {
         runId, planId: 'plan', selectedVariant: 'control', metadataUrl: 'https://suite.example/metadata',
-        availableVariants: ['control'],
+        availableVariants: ['control'], ingestionMode: 'MANUAL_REFRESH', campaignVariants: [],
+        campaignIndex: 0, campaignComplete: false, pollingDelaySeconds: 15, operatorContinuationActions: 0, automaticStartUrl: null, automaticContinueUrl: null, preloadedMetadataUrl: null, preloadedDownloadUrl: null,
+        preloadedStartUrl: null, preloadedVariants: [], preloadedFetched: false,
       } : url.includes('/protocol-evidence') ? { eligibleCases: 0, readyCases: 0, cases: [] } : [],
   ), { status: 200, headers: { 'content-type': 'application/json' } })))
 

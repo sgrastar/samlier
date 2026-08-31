@@ -82,6 +82,7 @@ public final class IdpPassiveScenarioTestCase
         return "passive-without-session".equals(state.data().get("fixture_id"))
                 || "force-authn-passive".equals(state.data().get("fixture_id"));
     }
+    @Override public boolean plansFreshSessionBoundary() { return true; }
     @Override public int plannedDeliberateActions() { return 1; }
     @Override public CaseStep start(CaseContext context) { return scenario(context.runId()).start(context); }
     @Override public CaseStep resume(CaseContext context, CaseState state, CaseEvent event) {

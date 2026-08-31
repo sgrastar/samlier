@@ -35,6 +35,20 @@ public final class ApprovedAttestedCaseRegistry {
             org.samlier.core.transcript.TranscriptContentReader transcriptContent,
             Function<String, java.util.Optional<String>> targetEntityIds,
             Function<String, List<java.security.cert.X509Certificate>> targetSigningCertificates) {
+        return create(
+                definitions, milestone, publicBase, idpScenarioConfigurations, transcriptContent,
+                targetEntityIds, targetSigningCertificates, null);
+    }
+
+    public static TestCaseRegistry create(
+            CaseDefinitionCatalog definitions,
+            Milestone milestone,
+            java.net.URI publicBase,
+            Function<String, IdpErrorProbeConfiguration> idpScenarioConfigurations,
+            org.samlier.core.transcript.TranscriptContentReader transcriptContent,
+            Function<String, java.util.Optional<String>> targetEntityIds,
+            Function<String, List<java.security.cert.X509Certificate>> targetSigningCertificates,
+            Function<String, byte[]> targetMetadata) {
         Objects.requireNonNull(definitions, "definitions");
         Objects.requireNonNull(milestone, "milestone");
         var cases = new ArrayList<org.samlier.core.caseexec.TestCase>();
@@ -43,7 +57,7 @@ public final class ApprovedAttestedCaseRegistry {
                 .filter(value -> value.mode() == ExecutionMode.ATTESTED)
                 .map(value -> createCase(
                         value, idpScenarioConfigurations, transcriptContent,
-                        targetEntityIds, targetSigningCertificates, publicBase))
+                        targetEntityIds, targetSigningCertificates, publicBase, targetMetadata))
                 .forEach(cases::add);
         var registry = new TestCaseRegistry(cases);
         CaseImplementationAudit.requireExact(definitions, registry, milestone, ExecutionMode.ATTESTED);
@@ -56,7 +70,8 @@ public final class ApprovedAttestedCaseRegistry {
             org.samlier.core.transcript.TranscriptContentReader transcriptContent,
             Function<String, java.util.Optional<String>> targetEntityIds,
             Function<String, List<java.security.cert.X509Certificate>> targetSigningCertificates,
-            java.net.URI publicBase) {
+            java.net.URI publicBase,
+            Function<String, byte[]> targetMetadata) {
         if (List.of("IIP-IDP13-b-idp-01", "IIP-IDP14-b-idp-01").contains(definition.id())) {
             return new InformationalChoiceTestCase(definition.id(), definition.role());
         }
@@ -76,7 +91,7 @@ public final class ApprovedAttestedCaseRegistry {
                     targetSigningCertificates == null ? ignored -> List.of() : targetSigningCertificates,
                     LogoutTranscriptProfileCase.Rule.REQUEST_VERSION_2);
         }
-        return new AttestedOutcomeTestCase(
+        var fallback = new AttestedOutcomeTestCase(
                 definition.id(),
                 definition.role(),
                 "case." + definition.id() + ".attestation",
@@ -89,6 +104,11 @@ public final class ApprovedAttestedCaseRegistry {
                                 "violated", Outcome.VIOLATED, "attestation.violated"),
                         AttestationOption.notVerified(
                                 "unable_to_verify", "attestation.unavailable", "attestation_unavailable")));
+        if (targetMetadata != null && List.of("IIP-MD09-a-idp-01", "IIP-MD09-a-sp-01")
+                .contains(definition.id())) {
+            return new AutoAttestedMetadataEvidenceTestCase(fallback, targetMetadata);
+        }
+        return fallback;
     }
 
     private static String prompt(CaseDefinition definition) {

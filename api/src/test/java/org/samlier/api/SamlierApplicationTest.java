@@ -143,6 +143,69 @@ class SamlierApplicationTest {
                     HttpResponse.BodyHandlers.ofString());
             assertEquals(200, redirectedMetadata.statusCode(), redirectedMetadata.body());
             assertTrue(redirectedMetadata.body().contains("mdv=redirect-307&amp;run=" + runId));
+
+            var automatic = client.send(HttpRequest.newBuilder(base.resolve(
+                            "/api/runs/" + runId + "/metadata-lab/automatic-polling"))
+                            .header("Content-Type", "application/json")
+                            .POST(HttpRequest.BodyPublishers.ofString(
+                                    "{\"variants\":[\"control\",\"expired\"],\"pollingDelaySeconds\":17}"))
+                            .build(), HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, automatic.statusCode(), automatic.body());
+            assertTrue(automatic.body().contains("\"ingestionMode\":\"AUTOMATIC_POLLING\""));
+            assertTrue(automatic.body().contains("\"campaignIndex\":0"));
+            assertTrue(automatic.body().contains("\"pollingDelaySeconds\":17"));
+            assertTrue(automatic.body().contains("/start/metadata-polling/0"), automatic.body());
+            var automaticUrl = automatic.body().replaceFirst(
+                    "(?s).*\"metadataUrl\":\"([^\"]+)\".*", "$1");
+            var reportedAutomaticUrl = URI.create(automaticUrl);
+            var automaticControl = client.send(HttpRequest.newBuilder(base.resolve(
+                            reportedAutomaticUrl.getRawPath() + "?" + reportedAutomaticUrl.getRawQuery())).build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, automaticControl.statusCode(), automaticControl.body());
+            assertTrue(automaticControl.body().contains("mdv=control&amp;run=" + runId));
+            var advanced = client.send(HttpRequest.newBuilder(base.resolve(
+                            "/api/runs/" + runId + "/metadata-lab")).build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertTrue(advanced.body().contains("\"selectedVariant\":\"control\""), advanced.body());
+            assertTrue(advanced.body().contains("\"campaignIndex\":0"), advanced.body());
+            assertTrue(advanced.body().contains("/start/metadata-polling/0"), advanced.body());
+            var preloaded = client.send(HttpRequest.newBuilder(base.resolve(
+                            "/api/runs/" + runId + "/metadata-lab/preloaded"))
+                            .header("Content-Type", "application/json")
+                            .POST(HttpRequest.BodyPublishers.ofString("{}"))
+                            .build(), HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, preloaded.statusCode(), preloaded.body());
+            assertTrue(preloaded.body().contains("\"ingestionMode\":\"PRELOADED_AGGREGATE\""));
+            assertTrue(preloaded.body().contains("\"preloadedFetched\":false"));
+            var preloadedDownloadUrl = URI.create(preloaded.body().replaceFirst(
+                    "(?s).*\"preloadedDownloadUrl\":\"([^\"]+)\".*", "$1"));
+            var download = client.send(HttpRequest.newBuilder(base.resolve(
+                            preloadedDownloadUrl.getRawPath() + "?" + preloadedDownloadUrl.getRawQuery())).build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, download.statusCode(), download.body());
+            assertEquals("attachment; filename=\"samlier-metadata-campaign.xml\"",
+                    download.headers().firstValue("Content-Disposition").orElseThrow());
+            var afterDownload = client.send(HttpRequest.newBuilder(base.resolve(
+                            "/api/runs/" + runId + "/metadata-lab")).build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertTrue(afterDownload.body().contains("\"preloadedFetched\":false"),
+                    "an operator download must not claim a Target metadata fetch");
+            var preloadedUrl = URI.create(preloaded.body().replaceFirst(
+                    "(?s).*\"preloadedMetadataUrl\":\"([^\"]+)\".*", "$1"));
+            var aggregate = client.send(HttpRequest.newBuilder(base.resolve(
+                            preloadedUrl.getRawPath() + "?" + preloadedUrl.getRawQuery())).build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, aggregate.statusCode(), aggregate.body());
+            assertEquals("no-store", aggregate.headers().firstValue("Cache-Control").orElseThrow());
+            assertTrue(aggregate.headers().firstValue("Content-Disposition").isEmpty(),
+                    "the Target fetch URL is not the operator download surface");
+            assertTrue(aggregate.body().contains("<md:EntitiesDescriptor"));
+            assertTrue(aggregate.body().contains("metadata-peer/unknown-extension"));
+            assertFalse(aggregate.body().contains("metadata-peer/bad-signature"));
+            var aggregateState = client.send(HttpRequest.newBuilder(base.resolve(
+                            "/api/runs/" + runId + "/metadata-lab")).build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertTrue(aggregateState.body().contains("\"preloadedFetched\":true"), aggregateState.body());
             var reportShell = client.send(HttpRequest.newBuilder(base.resolve("/reports/" + runId)).build(),
                     HttpResponse.BodyHandlers.ofString());
             assertEquals(200, reportShell.statusCode());
@@ -182,6 +245,17 @@ class SamlierApplicationTest {
         } finally {
             app.stop();
         }
+    }
+
+    @Test
+    void automaticMetadataTransitionWaitsWithoutChangingTheOutcome() {
+        var page = SamlierApplication.metadataPollingTransitionPage(
+                "/p/plan/start/metadata-polling/1?run=run&poll=token", 17);
+        assertTrue(page.contains("content=\"17;url="), page);
+        assertTrue(page.contains("run=run&amp;poll=token"), page);
+        assertTrue(page.contains("does not affect the conformance outcome"), page);
+        assertFalse(page.contains("FAIL"), page);
+        assertFalse(page.contains("WARNING"), page);
     }
 
     @Test

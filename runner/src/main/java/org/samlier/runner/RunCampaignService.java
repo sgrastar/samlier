@@ -16,6 +16,7 @@ import org.samlier.core.caseexec.CaseExecutionRepository;
 import org.samlier.core.caseexec.CaseExecutionStatus;
 import org.samlier.runner.RunCampaignQuery.ActionKind;
 import org.samlier.runner.RunCampaignQuery.Campaign;
+import org.samlier.runner.RunCampaignQuery.CampaignAction;
 import org.samlier.runner.RunCampaignQuery.CampaignReport;
 import org.samlier.runner.RunCampaignQuery.EvidenceClass;
 import org.samlier.runner.RunCampaignQuery.Plan;
@@ -37,16 +38,27 @@ public final class RunCampaignService implements RunCampaignQuery {
     private final CaseDefinitionCatalog definitions;
     private final TestCaseRegistry registry;
     private final CaseContextProvider contexts;
+    private final java.util.function.Function<String, MetadataLabService.State> metadataLabState;
 
     public RunCampaignService(
             CaseExecutionRepository executions,
             CaseDefinitionCatalog definitions,
             TestCaseRegistry registry,
             CaseContextProvider contexts) {
+        this(executions, definitions, registry, contexts, ignored -> null);
+    }
+
+    public RunCampaignService(
+            CaseExecutionRepository executions,
+            CaseDefinitionCatalog definitions,
+            TestCaseRegistry registry,
+            CaseContextProvider contexts,
+            java.util.function.Function<String, MetadataLabService.State> metadataLabState) {
         this.executions = Objects.requireNonNull(executions, "executions");
         this.definitions = Objects.requireNonNull(definitions, "definitions");
         this.registry = Objects.requireNonNull(registry, "registry");
         this.contexts = Objects.requireNonNull(contexts, "contexts");
+        this.metadataLabState = Objects.requireNonNull(metadataLabState, "metadataLabState");
     }
 
     @Override
@@ -63,6 +75,7 @@ public final class RunCampaignService implements RunCampaignQuery {
                     .add(value);
         }
         var campaigns = grouped.values().stream().map(MutableCampaign::freeze).toList();
+        campaigns = optimizeMetadataActions(runId, campaigns);
 
         var evidenceCounts = new EnumMap<EvidenceClass, Integer>(EvidenceClass.class);
         for (var evidence : EvidenceClass.values()) evidenceCounts.put(evidence, 0);
@@ -87,13 +100,49 @@ public final class RunCampaignService implements RunCampaignQuery {
                 externallyVerified, selfAttested, notVerified);
     }
 
+    private List<Campaign> optimizeMetadataActions(String runId, List<Campaign> campaigns) {
+        MetadataLabService.State lab;
+        try { lab = metadataLabState.apply(runId); }
+        catch (RuntimeException ignored) { return campaigns; }
+        if (lab == null || (lab.ingestionMode() != MetadataLabService.IngestionMode.PRELOADED_AGGREGATE
+                && lab.ingestionMode() != MetadataLabService.IngestionMode.AUTOMATIC_POLLING)) {
+            return campaigns;
+        }
+        var batched = new LinkedHashSet<>(lab.ingestionMode()
+                == MetadataLabService.IngestionMode.AUTOMATIC_POLLING
+                ? lab.campaignVariants() : lab.preloadedVariants());
+        return campaigns.stream().map(campaign -> {
+            if (campaign.actionKind() != ActionKind.METADATA_REFRESH
+                    || !campaign.id().contains("metadata-fixture-refresh")) return campaign;
+            long covered = campaign.expectedTranscriptEvidence().stream()
+                    .filter(value -> value.startsWith("fetched:"))
+                    .map(value -> value.substring("fetched:".length()))
+                    .filter(batched::contains).distinct().count();
+            if (covered == 0) return campaign;
+            // Automatic polling needs one explicit campaign start plus any continuations actually
+            // required by Target-owned result pages. A static aggregate needs one import plus one
+            // browser-sequence start. Neither path can increase the manual budget.
+            var replacement = lab.ingestionMode() == MetadataLabService.IngestionMode.AUTOMATIC_POLLING
+                    ? 1 + lab.operatorContinuationActions() : 2;
+            var optimized = Math.min(
+                    campaign.deliberateUserActions(),
+                    Math.max(0, campaign.deliberateUserActions() - (int) covered + replacement));
+            var remaining = Math.min(campaign.remainingUserActions(), optimized);
+            return new Campaign(
+                    campaign.id(), campaign.title(), campaign.plan(), campaign.evidenceClass(),
+                    campaign.actionKind(), optimized, remaining, campaign.freshSessionRequired(),
+                    campaign.caseIds(), campaign.remainingCaseIds(), campaign.expectedTranscriptEvidence(),
+                    campaign.actions());
+        }).toList();
+    }
+
     private ClassifiedCase classify(CaseExecution execution, CaseContext context) {
         var definition = definitions.require(execution.caseId());
         var testCase = registry.find(execution.caseId()).orElse(null);
         if (testCase == null && definition.mode() != ExecutionMode.AUTOMATED) {
             throw new IllegalArgumentException("Unknown interactive case ID: " + execution.caseId());
         }
-        var evidenceClass = evidenceClass(definition, testCase);
+        var evidenceClass = evidenceClass(definition, testCase, execution);
         var plan = switch (evidenceClass) {
             case PROTOCOL_OBSERVED -> Plan.QUICK;
             case OPERATOR_ASSISTED -> Plan.STANDARD;
@@ -104,13 +153,19 @@ public final class RunCampaignService implements RunCampaignQuery {
                 || testCase instanceof EvidenceCampaignCase source && source.sharesDeliberateAction()
                 || testCase instanceof ProtocolEvidenceCase
                 && !(testCase instanceof BrowserFrontChannelScenario);
-        var additiveActionUnits = testCase instanceof BrowserFrontChannelScenario;
         var actionUnits = campaign.actionKind() == ActionKind.NONE ? 0
                 : testCase instanceof BrowserFrontChannelScenario scenario
                         ? scenario.plannedDeliberateActions() : 1;
-        var actionKeys = campaign.actionKind() == ActionKind.NONE ? List.<String>of()
+        var actionKeys = new ArrayList<>(campaign.actionKind() == ActionKind.NONE ? List.<String>of()
                 : testCase instanceof EvidenceCampaignCase source
-                        ? source.evidenceActionKeys() : List.of(campaign.id());
+                        ? source.evidenceActionKeys() : List.of(campaign.id()));
+        var freshSessionRequired = testCase instanceof BrowserFrontChannelScenario browser
+                ? browser.requiresFreshSession(execution.state()) || browser.plansFreshSessionBoundary()
+                : "required".equals(definition.requires().session());
+        if (campaign.actionKind() == ActionKind.LOGIN
+                && testCase instanceof BrowserFrontChannelScenario && freshSessionRequired) {
+            actionKeys.add("active-probe-login-after-fresh-session");
+        }
         var campaignId = evidenceClass.name().toLowerCase(java.util.Locale.ROOT) + "-"
                 + campaign.actionKind().name().toLowerCase(java.util.Locale.ROOT) + "-"
                 + (shareableAction ? "shared-" : "") + campaign.id();
@@ -121,11 +176,7 @@ public final class RunCampaignService implements RunCampaignQuery {
         return new ClassifiedCase(
                 execution.caseId(), evidenceClass, plan, campaignId, campaign.title(),
                 campaign.actionKind(),
-                testCase instanceof BrowserFrontChannelScenario browser
-                        ? browser.requiresFreshSession(execution.state())
-                        : "required".equals(definition.requires().session()),
-                shareableAction, additiveActionUnits, actionUnits,
-                actionKeys,
+                freshSessionRequired, shareableAction, actionUnits, List.copyOf(actionKeys),
                 execution.status() == CaseExecutionStatus.FINISHED,
                 execution.outcome() != null && switch (execution.outcome().outcome()) {
                     case SATISFIED, SATISFIED_WITH_NOTE, VIOLATED -> true;
@@ -134,8 +185,16 @@ public final class RunCampaignService implements RunCampaignQuery {
                 List.copyOf(expectedEvidence));
     }
 
-    private EvidenceClass evidenceClass(CaseDefinition definition, org.samlier.core.caseexec.TestCase testCase) {
+    private EvidenceClass evidenceClass(
+            CaseDefinition definition,
+            org.samlier.core.caseexec.TestCase testCase,
+            CaseExecution execution) {
         if (definition.mode() == ExecutionMode.AUTOMATED) return EvidenceClass.PROTOCOL_OBSERVED;
+        if (testCase instanceof FallbackEvidenceCase fallback) {
+            return fallback.resolvedFromExternalEvidence(execution)
+                    ? EvidenceClass.PROTOCOL_OBSERVED : EvidenceClass.SELF_ATTESTED;
+        }
+        if (testCase instanceof OperatorAssistedCase) return EvidenceClass.OPERATOR_ASSISTED;
         if (definition.mode() == ExecutionMode.CONFIG && testCase instanceof ProtocolEvidenceCase) {
             return EvidenceClass.OPERATOR_ASSISTED;
         }
@@ -286,7 +345,6 @@ public final class RunCampaignService implements RunCampaignQuery {
             ActionKind actionKind,
             boolean freshSessionRequired,
             boolean shareableAction,
-            boolean additiveActionUnits,
             int actionUnits,
             List<String> actionKeys,
             boolean finished,
@@ -301,7 +359,6 @@ public final class RunCampaignService implements RunCampaignQuery {
         private final ActionKind actionKind;
         private boolean freshSessionRequired;
         private final boolean shareableAction;
-        private final boolean additiveActionUnits;
         private int totalActionUnits;
         private int remainingActionUnits;
         private final LinkedHashSet<String> actionKeys = new LinkedHashSet<>();
@@ -309,6 +366,8 @@ public final class RunCampaignService implements RunCampaignQuery {
         private final List<String> caseIds = new ArrayList<>();
         private final List<String> remainingCaseIds = new ArrayList<>();
         private final LinkedHashSet<String> expectedEvidence = new LinkedHashSet<>();
+        private final LinkedHashMap<String, LinkedHashSet<String>> actionCases = new LinkedHashMap<>();
+        private final LinkedHashMap<String, LinkedHashSet<String>> remainingActionCases = new LinkedHashMap<>();
 
         private MutableCampaign(ClassifiedCase first) {
             id = first.campaignId();
@@ -317,13 +376,11 @@ public final class RunCampaignService implements RunCampaignQuery {
             evidenceClass = first.evidenceClass();
             actionKind = first.actionKind();
             shareableAction = first.shareableAction();
-            additiveActionUnits = first.additiveActionUnits();
         }
 
         private void add(ClassifiedCase value) {
             if (plan != value.plan() || evidenceClass != value.evidenceClass()
-                    || actionKind != value.actionKind() || shareableAction != value.shareableAction()
-                    || additiveActionUnits != value.additiveActionUnits()) {
+                    || actionKind != value.actionKind() || shareableAction != value.shareableAction()) {
                 throw new IllegalStateException("Campaign mixes incompatible evidence: " + id);
             }
             caseIds.add(value.caseId());
@@ -333,21 +390,28 @@ public final class RunCampaignService implements RunCampaignQuery {
                 if (!value.finished()) remainingActionUnits += value.actionUnits();
                 actionKeys.addAll(value.actionKeys());
                 if (!value.finished()) remainingActionKeys.addAll(value.actionKeys());
+                value.actionKeys().forEach(key -> {
+                    actionCases.computeIfAbsent(key, ignored -> new LinkedHashSet<>()).add(value.caseId());
+                    if (!value.finished()) {
+                        remainingActionCases.computeIfAbsent(key, ignored -> new LinkedHashSet<>())
+                                .add(value.caseId());
+                    }
+                });
             }
             freshSessionRequired |= value.freshSessionRequired();
             expectedEvidence.addAll(value.expectedEvidence());
         }
 
         private Campaign freeze() {
-            int action = shareableAction && !additiveActionUnits
-                    ? actionKeys.size() : additiveActionUnits && !caseIds.isEmpty()
-                            ? Math.max(1, totalActionUnits) : totalActionUnits;
-            int remaining = shareableAction && !additiveActionUnits
-                    ? remainingActionKeys.size() : additiveActionUnits && !remainingCaseIds.isEmpty()
-                            ? Math.max(1, remainingActionUnits) : remainingActionUnits;
+            int action = shareableAction ? actionKeys.size() : totalActionUnits;
+            int remaining = shareableAction ? remainingActionKeys.size() : remainingActionUnits;
+            var actions = actionCases.entrySet().stream().map(entry -> new CampaignAction(
+                    entry.getKey(), List.copyOf(entry.getValue()),
+                    List.copyOf(remainingActionCases.getOrDefault(entry.getKey(), new LinkedHashSet<>()))))
+                    .toList();
             return new Campaign(
                     id, title, plan, evidenceClass, actionKind, action, remaining,
-                    freshSessionRequired, caseIds, remainingCaseIds, List.copyOf(expectedEvidence));
+                    freshSessionRequired, caseIds, remainingCaseIds, List.copyOf(expectedEvidence), actions);
         }
     }
 }

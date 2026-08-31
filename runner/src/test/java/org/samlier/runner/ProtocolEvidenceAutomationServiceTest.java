@@ -147,8 +147,8 @@ class ProtocolEvidenceAutomationServiceTest {
     }
 
     private static TranscriptEntry use(String variant, int sequence) {
-        return entry(sequence, "https://suite.example/p/plan/sp/acs/0?mdv=" + variant + "&run=" + RUN,
-                10, Map.of("type", "SAMLResponse"));
+        return entry(sequence, "https://suite.example/p/plan/idp/sso?mdv=" + variant + "&run=" + RUN,
+                10, Map.of("type", "AuthnRequest"));
     }
 
     private static TranscriptEntry entry(

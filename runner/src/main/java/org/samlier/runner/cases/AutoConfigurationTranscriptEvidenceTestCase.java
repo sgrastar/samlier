@@ -14,7 +14,8 @@ import org.samlier.saml.crypto.SamlXmlDecrypter;
 
 /** Uses target-generated SAML first and preserves the approved CONFIG questionnaire as fallback. */
 public final class AutoConfigurationTranscriptEvidenceTestCase
-        implements TestCase, ConfigurationPrompt, AttestationPrompt, org.samlier.runner.EvidenceCampaignCase {
+        implements TestCase, ConfigurationPrompt, AttestationPrompt,
+        org.samlier.runner.EvidenceCampaignCase, org.samlier.runner.FallbackEvidenceCase {
     private final TestCase fallback;
     private final TranscriptContentReader content;
     private final SamlDecryptionKeyProvider decryptionKeys;
@@ -45,6 +46,12 @@ public final class AutoConfigurationTranscriptEvidenceTestCase
     @Override public String promptEn() { return ((AttestationPrompt) fallback).promptEn(); }
     @Override public java.util.List<AttestationOption> options() {
         return ((AttestationPrompt) fallback).options();
+    }
+
+    @Override
+    public boolean resolvedFromExternalEvidence(org.samlier.core.caseexec.CaseExecution execution) {
+        return execution.outcome() != null && execution.outcome().evidence().stream()
+                .anyMatch(value -> "transcript".equals(value.kind()));
     }
 
     @Override

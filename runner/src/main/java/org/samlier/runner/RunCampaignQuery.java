@@ -65,11 +65,23 @@ public interface RunCampaignQuery {
             boolean freshSessionRequired,
             List<String> caseIds,
             List<String> remainingCaseIds,
-            List<String> expectedTranscriptEvidence) {
+            List<String> expectedTranscriptEvidence,
+            List<CampaignAction> actions) {
         public Campaign {
             caseIds = List.copyOf(caseIds);
             remainingCaseIds = List.copyOf(remainingCaseIds);
             expectedTranscriptEvidence = List.copyOf(expectedTranscriptEvidence);
+            actions = List.copyOf(actions);
+        }
+    }
+
+    record CampaignAction(
+            String id,
+            List<String> caseIds,
+            List<String> remainingCaseIds) {
+        public CampaignAction {
+            caseIds = List.copyOf(caseIds);
+            remainingCaseIds = List.copyOf(remainingCaseIds);
         }
     }
 

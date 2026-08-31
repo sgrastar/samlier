@@ -338,6 +338,30 @@ class TargetMetadataObservationTest {
     }
 
     @Test
+    void algorithmPublicationCapabilityRequiresPositiveSignatureAndEncryptionDeclarations() {
+        var complete = metadata("""
+                <md:Extensions>
+                  <alg:SigningMethod Algorithm="urn:example:signature" MinKeySize="2048"/>
+                  <alg:EncryptionMethod Algorithm="urn:example:encryption"/>
+                </md:Extensions>
+                """);
+        var partial = metadata("""
+                <md:Extensions>
+                  <alg:SigningMethod Algorithm="urn:example:signature"/>
+                </md:Extensions>
+                """);
+
+        var outcome = TargetMetadataObservation.evaluate("IIP-MD09-a-idp-01", complete, NOW)
+                .orElseThrow();
+        assertEquals(Outcome.SATISFIED, outcome.outcome());
+        assertEquals(1L, outcome.details().get("signing_methods"));
+        assertEquals(1L, outcome.details().get("encryption_methods"));
+        assertTrue(TargetMetadataObservation.evaluate("IIP-MD09-a-idp-01", partial, NOW).isEmpty());
+        assertTrue(TargetMetadataObservation.evaluate(
+                "IIP-MD09-a-idp-01", metadata(""), NOW).isEmpty());
+    }
+
+    @Test
     void automaticWrapperPreservesBothApprovedManualPrompts() {
         var evidence = new AttestedOutcomeTestCase(
                 "IIP-MD05-a7-idp-01", org.samlier.core.plan.TargetRole.IDP,

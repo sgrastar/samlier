@@ -112,7 +112,7 @@ class MetadataConsumerObservationTestCaseTest {
         return entry(sequence,
                 "https://suite.example/p/plan/idp/sso?mdv=" + variant
                         + "&run=run_0123456789ABCDEFGHJKMNPQRS",
-                10, Map.of("type", "SAMLRequest"));
+                10, Map.of("type", "AuthnRequest"));
     }
 
     private TranscriptEntry entry(

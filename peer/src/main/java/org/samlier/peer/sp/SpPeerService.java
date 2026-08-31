@@ -137,7 +137,8 @@ public final class SpPeerService {
             return new ConsumeResult(
                     summary,
                     activeProbe.orElseThrow().runId(),
-                    activeProbe.orElseThrow().actionId());
+                    activeProbe.orElseThrow().actionId(),
+                    null, null, rawMessage.relayState());
         }
         var expected = String.valueOf(run.context().getOrDefault("authnRequestId", ""));
         var actual = String.valueOf(message.parsed().summary().getOrDefault("inResponseTo", ""));
@@ -153,7 +154,9 @@ public final class SpPeerService {
             // The Run and fixture are correlated by the Suite-generated ACS URL. This flag says
             // only that a syntactically valid SAML Response reached that controlled endpoint; it
             // does not claim that the target accepted metadata or satisfied any obligation.
-            analyzedSummary.put("metadataProbeAccepted", true);
+            var expectedProbe = metadataProbeRequestId(run.context(), variant);
+            analyzedSummary.put("metadataProbeAccepted",
+                    expectedProbe == null || expectedProbe.equals(actual));
         } else if (!metadataProbe) {
             analyzedSummary.put("normalFlowAccepted", !expected.isBlank() && expected.equals(actual));
         }
@@ -174,7 +177,20 @@ public final class SpPeerService {
         return new ConsumeResult(
                 analyzedSummary,
                 activeProbe.map(ActiveProbeCorrelation.Value::runId).orElse(null),
-                activeProbe.map(ActiveProbeCorrelation.Value::actionId).orElse(null));
+                activeProbe.map(ActiveProbeCorrelation.Value::actionId).orElse(null),
+                metadataProbe ? correlatedRun : null,
+                metadataProbe ? variant : null,
+                rawMessage.relayState());
+    }
+
+    private String metadataProbeRequestId(Map<String, Object> context, String variant) {
+        for (var key : java.util.List.of("metadata_preloaded_requests", "metadata_polling_requests")) {
+            var value = context.get(key);
+            if (!(value instanceof Map<?, ?> requests)) continue;
+            var expected = requests.get(variant);
+            if (expected instanceof String text && !text.isBlank()) return text;
+        }
+        return null;
     }
 
     private String queryParameter(String requestUrl, String name) {
@@ -199,8 +215,12 @@ public final class SpPeerService {
     public record ConsumeResult(
             Map<String, Object> summary,
             String activeProbeRunId,
-            String activeProbeActionId) {
+            String activeProbeActionId,
+            String metadataProbeRunId,
+            String metadataProbeVariant,
+            String relayState) {
         public ConsumeResult { summary = Map.copyOf(summary); }
         public boolean activeProbe() { return activeProbeRunId != null; }
+        public boolean metadataProbe() { return metadataProbeRunId != null; }
     }
 }

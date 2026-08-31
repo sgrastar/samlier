@@ -66,6 +66,7 @@ public final class IdpErrorResponseTestCase implements TestCase, BrowserFrontCha
     @Override public boolean requiresFreshSession(CaseState state) {
         return PASSIVE_FIXTURE_ID.equals(state.data().get("fixture_id"));
     }
+    @Override public boolean plansFreshSessionBoundary() { return true; }
     @Override public int plannedDeliberateActions() { return 1; }
     @Override public String instructionsEn(CaseState state) {
         return "Run the positive control and approved abnormal AuthnRequest fixtures. Samlier judges only correlated SAML Responses.";

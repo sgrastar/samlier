@@ -41,7 +41,7 @@ class MetadataFixtureObservationTestCaseTest {
     @Test
     void judgesAcceptAndRejectFixturesWithoutUsingMissingObservationAsTargetFailure() {
         var testCase = testCase();
-        assertEquals(Outcome.SATISFIED, evaluate(testCase, List.of(
+        assertEquals(Outcome.NOT_VERIFIED, evaluate(testCase, List.of(
                 fetch("control", 1), use("control", 2),
                 fetch("accepted", 3), use("accepted", 4), fetch("rejected", 5))));
         assertEquals(Outcome.VIOLATED, evaluate(testCase, List.of(
@@ -49,7 +49,7 @@ class MetadataFixtureObservationTestCaseTest {
                 fetch("accepted", 3), fetch("rejected", 4), use("rejected", 5))));
         assertEquals(Outcome.NOT_VERIFIED, evaluate(testCase, List.of(
                 fetch("control", 1), use("control", 2), fetch("accepted", 3))));
-        assertEquals(Outcome.VIOLATED, evaluate(testCase, List.of(
+        assertEquals(Outcome.NOT_VERIFIED, evaluate(testCase, List.of(
                 fetch("control", 1), use("control", 2),
                 fetch("accepted", 3), fetch("rejected", 4))));
         var acceptOnly = new MetadataFixtureObservationTestCase(
@@ -78,6 +78,55 @@ class MetadataFixtureObservationTestCaseTest {
                 context, preconditionStart.next(),
                 new CaseEvent.ConfigUnavailable(CaseEvent.ConfigurationIssue.CAPABILITY_ABSENT, "missing"));
         assertEquals(Outcome.NOT_VERIFIED, unavailable.outcome().outcome());
+    }
+
+    @Test
+    void oneAggregateFetchSuppliesRetrievalButNotUseEvidenceForItsLogicalFixtures() {
+        var acceptOnly = new MetadataFixtureObservationTestCase(
+                "accept-only", TargetRole.IDP,
+                List.of(new MetadataFixtureObservationTestCase.Fixture(
+                        "accepted", MetadataFixtureObservationTestCase.Behavior.ACCEPT, "positive")),
+                ConfigurationFailureSemantics.TEST_PRECONDITION);
+        var aggregate = entry(3, "/metadata/preloaded", 0,
+                Map.of("type", "MetadataFetch", "variant", "preloaded-aggregate",
+                        "variants", List.of("accepted"), "feed", "preloaded"));
+        var operatorDownload = entry(2, "/metadata/preloaded/download", 0,
+                Map.of("type", "MetadataExport", "variant", "preloaded-aggregate",
+                        "variants", List.of("accepted"), "feed", "preloaded-download"));
+
+        var downloadOnly = acceptOnly.evidenceStatus(context(List.of(
+                fetch("control", 1), use("control", 2), operatorDownload)));
+        assertEquals(List.of("fetched:control", "used:control"),
+                downloadOnly.completedObservations(),
+                "an operator download is not evidence that the Target fetched metadata");
+
+        var withoutUse = acceptOnly.evidenceStatus(context(List.of(
+                fetch("control", 1), use("control", 2), aggregate)));
+        assertEquals(List.of("fetched:control", "used:control", "fetched:accepted"),
+                withoutUse.completedObservations());
+        assertEquals(false, withoutUse.ready());
+        assertEquals(Outcome.SATISFIED, evaluate(acceptOnly, List.of(
+                fetch("control", 1), use("control", 2), aggregate, use("accepted", 4))));
+    }
+
+    @Test
+    void anErrorResponseOrMismatchedRequestDoesNotBecomeMetadataUseEvidence() {
+        var acceptOnly = new MetadataFixtureObservationTestCase(
+                "accept-only", TargetRole.IDP,
+                List.of(new MetadataFixtureObservationTestCase.Fixture(
+                        "accepted", MetadataFixtureObservationTestCase.Behavior.ACCEPT, "positive")),
+                ConfigurationFailureSemantics.TEST_PRECONDITION);
+        var error = entry(4,
+                "https://suite.example/p/plan/sp/acs/0?mdv=accepted&run=" + RUN, 10,
+                Map.of("type", "Response", "metadataProbeAccepted", true,
+                        "statusCode", "urn:oasis:names:tc:SAML:2.0:status:Responder"));
+        var mismatch = entry(5,
+                "https://suite.example/p/plan/sp/acs/0?mdv=accepted&run=" + RUN, 10,
+                Map.of("type", "Response", "metadataProbeAccepted", false,
+                        "statusCode", "urn:oasis:names:tc:SAML:2.0:status:Success"));
+
+        assertEquals(Outcome.NOT_VERIFIED, evaluate(acceptOnly, List.of(
+                fetch("control", 1), use("control", 2), fetch("accepted", 3), error, mismatch)));
     }
 
     private MetadataFixtureObservationTestCase testCase() {
@@ -125,7 +174,10 @@ class MetadataFixtureObservationTestCaseTest {
 
     private TranscriptEntry use(String variant, int sequence) {
         return entry(sequence, "https://suite.example/p/plan/sp/acs/0?mdv=" + variant + "&run=" + RUN,
-                10, Map.of("type", "SAMLResponse"));
+                10, Map.of(
+                        "type", "SAMLResponse",
+                        "metadataProbeAccepted", true,
+                        "statusCode", "urn:oasis:names:tc:SAML:2.0:status:Success"));
     }
 
     private TranscriptEntry entry(

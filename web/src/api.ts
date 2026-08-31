@@ -151,6 +151,19 @@ export interface MetadataLab {
   selectedVariant: string
   metadataUrl: string
   availableVariants: string[]
+  ingestionMode: 'MANUAL_REFRESH' | 'AUTOMATIC_POLLING' | 'PRELOADED_AGGREGATE'
+  campaignVariants: string[]
+  campaignIndex: number
+  campaignComplete: boolean
+  pollingDelaySeconds: number
+  operatorContinuationActions: number
+  automaticStartUrl: string | null
+  automaticContinueUrl: string | null
+  preloadedMetadataUrl: string | null
+  preloadedDownloadUrl: string | null
+  preloadedStartUrl: string | null
+  preloadedVariants: string[]
+  preloadedFetched: boolean
 }
 
 export interface ProtocolEvidenceStatus {
@@ -214,6 +227,11 @@ export interface CampaignReport {
     caseIds: string[]
     remainingCaseIds: string[]
     expectedTranscriptEvidence: string[]
+    actions: Array<{
+      id: string
+      caseIds: string[]
+      remainingCaseIds: string[]
+    }>
   }>
   classifications: Array<{
     caseId: string
@@ -289,6 +307,20 @@ export const api = {
       method: 'POST', body: JSON.stringify({ variant }),
       headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : {},
     }),
+  startAutomaticMetadataPolling: (runId: string, variants: string[], pollingDelaySeconds: number,
+    csrfToken?: string) =>
+    request<MetadataLab>(`/api/runs/${runId}/metadata-lab/automatic-polling`, {
+      method: 'POST', body: JSON.stringify({ variants, pollingDelaySeconds }),
+      headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : {},
+    }),
+  startPreloadedMetadataCampaign: (runId: string, csrfToken?: string) =>
+    request<MetadataLab>(`/api/runs/${runId}/metadata-lab/preloaded`, {
+      method: 'POST', body: '{}', headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : {},
+    }),
+  useManualMetadataRefresh: (runId: string, csrfToken?: string) =>
+    request<MetadataLab>(`/api/runs/${runId}/metadata-lab/manual-refresh`, {
+      method: 'POST', body: '{}', headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : {},
+    }),
   protocolEvidence: (runId: string) =>
     request<ProtocolEvidenceStatus>(`/api/runs/${runId}/protocol-evidence`),
   evaluateProtocolEvidence: (runId: string, csrfToken?: string) =>
@@ -313,6 +345,12 @@ export const api = {
     request<unknown>(`/api/runs/${runId}/cases/${caseId}/browser-complete`, {
       method: 'POST', body: '{}', headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : {},
     }),
+  completeCampaignAction: (
+    runId: string, campaignId: string, actionId: string, csrfToken?: string,
+  ) => request<unknown>(`/api/runs/${runId}/campaigns/${encodeURIComponent(campaignId)}`
+    + `/actions/${encodeURIComponent(actionId)}/complete`, {
+    method: 'POST', body: '{}', headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : {},
+  }),
   startMilestone: (runId: string, milestone: 'M2' | 'M3', csrfToken?: string) =>
     request<unknown>(`/api/runs/${runId}/milestones/${milestone}/start`, {
       method: 'POST', headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : {},

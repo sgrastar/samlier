@@ -21,6 +21,7 @@ import org.samlier.core.plan.PlanRepository;
 import org.samlier.core.plan.TestPlan;
 import org.samlier.core.run.Reachability;
 import org.samlier.core.run.RunRepository;
+import org.samlier.core.run.RunStatus;
 import org.samlier.peer.idp.IdpPeerService;
 import org.samlier.peer.sp.SpPeerService;
 import org.samlier.peer.logout.SloPeerService;
@@ -119,6 +120,7 @@ public final class SamlierApplication {
             PublicationRoutes.register(javalin, m1::publish);
             InteractionRoutes.register(javalin, m1::pending);
             CampaignRoutes.register(javalin, m1::campaigns);
+            CampaignActionRoutes.register(javalin, m1.campaignActionCompletionService());
             BootstrapContractRoutes.register(javalin, m1::bootstrapContracts);
             MetadataLabRoutes.register(javalin, metadataLab);
             ProtocolEvidenceRoutes.register(
@@ -191,6 +193,16 @@ public final class SamlierApplication {
                                 ctx.pathParam("id"),
                                 ctx.cookie(ManagementSessionRoutes.COOKIE_NAME),
                                 ctx.header("X-CSRF-Token")));
+                for (var path : List.of(
+                        "/api/runs/{id}/metadata-lab/automatic-polling",
+                        "/api/runs/{id}/metadata-lab/preloaded",
+                        "/api/runs/{id}/metadata-lab/manual-refresh")) {
+                    javalin.routes.before(path, ctx ->
+                            m1.authorizeMutation(
+                                    ctx.pathParam("id"),
+                                    ctx.cookie(ManagementSessionRoutes.COOKIE_NAME),
+                                    ctx.header("X-CSRF-Token")));
+                }
                 javalin.routes.before("/api/runs/{id}/protocol-evidence", ctx ->
                         m1.authorize(ctx.pathParam("id"), ctx.cookie(ManagementSessionRoutes.COOKIE_NAME)));
                 javalin.routes.before("/api/runs/{id}/protocol-evidence/evaluate", ctx ->
@@ -214,6 +226,12 @@ public final class SamlierApplication {
                                 ctx.cookie(ManagementSessionRoutes.COOKIE_NAME),
                                 ctx.header("X-CSRF-Token")));
                 javalin.routes.before("/api/runs/{id}/cases/{caseId}/browser-complete", ctx ->
+                        m1.authorizeMutation(
+                                ctx.pathParam("id"),
+                                ctx.cookie(ManagementSessionRoutes.COOKIE_NAME),
+                                ctx.header("X-CSRF-Token")));
+                javalin.routes.before(
+                        "/api/runs/{id}/campaigns/{campaignId}/actions/{actionId}/complete", ctx ->
                         m1.authorizeMutation(
                                 ctx.pathParam("id"),
                                 ctx.cookie(ManagementSessionRoutes.COOKIE_NAME),
@@ -245,7 +263,8 @@ public final class SamlierApplication {
                         m1.authorize(ctx.pathParam("id"), ctx.cookie(ManagementSessionRoutes.COOKIE_NAME)));
             }
             routes(javalin, config, plans, runs, transcript, eventBus, runService, preflight,
-                    metadata, metadataLab, spPeer, idpPeer, secondaryIdpPeer, sloPeer, m1,
+                    metadata, metadataLab, metadataCache, metadataParser, spPeer,
+                    idpPeer, secondaryIdpPeer, sloPeer, m1,
                     hostedRateLimiter, hostedRunProvisioner, clock);
             javalin.routes.exception(MisdirectedRequest.class, (error, ctx) ->
                     ctx.status(421).json(new ApiModels.ErrorView("misdirected_request", error.getMessage())));
@@ -271,6 +290,7 @@ public final class SamlierApplication {
                                org.samlier.core.transcript.TranscriptRecorder transcript,
                                RunEventBus eventBus, RunService runService, PreflightService preflight,
                                MetadataService metadata, MetadataLabService metadataLab,
+                               MetadataCache metadataCache, TargetMetadataParser metadataParser,
                                SpPeerService spPeer, IdpPeerService idpPeer,
                                IdpPeerService secondaryIdpPeer,
                                SloPeerService sloPeer,
@@ -387,7 +407,8 @@ public final class SamlierApplication {
         javalin.routes.get("/p/{plan}/metadata/live", ctx -> {
             var plan = requirePlan(plans, ctx.pathParam("plan"));
             var runId = requiredQuery(ctx, "run");
-            var variant = metadataLab.selected(runId, plan.id());
+            var labState = metadataLab.state(runId);
+            var variant = MetadataService.Variant.parse(labState.selectedVariant());
             var run = requireRun(runs, runId);
             var redirectStatus = metadataRedirectStatus(variant);
             transcript.record(new org.samlier.core.transcript.TranscriptInput(
@@ -396,16 +417,65 @@ public final class SamlierApplication {
                     redirectStatus == null ? 200 : redirectStatus.getCode(),
                     headers(ctx), new byte[0], null, ctx.req().getQueryString(), new byte[0],
                     Map.of("type", "MetadataFetch", "variant", variant.id(), "feed", "live")));
+            // Automatic polling is opt-in. A fetch records evidence but does not advance: targets
+            // often fetch more than once during one key reload, and every duplicate fetch must see
+            // the same fixture. The correlated browser response advances the campaign.
+            metadataLab.recordLiveFetch(run.id(), plan.id(), variant.id(), ctx.queryParam("poll"));
             ctx.header("Cache-Control", "no-store");
             if (redirectStatus != null) {
                 var location = config.peerBaseUrl().resolve(
                         "/p/" + plan.id() + "/metadata/live/content?run=" + run.id()
-                                + "&variant=" + variant.id());
+                                + "&variant=" + variant.id()
+                                + (ctx.queryParam("poll") == null ? "" : "&poll="
+                                + java.net.URLEncoder.encode(
+                                        ctx.queryParam("poll"), java.nio.charset.StandardCharsets.UTF_8)));
                 ctx.redirect(location.toString(), redirectStatus);
                 return;
             }
             ctx.contentType("application/samlmetadata+xml")
-                    .result(metadata.generate(plan, variant, runId));
+                    .result(labState.ingestionMode() == MetadataLabService.IngestionMode.AUTOMATIC_POLLING
+                            ? metadata.generatePolling(plan, variant, runId)
+                            : metadata.generate(plan, variant, runId));
+        });
+        javalin.routes.get("/p/{plan}/metadata/preloaded", ctx -> {
+            var plan = requirePlan(plans, ctx.pathParam("plan"));
+            var runId = requiredQuery(ctx, "run");
+            var run = requireRun(runs, runId);
+            var payload = metadata.generatePreloadedCampaign(plan, run.id());
+            var variants = metadataLab.recordPreloadedFetch(
+                    run.id(), plan.id(), requiredQuery(ctx, "preload"));
+            transcript.record(new org.samlier.core.transcript.TranscriptInput(
+                    run.id(), org.samlier.core.transcript.Direction.INBOUND, clock.instant(),
+                    "metadata-preloaded", "GET", absoluteRequestUrl(ctx), 200,
+                    headers(ctx), new byte[0], null, ctx.req().getQueryString(), new byte[0],
+                    Map.of(
+                            "type", "MetadataFetch",
+                            "variant", "preloaded-aggregate",
+                            "variants", variants,
+                            "feed", "preloaded")));
+            ctx.header("Cache-Control", "no-store");
+            ctx.contentType("application/samlmetadata+xml")
+                    .result(payload);
+        });
+        javalin.routes.get("/p/{plan}/metadata/preloaded/download", ctx -> {
+            var plan = requirePlan(plans, ctx.pathParam("plan"));
+            var runId = requiredQuery(ctx, "run");
+            var run = requireRun(runs, runId);
+            var variants = metadataLab.authorizePreloadedDownload(
+                    run.id(), plan.id(), requiredQuery(ctx, "preload"));
+            var payload = metadata.generatePreloadedCampaign(plan, run.id());
+            transcript.record(new org.samlier.core.transcript.TranscriptInput(
+                    run.id(), org.samlier.core.transcript.Direction.INBOUND, clock.instant(),
+                    "metadata-preloaded-download", "GET", absoluteRequestUrl(ctx), 200,
+                    Map.of(), new byte[0], null, ctx.req().getQueryString(), new byte[0],
+                    Map.of(
+                            "type", "MetadataExport",
+                            "variant", "preloaded-aggregate",
+                            "variants", variants,
+                            "feed", "preloaded-download")));
+            ctx.header("Cache-Control", "no-store");
+            ctx.header("Content-Disposition", "attachment; filename=\"samlier-metadata-campaign.xml\"");
+            ctx.contentType("application/samlmetadata+xml").result(payload);
         });
         javalin.routes.get("/p/{plan}/metadata/live/content", ctx -> {
             var plan = requirePlan(plans, ctx.pathParam("plan"));
@@ -420,7 +490,9 @@ public final class SamlierApplication {
             }
             ctx.header("Cache-Control", "no-store");
             ctx.contentType("application/samlmetadata+xml")
-                    .result(metadata.generate(plan, variant, runId));
+                    .result(ctx.queryParam("poll") == null
+                            ? metadata.generate(plan, variant, runId)
+                            : metadata.generatePolling(plan, variant, runId));
         });
         javalin.routes.get("/mdq/<entityId>", ctx -> {
             var entityId = URLDecoder.decode(ctx.pathParam("entityId"), StandardCharsets.UTF_8);
@@ -439,6 +511,131 @@ public final class SamlierApplication {
         });
         javalin.routes.get("/p/{plan}/start/m0-roundtrip", ctx ->
                 ctx.redirect(spPeer.start(ctx.pathParam("plan"), requiredQuery(ctx, "run")).toString()));
+        javalin.routes.get("/p/{plan}/start/metadata-polling/{index}", ctx -> {
+            var plan = requirePlan(plans, ctx.pathParam("plan"));
+            var run = requireRun(runs, requiredQuery(ctx, "run"));
+            var index = Integer.parseInt(ctx.pathParam("index"));
+            var flow = metadataLab.requireAutomaticStartFlow(
+                    run.id(), plan.id(), requiredQuery(ctx, "poll"), index);
+            // requireAutomaticStartFlow records the attempted index in the Run context. Reload so
+            // the request-correlation update below cannot overwrite that orchestration state.
+            run = requireRun(runs, run.id());
+            var target = metadataParser.parse(
+                    metadataCache.getRunSnapshot(run.id(), plan.id()), plan.target().entityId());
+            var destination = target.singleSignOnServices().stream()
+                    .filter(endpoint -> MetadataService.POST.equals(endpoint.binding()))
+                    .findFirst()
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "The automatic metadata campaign requires an HTTP-POST SSO endpoint"))
+                    .location();
+            var requestId = "_" + Identifiers.newId("metadata");
+            var acs = config.peerBaseUrl().resolve(
+                    "/p/" + plan.id() + "/sp/acs/0?mdv=" + flow.variant().id() + "&run=" + run.id());
+            var requestXml = new org.samlier.saml.normal.SamlSignedRequestFactory().build(
+                    org.samlier.saml.normal.SamlSignedRequestFactory.Fixture.VALID,
+                    requestId, destination, peerEntityId(config, plan), acs,
+                    clock.instant(), metadata.credentialsForPollingVariant(plan, flow.variant()));
+            var relayState = "samlier-metadata-polling|" + run.id() + "|"
+                    + flow.campaignToken() + "|" + flow.index();
+            var requests = new LinkedHashMap<String, Object>();
+            if (run.context().get("metadata_polling_requests") instanceof Map<?, ?> existing) {
+                existing.forEach((key, value) -> {
+                    if (key instanceof String text) requests.put(text, value);
+                });
+            }
+            requests.put(flow.variant().id(), requestId);
+            var context = new LinkedHashMap<String, Object>(run.context());
+            context.put("metadata_polling_requests", Map.copyOf(requests));
+            runService.update(run, RunStatus.WAITING_BROWSER, run.targetToSuiteReachability(), context);
+            transcript.record(new org.samlier.core.transcript.TranscriptInput(
+                    run.id(), org.samlier.core.transcript.Direction.OUTBOUND, clock.instant(),
+                    requestId, "POST", destination.toString(), null, Map.of(), new byte[0], null,
+                    null, requestXml, Map.of(
+                            "type", "AuthnRequest",
+                            "id", requestId,
+                            "variant", flow.variant().id(),
+                            "campaign", "metadata-polling")));
+            var nonceBytes = new byte[18];
+            NONCE_RANDOM.nextBytes(nonceBytes);
+            var nonce = Base64.getUrlEncoder().withoutPadding().encodeToString(nonceBytes);
+            ctx.header("Content-Security-Policy", "default-src 'none'; script-src 'nonce-" + nonce
+                            + "'; form-action " + origin(destination)
+                            + "; frame-ancestors 'none'; base-uri 'none'; object-src 'none'");
+            ctx.header("Cache-Control", "no-store").contentType("text/html; charset=utf-8")
+                    .result(HtmlPostPage.renderRequest(
+                            destination, Base64.getEncoder().encodeToString(requestXml), relayState, nonce));
+        });
+        javalin.routes.post("/p/{plan}/continue/metadata-polling/{index}", ctx -> {
+            var plan = requirePlan(plans, ctx.pathParam("plan"));
+            var runId = requiredQuery(ctx, "run");
+            var index = Integer.parseInt(ctx.pathParam("index"));
+            var flow = metadataLab.continueAfterObservedTargetResult(
+                    runId, plan.id(), requiredQuery(ctx, "poll"), index);
+            if (flow.hasNext()) {
+                ctx.redirect("/p/" + plan.id() + "/start/metadata-polling/" + (index + 1)
+                        + "?run=" + flow.runId() + "&poll="
+                        + java.net.URLEncoder.encode(
+                                flow.campaignToken(), java.nio.charset.StandardCharsets.UTF_8));
+                return;
+            }
+            ctx.header("Cache-Control", "no-store").contentType("text/html; charset=utf-8")
+                    .result("<!doctype html><html lang=\"en\"><body>"
+                            + "<h1>Automatic metadata campaign completed</h1>"
+                            + "<p>The Target fetched the final fixture but did not return a correlated "
+                            + "SAML response. Samlier recorded no target outcome from this continuation.</p>"
+                            + "</body></html>");
+        });
+        javalin.routes.get("/p/{plan}/start/metadata-preloaded/{index}", ctx -> {
+            var plan = requirePlan(plans, ctx.pathParam("plan"));
+            var run = requireRun(runs, requiredQuery(ctx, "run"));
+            var index = Integer.parseInt(ctx.pathParam("index"));
+            var flow = metadataLab.requirePreloadedFlow(
+                    run.id(), plan.id(), requiredQuery(ctx, "preload"), index);
+            var target = metadataParser.parse(
+                    metadataCache.getRunSnapshot(run.id(), plan.id()), plan.target().entityId());
+            var destination = target.singleSignOnServices().stream()
+                    .filter(endpoint -> MetadataService.POST.equals(endpoint.binding()))
+                    .findFirst()
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "The preloaded browser campaign requires an HTTP-POST SSO endpoint"))
+                    .location();
+            var requestId = "_" + Identifiers.newId("metadata");
+            var acs = config.peerBaseUrl().resolve(
+                    "/p/" + plan.id() + "/sp/acs/0?mdv=" + flow.variant().id() + "&run=" + run.id());
+            var requestXml = new org.samlier.saml.normal.SamlSignedRequestFactory().build(
+                    org.samlier.saml.normal.SamlSignedRequestFactory.Fixture.VALID,
+                    requestId, destination, metadata.preloadedEntityId(plan, flow.variant()), acs,
+                    clock.instant(), metadata.credentialsForVariant(plan, flow.variant()));
+            var relayState = "samlier-metadata-preloaded|" + run.id() + "|"
+                    + flow.campaignToken() + "|" + flow.index();
+            var requests = new LinkedHashMap<String, Object>();
+            if (run.context().get("metadata_preloaded_requests") instanceof Map<?, ?> existing) {
+                existing.forEach((key, value) -> {
+                    if (key instanceof String text) requests.put(text, value);
+                });
+            }
+            requests.put(flow.variant().id(), requestId);
+            var context = new LinkedHashMap<String, Object>(run.context());
+            context.put("metadata_preloaded_requests", Map.copyOf(requests));
+            runService.update(run, RunStatus.WAITING_BROWSER, run.targetToSuiteReachability(), context);
+            transcript.record(new org.samlier.core.transcript.TranscriptInput(
+                    run.id(), org.samlier.core.transcript.Direction.OUTBOUND, clock.instant(),
+                    requestId, "POST", destination.toString(), null, Map.of(), new byte[0], null,
+                    null, requestXml, Map.of(
+                            "type", "AuthnRequest",
+                            "id", requestId,
+                            "variant", flow.variant().id(),
+                            "campaign", "metadata-preloaded")));
+            var nonceBytes = new byte[18];
+            NONCE_RANDOM.nextBytes(nonceBytes);
+            var nonce = Base64.getUrlEncoder().withoutPadding().encodeToString(nonceBytes);
+            ctx.header("Content-Security-Policy", "default-src 'none'; script-src 'nonce-" + nonce
+                            + "'; form-action " + origin(destination)
+                            + "; frame-ancestors 'none'; base-uri 'none'; object-src 'none'");
+            ctx.header("Cache-Control", "no-store").contentType("text/html; charset=utf-8")
+                    .result(HtmlPostPage.renderRequest(
+                            destination, Base64.getEncoder().encodeToString(requestXml), relayState, nonce));
+        });
         javalin.routes.get("/p/{plan}/probe/{action}", ctx -> {
             var runId = requiredQuery(ctx, "run");
             var status = m1.activeProbeStatus(runId);
@@ -463,12 +660,12 @@ public final class SamlierApplication {
         javalin.routes.post("/p/{plan}/sp/acs/{index}", ctx -> {
             var consumed = spPeer.consumeDetailed(
                     ctx.pathParam("plan"), ctx.bodyAsBytes(), headers(ctx), absoluteRequestUrl(ctx));
-            renderSpResponse(ctx, consumed, m1);
+            renderSpResponse(ctx, consumed, m1, metadataLab);
         });
         javalin.routes.get("/p/{plan}/sp/acs/{index}", ctx -> {
             var consumed = spPeer.consumeRedirectDetailed(
                     ctx.pathParam("plan"), ctx.req().getQueryString(), headers(ctx), absoluteRequestUrl(ctx));
-            renderSpResponse(ctx, consumed, m1);
+            renderSpResponse(ctx, consumed, m1, metadataLab);
         });
         javalin.routes.get("/p/{plan}/idp/sso", ctx -> serveIdp(ctx, idpPeer));
         javalin.routes.post("/p/{plan}/idp/sso", ctx -> serveIdp(ctx, idpPeer));
@@ -535,7 +732,8 @@ public final class SamlierApplication {
     }
 
     private static void renderSpResponse(
-            Context ctx, org.samlier.peer.sp.SpPeerService.ConsumeResult consumed, M1Runtime m1) {
+            Context ctx, org.samlier.peer.sp.SpPeerService.ConsumeResult consumed, M1Runtime m1,
+            MetadataLabService metadataLab) {
         if (consumed.activeProbe()) {
             var status = m1.activeProbeStatus(consumed.activeProbeRunId());
             if (status.state() == org.samlier.runner.ActiveProbeCoordinator.State.READY) {
@@ -546,6 +744,90 @@ public final class SamlierApplication {
             ctx.header("Cache-Control", "no-store").contentType("text/html; charset=utf-8")
                     .result("<!doctype html><html lang=\"en\"><body><h1>Active probes completed</h1>"
                             + "<p>The responses were recorded and evaluated automatically.</p></body></html>");
+            return;
+        }
+        if (consumed.metadataProbe() && consumed.relayState() != null
+                && consumed.relayState().startsWith("samlier-metadata-polling|")) {
+            var parts = consumed.relayState().split("\\|", -1);
+            if (parts.length != 4 || !parts[1].equals(consumed.metadataProbeRunId())) {
+                throw new IllegalArgumentException("Invalid automatic metadata campaign correlation");
+            }
+            var index = Integer.parseInt(parts[3]);
+            var flow = metadataLab.requireAutomaticCompletedFlow(
+                    parts[1], ctx.pathParam("plan"), parts[2], index);
+            if (!flow.variant().id().equals(consumed.metadataProbeVariant())) {
+                throw new IllegalArgumentException("Automatic metadata campaign variant mismatch");
+            }
+            var successful = Boolean.TRUE.equals(consumed.summary().get("metadataProbeAccepted"))
+                    && "urn:oasis:names:tc:SAML:2.0:status:Success".equals(
+                            consumed.summary().get("statusCode"));
+            var next = flow.hasNext()
+                    ? "/p/" + flow.planId() + "/start/metadata-polling/" + (index + 1)
+                            + "?run=" + flow.runId() + "&poll="
+                            + java.net.URLEncoder.encode(
+                                    flow.campaignToken(), java.nio.charset.StandardCharsets.UTF_8)
+                    : null;
+            if (successful && next != null) {
+                ctx.header("Cache-Control", "no-store").contentType("text/html; charset=utf-8")
+                        .result(metadataPollingTransitionPage(next, flow.pollingDelaySeconds()));
+                return;
+            }
+            if (!successful && next != null) {
+                ctx.header("Cache-Control", "no-store").contentType("text/html; charset=utf-8")
+                        .result("<!doctype html><html lang=\"en\"><body>"
+                                + "<h1>This polling fixture did not produce a correlated Success response</h1>"
+                                + "<p>The metadata fetch and response were recorded. Samlier does not "
+                                + "convert the missing Success response into a target violation.</p>"
+                                + "<p><a href=\"" + htmlEscape(next)
+                                + "\">Continue with the next polling fixture</a></p></body></html>");
+                return;
+            }
+            ctx.header("Cache-Control", "no-store").contentType("text/html; charset=utf-8")
+                    .result("<!doctype html><html lang=\"en\"><body>"
+                            + "<h1>Automatic metadata campaign completed</h1>"
+                            + "<p>Return to the Run page to evaluate the recorded evidence. Only "
+                            + "correlated Success responses count as metadata-use evidence.</p></body></html>");
+            return;
+        }
+        if (consumed.metadataProbe() && consumed.relayState() != null
+                && consumed.relayState().startsWith("samlier-metadata-preloaded|")) {
+            var parts = consumed.relayState().split("\\|", -1);
+            if (parts.length != 4 || !parts[1].equals(consumed.metadataProbeRunId())) {
+                throw new IllegalArgumentException("Invalid preloaded metadata campaign correlation");
+            }
+            var index = Integer.parseInt(parts[3]);
+            var flow = metadataLab.requirePreloadedFlow(parts[1], ctx.pathParam("plan"), parts[2], index);
+            if (!flow.variant().id().equals(consumed.metadataProbeVariant())) {
+                throw new IllegalArgumentException("Preloaded metadata campaign variant mismatch");
+            }
+            var successful = Boolean.TRUE.equals(consumed.summary().get("metadataProbeAccepted"))
+                    && "urn:oasis:names:tc:SAML:2.0:status:Success".equals(
+                            consumed.summary().get("statusCode"));
+            var next = flow.hasNext()
+                    ? "/p/" + flow.planId() + "/start/metadata-preloaded/" + (index + 1)
+                            + "?run=" + flow.runId() + "&preload="
+                            + java.net.URLEncoder.encode(
+                                    flow.campaignToken(), java.nio.charset.StandardCharsets.UTF_8)
+                    : null;
+            if (successful && next != null) {
+                ctx.redirect(next);
+                return;
+            }
+            if (!successful && next != null) {
+                ctx.header("Cache-Control", "no-store").contentType("text/html; charset=utf-8")
+                        .result("<!doctype html><html lang=\"en\"><body>"
+                                + "<h1>This fixture did not produce a correlated Success response</h1>"
+                                + "<p>Samlier recorded the response without turning it into a target "
+                                + "violation. Continue only after reviewing the target's result.</p>"
+                                + "<p><a href=\"" + htmlEscape(next)
+                                + "\">Continue with the next imported fixture</a></p></body></html>");
+                return;
+            }
+            ctx.header("Cache-Control", "no-store").contentType("text/html; charset=utf-8")
+                    .result("<!doctype html><html lang=\"en\"><body>"
+                            + "<h1>Preloaded metadata campaign attempts completed</h1>"
+                            + "<p>Return to the Run page to evaluate the recorded evidence. Only "
+                            + "correlated Success responses count as metadata-use evidence.</p></body></html>");
             return;
         }
         ctx.header("Cache-Control", "no-store").contentType("text/html; charset=utf-8")
@@ -749,6 +1031,19 @@ public final class SamlierApplication {
 
     private static String htmlEscape(String value) {
         return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+    }
+
+    static String metadataPollingTransitionPage(String next, int delaySeconds) {
+        var delay = Math.max(0, delaySeconds);
+        var escaped = htmlEscape(next);
+        return "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\">"
+                + "<meta http-equiv=\"refresh\" content=\"" + delay + ";url=" + escaped + "\">"
+                + "<title>Waiting for the target metadata refresh window</title></head><body>"
+                + "<h1>Fixture accepted</h1><p>Samlier recorded the correlated metadata fetch and "
+                + "Success response.</p><p>The next signed request starts automatically in " + delay
+                + " seconds. This pacing lets a target's standard metadata-key refresh window "
+                + "elapse; it does not affect the conformance outcome.</p><p><a href=\"" + escaped
+                + "\">Continue now</a></p></body></html>";
     }
 
     private static final class MisdirectedRequest extends RuntimeException {

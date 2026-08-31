@@ -399,9 +399,43 @@ bootstrap contracts and reuses the verified setup across cases.
 - **Standard metadata contract**: the operator registers one stable Suite metadata URL or MDQ
   source. Samlier changes controlled fixtures behind that standard interface and records Target
   fetches plus correlated SAML traffic. A vendor administration API is neither required nor used.
+- When the Target periodically polls the registered URL or refreshes metadata after encountering an
+  unknown signing key, the operator MAY arm one ordered automatic polling campaign. Each fixture
+  uses a distinct deterministic test key and the URL carries a Run-scoped correlation token. A
+  token-correlated fetch records retrieval but keeps the same fixture selected, including across
+  duplicate key-reload fetches. Only the correlated browser response advances the persisted fixture
+  index. If the Target leaves the browser on its own result page, an explicit continuation MAY
+  advance orchestration after the browser attempt even when no fetch was observed; it MUST NOT
+  create a target outcome or substitute for missing retrieval or response evidence. The operator can
+  set a delay between successful fixtures to accommodate
+  the Target's ordinary metadata-key refresh window. This is orchestration pacing only and cannot
+  change a case outcome.
+- Automatic polling removes repeated Target-side re-import operations, but it does not manufacture
+  use evidence. Cases that require a correlated SAML flow remain waiting until that flow is observed
+  or the operator records that the approved attempts were made.
+- A static-import Target MAY instead use the preloaded positive aggregate. Samlier combines only
+  mutually compatible acceptance fixtures in one downloadable signed `EntitiesDescriptor`, gives each fixture
+  a distinct entityID and correlated ACS URL, and then runs a browser sequence across the imported
+  entities. A Target fetch of the aggregate URL is retrieval evidence for its listed logical
+  fixtures; an operator download is not. Use evidence still requires a correlated SAML response for
+  each entity, so file-import products do not need a fabricated Target-fetch observation.
+- Rejection fixtures and document-wide root, signature, redirect, expiry, cardinality, and duplicate
+  entityID fixtures are never mixed into the aggregate. They remain separate because combining them
+  would make the accept/reject oracle ambiguous. A Target that cannot import an aggregate uses the
+  manual queue; lack of aggregate-import support is not itself a target violation.
 - **Operator-policy contracts**: where SAML defines no management protocol (for example attribute
   release or local algorithm policy), the operator prepares a small set of fixed Test Peer policy
   states once. Protocol cases then exercise those states.
+- **Browser session campaigns**: cases in the same active-probe chain reuse one established Target
+  session. A forced reauthentication checkpoint is counted separately. Crossing any fresh-session
+  boundary adds one shared session-recovery action, not one new login per case. Sharing affects only
+  orchestration and the interaction budget; each case retains its own fixtures, controls, correlation,
+  and outcome.
+- **Shared local-policy actions**: cases that require the same Target policy state use one stable
+  action key. The initial IdP algorithm campaign has separate content-encryption and key-transport
+  policy keys. Completing such an action may advance legacy browser waits, but it does not provide a
+  target verdict or external evidence. Cases for which no protocol oracle is conclusive finish as
+  `NOT_VERIFIED` rather than inheriting a result from another case in the action.
 - A metadata fetch proves only that the bootstrap channel was reached. It is not evidence that a
   particular obligation was satisfied. Each case still needs its approved positive and negative
   controls and must derive its outcome from observed behavior.

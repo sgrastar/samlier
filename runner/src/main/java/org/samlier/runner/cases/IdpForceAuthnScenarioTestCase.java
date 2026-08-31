@@ -70,6 +70,7 @@ public final class IdpForceAuthnScenarioTestCase
     @Override public boolean requiresFreshSession(CaseState state) {
         return "establish-session".equals(state.data().get("stage"));
     }
+    @Override public boolean plansFreshSessionBoundary() { return true; }
     @Override public int plannedDeliberateActions() {
         // Establish a clean session, then perform the ForceAuthn=true reauthentication.
         return 2;

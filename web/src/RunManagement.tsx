@@ -22,6 +22,7 @@ export function RunManagement({ runId, csrfToken, focusCaseId }: {
   const [plan, setPlan] = useState<Plan>()
   const [notice, setNotice] = useState('')
   const [mode, setMode] = useState<'selfhosted' | 'hosted'>('selfhosted')
+  const [pollingDelaySeconds, setPollingDelaySeconds] = useState(15)
   const [sectionCaseChoices, setSectionCaseChoices] = useState<Record<string, string>>({})
   const selfCheckSections = !focusCaseId && campaigns
     ? campaigns.campaigns.filter(campaign => campaign.evidenceClass === 'SELF_ATTESTED')
@@ -33,11 +34,26 @@ export function RunManagement({ runId, csrfToken, focusCaseId }: {
     : []
   const groupedSelfCheckCases = new Set(selfCheckSections.flatMap(section =>
     section.interactions.map(interaction => interaction.caseId)))
+  const sharedOperatorActions = !focusCaseId && campaigns
+    ? campaigns.campaigns.filter(campaign => campaign.actionKind === 'CONFIGURATION')
+      .flatMap(campaign => campaign.actions
+        .filter(action => action.remainingCaseIds.length > 1)
+        .map(action => ({
+          campaign,
+          action,
+          interactions: interactions.filter(interaction => action.remainingCaseIds.includes(interaction.caseId)),
+        })))
+      .filter(section => section.interactions.length > 1)
+    : []
+  const groupedOperatorCases = new Set(sharedOperatorActions.flatMap(section =>
+    section.interactions.map(interaction => interaction.caseId)))
   const visibleInteractions = focusCaseId
     ? interactions.filter(interaction => interaction.caseId === focusCaseId)
     : interactions.filter(interaction => interaction.kind !== 'CONFIGURATION'
-      && !groupedSelfCheckCases.has(interaction.caseId))
+      && !groupedSelfCheckCases.has(interaction.caseId)
+      && !groupedOperatorCases.has(interaction.caseId))
   const configurationInteractions = interactions.filter(interaction => interaction.kind === 'CONFIGURATION')
+  const metadataWork = metadataFixtureWork(protocolEvidence)
 
   const refresh = async () => {
     const [nextInteractions, contracts, lab, evidence, probe, campaignReport, run, plans, health] = await Promise.all([
@@ -100,6 +116,23 @@ export function RunManagement({ runId, csrfToken, focusCaseId }: {
     setError('')
     try {
       await api.completeBrowser(runId, interaction.caseId, csrfToken)
+      await refresh()
+    } catch (cause) {
+      setError((cause as Error).message)
+    } finally {
+      setBusy('')
+    }
+  }
+
+  const completeSharedOperatorAction = async (
+    campaignId: string, actionId: string, caseCount: number,
+  ) => {
+    const key = `${campaignId}:${actionId}`
+    setBusy(key)
+    setError('')
+    try {
+      await api.completeCampaignAction(runId, campaignId, actionId, csrfToken)
+      setNotice(`Recorded one shared target operation for ${caseCount} cases. No target outcome was supplied; cases without external evidence remain not verified.`)
       await refresh()
     } catch (cause) {
       setError((cause as Error).message)
@@ -252,6 +285,67 @@ export function RunManagement({ runId, csrfToken, focusCaseId }: {
     }
   }
 
+  const selectNextMetadataFixture = async () => {
+    if (!metadataWork.nextVariant) return
+    setBusy('metadata-next')
+    setError('')
+    try {
+      const selected = await api.selectMetadataVariant(runId, metadataWork.nextVariant, csrfToken)
+      setMetadataLab(selected)
+      setNotice(`Next incomplete metadata fixture selected: ${selected.selectedVariant}. Trigger the target's normal refresh or re-import, then attempt the required SAML flow.`)
+    } catch (cause) {
+      setError((cause as Error).message)
+    } finally {
+      setBusy('')
+    }
+  }
+
+  const startAutomaticMetadataPolling = async () => {
+    if (metadataWork.pendingVariants.length === 0) return
+    setBusy('metadata-auto')
+    setError('')
+    try {
+      const selected = await api.startAutomaticMetadataPolling(
+        runId, metadataWork.pendingVariants, pollingDelaySeconds, csrfToken)
+      setMetadataLab(selected)
+      setNotice(`Automatic metadata polling armed with ${selected.campaignVariants.length} fixtures. Leave the stable URL configured; duplicate target fetches remain on the current document until its correlated browser flow completes.`)
+      await refresh()
+    } catch (cause) {
+      setError((cause as Error).message)
+    } finally {
+      setBusy('')
+    }
+  }
+
+  const startPreloadedMetadataCampaign = async () => {
+    setBusy('metadata-preloaded')
+    setError('')
+    try {
+      const selected = await api.startPreloadedMetadataCampaign(runId, csrfToken)
+      setMetadataLab(selected)
+      setNotice(`Preloaded aggregate prepared with ${selected.preloadedVariants.length} compatible positive fixtures. Import its URL once, then return here to run the correlated browser sequence.`)
+    } catch (cause) {
+      setError((cause as Error).message)
+    } finally {
+      setBusy('')
+    }
+  }
+
+  const useManualMetadataRefresh = async () => {
+    setBusy('metadata-manual')
+    setError('')
+    try {
+      const selected = await api.useManualMetadataRefresh(runId, csrfToken)
+      setMetadataLab(selected)
+      setNotice('Manual metadata refresh restored. Select each remaining fixture only when the target cannot poll the stable URL.')
+      await refresh()
+    } catch (cause) {
+      setError((cause as Error).message)
+    } finally {
+      setBusy('')
+    }
+  }
+
   const evaluateProtocolEvidence = async () => {
     setBusy('protocol-evidence')
     setError('')
@@ -346,7 +440,9 @@ export function RunManagement({ runId, csrfToken, focusCaseId }: {
         <p>{contract.setupInstruction}</p>
         {contract.setupUrl && <dl><dt>Stable setup URL</dt><dd><code>{contract.setupUrl}</code></dd></dl>}
         {contract.kind === 'STANDARD_METADATA' && metadataLab && <form className="fixture-selector" onSubmit={selectMetadataVariant}>
-          <label>Suite metadata fixture<select name="variant" defaultValue={metadataLab.selectedVariant}>
+          <label>Suite metadata fixture<select name="variant" value={metadataLab.selectedVariant}
+            onChange={event => setMetadataLab(current => current
+              ? { ...current, selectedVariant: event.target.value } : current)}>
             {metadataLab.availableVariants.map(variant => <option key={variant} value={variant}>{humanize(variant)}</option>)}
           </select></label>
           <button disabled={busy === 'metadata-variant'} type="submit">Select behind stable URL</button>
@@ -354,6 +450,71 @@ export function RunManagement({ runId, csrfToken, focusCaseId }: {
         {contract.kind === 'STANDARD_METADATA' && protocolEvidence && protocolEvidence.eligibleCases > 0 && <div className="protocol-evidence">
           <p><strong>{protocolEvidence.eligibleCases}</strong> currently implemented case{protocolEvidence.eligibleCases === 1 ? '' : 's'} can derive outcomes directly from metadata fetches and correlated SAML traffic; <strong>{protocolEvidence.readyCases}</strong> ready now.</p>
           <p>Samlier normally evaluates these cases automatically as Transcript evidence arrives. Because a public metadata fetch does not identify its caller, use the recovery action only after you triggered the target's normal refresh or re-import and attempted the listed SAML flows.</p>
+          <div className="standard-work-queue">
+            <p><strong>Standard work queue:</strong> {metadataWork.completedFixtures}/{metadataWork.totalFixtures} fixture fetches recorded.</p>
+            {metadataLab?.ingestionMode === 'AUTOMATIC_POLLING' ? <>
+              <p><strong>Automatic polling:</strong> {metadataLab.campaignIndex}/{metadataLab.campaignVariants.length} fixtures completed{metadataLab.campaignComplete ? ' — campaign complete.' : `; currently serving ${humanize(metadataLab.selectedVariant)}.`}</p>
+              <p><strong>Operator continuations:</strong> {metadataLab.operatorContinuationActions}</p>
+              <p><small>Samlier waits {metadataLab.pollingDelaySeconds} seconds between successful fixtures so the target's ordinary metadata-key refresh window can elapse. The delay changes orchestration only, never the outcome.</small></p>
+              {!metadataLab.campaignComplete && metadataLab.automaticStartUrl && <a
+                className="button" href={metadataLab.automaticStartUrl} target="_blank" rel="noreferrer">
+                Start or resume the signed metadata campaign
+              </a>}
+              {metadataLab.automaticContinueUrl && <>
+                <form action={metadataLab.automaticContinueUrl} method="post" target="_blank">
+                  <button type="submit">Continue after the Target displayed its result</button>
+                </form>
+                <p><small>This only advances orchestration after the browser attempt. It does not claim that the Target fetched or used metadata and does not mark the Target satisfied or violated; missing observations remain not verified.</small></p>
+              </>}
+              <p><small>The fixture uses a distinct test signing key. A target that refreshes its configured metadata URL on an unknown key can fetch and validate without repeated imports. Samlier holds the document stable across duplicate fetches and advances after the correlated browser result. A target that does not refresh remains unresolved and can use the aggregate or manual queue.</small></p>
+              <button disabled={busy === 'metadata-manual'} onClick={() => void useManualMetadataRefresh()}>
+                Return to manual refresh
+              </button>
+            </> : metadataLab?.ingestionMode === 'PRELOADED_AGGREGATE' ? <>
+              <p><strong>One-time positive aggregate:</strong> {metadataLab.preloadedVariants.length} compatible fixtures in one signed metadata document.</p>
+              {metadataLab.preloadedMetadataUrl && <>
+                <dl><dt>Import once</dt><dd><code>{metadataLab.preloadedMetadataUrl}</code></dd></dl>
+              </>}
+              {metadataLab.preloadedDownloadUrl && <a className="button"
+                href={metadataLab.preloadedDownloadUrl} download="samlier-metadata-campaign.xml">
+                  Download signed aggregate XML
+              </a>}
+              <p>{metadataLab.preloadedFetched
+                ? 'A Target fetch of the aggregate URL was recorded. Run the browser sequence; Samlier reuses the session and advances through the imported entities automatically.'
+                : 'Import the downloaded file or let the Target fetch the URL through its ordinary metadata interface. Downloading is not counted as a Target fetch; correlated SAML responses prove actual use.'}</p>
+              {metadataLab.preloadedStartUrl && <a className="button" href={metadataLab.preloadedStartUrl} target="_blank" rel="noreferrer">
+                Run {metadataLab.preloadedVariants.length} preloaded SAML flows
+              </a>}
+              <button disabled={busy === 'metadata-manual'} onClick={() => void useManualMetadataRefresh()}>
+                Return to manual refresh
+              </button>
+            </> : metadataWork.pendingVariants.length > 0 && <>
+              <button disabled={busy === 'metadata-preloaded'} onClick={() => void startPreloadedMetadataCampaign()}>
+                Prepare one-time aggregate for compatible positive fixtures
+              </button>
+              <p><small>Use this for static-import products that accept an EntitiesDescriptor containing multiple SP entities. Incompatible root, redirect, duplicate, expired, unsigned, and bad-signature fixtures remain separate.</small></p>
+              <button disabled={busy === 'metadata-auto'} onClick={() => void startAutomaticMetadataPolling()}>
+                Arm automatic polling for {metadataWork.pendingVariants.length} fixtures
+              </button>
+              <label>Seconds between signed fixtures
+                <input type="number" min="0" max="900" value={pollingDelaySeconds}
+                  onChange={event => setPollingDelaySeconds(Number(event.target.value))} />
+              </label>
+              <p><small>Use this when the target periodically retrieves the same metadata URL or refreshes it when a new signing key is encountered. Configure the displayed stable URL once, then start one browser campaign; correlated fetches and browser results advance automatically and remain Transcript evidence.</small></p>
+            </>}
+            {metadataWork.nextVariant && <button
+              disabled={metadataLab?.ingestionMode !== 'MANUAL_REFRESH'
+                || busy === 'metadata-next' || metadataLab?.selectedVariant === metadataWork.nextVariant}
+              onClick={() => void selectNextMetadataFixture()}>
+              {metadataLab?.selectedVariant === metadataWork.nextVariant
+                ? `Next fixture selected: ${humanize(metadataWork.nextVariant)}`
+                : `Select next incomplete fixture: ${humanize(metadataWork.nextVariant)}`}
+            </button>}
+            {!metadataWork.nextVariant && metadataWork.nextOperation && <p>
+              All required fixtures were fetched. Next observation: <code>{metadataWork.nextOperation}</code>.
+            </p>}
+            <p><small>Each click changes only the Suite-controlled document behind the stable URL. Samlier never calls the target's administration API; perform the target's ordinary refresh/re-import and protocol flow before advancing.</small></p>
+          </div>
           <button disabled={busy === 'protocol-evidence' || protocolEvidence.readyCases === 0}
             onClick={() => void evaluateProtocolEvidence()}>
             Re-evaluate recorded evidence
@@ -401,6 +562,27 @@ export function RunManagement({ runId, csrfToken, focusCaseId }: {
           <p>{campaign.caseIds.length} cases share this campaign; {campaign.remainingCaseIds.length} remain unresolved.</p>
         </article>)}</div>
       </details>
+    </section>}
+    {sharedOperatorActions.length > 0 && <section className="shared-operator-actions">
+      <p className="eyebrow">Standard plan operations</p>
+      <h2>Shared target policy changes</h2>
+      <p>Perform each target-side policy change once. Samlier applies that operation to every listed case, but the operation itself is not evidence of conformance. Without a conclusive Transcript or other external evidence, those cases remain not verified.</p>
+      <div className="interaction-list">{sharedOperatorActions.map(section => {
+        const key = `${section.campaign.id}:${section.action.id}`
+        return <article className="interaction" key={key}>
+          <header><strong>{humanize(section.action.id)}</strong><span>{section.interactions.length} CASES</span></header>
+          <details><summary>Approved operations covered by this policy state</summary>
+            {section.interactions.map(interaction => <article key={interaction.caseId}>
+              <strong>{interaction.caseId}</strong>
+              {interaction.promptEn && <pre>{resolvePrompt(interaction.promptEn, planId, runId)}</pre>}
+            </article>)}
+          </details>
+          <button disabled={busy === key} onClick={() => void completeSharedOperatorAction(
+            section.campaign.id, section.action.id, section.interactions.length)}>
+            Continue after applying this shared policy
+          </button>
+        </article>
+      })}</div>
     </section>}
     {selfCheckSections.length > 0 && <section className="self-check-sections">
       <p className="eyebrow">Full plan evidence</p>
@@ -495,12 +677,36 @@ export function RunManagement({ runId, csrfToken, focusCaseId }: {
   </section>
 }
 
+export function metadataFixtureWork(status: ProtocolEvidenceStatus | undefined) {
+  const required = new Set<string>()
+  const completed = new Set<string>()
+  status?.cases.forEach(value => {
+    value.requiredObservations.forEach(observation => required.add(observation))
+    value.completedObservations.forEach(observation => completed.add(observation))
+  })
+  // ProtocolEvidenceStatus preserves the case-defined observation order. Keep that order so the
+  // positive control is fetched before abnormal fixtures; alphabetic sorting used to offer
+  // bad-signature before control on a fresh campaign.
+  const fixtureRequired = [...required].filter(value => value.startsWith('fetched:'))
+  const fixtureCompleted = fixtureRequired.filter(value => completed.has(value))
+  const nextFixture = fixtureRequired.find(value => !completed.has(value))
+  const nextOperation = [...required].find(value => !completed.has(value))
+  return {
+    totalFixtures: fixtureRequired.length,
+    completedFixtures: fixtureCompleted.length,
+    pendingVariants: fixtureRequired.filter(value => !completed.has(value))
+      .map(value => value.slice('fetched:'.length)),
+    nextVariant: nextFixture?.slice('fetched:'.length) ?? null,
+    nextOperation: nextOperation ?? null,
+  }
+}
+
 function resolvePrompt(value: string, planId: string, runId: string) {
   return value.replaceAll('<plan-id>', planId || '<plan-id>').replaceAll('<run-id>', runId)
 }
 
 function humanize(value: string) {
-  return value.replaceAll('_', ' ').replace(/^./, first => first.toUpperCase())
+  return value.replaceAll('_', ' ').replaceAll('-', ' ').replace(/^./, first => first.toUpperCase())
 }
 
 function planDescription(plan: 'QUICK' | 'STANDARD' | 'FULL') {

@@ -85,6 +85,81 @@ class MetadataServiceTest {
     }
 
     @Test
+    void pollingFixturesUseDeterministicDistinctRoleKeysThatMatchSignedRequests() throws Exception {
+        var clock = Clock.fixed(Instant.parse("2026-08-29T00:00:00Z"), ZoneOffset.UTC);
+        var keyStore = new FilePlanKeyStore(directory, clock);
+        var plan = SamlTestFixtures.idpPlan();
+        var service = new MetadataService(
+                URI.create("https://peer.example"), keyStore, new XmlSigner(), clock);
+        var control = service.credentialsForPollingVariant(plan, MetadataService.Variant.CONTROL);
+        var extension = service.credentialsForPollingVariant(
+                plan, MetadataService.Variant.UNKNOWN_EXTENSION);
+
+        assertNotEquals(
+                java.util.Base64.getEncoder().encodeToString(control.certificate().getEncoded()),
+                java.util.Base64.getEncoder().encodeToString(extension.certificate().getEncoded()));
+        assertEquals(
+                java.util.Base64.getEncoder().encodeToString(control.certificate().getEncoded()),
+                java.util.Base64.getEncoder().encodeToString(service.credentialsForPollingVariant(
+                        plan, MetadataService.Variant.CONTROL).certificate().getEncoded()));
+
+        var document = SecureXml.parse(service.generatePolling(
+                plan, MetadataService.Variant.CONTROL, "run_0123456789ABCDEFGHJKMNPQRS"));
+        document.getDocumentElement().setIdAttribute("ID", true);
+        var signature = new XMLSignature((org.w3c.dom.Element) document
+                .getElementsByTagNameNS(MetadataService.DS, "Signature").item(0), "");
+        assertTrue(signature.checkSignatureValue(control.certificate()));
+        var certificateText = document.getElementsByTagNameNS(MetadataService.DS, "X509Certificate")
+                .item(0).getTextContent().replaceAll("\\s+", "");
+        assertEquals(java.util.Base64.getEncoder().encodeToString(control.certificate().getEncoded()),
+                certificateText);
+    }
+
+    @Test
+    void preloadedCampaignCombinesOnlyCompatiblePositiveFixturesUnderOneSignature() throws Exception {
+        var clock = Clock.fixed(Instant.parse("2026-08-29T00:00:00Z"), ZoneOffset.UTC);
+        var keyStore = new FilePlanKeyStore(directory, clock);
+        var plan = SamlTestFixtures.idpPlan();
+        var service = new MetadataService(
+                URI.create("https://peer.example"), keyStore, new XmlSigner(), clock);
+        var runId = "run_0123456789ABCDEFGHJKMNPQRS";
+
+        var document = SecureXml.parse(service.generatePreloadedCampaign(plan, runId));
+        var root = document.getDocumentElement();
+        root.setIdAttribute("ID", true);
+        assertEquals("EntitiesDescriptor", root.getLocalName());
+        assertEquals(1, document.getElementsByTagNameNS(MetadataService.DS, "Signature").getLength(),
+                "the aggregate has one trust root; child fixture signatures must not survive");
+        var signature = new XMLSignature((org.w3c.dom.Element) document
+                .getElementsByTagNameNS(MetadataService.DS, "Signature").item(0), "");
+        assertTrue(signature.checkSignatureValue(keyStore.getOrCreate(plan.id()).certificate()));
+
+        var xml = new String(SecureXml.serialize(document), java.nio.charset.StandardCharsets.UTF_8);
+        for (var variant : MetadataService.preloadedCampaignVariants()) {
+            var expectedEntity = service.preloadedEntityId(plan, variant);
+            int matches = 0;
+            var entities = document.getElementsByTagNameNS(MetadataService.MD, "EntityDescriptor");
+            for (int index = 0; index < entities.getLength(); index++) {
+                if (expectedEntity.equals(((org.w3c.dom.Element) entities.item(index)).getAttribute("entityID"))) {
+                    matches++;
+                }
+            }
+            assertEquals(1, matches, variant.id());
+            assertTrue(xml.contains("mdv=" + variant.id() + "&amp;run=" + runId), variant.id());
+        }
+        var roles = document.getElementsByTagNameNS(MetadataService.MD, "SPSSODescriptor");
+        for (int index = 0; index < roles.getLength(); index++) {
+            assertEquals("true", ((org.w3c.dom.Element) roles.item(index))
+                    .getAttribute("AuthnRequestsSigned"));
+        }
+        assertFalse(MetadataService.preloadedCampaignVariants().contains(MetadataService.Variant.UNSIGNED));
+        assertFalse(MetadataService.preloadedCampaignVariants().contains(MetadataService.Variant.BAD_SIGNATURE));
+        assertFalse(MetadataService.preloadedCampaignVariants().contains(MetadataService.Variant.EXPIRED));
+        assertFalse(MetadataService.preloadedCampaignVariants().contains(
+                MetadataService.Variant.CONFLICTING_DUPLICATE_ENTITY_IDS));
+    }
+
+    @Test
     void keyDescriptorFixturesExposeOnlyTheIntendedStandardKeyForms() {
         var clock = Clock.fixed(Instant.parse("2026-08-29T00:00:00Z"), ZoneOffset.UTC);
         var service = new MetadataService(

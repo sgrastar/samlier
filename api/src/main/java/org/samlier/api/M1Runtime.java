@@ -79,6 +79,7 @@ final class M1Runtime {
     private final ActiveProbeCoordinator activeProbes;
     private final CaseTimeoutService timeouts;
     private final RunCampaignService campaigns;
+    private final org.samlier.runner.CampaignActionCompletionService campaignActions;
 
     private M1Runtime(
             AppConfig config,
@@ -101,7 +102,8 @@ final class M1Runtime {
             SqlitePublicationRepository publications,
             ActiveProbeCoordinator activeProbes,
             CaseTimeoutService timeouts,
-            RunCampaignService campaigns) {
+            RunCampaignService campaigns,
+            org.samlier.runner.CampaignActionCompletionService campaignActions) {
         this.config = config;
         this.quickCheck = quickCheck;
         this.results = results;
@@ -123,6 +125,7 @@ final class M1Runtime {
         this.activeProbes = activeProbes;
         this.timeouts = timeouts;
         this.campaigns = campaigns;
+        this.campaignActions = campaignActions;
     }
 
     static M1Runtime create(
@@ -227,7 +230,8 @@ final class M1Runtime {
                     return java.util.Optional.of(keys.getOrCreate(run.planId()));
                 });
         var m2Attested = ApprovedAttestedCaseRegistry.create(
-                definitions, org.samlier.core.casedef.CaseDefinitionCatalog.Milestone.M2);
+                definitions, org.samlier.core.casedef.CaseDefinitionCatalog.Milestone.M2,
+                null, null, null, null, null, runMetadata);
         var m2Config = ApprovedConfigCaseRegistry.create(
                 definitions, org.samlier.core.casedef.CaseDefinitionCatalog.Milestone.M2,
                 runMetadata);
@@ -316,7 +320,10 @@ final class M1Runtime {
         var configurations = new ConfigurationService(interactiveRegistry, executionService, caseContexts);
         var browserCompletions = new BrowserCompletionService(interactiveRegistry, executionService, caseContexts);
         var timeouts = new CaseTimeoutService(caseExecutions, interactiveRegistry, executionService);
-        var campaigns = new RunCampaignService(caseExecutions, definitions, interactiveRegistry, caseContexts);
+        var campaigns = new RunCampaignService(
+                caseExecutions, definitions, interactiveRegistry, caseContexts, metadataLab::state);
+        var campaignActions = new org.samlier.runner.CampaignActionCompletionService(
+                campaigns, interactiveRegistry, browserCompletions);
         var evaluator = new RunEvaluationService(
                 coverage, plans, runs,
                 new CaseRunProjection(caseExecutions, definitions.byId().keySet()), applicability,
@@ -346,7 +353,7 @@ final class M1Runtime {
                 config, quickCheck, results, artifacts, access, plans, runs, transcript, clock,
                 starters, pendingInteractions, bootstrapContracts, protocolEvidence, attestations,
                 configurations, browserCompletions, caseExecutions, publications, activeProbes, timeouts,
-                campaigns);
+                campaigns, campaignActions);
     }
 
     QuickCheckService.QuickCheckResult quickCheck(String runId) {
@@ -457,6 +464,17 @@ final class M1Runtime {
         var result = browserCompletions.complete(runId, caseId);
         if (results != null) results.generate(runId);
         return result;
+    }
+
+    org.samlier.runner.CampaignActionCompletionService.Result completeCampaignAction(
+            String runId, String campaignId, String actionId) {
+        var result = campaignActions.complete(runId, campaignId, actionId);
+        if (results != null) results.generate(runId);
+        return result;
+    }
+
+    org.samlier.runner.CampaignActionCompletionService campaignActionCompletionService() {
+        return campaignActions;
     }
 
     java.util.List<org.samlier.core.caseexec.CaseExecution> startMilestone(

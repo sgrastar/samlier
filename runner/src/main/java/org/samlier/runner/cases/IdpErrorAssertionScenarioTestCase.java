@@ -86,6 +86,7 @@ public final class IdpErrorAssertionScenarioTestCase
     @Override public boolean requiresFreshSession(CaseState state) {
         return "passive-without-session".equals(state.data().get("fixture_id"));
     }
+    @Override public boolean plansFreshSessionBoundary() { return ERROR_ASSERTION_CASE.equals(id); }
     @Override public int plannedDeliberateActions() {
         return ERROR_ASSERTION_CASE.equals(id) ? 1 : 0;
     }

@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
-import { RunManagement } from './RunManagement'
+import { metadataFixtureWork, RunManagement } from './RunManagement'
+import type { MetadataLab } from './api'
 
 afterEach(() => {
   cleanup()
@@ -220,6 +221,180 @@ test('confirms one metadata campaign operation without collecting per-case verdi
   expect(post.init?.headers).toEqual({ 'content-type': 'application/json', 'X-CSRF-Token': 'csrf' })
 })
 
+test('selects the next incomplete metadata fixture without asking for a verdict', async () => {
+  const calls: Array<{ url: string; init?: RequestInit }> = []
+  let selected = 'control'
+  vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+    calls.push({ url, init })
+    if (url.includes('/metadata-lab/variant') && init?.method === 'POST') {
+      selected = JSON.parse(String(init.body)).variant
+      return json({ ...metadataLab(), selectedVariant: selected })
+    }
+    if (url.includes('/bootstrap-contracts')) return json([{
+      id: 'metadata-feed', title: 'Suite-controlled metadata feed', description: 'Shared feed.',
+      kind: 'STANDARD_METADATA', readiness: 'FETCH_OBSERVED', setupUrl: metadataLab().metadataUrl,
+      setupInstruction: 'Use the stable URL.', pendingCases: 1, caseIds: ['IIP-MD04-b-idp-01'],
+    }])
+    if (url.includes('/metadata-lab')) return json({ ...metadataLab(), selectedVariant: selected })
+    if (url.includes('/protocol-evidence')) return json({
+      eligibleCases: 1, readyCases: 0, cases: [{
+        caseId: 'IIP-MD04-b-idp-01', ready: false,
+        requiredObservations: ['fetched:control', 'used:control', 'fetched:expired', 'conclusive-rejection:expired'],
+        completedObservations: ['fetched:control', 'used:control'], details: {},
+      }],
+    })
+    if (url.includes('/interactions')) return json([])
+    if (url === '/api/health') return json({ status: 'ok', version: 'test', mode: 'selfhosted' })
+    if (url.includes('/api/runs/')) return json({ id: 'run_0123456789ABCDEFGHJKMNPQRS', planId: 'plan' })
+    if (url === '/api/plans') return json([])
+    return json([])
+  }))
+
+  render(<RunManagement runId="run_0123456789ABCDEFGHJKMNPQRS" csrfToken="csrf" />)
+  const button = await screen.findByRole('button', {
+    name: 'Select next incomplete fixture: Expired',
+  })
+  fireEvent.click(button)
+
+  expect(await screen.findByText(/Next incomplete metadata fixture selected: expired/)).toBeTruthy()
+  const post = calls.find(call => call.url.includes('/metadata-lab/variant'))!
+  expect(post.init?.body).toBe(JSON.stringify({ variant: 'expired' }))
+  expect(String(post.init?.body)).not.toContain('verdict')
+})
+
+test('metadata fixture work queue deduplicates observations shared by several cases', () => {
+  expect(metadataFixtureWork({
+    eligibleCases: 2,
+    readyCases: 0,
+    cases: [
+      { caseId: 'one', ready: false, requiredObservations: ['fetched:control', 'fetched:expired'],
+        completedObservations: ['fetched:control'], details: {} },
+      { caseId: 'two', ready: false, requiredObservations: ['fetched:control', 'fetched:expired', 'used:control'],
+        completedObservations: ['fetched:control', 'used:control'], details: {} },
+    ],
+  })).toEqual({
+    totalFixtures: 2,
+    completedFixtures: 1,
+    nextVariant: 'expired',
+    nextOperation: 'fetched:expired',
+    pendingVariants: ['expired'],
+  })
+})
+
+test('metadata fixture work queue preserves the approved observation order and starts with control', () => {
+  expect(metadataFixtureWork({
+    eligibleCases: 1,
+    readyCases: 0,
+    cases: [{
+      caseId: 'one', ready: false,
+      requiredObservations: ['fetched:control', 'used:control', 'fetched:bad-signature'],
+      completedObservations: [], details: {},
+    }],
+  })).toEqual({
+    totalFixtures: 2,
+    completedFixtures: 0,
+    nextVariant: 'control',
+    nextOperation: 'fetched:control',
+    pendingVariants: ['control', 'bad-signature'],
+  })
+})
+
+test('arms one automatic polling campaign without collecting target verdict answers', async () => {
+  const calls: Array<{ url: string; init?: RequestInit }> = []
+  let lab: MetadataLab = metadataLab()
+  vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+    calls.push({ url, init })
+    if (url.includes('/metadata-lab/automatic-polling') && init?.method === 'POST') {
+      const variants = JSON.parse(String(init.body)).variants as string[]
+      lab = { ...lab, ingestionMode: 'AUTOMATIC_POLLING', campaignVariants: variants,
+        campaignIndex: 0, campaignComplete: false, selectedVariant: variants[0],
+        pollingDelaySeconds: 15, operatorContinuationActions: 0,
+        automaticStartUrl: 'https://suite.example/p/plan/start/metadata-polling/0?run=run&poll=token',
+        automaticContinueUrl: null }
+      return json(lab)
+    }
+    if (url.includes('/bootstrap-contracts')) return json([{
+      id: 'metadata-feed', title: 'Suite-controlled metadata feed', description: 'Shared feed.',
+      kind: 'STANDARD_METADATA', readiness: 'SETUP_REQUIRED', setupUrl: lab.metadataUrl,
+      setupInstruction: 'Use the stable URL.', pendingCases: 1, caseIds: ['IIP-MD04-b-idp-01'],
+    }])
+    if (url.includes('/metadata-lab')) return json(lab)
+    if (url.includes('/protocol-evidence')) return json({
+      eligibleCases: 1, readyCases: 0, cases: [{
+        caseId: 'IIP-MD04-b-idp-01', ready: false,
+        requiredObservations: ['fetched:control', 'used:control', 'fetched:expired'],
+        completedObservations: [], details: {},
+      }],
+    })
+    if (url.includes('/interactions')) return json([])
+    if (url === '/api/health') return json({ status: 'ok', version: 'test', mode: 'selfhosted' })
+    if (url.includes('/api/runs/')) return json({ id: 'run_0123456789ABCDEFGHJKMNPQRS', planId: 'plan' })
+    if (url === '/api/plans') return json([])
+    return json([])
+  }))
+
+  render(<RunManagement runId="run_0123456789ABCDEFGHJKMNPQRS" csrfToken="csrf" />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Arm automatic polling for 2 fixtures' }))
+
+  expect(await screen.findByText(/Automatic metadata polling armed with 2 fixtures/)).toBeTruthy()
+  expect(await screen.findByText(/0\/2 fixtures completed/)).toBeTruthy()
+  expect(screen.getByRole('link', { name: 'Start or resume the signed metadata campaign' })
+    .getAttribute('href')).toContain('/start/metadata-polling/0')
+  const post = calls.find(call => call.url.includes('/automatic-polling'))!
+  expect(post.init?.body).toBe(JSON.stringify({
+    variants: ['control', 'expired'], pollingDelaySeconds: 15,
+  }))
+  expect(String(post.init?.body)).not.toContain('verdict')
+})
+
+test('offers one aggregate import for compatible positive metadata fixtures', async () => {
+  const calls: Array<{ url: string; init?: RequestInit }> = []
+  let lab: MetadataLab = metadataLab()
+  vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+    calls.push({ url, init })
+    if (url.includes('/metadata-lab/preloaded') && init?.method === 'POST') {
+      lab = { ...lab, ingestionMode: 'PRELOADED_AGGREGATE',
+        automaticStartUrl: null, automaticContinueUrl: null,
+        preloadedMetadataUrl: 'https://suite.example/p/plan/metadata/preloaded?run=run&preload=token',
+        preloadedDownloadUrl: 'https://suite.example/p/plan/metadata/preloaded/download?run=run&preload=token',
+        preloadedStartUrl: 'https://suite.example/p/plan/start/metadata-preloaded/0?run=run&preload=token',
+        preloadedVariants: ['unknown-extension', 'certificate-expired'], preloadedFetched: false }
+      return json(lab)
+    }
+    if (url.includes('/bootstrap-contracts')) return json([{
+      id: 'metadata-feed', title: 'Suite-controlled metadata feed', description: 'Shared feed.',
+      kind: 'STANDARD_METADATA', readiness: 'SETUP_REQUIRED', setupUrl: lab.metadataUrl,
+      setupInstruction: 'Use the stable URL.', pendingCases: 1, caseIds: ['IIP-MD05-a3-idp-01'],
+    }])
+    if (url.includes('/metadata-lab')) return json(lab)
+    if (url.includes('/protocol-evidence')) return json({
+      eligibleCases: 1, readyCases: 0, cases: [{
+        caseId: 'IIP-MD05-a3-idp-01', ready: false,
+        requiredObservations: ['fetched:control', 'used:control', 'fetched:unknown-extension'],
+        completedObservations: [], details: {},
+      }],
+    })
+    if (url.includes('/interactions')) return json([])
+    if (url === '/api/health') return json({ status: 'ok', version: 'test', mode: 'selfhosted' })
+    if (url.includes('/api/runs/')) return json({ id: 'run_0123456789ABCDEFGHJKMNPQRS', planId: 'plan' })
+    if (url === '/api/plans') return json([])
+    return json([])
+  }))
+
+  render(<RunManagement runId="run_0123456789ABCDEFGHJKMNPQRS" csrfToken="csrf" />)
+  fireEvent.click(await screen.findByRole('button', {
+    name: 'Prepare one-time aggregate for compatible positive fixtures',
+  }))
+
+  expect(await screen.findByText(/Preloaded aggregate prepared with 2 compatible positive fixtures/)).toBeTruthy()
+  expect(await screen.findByText(/metadata\/preloaded\?run=run&preload=token/)).toBeTruthy()
+  expect(screen.getByRole('link', { name: 'Download signed aggregate XML' })
+    .getAttribute('download')).toBe('samlier-metadata-campaign.xml')
+  const post = calls.find(call => call.url.includes('/metadata-lab/preloaded'))!
+  expect(post.init?.body).toBe('{}')
+  expect(String(post.init?.body)).not.toContain('verdict')
+})
+
 test('explains that protocol-driven configuration answers are only an unavailability fallback', async () => {
   vi.stubGlobal('fetch', vi.fn(async (url: string) => {
     if (url.includes('/active-probe')) return json({ state: 'NOT_STARTED' })
@@ -352,6 +527,67 @@ test('shows plan action budgets and keeps self-attested evidence separate', asyn
   expect(screen.getByText('8')).toBeTruthy()
 })
 
+test('completes one shared policy action without collecting a target verdict', async () => {
+  const calls: Array<{ url: string; init?: RequestInit }> = []
+  let completed = false
+  vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+    calls.push({ url, init })
+    if (init?.method === 'POST' && url.includes('/campaigns/')) {
+      completed = true
+      return json({ runId: 'run_0123456789ABCDEFGHJKMNPQRS', completed: [] })
+    }
+    if (url.includes('/campaigns')) return json({
+      runId: 'run_0123456789ABCDEFGHJKMNPQRS', cases: 2,
+      casesByEvidenceClass: { PROTOCOL_OBSERVED: 0, OPERATOR_ASSISTED: 2, SELF_ATTESTED: 0 },
+      externallyVerifiedCases: 0, selfAttestedCases: 0, notVerifiedCases: 2,
+      plans: [], classifications: [],
+      campaigns: [{
+        id: 'operator_assisted-configuration-shared-crypto-policy',
+        title: 'Cryptographic algorithm policy', plan: 'STANDARD',
+        evidenceClass: 'OPERATOR_ASSISTED', actionKind: 'CONFIGURATION',
+        deliberateUserActions: 1, remainingUserActions: completed ? 0 : 1,
+        freshSessionRequired: false,
+        caseIds: ['IIP-ALG04-a-idp-01', 'IIP-ALG04-b-idp-01'],
+        remainingCaseIds: completed ? [] : ['IIP-ALG04-a-idp-01', 'IIP-ALG04-b-idp-01'],
+        expectedTranscriptEvidence: [],
+        actions: [{
+          id: 'content-encryption-policy',
+          caseIds: ['IIP-ALG04-a-idp-01', 'IIP-ALG04-b-idp-01'],
+          remainingCaseIds: completed ? [] : ['IIP-ALG04-a-idp-01', 'IIP-ALG04-b-idp-01'],
+        }],
+      }],
+    })
+    if (url.includes('/interactions')) return json(completed ? [] : [
+      { caseId: 'IIP-ALG04-a-idp-01', kind: 'BROWSER', promptEn: 'Observe AES128-GCM.',
+        startUrl: '/browser/run/first', expiresAt: '2026-09-05T00:00:00Z',
+        answerValues: ['completed'], completionMode: 'OPERATOR' },
+      { caseId: 'IIP-ALG04-b-idp-01', kind: 'BROWSER', promptEn: 'Observe AES256-GCM.',
+        startUrl: '/browser/run/second', expiresAt: '2026-09-05T00:00:00Z',
+        answerValues: ['completed'], completionMode: 'OPERATOR' },
+    ])
+    if (url.includes('/active-probe')) return json({ state: 'NOT_STARTED' })
+    if (url.includes('/bootstrap-contracts')) return json([])
+    if (url.includes('/metadata-lab')) return json(metadataLab())
+    if (url.includes('/protocol-evidence')) return json(protocolEvidence())
+    if (url === '/api/health') return json({ status: 'ok', version: 'test', mode: 'selfhosted' })
+    if (url.includes('/api/runs/')) return json({ id: 'run_0123456789ABCDEFGHJKMNPQRS', planId: 'plan' })
+    if (url === '/api/plans') return json([])
+    return json([])
+  }))
+
+  render(<RunManagement runId="run_0123456789ABCDEFGHJKMNPQRS" csrfToken="csrf" />)
+
+  expect(await screen.findByText('Shared target policy changes')).toBeTruthy()
+  expect(screen.getByText('2 CASES')).toBeTruthy()
+  expect(screen.queryAllByText('Browser steps completed')).toHaveLength(0)
+  fireEvent.click(screen.getByText('Continue after applying this shared policy'))
+
+  await waitFor(() => expect(completed).toBe(true))
+  const post = calls.find(call => call.init?.method === 'POST')
+  expect(post?.url).toContain('/campaigns/operator_assisted-configuration-shared-crypto-policy/actions/content-encryption-policy/complete')
+  expect(post?.init?.body).toBe('{}')
+})
+
 test('shares one section conclusion while preserving case-specific overrides', async () => {
   const calls: Array<{ url: string; init?: RequestInit }> = []
   let completed = false
@@ -424,6 +660,11 @@ function metadataLab() {
     runId: 'run_0123456789ABCDEFGHJKMNPQRS', planId: 'plan', selectedVariant: 'control',
     metadataUrl: 'https://suite.example/p/plan/metadata/live?run=run_0123456789ABCDEFGHJKMNPQRS',
     availableVariants: ['control', 'no-key-info'],
+    ingestionMode: 'MANUAL_REFRESH' as const, campaignVariants: [], campaignIndex: 0,
+    campaignComplete: false, automaticStartUrl: null, automaticContinueUrl: null,
+    pollingDelaySeconds: 15, operatorContinuationActions: 0,
+    preloadedMetadataUrl: null, preloadedDownloadUrl: null, preloadedStartUrl: null,
+    preloadedVariants: [], preloadedFetched: false,
   }
 }
 

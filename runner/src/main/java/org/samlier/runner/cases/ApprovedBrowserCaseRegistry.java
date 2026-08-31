@@ -252,6 +252,9 @@ public final class ApprovedBrowserCaseRegistry {
             return new AutoBrowserEvidenceTestCase(
                     fallback, transcriptContent, decryptionKeys, targetEntityIds, targetSigningCertificates);
         }
+        if (SharedBrowserPolicyTestCase.supports(definition.id())) {
+            return new SharedBrowserPolicyTestCase(fallback);
+        }
         return fallback;
     }
 

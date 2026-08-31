@@ -165,8 +165,22 @@ public final class MetadataConsumerObservationTestCase
                     fetched.add(variant);
                     evidence.add(new EvidenceRef("transcript", "transcript:" + entry.id()));
                 }
+                if (entry.samlSummary().get("variants") instanceof List<?> aggregate) {
+                    for (var item : aggregate) {
+                        if (item instanceof String value && variants.contains(value)) fetched.add(value);
+                    }
+                    if (aggregate.stream().anyMatch(item -> item instanceof String value
+                            && variants.contains(value))) {
+                        evidence.add(new EvidenceRef("transcript", "transcript:" + entry.id()));
+                    }
+                }
             }
-            if (entry.decodedSamlBytes() > 0 && entry.url() != null) {
+            var requestUse = "AuthnRequest".equals(entry.samlSummary().get("type"));
+            var responseUse = "Response".equals(entry.samlSummary().get("type"))
+                    && Boolean.TRUE.equals(entry.samlSummary().get("metadataProbeAccepted"))
+                    && "urn:oasis:names:tc:SAML:2.0:status:Success".equals(
+                            entry.samlSummary().get("statusCode"));
+            if (entry.decodedSamlBytes() > 0 && entry.url() != null && (requestUse || responseUse)) {
                 for (var variant : union(CONTROL, variants)) {
                     if (entry.url().contains("mdv=" + variant)
                             && entry.url().contains("run=" + context.runId())) {

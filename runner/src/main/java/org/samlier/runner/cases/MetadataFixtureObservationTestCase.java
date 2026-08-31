@@ -142,8 +142,10 @@ public final class MetadataFixtureObservationTestCase
 
     private CaseOutcome evaluate(CaseContext context, boolean attemptsConfirmed) {
         var observation = observe(context);
-        var ready = observation.ready() || attemptsConfirmed && observation.attemptPrerequisitesComplete();
-        if (!ready) {
+        // An operator confirming that an attempt was made cannot replace the missing protocol
+        // observation. In particular, an unrelated error response or a correlation mismatch must
+        // not turn a compatible positive fixture into a target violation.
+        if (!observation.ready()) {
             return new CaseOutcome(
                     Outcome.NOT_VERIFIED, "metadata_fixture_probe_incomplete",
                     "metadata.fixture-probe.incomplete", "metadata.fixture-probe.incomplete",
@@ -184,8 +186,20 @@ public final class MetadataFixtureObservationTestCase
                     fetched.add(variant);
                     evidence.add(new EvidenceRef("transcript", "transcript:" + entry.id()));
                 }
+                if (entry.samlSummary().get("variants") instanceof List<?> variants) {
+                    for (var item : variants) {
+                        if (item instanceof String value && relevant.contains(value)) fetched.add(value);
+                    }
+                    if (variants.stream().anyMatch(item -> item instanceof String value
+                            && relevant.contains(value))) {
+                        evidence.add(new EvidenceRef("transcript", "transcript:" + entry.id()));
+                    }
+                }
             }
             if (entry.decodedSamlBytes() <= 0 || entry.url() == null) continue;
+            if (!Boolean.TRUE.equals(entry.samlSummary().get("metadataProbeAccepted"))
+                    || !"urn:oasis:names:tc:SAML:2.0:status:Success".equals(
+                            entry.samlSummary().get("statusCode"))) continue;
             for (var variant : relevant) {
                 if (entry.url().contains("mdv=" + variant)
                         && entry.url().contains("run=" + context.runId())) {
@@ -211,7 +225,6 @@ public final class MetadataFixtureObservationTestCase
         return new Observation(
                 fetched.contains(CONTROL) && used.contains(CONTROL)
                         && allFetched && conclusive,
-                fetched.contains(CONTROL) && used.contains(CONTROL) && allFetched,
                 fetched, used, distinct(evidence), details);
     }
 
@@ -236,7 +249,6 @@ public final class MetadataFixtureObservationTestCase
 
     private record Observation(
             boolean ready,
-            boolean attemptPrerequisitesComplete,
             Set<String> fetched,
             Set<String> used,
             List<EvidenceRef> evidence,

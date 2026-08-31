@@ -2,6 +2,8 @@ package org.samlier.saml.metadata;
 
 import java.net.URI;
 import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Duration;
@@ -40,6 +42,27 @@ public final class MetadataService {
     public static final String POST = "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST";
     public static final String SOAP = "urn:oasis:names:tc:SAML:2.0:bindings:SOAP";
     public static final String PAOS = "urn:oasis:names:tc:SAML:2.0:bindings:PAOS";
+    private static final List<Variant> PRELOADED_CAMPAIGN_VARIANTS = List.of(
+            Variant.UNKNOWN_EXTENSION,
+            Variant.UNKNOWN_ROLE_EXTENSION,
+            Variant.UNKNOWN_ENDPOINT_EXTENSION,
+            Variant.MDRPI_REGISTRATION_INFO,
+            Variant.ENTITY_CACHE_DURATION,
+            Variant.ENTITIES_CACHE_DURATION,
+            Variant.ENTITIES_VALID_UNTIL,
+            Variant.NESTED_ENTITIES,
+            Variant.KEYVALUE_ONLY,
+            Variant.CERT_EXPIRED,
+            Variant.CERT_NOT_YET_VALID,
+            Variant.CERT_NO_DIGITAL_SIGNATURE,
+            Variant.CERT_CRITICAL_EXTENSION,
+            Variant.CERT_NONCRITICAL_EXTENSION,
+            Variant.CERT_UNRELATED_EKU,
+            Variant.CERT_SHA1,
+            Variant.CERT_SHA512,
+            Variant.CERT_EMPTY_SUBJECT,
+            Variant.CERT_LONG_VALIDITY,
+            Variant.CERT_UNKNOWN_CA);
 
     private final URI peerBase;
     private final FilePlanKeyStore keyStore;
@@ -84,10 +107,75 @@ public final class MetadataService {
         return SecureXml.serialize(document);
     }
 
-    public byte[] generate(TestPlan plan, Variant variant, String runId) {
+    /**
+     * Generates one signed aggregate containing only mutually compatible positive-consumption
+     * fixtures. Document-wide negative controls remain separate because combining them would lose
+     * the reason for rejection and therefore the case's detection power.
+     */
+    public byte[] generatePreloadedCampaign(TestPlan plan, String runId) {
+        if (runId == null || runId.isBlank()) throw new IllegalArgumentException("runId is required");
+        var document = SecureXml.newDocument();
+        var root = element(document, MD, "md:EntitiesDescriptor");
+        root.setAttributeNS(XMLConstants.XMLNS_ATTRIBUTE_NS_URI, "xmlns:md", MD);
+        root.setAttributeNS(XMLConstants.XMLNS_ATTRIBUTE_NS_URI, "xmlns:ds", DS);
+        root.setAttribute("ID", "_" + plan.id() + "_preloaded_campaign");
+        root.setAttribute("validUntil", DateTimeFormatter.ISO_INSTANT.format(
+                clock.instant().plus(Duration.ofDays(14))));
+        document.appendChild(root);
+
+        for (var variant : PRELOADED_CAMPAIGN_VARIANTS) {
+            var fixture = SecureXml.parse(generate(plan, variant, runId));
+            var fixtureRoot = fixture.getDocumentElement();
+            removeSignatures(fixtureRoot);
+            rewritePreloadedIdentity(fixtureRoot, plan, variant);
+            markSignedRequestsRequired(fixtureRoot);
+            root.appendChild(document.importNode(fixtureRoot, true));
+        }
+        signer.sign(root, keyStore.getOrCreate(plan.id()),
+                root.getFirstChild() instanceof Element child ? child : null,
+                XmlSigner.SignatureOptions.standard());
+        return SecureXml.serialize(document);
+    }
+
+    public static List<Variant> preloadedCampaignVariants() {
+        return PRELOADED_CAMPAIGN_VARIANTS;
+    }
+
+    public String preloadedEntityId(TestPlan plan, Variant variant) {
+        if (!PRELOADED_CAMPAIGN_VARIANTS.contains(variant)) {
+            throw new IllegalArgumentException("Variant is not safe for the preloaded campaign: " + variant.id());
+        }
+        return endpoint(plan, "/metadata-peer/" + variant.id());
+    }
+
+    public PlanCredentials credentialsForVariant(TestPlan plan, Variant variant) {
         var primary = keyStore.getOrCreate(plan.id());
+        return roleCredentials(plan, primary, variant);
+    }
+
+    /**
+     * Generates a fixture with a deterministic per-variant test key. A metadata consumer that
+     * refreshes its configured URL on an unknown signing key can therefore advance a polling
+     * campaign without any vendor administration API.
+     */
+    public byte[] generatePolling(TestPlan plan, Variant variant, String runId) {
+        return generate(plan, variant, runId, pollingBaseCredentials(plan, variant));
+    }
+
+    /** Credentials matching the role key in {@link #generatePolling}. */
+    public PlanCredentials credentialsForPollingVariant(TestPlan plan, Variant variant) {
+        var primary = pollingBaseCredentials(plan, variant);
+        return roleCredentials(plan, primary, variant);
+    }
+
+    public byte[] generate(TestPlan plan, Variant variant, String runId) {
+        return generate(plan, variant, runId, keyStore.getOrCreate(plan.id()));
+    }
+
+    private byte[] generate(
+            TestPlan plan, Variant variant, String runId, PlanCredentials primary) {
         var signingCredentials = signingCredentials(plan, primary, variant);
-        var roleCredentials = variant.certificateVariant() ? signingCredentials : primary;
+        var roleCredentials = roleCredentials(plan, primary, variant);
         var document = SecureXml.newDocument();
         var root = element(document, MD, "md:EntityDescriptor");
         root.setAttributeNS(XMLConstants.XMLNS_ATTRIBUTE_NS_URI, "xmlns:md", MD);
@@ -110,7 +198,6 @@ public final class MetadataService {
         service(document, sp, "AssertionConsumerService", POST, endpoint(plan, "/sp/acs/1", variant, runId), 1, false);
         service(document, sp, "AssertionConsumerService", PAOS, endpoint(plan, "/sp/paos", variant, runId), 2, false);
         // Deliberately advertise a Redirect ACS so SSO01.x can detect a target that emits a
-        // Response with the forbidden binding. The receiver records such traffic as evidence;
         // advertising it never turns the binding into an allowed target behavior.
         service(document, sp, "AssertionConsumerService", REDIRECT, endpoint(plan, "/sp/acs/3", variant, runId), 3, false);
         root.appendChild(sp);
@@ -144,12 +231,72 @@ public final class MetadataService {
         return SecureXml.serialize(document);
     }
 
+    private PlanCredentials pollingBaseCredentials(TestPlan plan, Variant variant) {
+        try {
+            var digest = MessageDigest.getInstance("SHA-256")
+                    .digest(variant.id().getBytes(StandardCharsets.UTF_8));
+            var alias = "poll-" + java.util.HexFormat.of().formatHex(digest, 0, 8);
+            return keyStore.getOrCreate(plan.id(), alias);
+        } catch (java.security.NoSuchAlgorithmException impossible) {
+            throw new IllegalStateException("SHA-256 is unavailable", impossible);
+        }
+    }
+
+    private PlanCredentials roleCredentials(
+            TestPlan plan, PlanCredentials primary, Variant variant) {
+        return variant.certificateVariant()
+                ? signingCredentials(plan, primary, variant)
+                : primary;
+    }
+
     private PlanCredentials signingCredentials(TestPlan plan, PlanCredentials primary, Variant variant) {
         if (variant == Variant.SIGNED_OTHER_KEY || variant == Variant.SIGNED_OTHER_KEY_PRIMARY_KEYINFO) {
             return keyStore.getOrCreate(plan.id(), "metadata-other");
         }
         var certificate = certificateVariant(primary, variant);
         return certificate == primary.certificate() ? primary : new PlanCredentials(primary.privateKey(), certificate);
+    }
+
+    private void removeSignatures(Element root) {
+        var signatures = root.getElementsByTagNameNS(DS, "Signature");
+        var values = new java.util.ArrayList<org.w3c.dom.Node>();
+        for (var index = 0; index < signatures.getLength(); index++) values.add(signatures.item(index));
+        values.forEach(value -> value.getParentNode().removeChild(value));
+    }
+
+    private void rewritePreloadedIdentity(Element root, TestPlan plan, Variant variant) {
+        var entities = elementsIncludingRoot(root, "EntityDescriptor");
+        for (var index = 0; index < entities.size(); index++) {
+            var entity = entities.get(index);
+            entity.setAttribute("ID", "_" + plan.id() + "_preloaded_"
+                    + variant.id().replace('-', '_') + "_" + index);
+            entity.setAttribute("entityID", index == entities.size() - 1
+                    ? preloadedEntityId(plan, variant)
+                    : preloadedEntityId(plan, variant) + "/child/" + index);
+        }
+        var groups = elementsIncludingRoot(root, "EntitiesDescriptor");
+        for (var index = 0; index < groups.size(); index++) {
+            groups.get(index).setAttribute(
+                    "ID", "_" + plan.id() + "_preloaded_group_"
+                            + variant.id().replace('-', '_') + "_" + index);
+        }
+    }
+
+    private List<Element> elementsIncludingRoot(Element root, String localName) {
+        var result = new java.util.ArrayList<Element>();
+        if (MD.equals(root.getNamespaceURI()) && localName.equals(root.getLocalName())) result.add(root);
+        var descendants = root.getElementsByTagNameNS(MD, localName);
+        for (var index = 0; index < descendants.getLength(); index++) {
+            result.add((Element) descendants.item(index));
+        }
+        return result;
+    }
+
+    private void markSignedRequestsRequired(Element root) {
+        var roles = root.getElementsByTagNameNS(MD, "SPSSODescriptor");
+        for (var index = 0; index < roles.getLength(); index++) {
+            ((Element) roles.item(index)).setAttribute("AuthnRequestsSigned", "true");
+        }
     }
 
     private java.security.cert.X509Certificate certificateVariant(PlanCredentials primary, Variant variant) {

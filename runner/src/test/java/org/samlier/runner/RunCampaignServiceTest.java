@@ -28,6 +28,7 @@ import org.samlier.core.caseexec.OutboxEntry;
 import org.samlier.core.caseexec.OutboxStatus;
 import org.samlier.core.caseexec.TestCase;
 import org.samlier.core.evaluation.CaseOutcome;
+import org.samlier.core.evaluation.EvidenceRef;
 import org.samlier.core.evaluation.Outcome;
 import org.samlier.core.plan.TargetRole;
 import org.samlier.runner.RunCampaignQuery.EvidenceClass;
@@ -71,6 +72,55 @@ class RunCampaignServiceTest {
         var campaign = report.campaigns().get(0);
         assertEquals(4, campaign.deliberateUserActions());
         assertEquals(4, campaign.remainingUserActions());
+    }
+
+    @Test
+    void preloadedAggregateCountsOneImportAndOneBrowserStartInsteadOfPerFixtureActions() {
+        var first = definition("first", "IIP-MD05.a3", ExecutionMode.CONFIG, "none");
+        var second = definition("second", "IIP-MD12.d", ExecutionMode.CONFIG, "none");
+        var service = new RunCampaignService(
+                new MemoryExecutions(List.of(execution(first.id(), false), execution(second.id(), false))),
+                new CaseDefinitionCatalog(List.of(first, second)),
+                new TestCaseRegistry(List.of(
+                        new CampaignProtocolCase(first.id(), List.of(
+                                "control", "unknown-extension", "unknown-role-extension")),
+                        new CampaignProtocolCase(second.id(), List.of(
+                                "control", "certificate-expired", "certificate-sha1")))),
+                ignored -> context(), ignored -> preloadedLabState());
+
+        var campaign = service.report("run").campaigns().getFirst();
+        assertEquals(3, campaign.deliberateUserActions(),
+                "control stays separate; four compatible fixtures become one import plus one start");
+    }
+
+    @Test
+    void automaticPollingCountsOneCampaignStartInsteadOfPerFixtureRefreshes() {
+        var first = definition("first", "IIP-MD05.a3", ExecutionMode.CONFIG, "none");
+        var second = definition("second", "IIP-MD12.d", ExecutionMode.CONFIG, "none");
+        var variants = List.of("control", "unknown-extension", "certificate-expired", "certificate-sha1");
+        var service = new RunCampaignService(
+                new MemoryExecutions(List.of(execution(first.id(), false), execution(second.id(), false))),
+                new CaseDefinitionCatalog(List.of(first, second)),
+                new TestCaseRegistry(List.of(
+                        new CampaignProtocolCase(first.id(), variants.subList(0, 2)),
+                        new CampaignProtocolCase(second.id(), variants.subList(2, 4)))),
+                ignored -> context(), ignored -> automaticLabState(variants));
+
+        assertEquals(1, service.report("run").campaigns().getFirst().deliberateUserActions());
+    }
+
+    @Test
+    void automaticPollingAddsOnlyTheContinuationsActuallyRequiredByTheTarget() {
+        var definition = definition("first", "IIP-MD05.a3", ExecutionMode.CONFIG, "none");
+        var variants = List.of("control", "unknown-extension", "bad-signature");
+        var service = new RunCampaignService(
+                new MemoryExecutions(List.of(execution(definition.id(), false))),
+                new CaseDefinitionCatalog(List.of(definition)),
+                new TestCaseRegistry(List.of(new CampaignProtocolCase(definition.id(), variants))),
+                ignored -> context(), ignored -> automaticLabState(variants, 2));
+
+        assertEquals(3, service.report("run").campaigns().getFirst().deliberateUserActions(),
+                "one start plus two observed Target-result continuations");
     }
 
     @Test
@@ -140,9 +190,85 @@ class RunCampaignServiceTest {
         var campaign = report.campaigns().get(0);
         assertEquals(EvidenceClass.PROTOCOL_OBSERVED, campaign.evidenceClass());
         assertEquals("protocol_observed-login-shared-active-probe-chain", campaign.id());
-        assertEquals(1, campaign.deliberateUserActions());
-        assertEquals(1, campaign.remainingUserActions());
+        assertEquals(2, campaign.deliberateUserActions(),
+                "one shared probe start plus one shared recovery after a fresh-session boundary");
+        assertEquals(2, campaign.remainingUserActions());
         assertTrue(campaign.freshSessionRequired());
+    }
+
+    @Test
+    void sharesLoginCheckpointsAcrossScenariosAndCountsOneFreshSessionRecovery() {
+        var first = definition("first", "IIP-IDP05.a", ExecutionMode.BROWSER, "none");
+        var second = definition("second", "IIP-IDP06.a", ExecutionMode.BROWSER, "none");
+        var third = definition("third", "IIP-IDP07.a", ExecutionMode.BROWSER, "none");
+        var report = service(
+                List.of(first, second, third),
+                List.of(
+                        new BrowserScenarioCase(first.id(), 1, true),
+                        new BrowserScenarioCase(second.id(), 2, false),
+                        new BrowserScenarioCase(third.id(), 1, true)),
+                List.of(execution(first.id(), false), execution(second.id(), false),
+                        execution(third.id(), false))).report("run");
+
+        var campaign = report.campaigns().getFirst();
+        assertEquals(3, campaign.deliberateUserActions(),
+                "shared session, forced reauthentication, and one shared post-fresh recovery");
+        assertEquals(List.of(
+                        "active-probe-login-1", "active-probe-login-after-fresh-session",
+                        "active-probe-login-2"),
+                campaign.actions().stream().map(RunCampaignQuery.CampaignAction::id).toList());
+        assertEquals(3, campaign.actions().get(0).caseIds().size());
+        assertEquals(2, campaign.actions().get(1).caseIds().size());
+    }
+
+    @Test
+    void countsSharedCryptographicPolicyFamiliesInsteadOfCases() {
+        var block128 = definition("block128", "IIP-ALG04.a", ExecutionMode.BROWSER, "none");
+        var block256 = definition("block256", "IIP-ALG04.b", ExecutionMode.BROWSER, "none");
+        var transport = definition("transport", "IIP-ALG06.a", ExecutionMode.BROWSER, "none");
+        var report = service(
+                List.of(block128, block256, transport),
+                List.of(
+                        new PolicyCampaignCase(block128.id(), "content-encryption-policy"),
+                        new PolicyCampaignCase(block256.id(), "content-encryption-policy"),
+                        new PolicyCampaignCase(transport.id(), "key-transport-policy")),
+                List.of(execution(block128.id(), false), execution(block256.id(), false),
+                        execution(transport.id(), false))).report("run");
+
+        var campaign = report.campaigns().getFirst();
+        assertEquals(EvidenceClass.OPERATOR_ASSISTED, campaign.evidenceClass());
+        assertEquals(2, campaign.deliberateUserActions());
+        assertEquals(2, report.plans().get(1).configurationActions());
+        assertEquals(List.of("content-encryption-policy", "key-transport-policy"),
+                campaign.actions().stream().map(RunCampaignQuery.CampaignAction::id).toList());
+        assertEquals(List.of("block128", "block256"), campaign.actions().getFirst().caseIds());
+    }
+
+    @Test
+    void classifiesAutomaticFastPathOnlyWhenExternalEvidenceActuallyResolvedFallbackCase() {
+        var definition = definition(
+                "IIP-MD09-a-idp-01", "IIP-MD09.a", ExecutionMode.ATTESTED, "none");
+        var fallbackCase = new ConditionalCampaignCase(definition.id());
+
+        var pending = service(
+                List.of(definition), List.of(fallbackCase), List.of(execution(definition.id(), false)))
+                .report("run");
+        assertEquals(EvidenceClass.SELF_ATTESTED, pending.classifications().getFirst().evidenceClass());
+
+        var externalExecution = finishedExecution(
+                definition.id(), new EvidenceRef("target-metadata", "sha256:" + "1".repeat(64)));
+        var external = service(
+                List.of(definition), List.of(fallbackCase), List.of(externalExecution)).report("run");
+        assertEquals(EvidenceClass.PROTOCOL_OBSERVED, external.classifications().getFirst().evidenceClass());
+        assertEquals(1, external.externallyVerifiedCases());
+        assertEquals(0, external.selfAttestedCases());
+
+        var attestedExecution = finishedExecution(
+                definition.id(), new EvidenceRef("attestation", "attestation:run:" + definition.id()));
+        var attested = service(
+                List.of(definition), List.of(fallbackCase), List.of(attestedExecution)).report("run");
+        assertEquals(EvidenceClass.SELF_ATTESTED, attested.classifications().getFirst().evidenceClass());
+        assertEquals(1, attested.selfAttestedCases());
     }
 
     private RunCampaignService service(
@@ -166,6 +292,12 @@ class RunCampaignServiceTest {
                 "run", id, 0, finished ? CaseExecutionStatus.FINISHED : CaseExecutionStatus.RUNNING,
                 CaseState.initial(), null,
                 finished ? CaseOutcome.of(Outcome.SATISFIED, "observed", List.of()) : null, NOW);
+    }
+
+    private CaseExecution finishedExecution(String id, EvidenceRef evidence) {
+        return new CaseExecution(
+                "run", id, 0, CaseExecutionStatus.FINISHED, CaseState.initial(), null,
+                CaseOutcome.of(Outcome.SATISFIED, "observed", List.of(evidence)), NOW);
     }
 
     private TestCase passive(String id) {
@@ -216,12 +348,43 @@ class RunCampaignServiceTest {
     private static final class BrowserScenarioCase
             implements TestCase, BrowserFrontChannelScenario, org.samlier.runner.cases.BrowserPrompt {
         private final String id;
-        private BrowserScenarioCase(String id) { this.id = id; }
+        private final int actions;
+        private final boolean fresh;
+        private BrowserScenarioCase(String id) { this(id, 0, true); }
+        private BrowserScenarioCase(String id, int actions, boolean fresh) {
+            this.id = id;
+            this.actions = actions;
+            this.fresh = fresh;
+        }
         @Override public String id() { return id; }
         @Override public TargetRole role() { return TargetRole.IDP; }
         @Override public String browserInstructionsEn() { return "Complete the scenario."; }
         @Override public String instructionsEn(CaseState state) { return browserInstructionsEn(); }
-        @Override public boolean requiresFreshSession(CaseState state) { return true; }
+        @Override public boolean requiresFreshSession(CaseState state) { return fresh; }
+        @Override public boolean plansFreshSessionBoundary() { return fresh; }
+        @Override public int plannedDeliberateActions() { return actions; }
+        @Override public CaseStep start(CaseContext context) { throw new UnsupportedOperationException(); }
+        @Override public CaseStep resume(CaseContext context, CaseState state, CaseEvent event) {
+            throw new UnsupportedOperationException();
+        }
+    }
+
+    private static final class PolicyCampaignCase
+            implements TestCase, EvidenceCampaignCase, OperatorAssistedCase {
+        private final String id;
+        private final String actionKey;
+        private PolicyCampaignCase(String id, String actionKey) {
+            this.id = id;
+            this.actionKey = actionKey;
+        }
+        @Override public String id() { return id; }
+        @Override public TargetRole role() { return TargetRole.IDP; }
+        @Override public String evidenceCampaignId() { return "crypto-policy"; }
+        @Override public String evidenceCampaignTitle() { return "Cryptographic algorithm policy"; }
+        @Override public RunCampaignQuery.ActionKind evidenceActionKind() {
+            return RunCampaignQuery.ActionKind.CONFIGURATION;
+        }
+        @Override public List<String> evidenceActionKeys() { return List.of(actionKey); }
         @Override public CaseStep start(CaseContext context) { throw new UnsupportedOperationException(); }
         @Override public CaseStep resume(CaseContext context, CaseState state, CaseEvent event) {
             throw new UnsupportedOperationException();
@@ -249,7 +412,59 @@ class RunCampaignServiceTest {
             throw new UnsupportedOperationException();
         }
         @Override public EvidenceStatus evidenceStatus(CaseContext context) {
-            return new EvidenceStatus(false, List.of(), List.of(), Map.of());
+            return new EvidenceStatus(false,
+                    actionKeys.stream().map(value -> "fetched:" + value).toList(),
+                    List.of(), Map.of());
+        }
+    }
+
+    private MetadataLabService.State preloadedLabState() {
+        var variants = org.samlier.saml.metadata.MetadataService.preloadedCampaignVariants().stream()
+                .map(org.samlier.saml.metadata.MetadataService.Variant::id).toList();
+        return new MetadataLabService.State(
+                "run", "plan", "control", java.net.URI.create("https://suite.example/live"),
+                List.of("control"), MetadataLabService.IngestionMode.PRELOADED_AGGREGATE,
+                variants, 0, false, 15, 0, null, null, java.net.URI.create("https://suite.example/preloaded"),
+                java.net.URI.create("https://suite.example/preloaded/download"),
+                java.net.URI.create("https://suite.example/start"), variants, false);
+    }
+
+    private MetadataLabService.State automaticLabState(List<String> variants) {
+        return automaticLabState(variants, 0);
+    }
+
+    private MetadataLabService.State automaticLabState(List<String> variants, int continuations) {
+        return new MetadataLabService.State(
+                "run", "plan", variants.getFirst(), java.net.URI.create("https://suite.example/live"),
+                variants, MetadataLabService.IngestionMode.AUTOMATIC_POLLING,
+                variants, 0, false, 15, continuations,
+                java.net.URI.create("https://suite.example/polling-start"),
+                null, null, null, null, List.of(), false);
+    }
+
+    private static final class ConditionalCampaignCase
+            implements TestCase, EvidenceCampaignCase, FallbackEvidenceCase,
+            org.samlier.runner.cases.AttestationPrompt {
+        private final String id;
+        private ConditionalCampaignCase(String id) { this.id = id; }
+        @Override public String id() { return id; }
+        @Override public TargetRole role() { return TargetRole.IDP; }
+        @Override public String evidenceCampaignId() { return "target-metadata-inspection"; }
+        @Override public String evidenceCampaignTitle() { return "Passive target metadata inspection"; }
+        @Override public RunCampaignQuery.ActionKind evidenceActionKind() {
+            return RunCampaignQuery.ActionKind.NONE;
+        }
+        @Override public boolean resolvedFromExternalEvidence(CaseExecution execution) {
+            return execution.outcome() != null && execution.outcome().evidence().stream()
+                    .anyMatch(value -> "target-metadata".equals(value.kind()));
+        }
+        @Override public String promptEn() { return "Review evidence."; }
+        @Override public List<AttestationOption> options() {
+            return List.of(AttestationOption.of("satisfied", Outcome.SATISFIED, "ok"));
+        }
+        @Override public CaseStep start(CaseContext context) { throw new UnsupportedOperationException(); }
+        @Override public CaseStep resume(CaseContext context, CaseState state, CaseEvent event) {
+            throw new UnsupportedOperationException();
         }
     }
 

@@ -1,48 +1,47 @@
 package org.samlier.runner.cases;
 
-import java.time.Instant;
 import java.util.Objects;
 import java.util.function.Function;
 import org.samlier.core.caseexec.CaseContext;
 import org.samlier.core.caseexec.CaseEvent;
+import org.samlier.core.caseexec.CaseExecution;
 import org.samlier.core.caseexec.CaseState;
 import org.samlier.core.caseexec.CaseStep;
 import org.samlier.core.caseexec.TestCase;
 import org.samlier.core.plan.TargetRole;
+import org.samlier.runner.EvidenceCampaignCase;
+import org.samlier.runner.FallbackEvidenceCase;
+import org.samlier.runner.RunCampaignQuery;
 
-/** Uses target metadata first and falls back to the approved CONFIG interaction when inconclusive. */
-public final class AutoConfigurationEvidenceTestCase
-        implements TestCase, ConfigurationPrompt, AttestationPrompt,
-        org.samlier.runner.EvidenceCampaignCase, org.samlier.runner.FallbackEvidenceCase {
+/** Uses conclusive target metadata first and preserves the approved attestation as fallback. */
+public final class AutoAttestedMetadataEvidenceTestCase
+        implements TestCase, AttestationPrompt, EvidenceCampaignCase, FallbackEvidenceCase {
     private final TestCase fallback;
     private final Function<String, byte[]> targetMetadata;
 
-    public AutoConfigurationEvidenceTestCase(TestCase fallback, Function<String, byte[]> targetMetadata) {
+    public AutoAttestedMetadataEvidenceTestCase(
+            TestCase fallback, Function<String, byte[]> targetMetadata) {
         this.fallback = Objects.requireNonNull(fallback, "fallback");
         this.targetMetadata = Objects.requireNonNull(targetMetadata, "targetMetadata");
-        if (!TargetMetadataObservation.supports(fallback.id())) {
-            throw new IllegalArgumentException("No target-metadata oracle for " + fallback.id());
-        }
-        if (!(fallback instanceof ConfigurationPrompt) || !(fallback instanceof AttestationPrompt)) {
-            throw new IllegalArgumentException("CONFIG fallback must expose both approved prompts");
+        if (!(fallback instanceof AttestationPrompt) || !TargetMetadataObservation.supports(fallback.id())) {
+            throw new IllegalArgumentException("No approved target-metadata fallback for " + fallback.id());
         }
     }
 
     @Override public String id() { return fallback.id(); }
     @Override public TargetRole role() { return fallback.role(); }
-    @Override public String evidenceCampaignId() { return "target-metadata-inspection"; }
-    @Override public String evidenceCampaignTitle() { return "Passive target metadata inspection"; }
-    @Override public org.samlier.runner.RunCampaignQuery.ActionKind evidenceActionKind() {
-        return org.samlier.runner.RunCampaignQuery.ActionKind.NONE;
-    }
-    @Override public String instructionEn() { return ((ConfigurationPrompt) fallback).instructionEn(); }
     @Override public String promptEn() { return ((AttestationPrompt) fallback).promptEn(); }
     @Override public java.util.List<AttestationOption> options() {
         return ((AttestationPrompt) fallback).options();
     }
+    @Override public String evidenceCampaignId() { return "target-metadata-inspection"; }
+    @Override public String evidenceCampaignTitle() { return "Passive target metadata inspection"; }
+    @Override public RunCampaignQuery.ActionKind evidenceActionKind() {
+        return RunCampaignQuery.ActionKind.NONE;
+    }
 
     @Override
-    public boolean resolvedFromExternalEvidence(org.samlier.core.caseexec.CaseExecution execution) {
+    public boolean resolvedFromExternalEvidence(CaseExecution execution) {
         return execution.outcome() != null && execution.outcome().evidence().stream()
                 .anyMatch(value -> "target-metadata".equals(value.kind()));
     }
