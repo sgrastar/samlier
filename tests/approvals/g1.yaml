@@ -1,13 +1,13 @@
-target_commit: 090703e07d7894cb90297cb862e3de38575dd7a0
+target_commit: db0f86da975cbf40dc1995cca259141fe9bfed18
 artifact_digests:
-  tests/coverage.yaml: sha256:8a3a20188ae66802997826af2117d342fc72707cd3310ff2be0f8f9a610e4393
+  tests/coverage.yaml: sha256:2bee3db74c9be9908710bbe18935c73454f1ed4c5c0f06bdab1cf18deaef843c
   tests/specs.yaml: sha256:acee5ce8c348fbc5e02f77bd2f5b8703a632dd69aea857b14b97812ff6cc39d9
   tests/predicates.yaml: sha256:ea0aec770d743d0c8315c706ae80fb5979a103021ebdc4fcf86187c052e90262
 evidence:
   kind: signed-commit
   reviewers:
   - hoshina@gmail.com
-  evidence_url: https://github.com/sgrastar/samlier/pull/1
+  evidence_url: https://github.com/sgrastar/samlier/commit/db0f86da975cbf40dc1995cca259141fe9bfed18
 approvals:
 - obligation: IIP-G01.a
   obligation_digest: sha256:f09a9126ad949769b762fc416b84f712ca47d6759a8117658314c773471ada91
@@ -1386,9 +1386,9 @@ approvals:
   reviewer: hoshina@gmail.com
   approved_at: '2026-08-29T06:49:09+09:00'
 - obligation: IIP-EXT01.c
-  obligation_digest: sha256:33663fc065c6dca4d16035ffe0899be0134e50a266d5a1d2fd6c3126e719d7c2
+  obligation_digest: sha256:9f5bc4dfbadc6babd259721ae0135bafd902195042626269dd7401931259d6de
   reviewer: hoshina@gmail.com
-  approved_at: '2026-08-29T06:49:09+09:00'
+  approved_at: '2026-09-01T12:10:36+09:00'
 - obligation: IIP-ALG01.a
   obligation_digest: sha256:7b3adb9ec3d7524c0343617fb13c92c6975cd6fe245af2d6d077c21508e84fa9
   reviewer: hoshina@gmail.com
@@ -2185,4 +2185,3 @@ approvals:
   obligation_digest: sha256:fe23cdba71abb2026df21b540741e2e6cda03c33cb9de7be2695f2ebc337544f
   reviewer: hoshina@gmail.com
   approved_at: '2026-08-29T06:49:09+09:00'
-
