@@ -1,6 +1,6 @@
 schema_version: 1
 g2_state: PENDING_REVIEW
-catalog_commit: 090703e07d7894cb90297cb862e3de38575dd7a0
+catalog_commit: db0f86da975cbf40dc1995cca259141fe9bfed18
 authored_by: samlier-g2-builder
 cases:
 - id: IIP-G01-a-idp-01
