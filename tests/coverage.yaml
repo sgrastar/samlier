@@ -12852,21 +12852,19 @@ requirements:
         source_clauses:
           - { start: 432, end: 510, digest: "sha256:c0b40d046c810916c8752530f49bb557b45324dbdb885531d53e425c79352729", occurrences: 1 }
         required_variants:
-          - id: v-3d55aa30a6
-            description_en: "An unknown attribute on samlp:Extensions."
-          - id: v-4acbd708a3
-            description_en: "An unknown attribute on md:EntityDescriptor."
-          - id: v-73c84b1bc8
-            description_en: "An unknown attribute on saml:Advice."
+          - id: v-3efd721c6d
+            description_en: "Schema-driven matrix: for every applicable element established in SAML2-xsd or SAML2MD-xsd whose declared type definition directly contains xsd:anyAttribute, add a foreign-namespace undefined attribute and consume the otherwise schema-valid message or metadata document."
         controls:
-          - "Unknown attributes exercise a path distinct from unknown elements; test both."
+          - "Generate the fixture matrix from the pinned SAML2-xsd and SAML2MD-xsd schemas rather than a handwritten element list."
+          - "Include only elements whose declared type definition directly contains xsd:anyAttribute. Use a foreign, non-SAML namespace so every fixture remains schema-valid."
+          - "Unknown attributes exercise a path distinct from unknown elements. Judge only whether the content causes a software failure; ignoring it is permitted."
         authored_by: samlier-g1-builder
         review:
           # Authoring state only. Canonical approval evidence is in tests/approvals/g1.yaml.
           state: PENDING_REVIEW
           reviewer: null
           approved_at: null
-          obligation_digest: "sha256:33663fc065c6dca4d16035ffe0899be0134e50a266d5a1d2fd6c3126e719d7c2"
+          obligation_digest: "sha256:9f5bc4dfbadc6babd259721ae0135bafd902195042626269dd7401931259d6de"
           source_spec: kantara-fedinterop-impl
           spec_version: "1.1"
           source_selector: "#IIP-EXT01"

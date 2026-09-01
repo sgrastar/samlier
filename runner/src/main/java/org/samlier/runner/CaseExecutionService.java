@@ -147,7 +147,8 @@ public final class CaseExecutionService {
         if (current.waitCondition() != null
                 && now.isAfter(current.waitCondition().expiresAt())
                 && !(event instanceof CaseEvent.TimedOut)
-                && !(event instanceof CaseEvent.Aborted)) {
+                && !(event instanceof CaseEvent.Aborted)
+                && !(event instanceof CaseEvent.RetryInbound)) {
             throw new IllegalArgumentException("Waiting case has expired; resume it with TimedOut");
         }
         var accepted = event instanceof CaseEvent.TimedOut || event instanceof CaseEvent.Aborted || switch (current.status()) {
@@ -158,7 +159,8 @@ public final class CaseExecutionService {
                     || event instanceof CaseEvent.ConfigUnavailable;
             case WAITING_ATTESTATION -> event instanceof CaseEvent.Attested;
             case WAITING_INBOUND -> event instanceof CaseEvent.InboundMessage
-                    || event instanceof CaseEvent.InboundUnavailable;
+                    || event instanceof CaseEvent.InboundUnavailable
+                    || event instanceof CaseEvent.RetryInbound;
             case FINISHED -> false;
         };
         if (!accepted) {

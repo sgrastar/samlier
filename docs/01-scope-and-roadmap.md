@@ -178,7 +178,7 @@ cases:
 ```
 
 `required_variants` in `coverage.yaml` was migrated to stable IDs **before G1b**
-(all <!--g1:variants-->1213<!--/g1--> variants). Do not change G1 artifacts during G2.
+(all <!--g1:variants-->1211<!--/g1--> variants). Do not change G1 artifacts during G2.
 
 ```yaml
         required_variants:

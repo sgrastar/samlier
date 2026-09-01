@@ -232,6 +232,21 @@ public final class ActiveProbeCoordinator {
         return status(runId);
     }
 
+    /** Reissues the current fixture as a new deterministic outbox action after an uncertain delivery. */
+    public Status retry(String runId) {
+        var currentStatus = status(runId);
+        if (currentStatus.state() != State.AWAITING_RESPONSE || currentStatus.caseId() == null) {
+            throw new IllegalStateException("No dispatched browser scenario is awaiting a response");
+        }
+        var run = requireRun(runId);
+        var current = repository.find(runId, currentStatus.caseId())
+                .orElseThrow(() -> new IllegalStateException("Browser scenario execution is missing"));
+        var testCase = scenario(current.caseId(), run).orElseThrow();
+        new CaseExecutionService(repository).resume(
+                runId, testCase, contexts.contextFor(runId), new CaseEvent.RetryInbound());
+        return status(runId);
+    }
+
     private org.samlier.core.run.TestRun requireRun(String runId) {
         if (runId == null || runId.isBlank()) throw new IllegalArgumentException("runId must not be blank");
         return runs.find(runId).orElseThrow(() -> new IllegalArgumentException("Unknown Run"));

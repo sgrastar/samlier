@@ -37,8 +37,14 @@ class MetadataLabServiceTest {
         assertEquals("control", armed.selectedVariant());
         assertEquals(0, armed.campaignIndex());
         assertEquals(17, armed.pollingDelaySeconds());
-        var token = query(armed.metadataUrl(), "poll");
+        assertEquals(null, queryOrNull(armed.metadataUrl(), "poll"),
+                "the Target-configured metadata URL must remain stable and secret-free");
+        var token = query(armed.automaticStartUrl(), "poll");
         assertEquals(token, query(armed.automaticStartUrl(), "poll"));
+        service.recordLiveFetch("run", "plan", "control", null);
+        assertThrows(IllegalArgumentException.class,
+                () -> service.requireAutomaticCompletedFlow("run", "plan", token, 0),
+                "a fetch before the signed browser attempt must not be correlated");
         var firstFlow = service.requireAutomaticStartFlow("run", "plan", token, 0);
         assertEquals("control", firstFlow.variant().id());
         assertEquals(17, firstFlow.pollingDelaySeconds());
@@ -52,10 +58,10 @@ class MetadataLabServiceTest {
         var untrusted = service.recordLiveFetch("run", "plan", "control", "wrong-token");
         assertEquals(0, untrusted.campaignIndex());
 
-        var fetched = service.recordLiveFetch("run", "plan", "control", token);
+        var fetched = service.recordLiveFetch("run", "plan", "control", null);
         assertEquals("control", fetched.selectedVariant());
         assertEquals(0, fetched.campaignIndex());
-        var duplicateFetch = service.recordLiveFetch("run", "plan", "control", token);
+        var duplicateFetch = service.recordLiveFetch("run", "plan", "control", null);
         assertEquals("control", duplicateFetch.selectedVariant());
         assertEquals(0, duplicateFetch.campaignIndex(),
                 "duplicate target fetches during one key reload must not skip fixtures");
@@ -91,7 +97,7 @@ class MetadataLabServiceTest {
     void operatorContinuationAdvancesOnlyAFetchedFixtureAndDoesNotInventEvidence() {
         var service = fixture().service();
         var armed = service.startAutomaticPolling("run", List.of("control", "expired"), 0);
-        var token = query(armed.metadataUrl(), "poll");
+        var token = query(armed.automaticStartUrl(), "poll");
 
         assertThrows(IllegalArgumentException.class,
                 () -> service.continueAfterObservedTargetResult("run", "plan", token, 0));
@@ -168,12 +174,18 @@ class MetadataLabServiceTest {
     }
 
     private static String query(URI uri, String name) {
+        var value = queryOrNull(uri, name);
+        if (value != null) return value;
+        throw new IllegalArgumentException("Missing query parameter " + name);
+    }
+
+    private static String queryOrNull(URI uri, String name) {
         for (var part : uri.getRawQuery().split("&")) {
             var pieces = part.split("=", 2);
             if (name.equals(pieces[0])) return java.net.URLDecoder.decode(
                     pieces[1], java.nio.charset.StandardCharsets.UTF_8);
         }
-        throw new IllegalArgumentException("Missing query parameter " + name);
+        return null;
     }
 
     private static TestPlan plan() {

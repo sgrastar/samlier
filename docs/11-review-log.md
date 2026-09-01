@@ -3689,3 +3689,36 @@ were corrected before G2 approval:
 The validator now rejects incomplete `one_of` mutation sets, treatment drift,
 and missing session prerequisites for the reviewed target-initiated SLO set.
 These changes still do not approve G2 or begin M1.
+
+---
+
+## EXT01 Undefined-Attribute Matrix Correction — 2026-09-01
+
+Implementation of the executable `IIP-EXT01.c` fixture exposed a catalog defect.
+The source limits this rule to elements established in `SAML2-xsd` or
+`SAML2MD-xsd` whose type definition contains an `xsd:anyAttribute` subelement.
+Two of the three former variants did not satisfy that scope:
+
+- `samlp:Extensions` is established in `SAML2P-xsd`, not either named schema,
+  and its type has no `xsd:anyAttribute`;
+- `saml:Advice` is established in `SAML2-xsd`, but `AdviceType` has an
+  `xsd:any` element wildcard rather than `xsd:anyAttribute`.
+
+`md:EntityDescriptor` was valid, but retaining a single handwritten example
+would not demonstrate the source's schema-wide scope. The three handwritten
+variants are therefore replaced by one schema-driven matrix: enumerate every
+applicable element in the two pinned schemas whose declared type definition
+directly contains `xsd:anyAttribute`, add an undefined attribute in a foreign
+non-SAML namespace, and consume the otherwise schema-valid document. This
+prevents invalid XML from masquerading as a tolerance test and prevents future
+handwritten lists from omitting applicable elements.
+
+Counterexample: a receiver may correctly tolerate undefined attributes on
+`md:EntityDescriptor` while failing on another applicable assertion or metadata
+element. A one-element fixture would pass that receiver despite the broader
+requirement. Conversely, placing an attribute on `samlp:Extensions` tests schema
+rejection, not this obligation, and can falsely fail a conforming receiver.
+
+This is a G1 meaning correction, not an implementation-only adjustment. It
+invalidates the former G1 obligation digest and every G2 case/mutant that refers
+to the old variant IDs. Both approval records must be renewed in order.

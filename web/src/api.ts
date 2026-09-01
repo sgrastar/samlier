@@ -292,6 +292,10 @@ export const api = {
     request<ActiveProbeStatus>(`/api/runs/${runId}/active-probe/abort`, {
       method: 'POST', headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : {},
     }),
+  retryActiveProbe: (runId: string, csrfToken?: string) =>
+    request<ActiveProbeStatus>(`/api/runs/${runId}/active-probe/retry`, {
+      method: 'POST', headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : {},
+    }),
   result: async (runId: string) => camelize(
     await request<unknown>(`/api/runs/${runId}/result.json`),
   ) as PublicResult,

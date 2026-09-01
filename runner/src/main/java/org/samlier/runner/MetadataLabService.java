@@ -159,15 +159,24 @@ public final class MetadataLabService {
         }
         var lab = labContext(run.context());
         if (mode(lab) != IngestionMode.AUTOMATIC_POLLING) return state(runId);
-        if (!(lab.get(CAMPAIGN_TOKEN) instanceof String expectedToken)
-                || !java.security.MessageDigest.isEqual(
+        if (!(lab.get(CAMPAIGN_TOKEN) instanceof String expectedToken)) {
+            return state(runId);
+        }
+        // The configured metadata URL is intentionally stable and therefore has no campaign
+        // secret. A non-empty token is accepted only when it matches (for legacy callers), while
+        // a tokenless fetch can mark only the currently served fixture. It cannot advance the
+        // campaign: the separately signed and token-bound SAML browser response is still required.
+        if (campaignToken != null && !campaignToken.isBlank()
+                && !java.security.MessageDigest.isEqual(
                         expectedToken.getBytes(java.nio.charset.StandardCharsets.UTF_8),
-                        String.valueOf(campaignToken).getBytes(java.nio.charset.StandardCharsets.UTF_8))) {
+                        campaignToken.getBytes(java.nio.charset.StandardCharsets.UTF_8))) {
             return state(runId);
         }
         var campaign = campaignVariants(lab);
         var index = campaignIndex(lab, campaign.size());
-        if (index >= campaign.size() || !campaign.get(index).equals(fetchedVariant)) return state(runId);
+        if (index >= campaign.size()
+                || attemptedIndex(lab, campaign.size()) != index
+                || !campaign.get(index).equals(fetchedVariant)) return state(runId);
         var updated = new LinkedHashMap<String, Object>(lab);
         updated.put(CAMPAIGN_FETCHED_INDEX, index);
         updated.put("last_fetched_variant", fetchedVariant);
@@ -413,12 +422,7 @@ public final class MetadataLabService {
     }
 
     private URI liveUrl(String planId, String runId, Map<String, Object> lab) {
-        var value = "/p/" + planId + "/metadata/live?run=" + runId;
-        if (mode(lab) == IngestionMode.AUTOMATIC_POLLING
-                && lab.get(CAMPAIGN_TOKEN) instanceof String token) {
-            value += "&poll=" + java.net.URLEncoder.encode(token, java.nio.charset.StandardCharsets.UTF_8);
-        }
-        return peerBase.resolve(value);
+        return peerBase.resolve("/p/" + planId + "/metadata/live?run=" + runId);
     }
 
     private URI preloadedUrl(String planId, String runId, Map<String, Object> lab) {

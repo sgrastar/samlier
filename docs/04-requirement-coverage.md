@@ -5986,11 +5986,11 @@ Validation: `python3 tools/g1_validate.py` → `build/spec-reconcile-report.json
 <details><summary><code>IIP-EXT01.c</code> details</summary>
 
 - **Required variants**:
-  - `v-3d55aa30a6` An unknown attribute on samlp:Extensions.
-  - `v-4acbd708a3` An unknown attribute on md:EntityDescriptor.
-  - `v-73c84b1bc8` An unknown attribute on saml:Advice.
+  - `v-3efd721c6d` Schema-driven matrix: for every applicable element established in SAML2-xsd or SAML2MD-xsd whose declared type definition directly contains xsd:anyAttribute, add a foreign-namespace undefined attribute and consume the otherwise schema-valid message or metadata document.
 - **Controls (negative controls)**:
-  - Unknown attributes exercise a path distinct from unknown elements; test both.
+  - Generate the fixture matrix from the pinned SAML2-xsd and SAML2MD-xsd schemas rather than a handwritten element list.
+  - Include only elements whose declared type definition directly contains xsd:anyAttribute. Use a foreign, non-SAML namespace so every fixture remains schema-valid.
+  - Unknown attributes exercise a path distinct from unknown elements. Judge only whether the content causes a software failure; ignoring it is permitted.
 - **source_clauses**: `[432, 510)` `sha256:c0b40d046c81…`
 - **review**: `PENDING_REVIEW` / reviewer: `None` / approved_at: `None`
 

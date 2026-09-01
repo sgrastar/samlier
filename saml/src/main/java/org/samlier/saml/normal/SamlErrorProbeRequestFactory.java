@@ -24,6 +24,14 @@ public final class SamlErrorProbeRequestFactory {
         BASELINE_SUCCESS,
         UNKNOWN_NAMEID_FORMAT,
         UNKNOWN_EXTENSION,
+        UNKNOWN_ANY_ATTRIBUTE,
+        STRING_BOUNDARY_255,
+        STRING_BOUNDARY_256,
+        DTD_AUTHN_REQUEST,
+        DTD_EXTERNAL_ENTITY_AUTHN_REQUEST,
+        ACS_SELECTION_OMITTED,
+        ISSUER_TRAILING_WHITESPACE,
+        PERSISTENT_NAMEID_POLICY,
         UNRECOGNIZED_SUBJECT,
         UNSATISFIABLE_AUTHN_CONTEXT
     }
@@ -50,8 +58,14 @@ public final class SamlErrorProbeRequestFactory {
                 probe == Probe.SUBMILLISECOND_ISSUE_INSTANT
                         ? issueInstant.plusNanos(123_456) : issueInstant));
         request.setAttribute("Destination", destination.toString());
-        request.setAttribute("AssertionConsumerServiceURL", acs.toString());
-        request.setAttribute("ProtocolBinding", "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST");
+        if (probe != Probe.ACS_SELECTION_OMITTED) {
+            request.setAttribute("AssertionConsumerServiceURL", acs.toString());
+            request.setAttribute("ProtocolBinding", "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST");
+        }
+        if (probe == Probe.STRING_BOUNDARY_255 || probe == Probe.STRING_BOUNDARY_256) {
+            var length = probe == Probe.STRING_BOUNDARY_255 ? 255 : 256;
+            request.setAttribute("ProviderName", "\u0416".repeat(length));
+        }
         if (probe == Probe.PASSIVE_WITHOUT_SESSION || probe == Probe.PASSIVE_WITH_SESSION
                 || probe == Probe.FORCE_AUTHN_PASSIVE) request.setAttribute("IsPassive", "true");
         if (probe == Probe.FORCE_AUTHN_PASSIVE) request.setAttribute("ForceAuthn", "true");
@@ -59,7 +73,7 @@ public final class SamlErrorProbeRequestFactory {
         if (probe == Probe.FORCE_AUTHN_TRUE) request.setAttribute("ForceAuthn", "true");
         document.appendChild(request);
         var issuerElement = element(document, ASSERTION, "saml:Issuer");
-        issuerElement.setTextContent(issuer);
+        issuerElement.setTextContent(probe == Probe.ISSUER_TRAILING_WHITESPACE ? issuer + " " : issuer);
         request.appendChild(issuerElement);
         switch (probe) {
             case UNKNOWN_NAMEID_FORMAT -> {
@@ -85,6 +99,25 @@ public final class SamlErrorProbeRequestFactory {
                 extensions.appendChild(unknown);
                 request.appendChild(extensions);
             }
+            case UNKNOWN_ANY_ATTRIBUTE -> {
+                var subject = element(document, ASSERTION, "saml:Subject");
+                var confirmation = element(document, ASSERTION, "saml:SubjectConfirmation");
+                confirmation.setAttribute("Method", "urn:samlier:probe:confirmation-method");
+                var data = element(document, ASSERTION, "saml:SubjectConfirmationData");
+                data.setAttributeNS(XMLConstants.XMLNS_ATTRIBUTE_NS_URI, "xmlns:probe",
+                        "urn:samlier:probe:unknown-attribute");
+                data.setAttributeNS(
+                        "urn:samlier:probe:unknown-attribute", "probe:fixture", token(requestId));
+                confirmation.appendChild(data);
+                subject.appendChild(confirmation);
+                request.appendChild(subject);
+            }
+            case PERSISTENT_NAMEID_POLICY -> {
+                var policy = element(document, PROTOCOL, "samlp:NameIDPolicy");
+                policy.setAttribute("Format", "urn:oasis:names:tc:SAML:2.0:nameid-format:persistent");
+                policy.setAttribute("AllowCreate", "true");
+                request.appendChild(policy);
+            }
             case UNRECOGNIZED_SUBJECT -> {
                 var subject = element(document, ASSERTION, "saml:Subject");
                 var nameId = element(document, ASSERTION, "saml:NameID");
@@ -102,8 +135,26 @@ public final class SamlErrorProbeRequestFactory {
             case VERSION_1_1 -> { }
             case VERSION_3_0 -> { }
             case BASELINE_SUCCESS -> { }
+            case STRING_BOUNDARY_255 -> { }
+            case STRING_BOUNDARY_256 -> { }
+            case DTD_AUTHN_REQUEST -> { }
+            case DTD_EXTERNAL_ENTITY_AUTHN_REQUEST -> { }
+            case ACS_SELECTION_OMITTED -> { }
+            case ISSUER_TRAILING_WHITESPACE -> { }
         }
-        return SecureXml.serialize(document);
+        var serialized = SecureXml.serialize(document);
+        if (probe == Probe.DTD_AUTHN_REQUEST || probe == Probe.DTD_EXTERNAL_ENTITY_AUTHN_REQUEST) {
+            var xml = new String(serialized, java.nio.charset.StandardCharsets.UTF_8);
+            var declarationEnd = xml.indexOf("?>");
+            var insertion = probe == Probe.DTD_AUTHN_REQUEST
+                    ? "<!DOCTYPE samlp:AuthnRequest>"
+                    : "<!DOCTYPE samlp:AuthnRequest [<!ENTITY samlier SYSTEM \"https://invalid.example/samlier.dtd\">]>";
+            xml = declarationEnd >= 0
+                    ? xml.substring(0, declarationEnd + 2) + insertion + xml.substring(declarationEnd + 2)
+                    : insertion + xml;
+            return xml.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        }
+        return serialized;
     }
 
     public String unknownNameIdFormat(String requestId) {

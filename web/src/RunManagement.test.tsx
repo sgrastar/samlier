@@ -301,6 +301,7 @@ test('metadata fixture work queue preserves the approved observation order and s
 
 test('arms one automatic polling campaign without collecting target verdict answers', async () => {
   const calls: Array<{ url: string; init?: RequestInit }> = []
+  const navigateTo = vi.fn()
   let lab: MetadataLab = metadataLab()
   vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
     calls.push({ url, init })
@@ -333,7 +334,8 @@ test('arms one automatic polling campaign without collecting target verdict answ
     return json([])
   }))
 
-  render(<RunManagement runId="run_0123456789ABCDEFGHJKMNPQRS" csrfToken="csrf" />)
+  render(<RunManagement runId="run_0123456789ABCDEFGHJKMNPQRS" csrfToken="csrf"
+    navigateTo={navigateTo} />)
   fireEvent.click(await screen.findByRole('button', { name: 'Arm automatic polling for 2 fixtures' }))
 
   expect(await screen.findByText(/Automatic metadata polling armed with 2 fixtures/)).toBeTruthy()
@@ -345,6 +347,8 @@ test('arms one automatic polling campaign without collecting target verdict answ
     variants: ['control', 'expired'], pollingDelaySeconds: 15,
   }))
   expect(String(post.init?.body)).not.toContain('verdict')
+  expect(navigateTo).toHaveBeenCalledWith(
+    'https://suite.example/p/plan/start/metadata-polling/0?run=run&poll=token')
 })
 
 test('offers one aggregate import for compatible positive metadata fixtures', async () => {
@@ -477,6 +481,43 @@ test('offers the server-generated active probe launch URL and explains fresh-ses
   expect(screen.getByText(/private browser context/)).toBeTruthy()
   expect(screen.getByRole('link', { name: 'Open scenario' }).getAttribute('href'))
     .toContain('/probe/action_probe')
+})
+
+test('reissues an uncertain one-time fixture without turning it into a target failure', async () => {
+  const calls: Array<{ url: string; init?: RequestInit }> = []
+  let retried = false
+  vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+    calls.push({ url, init })
+    if (url.includes('/active-probe/retry') && init?.method === 'POST') {
+      retried = true
+      return json({ planId: 'plan', state: 'READY', actionId: 'action_retry',
+        startUrl: '/p/plan/probe/action_retry?run=run', requiresFreshSession: false,
+        caseId: 'IIP-IDP05-a-idp-01', instructionsEn: 'Retry the same fixture.' })
+    }
+    if (url.includes('/active-probe')) return json(retried
+      ? { planId: 'plan', state: 'READY', actionId: 'action_retry',
+          startUrl: '/p/plan/probe/action_retry?run=run', requiresFreshSession: false,
+          caseId: 'IIP-IDP05-a-idp-01', instructionsEn: 'Retry the same fixture.' }
+      : { planId: 'plan', state: 'AWAITING_RESPONSE', actionId: 'action_original',
+          startUrl: null, requiresFreshSession: false,
+          caseId: 'IIP-IDP05-a-idp-01', instructionsEn: 'Run the fixture.' })
+    if (url.includes('/bootstrap-contracts')) return json([])
+    if (url.includes('/metadata-lab')) return json(metadataLab())
+    if (url.includes('/protocol-evidence')) return json(protocolEvidence())
+    if (url.includes('/interactions')) return json([])
+    if (url === '/api/health') return json({ status: 'ok', version: 'test', mode: 'selfhosted' })
+    if (url.includes('/api/runs/')) return json({ id: 'run_0123456789ABCDEFGHJKMNPQRS', planId: 'plan' })
+    if (url === '/api/plans') return json([])
+    return json([])
+  }))
+
+  render(<RunManagement runId="run_0123456789ABCDEFGHJKMNPQRS" csrfToken="csrf" />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Reissue this one-time fixture' }))
+
+  expect(await screen.findByRole('link', { name: 'Open scenario' })).toBeTruthy()
+  expect(await screen.findByText(/new one-time fixture was issued/)).toBeTruthy()
+  const post = calls.find(call => call.url.includes('/active-probe/retry'))!
+  expect(post.init?.headers).toEqual({ 'content-type': 'application/json', 'X-CSRF-Token': 'csrf' })
 })
 
 test('shows plan action budgets and keeps self-attested evidence separate', async () => {

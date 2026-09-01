@@ -38206,38 +38206,26 @@ cases:
 - id: IIP-EXT01-c-idp-01
   authored_by: samlier-g2-builder
   obligation: IIP-EXT01.c
-  obligation_digest: sha256:33663fc065c6dca4d16035ffe0899be0134e50a266d5a1d2fd6c3126e719d7c2
+  obligation_digest: sha256:9f5bc4dfbadc6babd259721ae0135bafd902195042626269dd7401931259d6de
   role: idp
   mode: BROWSER
   milestone: M1
   covers_variants:
-  - IIP-EXT01.c#v-3d55aa30a6
-  - IIP-EXT01.c#v-4acbd708a3
-  - IIP-EXT01.c#v-73c84b1bc8
+  - IIP-EXT01.c#v-3efd721c6d
   variant_scopes:
-    IIP-EXT01.c#v-3d55aa30a6: owner_condition
-    IIP-EXT01.c#v-4acbd708a3: owner_condition
-    IIP-EXT01.c#v-73c84b1bc8: owner_condition
+    IIP-EXT01.c#v-3efd721c6d: owner_condition
   variant_plan:
-  - reference: IIP-EXT01.c#v-3d55aa30a6
+  - reference: IIP-EXT01.c#v-3efd721c6d
     applicability: owner_condition
     treatment: verdict
-    instruction_en: An unknown attribute on samlp:Extensions.
-  - reference: IIP-EXT01.c#v-4acbd708a3
-    applicability: owner_condition
-    treatment: verdict
-    instruction_en: An unknown attribute on md:EntityDescriptor.
-  - reference: IIP-EXT01.c#v-73c84b1bc8
-    applicability: owner_condition
-    treatment: verdict
-    instruction_en: An unknown attribute on saml:Advice.
+    instruction_en: 'Schema-driven matrix: for every applicable element established in SAML2-xsd or SAML2MD-xsd whose declared
+      type definition directly contains xsd:anyAttribute, add a foreign-namespace undefined attribute and consume the otherwise
+      schema-valid message or metadata document.'
   variant_groups:
   - id: default-all-of
     kind: all_of
     members:
-    - IIP-EXT01.c#v-3d55aa30a6
-    - IIP-EXT01.c#v-4acbd708a3
-    - IIP-EXT01.c#v-73c84b1bc8
+    - IIP-EXT01.c#v-3efd721c6d
     rationale_en: Exercise each remaining applicable variant; informational and control variants do not independently determine
       the target outcome.
   controls:
@@ -38251,16 +38239,14 @@ cases:
   - id: iip-ext01-c-idp-01-negative
     kind: negative
     fixture: mut-iip-ext01-c-idp
-    description_en: 'Exercise trigger variant IIP-EXT01.c#v-4acbd708a3 with the same prerequisites against the role-specific
+    description_en: 'Exercise trigger variant IIP-EXT01.c#v-3efd721c6d with the same prerequisites against the role-specific
       mutant that deliberately violates: Undefined attribute content on elements whose type definition contains xsd:anyAttribute
       may be ignored but must not result in software failures'
     on_failure: control_failed
-  counterexample_en: An Identity Provider that hard-codes the expected behavior for only the selected trigger variant while
-    violating another covered variant could pass a one-sided oracle without satisfying the obligation (Undefined attribute
-    content on elements whose type definition contains xsd:anyAttribute may be ignored but must not result in software failures).
-    The conforming baseline runs every covered variant, and the role-specific mutant changes the normative behavior for the
-    trigger variant while retaining the same prerequisites. Blanket acceptance, blanket rejection, and a fixture that is never
-    exercised therefore cannot satisfy the control oracle.
+  counterexample_en: An Identity Provider that accepts an undefined foreign attribute only on a handwritten element while
+    failing on another element selected by the pinned-schema matrix could pass a one-sided fixture without satisfying the
+    obligation. The positive control executes the complete generated matrix, while the role-specific mutant fails one matrix
+    member with the same prerequisites.
   interpretation_constraints: &id174
   - Unknown attributes exercise a path distinct from unknown elements; test both.
   requires:
@@ -38279,42 +38265,30 @@ cases:
     state: PENDING_REVIEW
     reviewer: null
     approved_at: null
-  case_digest: sha256:313e081879173fd1c39e772853a1d9d819da9403c997a07f82fbb026e5ad1575
+  case_digest: sha256:ad4c48b4ee03a5b2175162f623310015c7b86a1ac2bd288c46c3538b05cfdcbb
 - id: IIP-EXT01-c-sp-01
   authored_by: samlier-g2-builder
   obligation: IIP-EXT01.c
-  obligation_digest: sha256:33663fc065c6dca4d16035ffe0899be0134e50a266d5a1d2fd6c3126e719d7c2
+  obligation_digest: sha256:9f5bc4dfbadc6babd259721ae0135bafd902195042626269dd7401931259d6de
   role: sp
   mode: BROWSER
   milestone: M1
   covers_variants:
-  - IIP-EXT01.c#v-3d55aa30a6
-  - IIP-EXT01.c#v-4acbd708a3
-  - IIP-EXT01.c#v-73c84b1bc8
+  - IIP-EXT01.c#v-3efd721c6d
   variant_scopes:
-    IIP-EXT01.c#v-3d55aa30a6: owner_condition
-    IIP-EXT01.c#v-4acbd708a3: owner_condition
-    IIP-EXT01.c#v-73c84b1bc8: owner_condition
+    IIP-EXT01.c#v-3efd721c6d: owner_condition
   variant_plan:
-  - reference: IIP-EXT01.c#v-3d55aa30a6
+  - reference: IIP-EXT01.c#v-3efd721c6d
     applicability: owner_condition
     treatment: verdict
-    instruction_en: An unknown attribute on samlp:Extensions.
-  - reference: IIP-EXT01.c#v-4acbd708a3
-    applicability: owner_condition
-    treatment: verdict
-    instruction_en: An unknown attribute on md:EntityDescriptor.
-  - reference: IIP-EXT01.c#v-73c84b1bc8
-    applicability: owner_condition
-    treatment: verdict
-    instruction_en: An unknown attribute on saml:Advice.
+    instruction_en: 'Schema-driven matrix: for every applicable element established in SAML2-xsd or SAML2MD-xsd whose declared
+      type definition directly contains xsd:anyAttribute, add a foreign-namespace undefined attribute and consume the otherwise
+      schema-valid message or metadata document.'
   variant_groups:
   - id: default-all-of
     kind: all_of
     members:
-    - IIP-EXT01.c#v-3d55aa30a6
-    - IIP-EXT01.c#v-4acbd708a3
-    - IIP-EXT01.c#v-73c84b1bc8
+    - IIP-EXT01.c#v-3efd721c6d
     rationale_en: Exercise each remaining applicable variant; informational and control variants do not independently determine
       the target outcome.
   controls:
@@ -38328,16 +38302,14 @@ cases:
   - id: iip-ext01-c-sp-01-negative
     kind: negative
     fixture: mut-iip-ext01-c-sp
-    description_en: 'Exercise trigger variant IIP-EXT01.c#v-4acbd708a3 with the same prerequisites against the role-specific
+    description_en: 'Exercise trigger variant IIP-EXT01.c#v-3efd721c6d with the same prerequisites against the role-specific
       mutant that deliberately violates: Undefined attribute content on elements whose type definition contains xsd:anyAttribute
       may be ignored but must not result in software failures'
     on_failure: control_failed
-  counterexample_en: A Service Provider that hard-codes the expected behavior for only the selected trigger variant while
-    violating another covered variant could pass a one-sided oracle without satisfying the obligation (Undefined attribute
-    content on elements whose type definition contains xsd:anyAttribute may be ignored but must not result in software failures).
-    The conforming baseline runs every covered variant, and the role-specific mutant changes the normative behavior for the
-    trigger variant while retaining the same prerequisites. Blanket acceptance, blanket rejection, and a fixture that is never
-    exercised therefore cannot satisfy the control oracle.
+  counterexample_en: A Service Provider that accepts an undefined foreign attribute only on a handwritten element while
+    failing on another element selected by the pinned-schema matrix could pass a one-sided fixture without satisfying the
+    obligation. The positive control executes the complete generated matrix, while the role-specific mutant fails one matrix
+    member with the same prerequisites.
   interpretation_constraints: *id174
   requires:
     passed_cases: []
@@ -38355,7 +38327,7 @@ cases:
     state: PENDING_REVIEW
     reviewer: null
     approved_at: null
-  case_digest: sha256:e6b5db472e520421b2f45bccc89594dc5d3c18d8941af8cd399862d081033a4d
+  case_digest: sha256:4c5c497e275d2ac8b83d83ce8dc1d246afb2a67093d26658254ba0b539fd92ae
 - id: IIP-ALG01-a-idp-01
   authored_by: samlier-g2-builder
   obligation: IIP-ALG01.a

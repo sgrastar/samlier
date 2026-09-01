@@ -26,6 +26,7 @@ import org.samlier.runner.cases.ProtocolEvidenceCase;
 import org.samlier.runner.cases.InformationalChoiceTestCase;
 import org.samlier.runner.BrowserFrontChannelScenario;
 import org.samlier.runner.cases.IdpErrorProbeConfiguration;
+import org.samlier.runner.cases.IdpExecutableBrowserFixtureScenarioTestCase;
 import org.samlier.core.plan.TargetRole;
 import org.samlier.core.casedef.CaseDefinitionCatalog.ExecutionMode;
 import org.samlier.core.casedef.CaseDefinitionCatalog.Milestone;
@@ -97,7 +98,9 @@ class CatalogDocumentsTest {
                 ignored -> java.util.List.of(), ignored -> configuration,
                 ignored -> java.util.Optional.empty());
         var automatedM1Idp = m1.forRole(TargetRole.IDP).stream().filter(value ->
-                value instanceof ProtocolEvidenceCase || value instanceof BrowserFrontChannelScenario).count();
+                value instanceof ProtocolEvidenceCase
+                        || (value instanceof BrowserFrontChannelScenario
+                            && !(value instanceof IdpExecutableBrowserFixtureScenarioTestCase))).count();
         assertEquals(59, automatedM1Idp,
                 "Update this explicit automatic-oracle inventory when adding or removing an oracle");
         assertTrue(m1.forRole(TargetRole.IDP).stream().noneMatch(AttestationPrompt.class::isInstance),
@@ -134,8 +137,13 @@ class CatalogDocumentsTest {
         var m3Browser = ApprovedBrowserCaseRegistry.create(
                 cases, publicBase, Milestone.M3, content,
                 ignored -> java.util.Optional.empty(), ignored -> java.util.Optional.of("https://idp.example"),
-                ignored -> java.util.List.of());
-        var m2Browser = ApprovedBrowserCaseRegistry.create(cases, publicBase, Milestone.M2);
+                ignored -> java.util.List.of(), ignored -> configuration,
+                ignored -> java.util.Optional.empty());
+        var m2Browser = ApprovedBrowserCaseRegistry.create(
+                cases, publicBase, Milestone.M2, content,
+                ignored -> java.util.Optional.empty(), ignored -> java.util.Optional.of("https://idp.example"),
+                ignored -> java.util.List.of(), ignored -> configuration,
+                ignored -> java.util.Optional.empty());
         var m1Attested = ApprovedAttestedCaseRegistry.create(
                 cases, Milestone.M1, publicBase, ignored -> configuration, content,
                 ignored -> java.util.Optional.of("https://idp.example"), ignored -> java.util.List.of());
@@ -161,9 +169,16 @@ class CatalogDocumentsTest {
                         m1Browser.forRole(TargetRole.IDP).stream(),
                         m3Browser.forRole(TargetRole.IDP).stream())
                 .filter(value -> value instanceof ProtocolEvidenceCase
-                        || value instanceof BrowserFrontChannelScenario
+                        || (value instanceof BrowserFrontChannelScenario
+                            && !(value instanceof IdpExecutableBrowserFixtureScenarioTestCase))
                         || value instanceof InformationalChoiceTestCase)
                 .count();
+        assertTrue(IdpExecutableBrowserFixtureScenarioTestCase.CASE_IDS.stream()
+                .allMatch(caseId -> m1Browser.find(caseId)
+                        .or(() -> m2Browser.find(caseId))
+                        .or(() -> m3Browser.find(caseId))
+                        .orElseThrow() instanceof IdpExecutableBrowserFixtureScenarioTestCase),
+                "Every former instruction-only browser case must have a runnable front-channel fixture");
         var conclusiveAttested = java.util.stream.Stream.concat(
                         m1Attested.forRole(TargetRole.IDP).stream(),
                         m3Attested.forRole(TargetRole.IDP).stream())

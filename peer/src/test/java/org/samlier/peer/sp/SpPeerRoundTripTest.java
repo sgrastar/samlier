@@ -92,19 +92,32 @@ class SpPeerRoundTripTest {
                 .findFirst().orElseThrow().samlSummary().get("normalFlowAccepted"));
         assertTrue(completed.context().keySet().stream().noneMatch(key -> key.toLowerCase().contains("verdict")));
 
+        var normalRequestId = request.parsed().document().getDocumentElement().getAttribute("ID");
         var probeBody = "SAMLResponse=" + URLEncoder.encode(response.base64(), StandardCharsets.UTF_8);
         peer.consume(plan.id(), probeBody.getBytes(StandardCharsets.UTF_8), Map.of(),
                 "https://peer.example/p/" + plan.id() + "/sp/acs/0?mdv=no-key-info&run=" + run.id());
         assertEquals(3, recorder.list(run.id()).size());
-        assertEquals(true, recorder.list(run.id()).stream()
+        assertEquals(false, recorder.list(run.id()).stream()
                 .filter(entry -> entry.url().contains("mdv=no-key-info"))
                 .findFirst().orElseThrow().samlSummary().get("metadataProbeAccepted"));
+        var probeContext = new java.util.LinkedHashMap<String, Object>(
+                runs.find(run.id()).orElseThrow().context());
+        probeContext.put("metadata_polling_requests", Map.of("no-key-info", normalRequestId));
+        var beforeCorrelatedProbe = runs.find(run.id()).orElseThrow();
+        runService.update(
+                beforeCorrelatedProbe, beforeCorrelatedProbe.status(),
+                beforeCorrelatedProbe.targetToSuiteReachability(), probeContext);
+        peer.consume(plan.id(), probeBody.getBytes(StandardCharsets.UTF_8), Map.of(),
+                "https://peer.example/p/" + plan.id() + "/sp/acs/0?mdv=no-key-info&run=" + run.id());
+        assertTrue(recorder.list(run.id()).stream()
+                .filter(entry -> entry.url().contains("mdv=no-key-info"))
+                .anyMatch(entry -> Boolean.TRUE.equals(
+                        entry.samlSummary().get("metadataProbeAccepted"))));
         assertEquals(RunStatus.COMPLETED, runs.find(run.id()).orElseThrow().status());
         assertEquals("completed", runs.find(run.id()).orElseThrow().context().get("m0RoundTrip"),
                 "probe traffic must not rewrite the normal round-trip state");
 
         var actionId = "action_00000000000000000000000000000000";
-        var normalRequestId = request.parsed().document().getDocumentElement().getAttribute("ID");
         var activeRequestXml = new String(request.xml(), StandardCharsets.UTF_8)
                 .replace(normalRequestId, "_" + actionId).getBytes(StandardCharsets.UTF_8);
         var activeRequest = saml.parse(new SamlProtocolService.RawDecodedMessage(activeRequestXml, run.id()));

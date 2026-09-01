@@ -156,7 +156,7 @@ public final class SpPeerService {
             // does not claim that the target accepted metadata or satisfied any obligation.
             var expectedProbe = metadataProbeRequestId(run.context(), variant);
             analyzedSummary.put("metadataProbeAccepted",
-                    expectedProbe == null || expectedProbe.equals(actual));
+                    expectedProbe != null && expectedProbe.equals(actual));
         } else if (!metadataProbe) {
             analyzedSummary.put("normalFlowAccepted", !expected.isBlank() && expected.equals(actual));
         }

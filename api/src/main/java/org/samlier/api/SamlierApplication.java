@@ -135,6 +135,8 @@ public final class SamlierApplication {
                     ctx.json(m1.activeProbeStatus(ctx.pathParam("id"))));
             javalin.routes.post("/api/runs/{id}/active-probe/abort", ctx ->
                     ctx.json(m1.abortActiveProbe(ctx.pathParam("id"))));
+            javalin.routes.post("/api/runs/{id}/active-probe/retry", ctx ->
+                    ctx.json(m1.retryActiveProbe(ctx.pathParam("id"))));
             if (config.mode() == AppConfig.Mode.HOSTED) {
                 ManagementSessionRoutes.register(javalin, config.publicBaseUrl(), m1::exchange);
                 javalin.routes.before("/api/plans/{id}", ctx -> {
@@ -176,6 +178,11 @@ public final class SamlierApplication {
                 javalin.routes.before("/api/runs/{id}/active-probe", ctx ->
                         m1.authorize(ctx.pathParam("id"), ctx.cookie(ManagementSessionRoutes.COOKIE_NAME)));
                 javalin.routes.before("/api/runs/{id}/active-probe/abort", ctx ->
+                        m1.authorizeMutation(
+                                ctx.pathParam("id"),
+                                ctx.cookie(ManagementSessionRoutes.COOKIE_NAME),
+                                ctx.header("X-CSRF-Token")));
+                javalin.routes.before("/api/runs/{id}/active-probe/retry", ctx ->
                         m1.authorizeMutation(
                                 ctx.pathParam("id"),
                                 ctx.cookie(ManagementSessionRoutes.COOKIE_NAME),
@@ -753,14 +760,21 @@ public final class SamlierApplication {
                 throw new IllegalArgumentException("Invalid automatic metadata campaign correlation");
             }
             var index = Integer.parseInt(parts[3]);
-            var flow = metadataLab.requireAutomaticCompletedFlow(
-                    parts[1], ctx.pathParam("plan"), parts[2], index);
-            if (!flow.variant().id().equals(consumed.metadataProbeVariant())) {
+            var current = metadataLab.state(parts[1]);
+            if (!current.selectedVariant().equals(consumed.metadataProbeVariant())) {
                 throw new IllegalArgumentException("Automatic metadata campaign variant mismatch");
             }
-            var successful = Boolean.TRUE.equals(consumed.summary().get("metadataProbeAccepted"))
-                    && "urn:oasis:names:tc:SAML:2.0:status:Success".equals(
-                            consumed.summary().get("statusCode"));
+            var correlated = Boolean.TRUE.equals(consumed.summary().get("metadataProbeAccepted"));
+            if (!correlated) {
+                throw new IllegalArgumentException(
+                        "Automatic metadata campaign response does not match the issued AuthnRequest");
+            }
+            // Advance only after both the stable metadata fetch and the signed browser response
+            // have been bound to the same current fixture and request ID.
+            var flow = metadataLab.requireAutomaticCompletedFlow(
+                    parts[1], ctx.pathParam("plan"), parts[2], index);
+            var successful = "urn:oasis:names:tc:SAML:2.0:status:Success".equals(
+                    consumed.summary().get("statusCode"));
             var next = flow.hasNext()
                     ? "/p/" + flow.planId() + "/start/metadata-polling/" + (index + 1)
                             + "?run=" + flow.runId() + "&poll="

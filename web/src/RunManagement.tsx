@@ -4,11 +4,13 @@ import {
   type ProtocolEvidenceStatus, type CampaignReport,
 } from './api'
 
-export function RunManagement({ runId, csrfToken, focusCaseId }: {
+export function RunManagement({ runId, csrfToken, focusCaseId, navigateTo }: {
   runId: string
   csrfToken?: string
   focusCaseId?: string
+  navigateTo?: (url: string) => void
 }) {
+  const launch = navigateTo ?? ((url: string) => window.location.assign(url))
   const [interactions, setInteractions] = useState<PendingInteraction[]>([])
   const [bootstrapContracts, setBootstrapContracts] = useState<BootstrapContract[]>([])
   const [metadataLab, setMetadataLab] = useState<MetadataLab>()
@@ -211,6 +213,20 @@ export function RunManagement({ runId, csrfToken, focusCaseId }: {
     }
   }
 
+  const retryActiveProbe = async () => {
+    setBusy('active-probe-retry')
+    setError('')
+    try {
+      await api.retryActiveProbe(runId, csrfToken)
+      setNotice('A new one-time fixture was issued. The uncertain prior delivery remains recorded and is not replayed.')
+      await refresh()
+    } catch (cause) {
+      setError((cause as Error).message)
+    } finally {
+      setBusy('')
+    }
+  }
+
   const runPreflight = async () => {
     setBusy('preflight')
     setError('')
@@ -308,8 +324,9 @@ export function RunManagement({ runId, csrfToken, focusCaseId }: {
       const selected = await api.startAutomaticMetadataPolling(
         runId, metadataWork.pendingVariants, pollingDelaySeconds, csrfToken)
       setMetadataLab(selected)
-      setNotice(`Automatic metadata polling armed with ${selected.campaignVariants.length} fixtures. Leave the stable URL configured; duplicate target fetches remain on the current document until its correlated browser flow completes.`)
-      await refresh()
+      if (!selected.automaticStartUrl) throw new Error('The automatic metadata campaign did not return a start URL.')
+      setNotice(`Automatic metadata polling armed with ${selected.campaignVariants.length} fixtures. Opening the first signed browser flow now; leave the stable metadata URL configured.`)
+      launch(selected.automaticStartUrl)
     } catch (cause) {
       setError((cause as Error).message)
     } finally {
@@ -655,6 +672,9 @@ export function RunManagement({ runId, csrfToken, focusCaseId }: {
     {activeProbe?.state === 'AWAITING_RESPONSE' && <article className="interaction active-probe">
       <header><strong>{activeProbe.caseId ?? 'Browser-assisted SAML scenario'}</strong><span>WAITING</span></header>
       <p>The request was dispatched. Complete target login or consent in that browser. Samlier will continue automatically after a correlated SAML Response.</p>
+      <button disabled={busy === 'active-probe-retry'} onClick={() => void retryActiveProbe()}>
+        Reissue this one-time fixture
+      </button>
       <button disabled={busy === 'active-probe-abort'} onClick={() => void abortActiveProbe()}>
         No SAML Response was returned
       </button>

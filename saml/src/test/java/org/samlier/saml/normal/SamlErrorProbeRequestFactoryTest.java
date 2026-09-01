@@ -2,6 +2,7 @@ package org.samlier.saml.normal;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.net.URI;
@@ -15,6 +16,9 @@ class SamlErrorProbeRequestFactoryTest {
     @Test
     void buildsSchemaValidRequestsWithRegisteredResponseLocation() {
         for (var probe : Probe.values()) {
+            if (probe == Probe.DTD_AUTHN_REQUEST || probe == Probe.DTD_EXTERNAL_ENTITY_AUTHN_REQUEST) {
+                continue;
+            }
             var document = SecureXml.parse(factory.build(
                     probe,
                     "_request",
@@ -24,9 +28,28 @@ class SamlErrorProbeRequestFactoryTest {
                     Instant.parse("2026-08-29T00:00:00Z")));
 
             assertTrue(SamlSchemaValidation.isValid(
-                    document.getDocumentElement(), SamlSchemaValidation.SchemaKind.PROTOCOL));
-            assertEquals("https://suite.example/acs",
-                    document.getDocumentElement().getAttribute("AssertionConsumerServiceURL"));
+                    document.getDocumentElement(), SamlSchemaValidation.SchemaKind.PROTOCOL), probe.name());
+            if (probe == Probe.ACS_SELECTION_OMITTED) {
+                assertFalse(document.getDocumentElement().hasAttribute("AssertionConsumerServiceURL"));
+                assertFalse(document.getDocumentElement().hasAttribute("ProtocolBinding"));
+            } else {
+                assertEquals("https://suite.example/acs",
+                        document.getDocumentElement().getAttribute("AssertionConsumerServiceURL"));
+            }
+        }
+    }
+
+    @Test
+    void buildsIntentionalDtdFixturesWithoutParsingThemInTheSuite() {
+        for (var probe : java.util.List.of(
+                Probe.DTD_AUTHN_REQUEST, Probe.DTD_EXTERNAL_ENTITY_AUTHN_REQUEST)) {
+            var xml = new String(factory.build(
+                    probe, "_request", URI.create("https://idp.example/sso"),
+                    "https://suite.example/sp", URI.create("https://suite.example/acs"),
+                    Instant.parse("2026-08-29T00:00:00Z")), java.nio.charset.StandardCharsets.UTF_8);
+            assertTrue(xml.contains("<!DOCTYPE samlp:AuthnRequest"));
+            assertThrows(SamlException.class, () -> SecureXml.parse(
+                    xml.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
         }
     }
 

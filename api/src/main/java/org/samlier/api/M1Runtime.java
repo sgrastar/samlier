@@ -237,7 +237,21 @@ final class M1Runtime {
                 runMetadata);
         var m2Browser = ApprovedBrowserCaseRegistry.create(
                 definitions, config.publicBaseUrl(),
-                org.samlier.core.casedef.CaseDefinitionCatalog.Milestone.M2);
+                org.samlier.core.casedef.CaseDefinitionCatalog.Milestone.M2,
+                transcriptContent, runDecryptionKeys,
+                runId -> runs.find(runId).flatMap(run -> plans.find(run.planId()))
+                        .map(plan -> plan.target().entityId()),
+                runId -> {
+                    var run = runs.find(runId).orElseThrow(() -> new IllegalArgumentException("Unknown Run"));
+                    var plan = plans.find(run.planId()).orElseThrow(() -> new IllegalStateException("Run has no Test Plan"));
+                    return targetCertificates.certificatesFor(plan, runId);
+                },
+                runId -> {
+                    var run = runs.find(runId).orElseThrow(() -> new IllegalArgumentException("Unknown Run"));
+                    var plan = plans.find(run.planId()).orElseThrow(() -> new IllegalStateException("Run has no Test Plan"));
+                    return probeConfigurations.apply(plan, runId);
+                },
+                runId -> java.util.Optional.empty());
         var m2Automated = M2AutomatedCaseRegistry.create(runId -> {
             try {
                 return runMetadata.apply(runId);
@@ -269,7 +283,14 @@ final class M1Runtime {
                     var plan = plans.find(run.planId()).orElseThrow(() -> new IllegalStateException("Run has no Test Plan"));
                     try { return targetCertificates.certificatesFor(plan, runId); }
                     catch (RuntimeException unavailable) { return List.of(); }
-                });
+                },
+                runId -> {
+                    var run = runs.find(runId).orElseThrow(() -> new IllegalArgumentException("Unknown Run"));
+                    var plan = plans.find(run.planId()).orElseThrow(() -> new IllegalStateException("Run has no Test Plan"));
+                    return probeConfigurations.apply(plan, runId);
+                },
+                runId -> java.util.Optional.of(keys.getOrCreate(
+                        runs.find(runId).orElseThrow().planId())));
         var m3Automated = M3AutomatedCaseRegistry.create(
                 runId -> {
                     try { return runMetadata.apply(runId); }
@@ -406,6 +427,11 @@ final class M1Runtime {
         var status = activeProbes.abort(runId);
         if (results != null) results.generate(runId);
         return status;
+    }
+
+    ActiveProbeCoordinator.Status retryActiveProbe(String runId) {
+        requireRun(runId);
+        return activeProbes.retry(runId);
     }
 
     java.util.List<org.samlier.runner.InteractionQuery.PendingInteraction> pending(String runId) {

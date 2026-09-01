@@ -48,6 +48,9 @@ public sealed interface CaseEvent {
         public InboundUnavailable { text(reason, "reason"); }
     }
 
+    /** Suite-side recovery signal that creates a new outbox action for the same inbound fixture. */
+    record RetryInbound() implements CaseEvent {}
+
     record Aborted(String reason) implements CaseEvent {
         public Aborted { text(reason, "reason"); }
     }

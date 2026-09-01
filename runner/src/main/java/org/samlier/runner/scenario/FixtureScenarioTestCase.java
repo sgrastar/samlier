@@ -27,6 +27,7 @@ import org.samlier.core.plan.TargetRole;
  * owns sequencing and uncertainty; fixtures own only message construction and observation.
  */
 public final class FixtureScenarioTestCase implements TestCase {
+    private static final int MAX_FIXTURE_RETRIES = 3;
     private final String id;
     private final TargetRole role;
     private final List<ScenarioFixture> fixtures;
@@ -70,12 +71,26 @@ public final class FixtureScenarioTestCase implements TestCase {
             return new CaseStep.Finish(CaseOutcome.notVerified(
                     vocabulary.preconditionReason(), vocabulary.preconditionMessageKey()));
         }
-        return awaitFixture(context, 0, List.of(), List.of(), List.of(), List.of());
+        return awaitFixture(context, 0, 0, List.of(), List.of(), List.of(), List.of());
     }
 
     @Override
     public CaseStep resume(CaseContext context, CaseState state, CaseEvent event) {
         Objects.requireNonNull(context, "context");
+        if (event instanceof CaseEvent.RetryInbound) {
+            if (!matchesScenario(state)) {
+                return new CaseStep.Finish(notVerified(
+                        state, "scenario_definition_changed", "scenario.definition-changed", Map.of()));
+            }
+            var attempt = optionalInteger(state, "fixture_attempt", 0) + 1;
+            if (attempt > MAX_FIXTURE_RETRIES) {
+                throw new IllegalStateException("The current fixture has reached its retry limit");
+            }
+            return awaitFixture(
+                    context, fixtureIndex(state), attempt,
+                    strings(state, "violations"), optionalStrings(state, "violating_action_ids"),
+                    strings(state, "unverifiable"), strings(state, "evidence"));
+        }
         if (event instanceof CaseEvent.TimedOut timedOut) {
             return new CaseStep.Finish(notVerified(
                     state, vocabulary.timeoutReason(), vocabulary.timeoutMessageKey(),
@@ -111,7 +126,7 @@ public final class FixtureScenarioTestCase implements TestCase {
             if (observation == FixtureObservation.NOT_VERIFIED) unverifiable.add(fixture.id());
             if (index + 1 < fixtures.size()) {
                 return awaitFixture(
-                        context, index + 1, violations, violatingActionIds, unverifiable, evidence);
+                        context, index + 1, 0, violations, violatingActionIds, unverifiable, evidence);
             }
             return finishScenario(violations, violatingActionIds, unverifiable, evidence,
                     Map.of("unavailable_reason", unavailable.reason()));
@@ -150,7 +165,7 @@ public final class FixtureScenarioTestCase implements TestCase {
         if (observation == FixtureObservation.NOT_VERIFIED) unverifiable.add(fixture.id());
         if (index + 1 < fixtures.size()) {
             return awaitFixture(
-                    context, index + 1, violations, violatingActionIds, unverifiable, evidence);
+                    context, index + 1, 0, violations, violatingActionIds, unverifiable, evidence);
         }
         return finishScenario(violations, violatingActionIds, unverifiable, evidence, Map.of());
     }
@@ -203,12 +218,14 @@ public final class FixtureScenarioTestCase implements TestCase {
     private CaseStep awaitFixture(
             CaseContext context,
             int index,
+            int attempt,
             List<String> violations,
             List<String> violatingActionIds,
             List<String> unverifiable,
             List<String> evidence) {
         var fixture = fixtures.get(index);
-        var phase = "await-fixture-" + fixture.id();
+        var phase = "await-fixture-" + fixture.id()
+                + (attempt == 0 ? "" : "-retry-" + attempt);
         var actionId = ActionIds.derive(context.runId(), id, phase, 0);
         var prepared = fixture.prepare(context, actionId);
         if (!actionId.equals(prepared.action().actionId())) {
@@ -219,6 +236,7 @@ public final class FixtureScenarioTestCase implements TestCase {
                 "scenario_fingerprint", scenarioFingerprint,
                 "fixture_index", index,
                 "fixture_id", fixture.id(),
+                "fixture_attempt", attempt,
                 "expected_response_correlation", prepared.expectedResponseCorrelation(),
                 "violations", List.copyOf(violations),
                 "violating_action_ids", List.copyOf(violatingActionIds),
@@ -250,6 +268,13 @@ public final class FixtureScenarioTestCase implements TestCase {
     private static int integer(CaseState state, String key) {
         var value = state.data().get(key);
         if (!(value instanceof Number number)) throw new IllegalStateException("Missing numeric state: " + key);
+        return number.intValue();
+    }
+
+    private static int optionalInteger(CaseState state, String key, int fallback) {
+        var value = state.data().get(key);
+        if (value == null) return fallback;
+        if (!(value instanceof Number number)) throw new IllegalStateException("Invalid numeric state: " + key);
         return number.intValue();
     }
 

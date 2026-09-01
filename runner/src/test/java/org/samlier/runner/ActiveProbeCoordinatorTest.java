@@ -280,6 +280,23 @@ class ActiveProbeCoordinatorTest {
     }
 
     @Test
+    void reissuesAnUncertainOneTimeFixtureAsANewOutboxAction() {
+        var original = coordinator.status(RUN);
+        coordinator.prepare(RUN, original.actionId(), true);
+        assertEquals(ActiveProbeCoordinator.State.AWAITING_RESPONSE, coordinator.status(RUN).state());
+
+        var retried = coordinator.retry(RUN);
+
+        assertEquals(ActiveProbeCoordinator.State.READY, retried.state());
+        org.junit.jupiter.api.Assertions.assertNotEquals(original.actionId(), retried.actionId());
+        assertEquals(OutboxStatus.UNKNOWN_DELIVERY,
+                executions.findOutbox(original.actionId()).orElseThrow().status());
+        assertEquals(OutboxStatus.PENDING,
+                executions.findOutbox(retried.actionId()).orElseThrow().status());
+        assertEquals(2, executions.listOutbox(RUN).size());
+    }
+
+    @Test
     void recordsStageBasedScenarioWithoutAnOptionalFixtureId() {
         var runId = "run_3123456789ABCDEFGHJKMNPQRS";
         runs.save(new TestRun(runId, PLAN, RunStatus.COMPLETED, Reachability.CONFIRMED, Map.of(), NOW, NOW));

@@ -143,6 +143,60 @@ class FixtureScenarioTestCaseTest {
     }
 
     @Test
+    void retryCreatesANewActionForTheSameFixtureWithoutLosingPriorEvidence() {
+        var scenario = scenario(List.of(
+                fixture("first", FixtureObservation.SATISFIED),
+                fixture("second", FixtureObservation.SATISFIED)));
+        var first = executions.start(RUN, scenario, context);
+        var originalAction = first.waitCondition().inboundMatcher().criteria().get("ScenarioActionId");
+
+        var retried = executions.resume(RUN, scenario, context, new CaseEvent.RetryInbound());
+
+        assertEquals(CaseExecutionStatus.WAITING_INBOUND, retried.status());
+        assertEquals("first", retried.state().data().get("fixture_id"));
+        assertEquals(1, retried.state().data().get("fixture_attempt"));
+        var retryAction = retried.waitCondition().inboundMatcher().criteria().get("ScenarioActionId");
+        org.junit.jupiter.api.Assertions.assertNotEquals(originalAction, retryAction);
+        assertEquals(2, repository.listOutbox(RUN).size());
+
+        var second = executions.resume(RUN, scenario, context, inbound("tx-retried"));
+        assertEquals("second", second.state().data().get("fixture_id"));
+        assertEquals(List.of("tx-retried"), second.state().data().get("evidence"));
+    }
+
+    @Test
+    void retryLimitFailsClosedWithoutChangingTheTargetOutcome() {
+        var scenario = scenario(List.of(fixture("only", FixtureObservation.SATISFIED)));
+        executions.start(RUN, scenario, context);
+        executions.resume(RUN, scenario, context, new CaseEvent.RetryInbound());
+        executions.resume(RUN, scenario, context, new CaseEvent.RetryInbound());
+        executions.resume(RUN, scenario, context, new CaseEvent.RetryInbound());
+
+        assertThrows(IllegalStateException.class,
+                () -> executions.resume(RUN, scenario, context, new CaseEvent.RetryInbound()));
+        assertEquals(CaseExecutionStatus.WAITING_INBOUND,
+                repository.find(RUN, CASE).orElseThrow().status());
+    }
+
+    @Test
+    void expiredOneTimeFixtureCanBeReissuedInsteadOfBecomingATargetFailure() {
+        var scenario = scenario(List.of(fixture("expired", FixtureObservation.SATISFIED)));
+        var original = executions.start(RUN, scenario, context);
+        var later = new DefaultCaseContext(
+                RUN, TargetRole.IDP, Clock.fixed(NOW.plus(Duration.ofMinutes(2)), ZoneOffset.UTC),
+                context.parameters(), context.interaction(), Reachability.CONFIRMED,
+                context.transcript(), false);
+
+        var retried = executions.resume(RUN, scenario, later, new CaseEvent.RetryInbound());
+
+        assertEquals(CaseExecutionStatus.WAITING_INBOUND, retried.status());
+        org.junit.jupiter.api.Assertions.assertNotEquals(
+                original.waitCondition().inboundMatcher().criteria().get("ScenarioActionId"),
+                retried.waitCondition().inboundMatcher().criteria().get("ScenarioActionId"));
+        assertEquals(2, repository.listOutbox(RUN).size());
+    }
+
+    @Test
     void aNegativeFixtureCanTreatAnExplicitMissingCallbackAsSatisfied() {
         var discarded = new ScenarioFixture() {
             @Override public String id() { return "discarded-negative"; }

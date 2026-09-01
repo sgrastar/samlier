@@ -114,7 +114,7 @@ public final class ApprovedBrowserCaseRegistry {
                 targetEntityIds, targetSigningCertificates, null, ignored -> java.util.Optional.empty());
     }
 
-    private static TestCaseRegistry create(
+    public static TestCaseRegistry create(
             CaseDefinitionCatalog definitions,
             URI publicBase,
             Milestone milestone,
@@ -125,7 +125,7 @@ public final class ApprovedBrowserCaseRegistry {
                 ignored -> List.of(), null, ignored -> java.util.Optional.empty());
     }
 
-    private static TestCaseRegistry create(
+    public static TestCaseRegistry create(
             CaseDefinitionCatalog definitions,
             URI publicBase,
             Milestone milestone,
@@ -182,6 +182,11 @@ public final class ApprovedBrowserCaseRegistry {
         if (idpScenarioConfigurations != null
                 && IdpUnknownExtensionScenarioTestCase.CASE_ID.equals(definition.id())) {
             return new IdpUnknownExtensionScenarioTestCase(idpScenarioConfigurations);
+        }
+        if (idpScenarioConfigurations != null
+                && IdpExecutableBrowserFixtureScenarioTestCase.CASE_IDS.contains(definition.id())) {
+            return new IdpExecutableBrowserFixtureScenarioTestCase(
+                    definition.id(), idpScenarioConfigurations);
         }
         if (idpScenarioConfigurations != null
                 && IdpVersionScenarioTestCase.CASE_ID.equals(definition.id())) {

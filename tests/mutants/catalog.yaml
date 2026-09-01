@@ -14909,14 +14909,16 @@ mutants:
   authored_by: samlier-g2-builder
   base: idp-core-no-ecp
   target_role: idp
-  injected_violation_en: On the IDP IIP-EXT01.c path, apply emit_prohibited_behavior only to IIP-EXT01.c#v-4acbd708a3.
+  injected_violation_en: On the IDP IIP-EXT01.c path, fail one schema-generated matrix member selected by IIP-EXT01.c#v-3efd721c6d.
   executor:
     kind: declarative-sut-mutation
     adapter: idp-mutant-target
     mutation_point: IIP-EXT01.c
-    trigger_variant: IIP-EXT01.c#v-4acbd708a3
+    trigger_variant: IIP-EXT01.c#v-3efd721c6d
     trigger_en: 'Undefined attribute content on elements whose type definition contains xsd:anyAttribute may be ignored but
-      must not result in software failures — Variant: An unknown attribute on md:EntityDescriptor.'
+      must not result in software failures — Variant: Schema-driven matrix: for every applicable element established in SAML2-xsd
+      or SAML2MD-xsd whose declared type definition directly contains xsd:anyAttribute, add a foreign-namespace undefined attribute
+      and consume the otherwise schema-valid message or metadata document.'
     operation: emit_prohibited_behavior
     expected_behavior_en: Undefined attribute content on elements whose type definition contains xsd:anyAttribute may be ignored
       but must not result in software failures
@@ -14924,9 +14926,11 @@ mutants:
       evidence_kind: browser_and_transcript
       surface_en: The browser-visible transition together with the target request/response and session evidence in the Transcript.
       signal_en: 'Undefined attribute content on elements whose type definition contains xsd:anyAttribute may be ignored but
-        must not result in software failures — Trigger IIP-EXT01.c#v-4acbd708a3: An unknown attribute on md:EntityDescriptor.'
-      baseline_evidence_en: The evidence at the stated surface demonstrates the approved behavior for IIP-EXT01.c#v-4acbd708a3.
-      mutated_evidence_en: Emit or perform the prohibited behavior selected by IIP-EXT01.c#v-4acbd708a3.
+        must not result in software failures — Trigger IIP-EXT01.c#v-3efd721c6d: Schema-driven matrix: for every applicable element
+        established in SAML2-xsd or SAML2MD-xsd whose declared type definition directly contains xsd:anyAttribute, add a foreign-namespace
+        undefined attribute and consume the otherwise schema-valid message or metadata document.'
+      baseline_evidence_en: The evidence at the stated surface demonstrates the approved behavior for IIP-EXT01.c#v-3efd721c6d.
+      mutated_evidence_en: Fail one applicable matrix member selected by IIP-EXT01.c#v-3efd721c6d.
       unavailable_outcome: not_verified
       isolation_en: Apply the mutation only at IIP-EXT01.c on the idp path. Preserve every other baseline behavior. If the
         trigger imports another obligation, keep that obligation conforming outside this owner-specific path.
@@ -14934,19 +14938,21 @@ mutants:
     IIP-EXT01.c:
       outcome: violated
   unchanged_required: all_others
-  mutant_digest: sha256:9509e85f12171f11ad894a54299634ad4b9268363019d88f64b45ebd0c38a7e1
+  mutant_digest: sha256:fe4d3c5b248a8925850625a46d23d329d58439ad448441a58fb75dcc8cccb7e5
 - id: mut-iip-ext01-c-sp
   authored_by: samlier-g2-builder
   base: sp-core-minimal
   target_role: sp
-  injected_violation_en: On the SP IIP-EXT01.c path, apply emit_prohibited_behavior only to IIP-EXT01.c#v-4acbd708a3.
+  injected_violation_en: On the SP IIP-EXT01.c path, fail one schema-generated matrix member selected by IIP-EXT01.c#v-3efd721c6d.
   executor:
     kind: declarative-sut-mutation
     adapter: sp-mutant-target
     mutation_point: IIP-EXT01.c
-    trigger_variant: IIP-EXT01.c#v-4acbd708a3
+    trigger_variant: IIP-EXT01.c#v-3efd721c6d
     trigger_en: 'Undefined attribute content on elements whose type definition contains xsd:anyAttribute may be ignored but
-      must not result in software failures — Variant: An unknown attribute on md:EntityDescriptor.'
+      must not result in software failures — Variant: Schema-driven matrix: for every applicable element established in SAML2-xsd
+      or SAML2MD-xsd whose declared type definition directly contains xsd:anyAttribute, add a foreign-namespace undefined attribute
+      and consume the otherwise schema-valid message or metadata document.'
     operation: emit_prohibited_behavior
     expected_behavior_en: Undefined attribute content on elements whose type definition contains xsd:anyAttribute may be ignored
       but must not result in software failures
@@ -14954,9 +14960,11 @@ mutants:
       evidence_kind: browser_and_transcript
       surface_en: The browser-visible transition together with the target request/response and session evidence in the Transcript.
       signal_en: 'Undefined attribute content on elements whose type definition contains xsd:anyAttribute may be ignored but
-        must not result in software failures — Trigger IIP-EXT01.c#v-4acbd708a3: An unknown attribute on md:EntityDescriptor.'
-      baseline_evidence_en: The evidence at the stated surface demonstrates the approved behavior for IIP-EXT01.c#v-4acbd708a3.
-      mutated_evidence_en: Emit or perform the prohibited behavior selected by IIP-EXT01.c#v-4acbd708a3.
+        must not result in software failures — Trigger IIP-EXT01.c#v-3efd721c6d: Schema-driven matrix: for every applicable element
+        established in SAML2-xsd or SAML2MD-xsd whose declared type definition directly contains xsd:anyAttribute, add a foreign-namespace
+        undefined attribute and consume the otherwise schema-valid message or metadata document.'
+      baseline_evidence_en: The evidence at the stated surface demonstrates the approved behavior for IIP-EXT01.c#v-3efd721c6d.
+      mutated_evidence_en: Fail one applicable matrix member selected by IIP-EXT01.c#v-3efd721c6d.
       unavailable_outcome: not_verified
       isolation_en: Apply the mutation only at IIP-EXT01.c on the sp path. Preserve every other baseline behavior. If the
         trigger imports another obligation, keep that obligation conforming outside this owner-specific path.
@@ -14964,7 +14972,7 @@ mutants:
     IIP-EXT01.c:
       outcome: violated
   unchanged_required: all_others
-  mutant_digest: sha256:ef9b2703b64d426e2d0dee2f239b8e0381a68641b46232d2f01f1084223fa044
+  mutant_digest: sha256:2195fb07ad95267b3d9ce5ffbdc161f44d1308874d42f7f6e56e11e9eae3670b
 - id: mut-iip-alg01-a-idp
   authored_by: samlier-g2-builder
   base: idp-core-no-ecp
