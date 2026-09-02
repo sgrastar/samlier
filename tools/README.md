@@ -6,7 +6,7 @@ Tools for the G1 and G2 design gates. **Generation, documentation, and validatio
 |---|---|---|---|---|
 | `g1_author.py` | **Generates** `tests/*.yaml` from source text | Not required (reads `build/spec-cache/`) | **Required** (gitignored) | Initial drafting only |
 | `g1_docgen.py` | `tests/coverage.yaml` → `docs/04` | **Not required** | **Not required** | ✅ Identical output from a separate checkout |
-| `g1_migration_validate.py` | Compare the English catalog with the fixed Japanese baseline and emit the one-to-one variant-ID map | **Not required** | **Not required** | ✅ CI build artifacts under `build/` |
+| `g1_migration_validate.py` | Compare the English catalog with the fixed Japanese baseline, emit the one-to-one variant-ID map for text-only migrations, and record reviewed semantic replacements separately | **Not required** | **Not required** | ✅ CI build artifacts under `build/` |
 | `g1_language_check.py` | Reject Japanese residue in tracked public text, except explicit allowlist entries | **Not required** | **Not required** | ✅ CI build artifact under `build/` |
 | `g1_schema_validate.py` | Enforce the G1 JSON Schemas against canonical catalogs and migration artifacts | **Not required** | **Not required** | ✅ CI build artifact under `build/` |
 | `g1_validate.py` | **Independently validates** committed artifacts | Required (`--offline` can use the cache) | **Not required** | ✅ |

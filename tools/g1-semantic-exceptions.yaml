@@ -79,3 +79,10 @@ exceptions:
     source: IIP-MD08 states that any one of multiple encryption keys may be used.
     counterexample: A test could incorrectly require one specific key or key order and reject a conforming implementation.
     correction: Add a nonrestrictive control that forbids requiring a particular key or ordering.
+  - id: G1B-FINAL-12
+    obligation: IIP-EXT01.c
+    fields: [required_variant_count, control_count]
+    finding: Two handwritten undefined-attribute variants were outside the schema scope named by the source requirement, while one example did not cover the complete schema-defined matrix.
+    source: IIP-EXT01 limits undefined attributes to elements established in SAML2-xsd or SAML2MD-xsd whose type contains xsd:anyAttribute.
+    counterexample: Sending an attribute on samlp:Extensions tests schema rejection rather than extension tolerance and can falsely fail a conforming implementation; testing one valid element can miss failures on other applicable elements.
+    correction: Replace the three handwritten variants with one schema-driven matrix and require every applicable element to tolerate an undefined foreign-namespace attribute.
