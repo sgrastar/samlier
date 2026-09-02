@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """Validate the English-canonical G1 migration against a fixed Japanese baseline.
 
-Human-readable text and text-derived digests may change. Normative structure may not.
-The validator also emits a one-to-one old/new variant ID map as a build artifact.
+Human-readable text and text-derived digests may change. Normative structure may not,
+except for departures recorded by the semantic-exception manifest and covered by G1b.
+The validator emits a one-to-one old/new variant ID map for text-only migrations and
+records reviewed semantic replacements separately.
 """
 
 from __future__ import annotations
@@ -258,6 +260,12 @@ def main() -> int:
 
     changed: dict[str, Any] = {}
     variant_rows: list[dict[str, Any]] = []
+    reviewed_replacements: list[dict[str, Any]] = []
+    replacement_exceptions = {
+        item["obligation"]: item["id"]
+        for item in exception_manifest.get("exceptions", [])
+        if "required_variant_count" in set(item.get("fields") or [])
+    }
     for key in sorted(set(old_obligations) & set(new_obligations)):
         before = invariant_shape(old_obligations[key])
         after = invariant_shape(new_obligations[key])
@@ -265,6 +273,16 @@ def main() -> int:
             changed[key] = {"baseline": before, "current": after}
         old_variants = old_obligations[key].get("required_variants", [])
         new_variants = new_obligations[key].get("required_variants", [])
+        if key in replacement_exceptions:
+            reviewed_replacements.append(
+                {
+                    "exception_id": replacement_exceptions[key],
+                    "obligation": key,
+                    "old_ids": [variant["id"] for variant in old_variants],
+                    "new_ids": [variant["id"] for variant in new_variants],
+                }
+            )
+            continue
         for index, (old_variant, new_variant) in enumerate(
             zip(old_variants, new_variants, strict=False), start=1
         ):
@@ -333,19 +351,48 @@ def main() -> int:
     if old_predicate_logic != new_predicate_logic:
         errors.append("predicate logic changed")
 
-    old_ids = [row["old_id"] for row in variant_rows]
-    new_ids = [row["new_id"] for row in variant_rows]
-    if len(old_ids) != len(set(old_ids)):
+    all_old_ids = [
+        variant["id"]
+        for item in old_obligations.values()
+        for variant in item.get("required_variants", [])
+    ]
+    all_new_ids = [
+        variant["id"]
+        for item in new_obligations.values()
+        for variant in item.get("required_variants", [])
+    ]
+    mapped_old_ids = [row["old_id"] for row in variant_rows]
+    mapped_new_ids = [row["new_id"] for row in variant_rows]
+    if len(all_old_ids) != len(set(all_old_ids)):
         errors.append("baseline variant IDs are not unique")
-    if len(new_ids) != len(set(new_ids)):
+    if len(all_new_ids) != len(set(all_new_ids)):
         errors.append("current variant IDs are not unique")
-    expected_variants = sum(
-        len(item.get("required_variants", [])) for item in old_obligations.values()
+    replacement_keys = set(replacement_exceptions)
+    expected_old_mappings = sum(
+        len(item.get("required_variants", []))
+        for key, item in old_obligations.items()
+        if key not in replacement_keys
     )
-    if len(variant_rows) != expected_variants:
+    expected_new_mappings = sum(
+        len(item.get("required_variants", []))
+        for key, item in new_obligations.items()
+        if key not in replacement_keys
+    )
+    if expected_old_mappings != expected_new_mappings:
         errors.append(
-            f"variant map is incomplete: {len(variant_rows)} != {expected_variants}"
+            "unreviewed variant-count difference remains outside semantic "
+            f"replacements: {expected_old_mappings} != {expected_new_mappings}"
         )
+    if len(variant_rows) != expected_old_mappings:
+        errors.append(
+            "text-only variant map is incomplete: "
+            f"{len(variant_rows)} != {expected_old_mappings}"
+        )
+    one_to_one = (
+        expected_old_mappings == expected_new_mappings == len(variant_rows)
+        and len(mapped_old_ids) == len(set(mapped_old_ids))
+        and len(mapped_new_ids) == len(set(mapped_new_ids))
+    )
 
     english_errors = (
         english_field_errors(new_catalog, new_specs, new_predicates)
@@ -362,13 +409,13 @@ def main() -> int:
                 "current_commit": subprocess.check_output(
                     ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True
                 ).strip(),
+                "scope": "text-only variants excluding reviewed semantic replacements",
                 "count": len(variant_rows),
-                "one_to_one": (
-                    len(variant_rows) == expected_variants
-                    and len(old_ids) == len(set(old_ids))
-                    and len(new_ids) == len(set(new_ids))
-                ),
+                "baseline_count": len(all_old_ids),
+                "current_count": len(all_new_ids),
+                "one_to_one": one_to_one,
                 "mappings": variant_rows,
+                "reviewed_replacements": reviewed_replacements,
             },
             ensure_ascii=False,
             indent=2,
@@ -380,7 +427,9 @@ def main() -> int:
         "baseline_commit": args.baseline,
         "requirements": len(new_catalog["requirements"]),
         "obligations": len(new_obligations),
-        "variants": len(variant_rows),
+        "variants": len(all_new_ids),
+        "variant_mappings": len(variant_rows),
+        "reviewed_variant_replacements": reviewed_replacements,
         "specs": len(new_specs["specs"]),
         "predicates": len(new_predicates["predicates"]),
         "requirement_changes": changed_requirements,

@@ -23,7 +23,7 @@ on `releaseCheck` rather than duplicating or bypassing it.
 - 6c / 6c-0: Presence and ranges of `source_spec` / `source_selector` / `source_section_digest` / `source_clause`
 - 6: `NOT_OBSERVABLE` obligations have a reason statement and no cases
 - 20d: Applicability of conditional obligations is evaluated before case execution
-- English-canonical migration: semantic equality with baseline commit `ca54c4b83ac1a3208591f03772b4cf52c62045d4`, explicitly reviewed semantic exceptions, one-to-one variant-ID mapping, and no legacy Japanese-language fields
+- English-canonical migration: semantic equality with baseline commit `ca54c4b83ac1a3208591f03772b4cf52c62045d4`, explicitly reviewed semantic exceptions, one-to-one variant-ID mapping for text-only migrations, separately recorded reviewed semantic replacements, and no legacy Japanese-language fields
 - JSON Schema enforcement for the catalogs, variant-ID map, and semantic-exception manifest
 - Public-language policy: no Japanese characters in tracked public text outside the explicit allowlist
 
