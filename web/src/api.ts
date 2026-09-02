@@ -20,6 +20,8 @@ export interface Run {
   status: string
   targetToSuiteReachability: string
   context: Record<string, unknown>
+  createdAt?: string
+  updatedAt?: string
 }
 
 export interface RunCreated {
@@ -241,6 +243,7 @@ export interface CampaignReport {
     actionKind: 'NONE' | 'LOGIN' | 'CONTINUE' | 'CONFIGURATION' | 'METADATA_REFRESH' | 'SELF_CHECK'
     freshSessionRequired: boolean
     resolved: boolean
+    outcome: 'SATISFIED' | 'SATISFIED_WITH_NOTE' | 'VIOLATED' | 'INDETERMINATE' | 'INCONSISTENT' | 'NOT_VERIFIED' | null
     expectedTranscriptEvidence: string[]
   }>
 }

@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import { metadataFixtureWork, RunManagement } from './RunManagement'
 import type { MetadataLab } from './api'
@@ -6,6 +6,35 @@ import type { MetadataLab } from './api'
 afterEach(() => {
   cleanup()
   vi.restoreAllMocks()
+})
+
+test('blocks Run actions until the complete initial state loads and supports retry', async () => {
+  let unavailable = true
+  vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+    if (unavailable) return new Response(JSON.stringify({ message: 'campaign projection unavailable' }), {
+      status: 503, headers: { 'content-type': 'application/json' },
+    })
+    if (url.includes('/bootstrap-contracts')) return json([])
+    if (url.includes('/metadata-lab')) return json(metadataLab())
+    if (url.includes('/protocol-evidence')) return json(protocolEvidence())
+    if (url.includes('/active-probe')) return json({ state: 'NOT_STARTED' })
+    if (url.includes('/campaigns')) return json([])
+    if (url.includes('/interactions')) return json([])
+    if (url === '/api/health') return json({ status: 'ok', version: 'test', mode: 'selfhosted' })
+    if (url.includes('/api/runs/')) return json({ id: 'run_0123456789ABCDEFGHJKMNPQRS', planId: 'plan' })
+    if (url === '/api/plans') return json([])
+    return json([])
+  }))
+
+  render(<RunManagement runId="run_0123456789ABCDEFGHJKMNPQRS" />)
+
+  expect(await screen.findByRole('heading', { name: 'Run unavailable' })).toBeTruthy()
+  expect(screen.queryByText('Run preflight')).toBeNull()
+  expect(screen.queryByText('Start or resume M1')).toBeNull()
+
+  unavailable = false
+  fireEvent.click(screen.getByRole('button', { name: 'Retry loading Run' }))
+  expect(await screen.findByText('Run preflight')).toBeTruthy()
 })
 
 test('shows approved instructions and submits only an option plus evidence note', async () => {
@@ -462,7 +491,12 @@ test('offers the server-generated active probe launch URL and explains fresh-ses
     if (url.includes('/bootstrap-contracts')) return json([])
     if (url.includes('/metadata-lab')) return json(metadataLab())
     if (url.includes('/protocol-evidence')) return json(protocolEvidence())
-    if (url.includes('/interactions')) return json([])
+    if (url.includes('/interactions')) return json([{
+      caseId: 'IIP-IDP05-a-idp-01', kind: 'BROWSER', promptKey: null,
+      promptEn: 'Run the positive control and approved abnormal AuthnRequest fixtures.',
+      startUrl: 'https://peer.example/p/plan/probe/action_probe?run=run_0123456789ABCDEFGHJKMNPQRS',
+      expiresAt: '2026-09-05T00:00:00Z', answerValues: ['completed'], completionMode: 'OPERATOR',
+    }])
     if (url === '/api/health') return json({ status: 'ok', version: 'test', mode: 'selfhosted' })
     if (url.includes('/api/runs/')) return json({ id: 'run_0123456789ABCDEFGHJKMNPQRS', planId: 'plan' })
     if (url === '/api/plans') return json([{
@@ -476,11 +510,149 @@ test('offers the server-generated active probe launch URL and explains fresh-ses
 
   render(<RunManagement runId="run_0123456789ABCDEFGHJKMNPQRS" />)
 
-  expect(await screen.findByText('IIP-IDP05-a-idp-01')).toBeTruthy()
+  expect(await screen.findAllByText('IIP-IDP05-a-idp-01')).toHaveLength(1)
   expect(screen.getByText(/positive control/)).toBeTruthy()
   expect(screen.getByText(/private browser context/)).toBeTruthy()
+  expect(screen.queryByRole('button', { name: 'Browser steps completed' })).toBeNull()
   expect(screen.getByRole('link', { name: 'Open scenario' }).getAttribute('href'))
     .toContain('/probe/action_probe')
+  expect(screen.getByText('No other pending interactions. Continue the active probe above.')).toBeTruthy()
+  expect(screen.queryByText('No pending interactions.')).toBeNull()
+})
+
+test('keeps an ungrouped configuration interaction in the main work queue', async () => {
+  vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+    if (url.includes('/active-probe')) return json({ state: 'NOT_STARTED' })
+    if (url.includes('/bootstrap-contracts')) return json([])
+    if (url.includes('/metadata-lab')) return json(metadataLab())
+    if (url.includes('/protocol-evidence')) return json(protocolEvidence())
+    if (url.includes('/campaigns')) return json({
+      runId: 'run_0123456789ABCDEFGHJKMNPQRS', cases: 1,
+      casesByEvidenceClass: { PROTOCOL_OBSERVED: 0, OPERATOR_ASSISTED: 1, SELF_ATTESTED: 0 },
+      externallyVerifiedCases: 0, selfAttestedCases: 0, notVerifiedCases: 1,
+      plans: [], classifications: [], campaigns: [],
+    })
+    if (url.includes('/interactions')) return json([{
+      caseId: 'IIP-SP01-a-sp-01', kind: 'CONFIGURATION', promptKey: 'case.config',
+      promptEn: 'Configure the target policy.', startUrl: null,
+      expiresAt: '2026-09-05T00:00:00Z', answerValues: ['confirmed', 'target_config_unavailable'],
+      completionMode: 'OPERATOR',
+    }])
+    if (url === '/api/health') return json({ status: 'ok', version: 'test', mode: 'selfhosted' })
+    if (url.includes('/api/runs/')) return json({ id: 'run_0123456789ABCDEFGHJKMNPQRS', planId: 'plan' })
+    if (url === '/api/plans') return json([])
+    return json([])
+  }))
+
+  render(<RunManagement runId="run_0123456789ABCDEFGHJKMNPQRS" />)
+
+  expect(await screen.findByText('Manual configuration input')).toBeTruthy()
+  expect(screen.getByText('Configure the target policy.')).toBeTruthy()
+  expect(screen.queryByText(/available under the shared setup contracts/)).toBeNull()
+})
+
+test('filters the approved case workspace without changing case outcomes', async () => {
+  vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+    if (url.includes('/campaigns')) return json({
+      runId: 'run_0123456789ABCDEFGHJKMNPQRS', cases: 3,
+      casesByEvidenceClass: { PROTOCOL_OBSERVED: 2, OPERATOR_ASSISTED: 1, SELF_ATTESTED: 0 },
+      externallyVerifiedCases: 1, selfAttestedCases: 0, notVerifiedCases: 2,
+      plans: [
+        { plan: 'QUICK', cases: 2, deliberateUserActions: 1, remainingUserActions: 1,
+          loginActions: 1, configurationActions: 0, metadataRefreshActions: 0,
+          selfAttestationSections: 0, estimatedMinutesMin: 10, estimatedMinutesMax: 20,
+          actionBudget: 15, budgetMet: true },
+        { plan: 'STANDARD', cases: 1, deliberateUserActions: 1, remainingUserActions: 1,
+          loginActions: 0, configurationActions: 1, metadataRefreshActions: 0,
+          selfAttestationSections: 0, estimatedMinutesMin: 30, estimatedMinutesMax: 60,
+          actionBudget: 35, budgetMet: true },
+      ],
+      campaigns: [
+        { id: 'ordinary-sso', title: 'Ordinary SSO', plan: 'QUICK', evidenceClass: 'PROTOCOL_OBSERVED',
+          actionKind: 'LOGIN', deliberateUserActions: 1, remainingUserActions: 1, freshSessionRequired: true,
+          caseIds: ['IIP-SSO01-a-idp-01', 'IIP-SSO01-b-idp-01'], remainingCaseIds: ['IIP-SSO01-b-idp-01'],
+          expectedTranscriptEvidence: ['AuthnRequest', 'Response'], actions: [] },
+        { id: 'policy', title: 'Target policy', plan: 'STANDARD', evidenceClass: 'OPERATOR_ASSISTED',
+          actionKind: 'CONFIGURATION', deliberateUserActions: 1, remainingUserActions: 1, freshSessionRequired: false,
+          caseIds: ['IIP-ALG04-a-idp-01'], remainingCaseIds: ['IIP-ALG04-a-idp-01'],
+          expectedTranscriptEvidence: ['EncryptedAssertion'], actions: [] },
+      ],
+      classifications: [
+        { caseId: 'IIP-SSO01-a-idp-01', plan: 'QUICK', evidenceClass: 'PROTOCOL_OBSERVED',
+          campaignId: 'ordinary-sso', actionKind: 'LOGIN', freshSessionRequired: true, resolved: true,
+          outcome: 'SATISFIED',
+          expectedTranscriptEvidence: ['AuthnRequest', 'Response'] },
+        { caseId: 'IIP-SSO01-b-idp-01', plan: 'QUICK', evidenceClass: 'PROTOCOL_OBSERVED',
+          campaignId: 'ordinary-sso', actionKind: 'LOGIN', freshSessionRequired: true, resolved: false,
+          outcome: null,
+          expectedTranscriptEvidence: ['AuthnRequest', 'Response'] },
+        { caseId: 'IIP-ALG04-a-idp-01', plan: 'STANDARD', evidenceClass: 'OPERATOR_ASSISTED',
+          campaignId: 'policy', actionKind: 'CONFIGURATION', freshSessionRequired: false, resolved: false,
+          outcome: 'NOT_VERIFIED',
+          expectedTranscriptEvidence: ['EncryptedAssertion'] },
+      ],
+    })
+    if (url.includes('/active-probe')) return json({ state: 'NOT_STARTED' })
+    if (url.includes('/bootstrap-contracts')) return json([])
+    if (url.includes('/metadata-lab')) return json(metadataLab())
+    if (url.includes('/protocol-evidence')) return json(protocolEvidence())
+    if (url.includes('/interactions')) return json([{
+      caseId: 'IIP-ALG04-a-idp-01', kind: 'CONFIGURATION', promptKey: 'case.config',
+      promptEn: 'Apply the approved encryption policy, then continue.', startUrl: null,
+      expiresAt: '2026-09-05T00:00:00Z',
+      answerValues: ['confirmed', 'capability_absent', 'target_config_unavailable', 'capability_undetermined'],
+      completionMode: 'OPERATOR',
+    }])
+    if (url === '/api/health') return json({ status: 'ok', version: 'test', mode: 'selfhosted' })
+    if (url.includes('/api/runs/')) return json({ id: 'run_0123456789ABCDEFGHJKMNPQRS', planId: 'plan' })
+    if (url === '/api/plans') return json([])
+    return json([])
+  }))
+
+  render(<RunManagement runId="run_0123456789ABCDEFGHJKMNPQRS" />)
+
+  expect(await screen.findByRole('heading', { name: 'Case workspace' })).toBeTruthy()
+  expect(screen.queryByText('IIP-SSO01-a-idp-01')).toBeNull()
+  expect(screen.getByText('IIP-SSO01-b-idp-01')).toBeTruthy()
+  expect(screen.getByRole('button', { name: /IIP-ALG04-a-idp-01/ })).toBeTruthy()
+
+  fireEvent.click(screen.getByRole('button', { name: 'Not verified' }))
+  expect(screen.queryByText('IIP-SSO01-b-idp-01')).toBeNull()
+  expect(screen.getByRole('button', { name: /IIP-ALG04-a-idp-01/ })).toBeTruthy()
+
+  fireEvent.click(screen.getByRole('button', { name: 'All cases' }))
+  expect(screen.getByText('IIP-SSO01-a-idp-01')).toBeTruthy()
+
+  fireEvent.click(screen.getByRole('button', { name: 'Operator assisted' }))
+  expect(screen.queryByRole('button', { name: /IIP-ALG04-a-idp-01/ })).toBeNull()
+
+  fireEvent.change(screen.getByLabelText('Search cases'), { target: { value: 'ordinary' } })
+  expect(screen.getByText('IIP-SSO01-a-idp-01')).toBeTruthy()
+  expect(screen.getByText('IIP-SSO01-b-idp-01')).toBeTruthy()
+  expect(screen.getByText('2 cases shown')).toBeTruthy()
+
+  fireEvent.click(screen.getByRole('button', { name: 'Operator assisted' }))
+  fireEvent.change(screen.getByLabelText('Search cases'), { target: { value: 'approved encryption policy' } })
+  const caseButton = screen.getByRole('button', { name: /IIP-ALG04-a-idp-01/ })
+  expect(screen.getByText('1 case shown')).toBeTruthy()
+  fireEvent.click(caseButton)
+
+  const dialog = screen.getByRole('dialog', { name: 'IIP-ALG04-a-idp-01' })
+  expect(within(dialog).getByText(/approved encryption policy/)).toBeTruthy()
+  const continueButton = within(dialog).getByRole('button', { name: 'Continue case' })
+  const closeButton = within(dialog).getByRole('button', { name: 'Close case details' })
+  await waitFor(() => expect(document.activeElement).toBe(closeButton))
+  fireEvent.keyDown(document, { key: 'Tab', shiftKey: true })
+  expect(document.activeElement).toBe(continueButton)
+  fireEvent.click(closeButton)
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+  await waitFor(() => expect(document.activeElement).toBe(caseButton))
+
+  fireEvent.click(caseButton)
+  expect(screen.getByRole('dialog', { name: 'IIP-ALG04-a-idp-01' })).toBeTruthy()
+  fireEvent.keyDown(document, { key: 'Escape' })
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+  await waitFor(() => expect(document.activeElement).toBe(caseButton))
 })
 
 test('reissues an uncertain one-time fixture without turning it into a target failure', async () => {

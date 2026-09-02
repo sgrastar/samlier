@@ -34,6 +34,7 @@ public interface RunCampaignQuery {
             ActionKind actionKind,
             boolean freshSessionRequired,
             boolean resolved,
+            String outcome,
             List<String> expectedTranscriptEvidence) {
         public CaseClassification {
             expectedTranscriptEvidence = List.copyOf(expectedTranscriptEvidence);

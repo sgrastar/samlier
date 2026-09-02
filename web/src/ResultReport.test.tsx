@@ -28,6 +28,8 @@ test('renders the authoritative determination and its non-certification boundary
   expect(screen.getByText('Evidence provenance')).toBeTruthy()
   expect(screen.getByText('Externally verified')).toBeTruthy()
   expect(screen.getByText('Self-attested')).toBeTruthy()
+  expect(screen.getByText('IdP')).toBeTruthy()
+  expect(screen.queryByText('IDP / IDP')).toBeNull()
   expect(screen.getAllByText(/This is a test result, not a certification/)).toHaveLength(2)
   expect(screen.getByText('IIP-G03')).toBeTruthy()
 })

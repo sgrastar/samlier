@@ -1,8 +1,10 @@
-import { FormEvent, useEffect, useState } from 'react'
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import {
   api, type ActiveProbeStatus, type BootstrapContract, type MetadataLab, type PendingInteraction, type Plan,
-  type ProtocolEvidenceStatus, type CampaignReport,
+  type ProtocolEvidenceStatus, type CampaignReport, type Run,
 } from './api'
+import { humanize } from './format'
 
 export function RunManagement({ runId, csrfToken, focusCaseId, navigateTo }: {
   runId: string
@@ -18,14 +20,29 @@ export function RunManagement({ runId, csrfToken, focusCaseId, navigateTo }: {
   const [activeProbe, setActiveProbe] = useState<ActiveProbeStatus>()
   const [campaigns, setCampaigns] = useState<CampaignReport>()
   const [error, setError] = useState('')
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false)
   const [busy, setBusy] = useState('')
   const [planId, setPlanId] = useState('')
   const [profile, setProfile] = useState('')
   const [plan, setPlan] = useState<Plan>()
+  const [runSummary, setRunSummary] = useState<Run>()
   const [notice, setNotice] = useState('')
   const [mode, setMode] = useState<'selfhosted' | 'hosted'>('selfhosted')
   const [pollingDelaySeconds, setPollingDelaySeconds] = useState(15)
   const [sectionCaseChoices, setSectionCaseChoices] = useState<Record<string, string>>({})
+  const [caseQuery, setCaseQuery] = useState('')
+  const [caseScope, setCaseScope] = useState<'attention' | 'all' | 'not_verified'>('attention')
+  const [planFilter, setPlanFilter] = useState<'ALL' | 'QUICK' | 'STANDARD' | 'FULL'>('ALL')
+  const [evidenceFilters, setEvidenceFilters] = useState<Record<EvidenceClass, boolean>>({
+    PROTOCOL_OBSERVED: true,
+    OPERATOR_ASSISTED: true,
+    SELF_ATTESTED: true,
+  })
+  const [selectedCaseId, setSelectedCaseId] = useState<string>()
+  const [caseDrawerOpen, setCaseDrawerOpen] = useState(false)
+  const caseDrawerRef = useRef<HTMLElement | null>(null)
+  const caseDrawerCloseRef = useRef<HTMLButtonElement>(null)
+  const lastCaseTriggerRef = useRef<HTMLButtonElement | null>(null)
   const selfCheckSections = !focusCaseId && campaigns
     ? campaigns.campaigns.filter(campaign => campaign.evidenceClass === 'SELF_ATTESTED')
       .map(campaign => ({
@@ -49,13 +66,34 @@ export function RunManagement({ runId, csrfToken, focusCaseId, navigateTo }: {
     : []
   const groupedOperatorCases = new Set(sharedOperatorActions.flatMap(section =>
     section.interactions.map(interaction => interaction.caseId)))
+  const bootstrapCases = new Set(bootstrapContracts.flatMap(contract => contract.caseIds))
+  const activeProbeCaseId = activeProbe?.state === 'READY' || activeProbe?.state === 'AWAITING_RESPONSE'
+    ? activeProbe.caseId
+    : undefined
   const visibleInteractions = focusCaseId
     ? interactions.filter(interaction => interaction.caseId === focusCaseId)
-    : interactions.filter(interaction => interaction.kind !== 'CONFIGURATION'
-      && !groupedSelfCheckCases.has(interaction.caseId)
-      && !groupedOperatorCases.has(interaction.caseId))
+    : interactions.filter(interaction => !groupedSelfCheckCases.has(interaction.caseId)
+      && !groupedOperatorCases.has(interaction.caseId)
+      && !(interaction.kind === 'CONFIGURATION' && bootstrapCases.has(interaction.caseId))
+      && interaction.caseId !== activeProbeCaseId)
   const configurationInteractions = interactions.filter(interaction => interaction.kind === 'CONFIGURATION')
   const metadataWork = metadataFixtureWork(protocolEvidence)
+  const interactionText = useMemo(() => new Map(interactions.map(interaction => [interaction.caseId,
+    [interaction.promptEn, ...(interaction.answerValues ?? [])].filter(Boolean).join(' ')])), [interactions])
+  const caseWorkspace = useMemo(() => campaignWorkspace(campaigns, {
+    query: caseQuery,
+    scope: caseScope,
+    plan: planFilter,
+    evidence: evidenceFilters,
+  }, interactionText), [campaigns, caseQuery, caseScope, planFilter, evidenceFilters, interactionText])
+  const caseWorkspaceCount = caseWorkspace.reduce((count, group) => count + group.cases.length, 0)
+  const selectedCaseIsVisible = caseWorkspace.some(group => group.cases.some(value => value.caseId === selectedCaseId))
+  const selectedCase = selectedCaseIsVisible
+    ? campaigns?.classifications?.find(value => value.caseId === selectedCaseId)
+    : undefined
+  const selectedCaseCampaign = campaigns?.campaigns.find(value => value.id === selectedCase?.campaignId)
+  const selectedInteraction = interactions.find(value => value.caseId === selectedCase?.caseId)
+  const hasActiveProbe = activeProbe?.state === 'READY' || activeProbe?.state === 'AWAITING_RESPONSE'
 
   const refresh = async () => {
     const [nextInteractions, contracts, lab, evidence, probe, campaignReport, run, plans, health] = await Promise.all([
@@ -70,6 +108,7 @@ export function RunManagement({ runId, csrfToken, focusCaseId, navigateTo }: {
     setProtocolEvidence(evidence)
     setActiveProbe(probe)
     if (Array.isArray(campaignReport?.plans)) setCampaigns(campaignReport)
+    setRunSummary(run)
     setPlanId(run.planId)
     const selectedPlan = plans.find(value => value.plan.id === run.planId)
     setPlan(selectedPlan)
@@ -77,7 +116,70 @@ export function RunManagement({ runId, csrfToken, focusCaseId, navigateTo }: {
     setMode(health.mode)
   }
 
-  useEffect(() => { void refresh().catch(cause => setError((cause as Error).message)) }, [runId])
+  useEffect(() => {
+    setInitialLoadComplete(false)
+    setError('')
+    void refresh().then(() => setInitialLoadComplete(true)).catch(cause => setError((cause as Error).message))
+  }, [runId])
+
+  useEffect(() => {
+    if (!caseDrawerOpen) return
+    const previousOverflow = document.body.style.overflow
+    const workspaceRoot = document.querySelector<HTMLElement>('.management.workspace')
+    document.body.style.overflow = 'hidden'
+    workspaceRoot?.setAttribute('inert', '')
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setCaseDrawerOpen(false)
+        requestAnimationFrame(() => lastCaseTriggerRef.current?.focus())
+        return
+      }
+      if (event.key === 'Tab') {
+        const focusable = [...(caseDrawerRef.current?.querySelectorAll<HTMLElement>(
+          'a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])',
+        ) ?? [])].filter(value => value.getAttribute('aria-hidden') !== 'true')
+        if (focusable.length === 0) return
+        const first = focusable[0]
+        const last = focusable[focusable.length - 1]
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault()
+          last.focus()
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault()
+          first.focus()
+        }
+      }
+    }
+    document.addEventListener('keydown', closeOnEscape)
+    requestAnimationFrame(() => caseDrawerCloseRef.current?.focus())
+    return () => {
+      document.body.style.overflow = previousOverflow
+      workspaceRoot?.removeAttribute('inert')
+      document.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [caseDrawerOpen])
+
+  useEffect(() => {
+    if (caseDrawerOpen && !selectedCase) {
+      setCaseDrawerOpen(false)
+      requestAnimationFrame(() => lastCaseTriggerRef.current?.focus())
+    }
+  }, [caseDrawerOpen, selectedCase])
+
+  const retryInitialLoad = async () => {
+    setError('')
+    try {
+      await refresh()
+      setInitialLoadComplete(true)
+    } catch (cause) {
+      setError((cause as Error).message)
+    }
+  }
+
+  const closeCaseDrawer = () => {
+    setCaseDrawerOpen(false)
+    requestAnimationFrame(() => lastCaseTriggerRef.current?.focus())
+  }
 
   const attest = async (event: FormEvent<HTMLFormElement>, interaction: PendingInteraction) => {
     event.preventDefault()
@@ -368,7 +470,7 @@ export function RunManagement({ runId, csrfToken, focusCaseId, navigateTo }: {
     setError('')
     try {
       const evaluation = await api.evaluateProtocolEvidence(runId, csrfToken)
-      const completed = evaluation.completed.map(value => `${value.caseId}: ${humanize(value.outcome)}`)
+      const completed = evaluation.completed.map(value => `${value.caseId}: ${value.outcome}`)
       setNotice(completed.length > 0
         ? `Evaluated recorded protocol evidence: ${completed.join(', ')}.`
         : 'No evidence-driven case is ready. Complete the listed fixture fetches and correlated SAML attempts first.')
@@ -385,7 +487,7 @@ export function RunManagement({ runId, csrfToken, focusCaseId, navigateTo }: {
     setError('')
     try {
       const evaluation = await api.confirmProtocolEvidenceAttempts(runId, csrfToken)
-      const completed = evaluation.completed.map(value => `${value.caseId}: ${humanize(value.outcome)}`)
+      const completed = evaluation.completed.map(value => `${value.caseId}: ${value.outcome}`)
       setNotice(completed.length > 0
         ? `Completed the metadata campaign from recorded evidence: ${completed.join(', ')}.`
         : 'No pending metadata campaign cases were found.')
@@ -437,7 +539,91 @@ export function RunManagement({ runId, csrfToken, focusCaseId, navigateTo }: {
     <small>Expires {new Date(interaction.expiresAt).toLocaleString()}</small>
   </article>
 
-  return <section className="management panel">
+  const activeProbePanel = activeProbe?.state === 'READY' && activeProbe.startUrl
+    ? <article className="interaction active-probe">
+        <header><strong>{activeProbe.caseId ?? 'Browser-assisted SAML scenario'}</strong><span>AUTOMATED ORACLE</span></header>
+        <p>{activeProbe.instructionsEn}</p>
+        {activeProbe.requiresFreshSession && <p>The first IsPassive probe must start in a private browser context with no active target session.</p>}
+        <a className="button" href={activeProbe.startUrl}>Open scenario</a>
+      </article>
+    : activeProbe?.state === 'AWAITING_RESPONSE'
+      ? <article className="interaction active-probe">
+          <header><strong>{activeProbe.caseId ?? 'Browser-assisted SAML scenario'}</strong><span>WAITING</span></header>
+          <p>The request was dispatched. Complete target login or consent in that browser. Samlier will continue automatically after a correlated SAML Response.</p>
+          <button disabled={busy === 'active-probe-retry'} onClick={() => void retryActiveProbe()}>
+            Reissue this one-time fixture
+          </button>
+          <button disabled={busy === 'active-probe-abort'} onClick={() => void abortActiveProbe()}>
+            No SAML Response was returned
+          </button>
+        </article>
+      : null
+
+  if (!initialLoadComplete) return error ? <section className="run-load-state" role="alert">
+    <p className="eyebrow">Run workspace</p>
+    <h1>Run unavailable</h1>
+    <p>Samlier could not load the complete Run state. No Run actions are available until all required data loads successfully.</p>
+    <pre>{error}</pre>
+    <button type="button" onClick={() => void retryInitialLoad()}>Retry loading Run</button>
+  </section> : <section className="report-skeleton run-workspace-skeleton" aria-label="Loading Run workspace" aria-busy="true">
+    <span /><span /><span /><span />
+  </section>
+
+  return <section className="management workspace">
+    <header className="workspace-masthead">
+      <div>
+        <p className="eyebrow">Run workspace</p>
+        <h1>{plan?.plan.name ?? 'Loading Run'}</h1>
+        <p className="workspace-context">
+          {plan && <a href={`/?plan=${encodeURIComponent(plan.plan.id)}`}>{humanize(plan.plan.profile)}</a>}
+          <code>{runId}</code>
+        </p>
+      </div>
+      <div className="workspace-state">
+        <div><span className={`run-status status-${(runSummary?.status ?? 'created').toLowerCase()}`}>
+          {humanize(runSummary?.status ?? 'CREATED')}
+        </span></div>
+        <span>{interactions.length} pending interaction{interactions.length === 1 ? '' : 's'}</span>
+        {campaigns && <div className="workspace-evidence-summary" aria-label="Evidence summary">
+          <span className="evidence-observed-text"><strong>{campaigns.externallyVerifiedCases}</strong> externally verified</span>
+          <span className="evidence-attested-text"><strong>{campaigns.selfAttestedCases}</strong> self-attested</span>
+          <span className="evidence-unverified-text"><strong>{campaigns.notVerifiedCases}</strong> not verified</span>
+        </div>}
+        <details className="export-menu"><summary>Export / report</summary><div>
+          <a href={`/api/runs/${runId}/result.json`} download>Download result.json</a>
+          <a href={`/api/runs/${runId}/report.html`} download>Download report.html</a>
+          <a href={`/reports/${runId}`}>Open current result</a>
+        </div></details>
+      </div>
+    </header>
+    {campaigns && <nav className="plan-progress" aria-label="Filter cases by evidence plan">
+      <button type="button" className={`plan-progress-card${planFilter === 'ALL' ? ' selected' : ''}`}
+        aria-pressed={planFilter === 'ALL'} onClick={() => setPlanFilter('ALL')}>
+        <span>All plans</span><strong>{campaigns.cases}</strong><small>approved cases</small>
+      </button>
+      {campaigns.plans.map(value =>
+      <button type="button" className={`plan-progress-card plan-${value.plan.toLowerCase()}${planFilter === value.plan ? ' selected' : ''}`}
+        aria-pressed={planFilter === value.plan} onClick={() => setPlanFilter(value.plan)} key={value.plan}>
+        <span>{humanize(value.plan)}</span><strong>{value.remainingUserActions}</strong>
+        <small>actions remaining · {value.estimatedMinutesMin}-{value.estimatedMinutesMax} min</small>
+        <progress max={Math.max(value.deliberateUserActions, 1)}
+          value={Math.max(value.deliberateUserActions - value.remainingUserActions, 0)} />
+      </button>)}</nav>}
+    <div className="workspace-actionbar">
+      <div className="actions">
+        <button disabled={busy === 'preflight'} onClick={() => void runPreflight()}>Run preflight</button>
+        <button disabled={busy === 'quick-check'} onClick={() => void startM1()}>Start or resume M1</button>
+        <button disabled={busy === 'M2'} onClick={() => void startMilestone('M2')}>Start or resume M2</button>
+        <button disabled={busy === 'M3'} onClick={() => void startMilestone('M3')}>Start or resume M3</button>
+      </div>
+      <div className="actions">
+        <button className="button-secondary" onClick={() => void refresh()}>Refresh</button>
+        <a className="button button-secondary" href={`/reports/${runId}`}>Open current result</a>
+      </div>
+    </div>
+    {activeProbePanel}
+    {error && <aside className="notice notice-error" role="alert">{error}</aside>}
+    {notice && <aside className="notice notice-success" role="status">{notice}</aside>}
     {plan && <section className="peer-registration">
       <p className="eyebrow">Test Peer registration</p>
       <h2>{plan.plan.name}</h2>
@@ -470,7 +656,7 @@ export function RunManagement({ runId, csrfToken, focusCaseId, navigateTo }: {
           <div className="standard-work-queue">
             <p><strong>Standard work queue:</strong> {metadataWork.completedFixtures}/{metadataWork.totalFixtures} fixture fetches recorded.</p>
             {metadataLab?.ingestionMode === 'AUTOMATIC_POLLING' ? <>
-              <p><strong>Automatic polling:</strong> {metadataLab.campaignIndex}/{metadataLab.campaignVariants.length} fixtures completed{metadataLab.campaignComplete ? ' — campaign complete.' : `; currently serving ${humanize(metadataLab.selectedVariant)}.`}</p>
+              <p><strong>Automatic polling:</strong> {metadataLab.campaignIndex}/{metadataLab.campaignVariants.length} fixtures completed{metadataLab.campaignComplete ? '. Campaign complete.' : `; currently serving ${humanize(metadataLab.selectedVariant)}.`}</p>
               <p><strong>Operator continuations:</strong> {metadataLab.operatorContinuationActions}</p>
               <p><small>Samlier waits {metadataLab.pollingDelaySeconds} seconds between successful fixtures so the target's ordinary metadata-key refresh window can elapse. The delay changes orchestration only, never the outcome.</small></p>
               {!metadataLab.campaignComplete && metadataLab.automaticStartUrl && <a
@@ -565,14 +751,15 @@ export function RunManagement({ runId, csrfToken, focusCaseId, navigateTo }: {
         <dl>
           <dt>Cases</dt><dd>{value.cases}</dd>
           <dt>Actions</dt><dd>{value.deliberateUserActions} total / {value.remainingUserActions} remaining (budget {value.actionBudget})</dd>
-          <dt>Estimated time</dt><dd>{value.estimatedMinutesMin}–{value.estimatedMinutesMax} minutes</dd>
+          <dt>Estimated time</dt><dd>{value.estimatedMinutesMin}-{value.estimatedMinutesMax} minutes</dd>
           <dt>Action mix</dt><dd>{value.loginActions} login, {value.configurationActions} configuration, {value.metadataRefreshActions} metadata refresh</dd>
           {value.plan === 'FULL' && <><dt>Self-check sections</dt><dd>{value.selfAttestationSections}</dd></>}
         </dl>
       </article>)}</div>
       <p><strong>Externally verified:</strong> {campaigns.externallyVerifiedCases} · <strong>Self-attested:</strong> {campaigns.selfAttestedCases} · <strong>Not verified:</strong> {campaigns.notVerifiedCases}</p>
       <details><summary>Evidence campaigns and shared cases</summary>
-        <div className="contract-list">{campaigns.campaigns.map(campaign => <article className="contract" key={campaign.id}>
+        <div className="contract-list">{campaigns.campaigns.map(campaign => <article
+          className={`contract evidence-panel evidence-${campaign.evidenceClass.toLowerCase()}`} key={campaign.id}>
           <header><div><strong>{campaign.title}</strong><p>{humanize(campaign.evidenceClass)}</p></div><span>{campaign.remainingUserActions} action{campaign.remainingUserActions === 1 ? '' : 's'} remaining</span></header>
           {campaign.freshSessionRequired && <p>A fresh target session is required at the campaign boundary.</p>}
           {campaign.expectedTranscriptEvidence.length > 0 && <p>Expected evidence: {campaign.expectedTranscriptEvidence.join(', ')}</p>}
@@ -580,6 +767,74 @@ export function RunManagement({ runId, csrfToken, focusCaseId, navigateTo }: {
         </article>)}</div>
       </details>
     </section>}
+    {!focusCaseId && campaigns && <section className="case-workspace" aria-labelledby="case-workspace-title">
+      <div className="section-heading case-workspace-heading"><div><h2 id="case-workspace-title">Case workspace</h2>
+        <p>Find approved cases by campaign, evidence source, or approved operator instructions. This view does not change their approved outcome rules.</p></div>
+        <label className="case-search">Search cases<input type="search" value={caseQuery}
+          onChange={event => setCaseQuery(event.target.value)} placeholder="Case ID, campaign, action, prompt, or evidence" /></label>
+      </div>
+      <div className="case-filterbar">
+        <div className="segmented-control" aria-label="Case resolution filter">
+          <button type="button" className={caseScope === 'attention' ? 'active' : ''}
+            aria-pressed={caseScope === 'attention'} onClick={() => setCaseScope('attention')}>Needs attention</button>
+          <button type="button" className={caseScope === 'all' ? 'active' : ''}
+            aria-pressed={caseScope === 'all'} onClick={() => setCaseScope('all')}>All cases</button>
+          <button type="button" className={caseScope === 'not_verified' ? 'active' : ''}
+            aria-pressed={caseScope === 'not_verified'} onClick={() => setCaseScope('not_verified')}>Not verified</button>
+        </div>
+        <div className="evidence-filterbar" aria-label="Evidence class filters">
+          {(Object.keys(evidenceFilters) as EvidenceClass[]).map(value => <button type="button" key={value}
+            className={`evidence-filter evidence-${value.toLowerCase()}${evidenceFilters[value] ? ' active' : ''}`}
+            aria-pressed={evidenceFilters[value]} onClick={() => setEvidenceFilters(current => ({
+              ...current, [value]: !current[value],
+            }))}><span className={`semantic-dot evidence-${evidenceToken(value)}`} />{humanize(value)}</button>)}
+        </div>
+        <span className="case-result-count" aria-live="polite">{caseWorkspaceCount} case{caseWorkspaceCount === 1 ? '' : 's'} shown</span>
+      </div>
+      <div className="case-workspace-layout">
+        <div className="case-groups" aria-live="polite">
+          {caseWorkspace.length === 0 ? <div className="empty-state compact"><h3>No cases match these filters</h3>
+            <p>Change the plan, evidence, resolution, or search filters.</p></div> : caseWorkspace.map(group =>
+            <section className="case-group" key={group.campaign.id}>
+              <header><div><strong>{group.campaign.title}</strong><small>{humanize(group.campaign.evidenceClass)}</small></div>
+                <span>{group.cases.filter(value => !value.resolved).length} need attention</span></header>
+              <div>{group.cases.map(value => <button type="button" className={`case-row${selectedCaseId === value.caseId ? ' selected' : ''}`}
+                key={value.caseId} onClick={event => {
+                  lastCaseTriggerRef.current = event.currentTarget
+                  setSelectedCaseId(value.caseId)
+                  setCaseDrawerOpen(true)
+                }} aria-haspopup="dialog" aria-expanded={caseDrawerOpen && selectedCaseId === value.caseId}>
+                <span className={`semantic-dot ${value.resolved ? 'evidence-observed' : 'evidence-unverified'}`} />
+                <code>{value.caseId}</code><span>{humanize(value.actionKind)}</span>
+                <strong>{value.outcome ? humanize(value.outcome) : value.resolved ? 'Resolved' : 'Needs attention'}</strong>
+              </button>)}</div>
+            </section>)}
+        </div>
+      </div>
+    </section>}
+    {caseDrawerOpen && selectedCase && selectedCaseCampaign && createPortal(<div className="case-drawer-layer">
+      <div className="case-drawer-backdrop" aria-hidden="true" onClick={closeCaseDrawer} />
+      <aside ref={caseDrawerRef} className="case-drawer" role="dialog" aria-modal="true" aria-labelledby="case-drawer-title">
+        <header className="case-drawer-header"><div><p className="eyebrow">Case details</p>
+          <h2 id="case-drawer-title">{selectedCase.caseId}</h2></div>
+          <button ref={caseDrawerCloseRef} type="button" className="button-secondary" onClick={closeCaseDrawer}
+            aria-label="Close case details">Close</button></header>
+        <dl><dt>Campaign</dt><dd>{selectedCaseCampaign.title}</dd>
+          <dt>Plan</dt><dd>{humanize(selectedCase.plan)}</dd>
+          <dt>Evidence</dt><dd><span className={`evidence-label evidence-${selectedCase.evidenceClass.toLowerCase()}`}>
+            {humanize(selectedCase.evidenceClass)}</span></dd>
+          <dt>Outcome</dt><dd>{selectedCase.outcome ? humanize(selectedCase.outcome) : selectedCase.resolved ? 'Resolved' : 'Pending evidence'}</dd>
+          <dt>User action</dt><dd>{humanize(selectedCase.actionKind)}</dd>
+          <dt>Fresh session</dt><dd>{selectedCase.freshSessionRequired ? 'Required' : 'Not required'}</dd></dl>
+        {selectedCase.expectedTranscriptEvidence.length > 0 && <><h3>Expected Transcript evidence</h3>
+          <ul>{selectedCase.expectedTranscriptEvidence.map(value => <li key={value}><code>{value}</code></li>)}</ul></>}
+        {selectedInteraction ? <div className="case-drawer-interaction">{interactionCard(selectedInteraction)}</div>
+          : selectedCase.resolved ? <p className="quiet-success">This case already has a recorded outcome.</p>
+            : <div className="notice"><strong>No direct input is requested</strong>
+              <p>Continue its campaign or protocol fixture from the Run workspace. A missing observation remains not verified.</p>
+              <a className="button button-secondary" href={`/browser/${runId}/${selectedCase.caseId}`}>Open focused case</a></div>}
+      </aside>
+    </div>, document.body)}
     {sharedOperatorActions.length > 0 && <section className="shared-operator-actions">
       <p className="eyebrow">Standard plan operations</p>
       <h2>Shared target policy changes</h2>
@@ -642,15 +897,7 @@ export function RunManagement({ runId, csrfToken, focusCaseId, navigateTo }: {
           </fieldset>
         </form>)}</div>
     </section>}
-    <div className="section-heading"><div><p className="eyebrow">Evidence workflow</p><h2>Pending interactions</h2></div><div className="actions">
-      <button disabled={busy === 'preflight'} onClick={() => void runPreflight()}>Run preflight</button>
-      <button disabled={busy === 'quick-check'} onClick={() => void startM1()}>Start or resume M1</button>
-      <button disabled={busy === 'M2'} onClick={() => void startMilestone('M2')}>Start or resume M2</button>
-      <button disabled={busy === 'M3'} onClick={() => void startMilestone('M3')}>Start or resume M3</button>
-      <button onClick={() => void refresh()}>Refresh</button>
-    </div></div>
-    {error && <aside role="alert">{error}</aside>}
-    {notice && <aside role="status">{notice}</aside>}
+    <div className="section-heading"><div><p className="eyebrow">Evidence workflow</p><h2>Pending interactions</h2></div></div>
     {profile === 'IDP_FULL' && <form className="interaction" onSubmit={event => void runEcpProbe(event)}>
       <fieldset disabled={busy === 'ecp-probe'}>
         <legend>ECP, channel-binding, and SAML-EC probes</legend>
@@ -663,39 +910,61 @@ export function RunManagement({ runId, csrfToken, focusCaseId, navigateTo }: {
     {plan && profile.startsWith('IDP') && <div className="actions">
       <a className="button" href={`/p/${plan.plan.id}/start/m0-roundtrip?run=${runId}`}>Start IdP round trip</a>
     </div>}
-    {activeProbe?.state === 'READY' && activeProbe.startUrl && <article className="interaction active-probe">
-      <header><strong>{activeProbe.caseId ?? 'Browser-assisted SAML scenario'}</strong><span>AUTOMATED ORACLE</span></header>
-      <p>{activeProbe.instructionsEn}</p>
-      {activeProbe.requiresFreshSession && <p>The first IsPassive probe must start in a private browser context with no active target session.</p>}
-      <a className="button" href={activeProbe.startUrl}>Open scenario</a>
-    </article>}
-    {activeProbe?.state === 'AWAITING_RESPONSE' && <article className="interaction active-probe">
-      <header><strong>{activeProbe.caseId ?? 'Browser-assisted SAML scenario'}</strong><span>WAITING</span></header>
-      <p>The request was dispatched. Complete target login or consent in that browser. Samlier will continue automatically after a correlated SAML Response.</p>
-      <button disabled={busy === 'active-probe-retry'} onClick={() => void retryActiveProbe()}>
-        Reissue this one-time fixture
-      </button>
-      <button disabled={busy === 'active-probe-abort'} onClick={() => void abortActiveProbe()}>
-        No SAML Response was returned
-      </button>
-    </article>}
     {plan && profile.startsWith('SP') && <p>Start login at the target SP after importing the Test Peer metadata.</p>}
     {focusCaseId && <div className="actions"><a className="button" href={`/manage/${runId}`}>Back to Run management</a></div>}
     {visibleInteractions.length === 0 ? <p className="quiet-success">
       {focusCaseId ? `No pending interaction for ${focusCaseId}.`
         : configurationInteractions.length > 0
-          ? 'Configuration prerequisites are grouped under the bootstrap contracts above.'
+          ? 'Configuration prerequisites are available under the shared setup contracts above.'
+          : hasActiveProbe
+            ? 'No other pending interactions. Continue the active probe above.'
           : 'No pending interactions.'}
     </p> :
       <div className="interaction-list">{visibleInteractions.map(interactionCard)}</div>}
-    <div className="actions">
-      <a className="button" href={`/reports/${runId}`}>Open current result</a>
-      <a className="button" href={`/api/runs/${runId}/result.json`} download>Export result.json</a>
-      <a className="button" href={`/api/runs/${runId}/report.html`} download>Export report.html</a>
-      {mode === 'hosted' && <button disabled={busy === 'publish'} onClick={() => void publish()}>Publish hosted result</button>}
-    </div>
+    {mode === 'hosted' && <div className="actions"><button disabled={busy === 'publish'} onClick={() => void publish()}>Publish hosted result</button></div>}
   </section>
 }
+
+type EvidenceClass = 'PROTOCOL_OBSERVED' | 'OPERATOR_ASSISTED' | 'SELF_ATTESTED'
+
+function campaignWorkspace(campaigns: CampaignReport | undefined, filter: {
+  query: string
+  scope: 'attention' | 'all' | 'not_verified'
+  plan: 'ALL' | 'QUICK' | 'STANDARD' | 'FULL'
+  evidence: Record<EvidenceClass, boolean>
+}, interactionText: Map<string, string>) {
+  if (!campaigns) return []
+  const query = filter.query.trim().toLowerCase()
+  const campaignById = new Map(campaigns.campaigns.map(value => [value.id, value]))
+  const visible = (campaigns.classifications ?? []).filter(value => {
+    const campaign = campaignById.get(value.campaignId)
+    const searchable = [
+      value.caseId,
+      campaign?.title,
+      value.actionKind,
+      value.evidenceClass,
+      value.outcome,
+      interactionText.get(value.caseId),
+      ...(value.expectedTranscriptEvidence ?? []),
+    ].filter(Boolean).join(' ').toLowerCase()
+    return campaign
+      && (filter.scope === 'all'
+        || filter.scope === 'attention' && !value.resolved
+        || filter.scope === 'not_verified' && value.outcome === 'NOT_VERIFIED')
+      && (filter.plan === 'ALL' || value.plan === filter.plan)
+      && filter.evidence[value.evidenceClass]
+      && (!query || searchable.includes(query))
+  })
+  return campaigns.campaigns.map(campaign => ({
+    campaign,
+    cases: visible.filter(value => value.campaignId === campaign.id),
+  })).filter(group => group.cases.length > 0)
+}
+
+function evidenceToken(value: EvidenceClass) {
+  return value === 'PROTOCOL_OBSERVED' ? 'observed' : value === 'OPERATOR_ASSISTED' ? 'assisted' : 'attested'
+}
+
 
 export function metadataFixtureWork(status: ProtocolEvidenceStatus | undefined) {
   const required = new Set<string>()
@@ -723,10 +992,6 @@ export function metadataFixtureWork(status: ProtocolEvidenceStatus | undefined) 
 
 function resolvePrompt(value: string, planId: string, runId: string) {
   return value.replaceAll('<plan-id>', planId || '<plan-id>').replaceAll('<run-id>', runId)
-}
-
-function humanize(value: string) {
-  return value.replaceAll('_', ' ').replaceAll('-', ' ').replace(/^./, first => first.toUpperCase())
 }
 
 function planDescription(plan: 'QUICK' | 'STANDARD' | 'FULL') {

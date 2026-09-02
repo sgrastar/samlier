@@ -42,3 +42,6 @@ __pycache__/
 
 # repo-local venv (tools/requirements.txt)
 .venv/
+
+# Local scratch space (design mockups, drafts) — never tracked or distributed.
+private/

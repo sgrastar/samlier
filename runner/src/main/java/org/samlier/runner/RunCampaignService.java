@@ -96,7 +96,7 @@ public final class RunCampaignService implements RunCampaignQuery {
                 classified.stream().map(value -> new RunCampaignQuery.CaseClassification(
                         value.caseId(), value.plan(), value.evidenceClass(), value.campaignId(),
                         value.actionKind(), value.freshSessionRequired(), value.resolved(),
-                        value.expectedEvidence())).toList(),
+                        value.outcome(), value.expectedEvidence())).toList(),
                 externallyVerified, selfAttested, notVerified);
     }
 
@@ -182,6 +182,7 @@ public final class RunCampaignService implements RunCampaignQuery {
                     case SATISFIED, SATISFIED_WITH_NOTE, VIOLATED -> true;
                     case INDETERMINATE, INCONSISTENT, NOT_VERIFIED -> false;
                 },
+                execution.outcome() == null ? null : execution.outcome().outcome().name(),
                 List.copyOf(expectedEvidence));
     }
 
@@ -349,6 +350,7 @@ public final class RunCampaignService implements RunCampaignQuery {
             List<String> actionKeys,
             boolean finished,
             boolean resolved,
+            String outcome,
             List<String> expectedEvidence) {}
 
     private static final class MutableCampaign {

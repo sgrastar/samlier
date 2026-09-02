@@ -175,6 +175,7 @@ class RunCampaignServiceTest {
 
         assertEquals(1, report.externallyVerifiedCases());
         assertEquals(EvidenceClass.PROTOCOL_OBSERVED, report.classifications().get(0).evidenceClass());
+        assertEquals("SATISFIED", report.classifications().get(0).outcome());
         assertEquals(0, report.plans().get(0).deliberateUserActions());
     }
 
