@@ -1,4 +1,4 @@
-target_commit: 0274d2395f182b3926a6fa9bea5ce5c69edd4e0f
+target_commit: d3dfc41c0195ce8fbc61e7d569010289f90b4cdc
 artifact_digests:
   tests/coverage.yaml: sha256:2bee3db74c9be9908710bbe18935c73454f1ed4c5c0f06bdab1cf18deaef843c
   tests/specs.yaml: sha256:acee5ce8c348fbc5e02f77bd2f5b8703a632dd69aea857b14b97812ff6cc39d9
@@ -7,7 +7,7 @@ evidence:
   kind: signed-commit
   reviewers:
   - hoshina@gmail.com
-  evidence_url: https://github.com/sgrastar/samlier/commit/0274d2395f182b3926a6fa9bea5ce5c69edd4e0f
+  evidence_url: https://github.com/sgrastar/samlier/commit/d3dfc41c0195ce8fbc61e7d569010289f90b4cdc
 approvals:
 - obligation: IIP-G01.a
   obligation_digest: sha256:f09a9126ad949769b762fc416b84f712ca47d6759a8117658314c773471ada91
