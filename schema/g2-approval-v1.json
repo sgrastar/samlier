@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://samlier.dev/schema/g2-approval-v1.json",
-  "title": "Samlier signed G2 approval record",
+  "$id": "https://samlscope.com/schema/g2-approval-v1.json",
+  "title": "SAMLscope signed G2 approval record",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema_version", "target_commit", "artifact_digests", "evidence", "approvals"],
