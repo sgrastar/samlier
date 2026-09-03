@@ -1,18 +1,18 @@
 services:
-  samlier:
-    image: ${SAMLIER_IMAGE:-samlier:keycloak-smoke}
+  samlscope:
+    image: ${SAMLSCOPE_IMAGE:-samlscope:keycloak-smoke}
     build:
       context: ../..
     environment:
-      SAMLIER_MODE: selfhosted
-      SAMLIER_PUBLIC_BASE_URL: http://localhost:8080
-      SAMLIER_PEER_BASE_URL: http://localhost:8080
-      SAMLIER_DATA_DIR: /data
-      SAMLIER_IMAGE_DIGEST: ${SAMLIER_IMAGE_DIGEST:?SAMLIER_IMAGE_DIGEST must identify the image being run}
+      SAMLSCOPE_MODE: selfhosted
+      SAMLSCOPE_PUBLIC_BASE_URL: http://localhost:8080
+      SAMLSCOPE_PEER_BASE_URL: http://localhost:8080
+      SAMLSCOPE_DATA_DIR: /data
+      SAMLSCOPE_IMAGE_DIGEST: ${SAMLSCOPE_IMAGE_DIGEST:?SAMLSCOPE_IMAGE_DIGEST must identify the image being run}
     ports:
       - "8080:8080"
     volumes:
-      - samlier-data:/data
+      - samlscope-data:/data
 
   keycloak:
     image: quay.io/keycloak/keycloak:26.7.2@sha256:9d1f1b2b7261ff53c66cb1092dfcdc34a5fb77e81f9e6a6e75b8b6a795de8067
@@ -24,7 +24,7 @@ services:
     ports:
       - "8180:8080"
     volumes:
-      - ./realm-samlier.json:/opt/keycloak/data/import/realm-samlier.json:ro
+      - ./realm-samlscope.json:/opt/keycloak/data/import/realm-samlscope.json:ro
 
 volumes:
-  samlier-data:
+  samlscope-data:

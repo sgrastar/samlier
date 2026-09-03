@@ -26,7 +26,7 @@ export function ManagementBootstrap({ runId }: { runId: string }) {
     }
     void Promise.all([api.managementSession(runId, token), api.health().catch(() => undefined)]).then(([session, health]) => {
       if (health) setMode(health.mode)
-      window.sessionStorage.setItem(`samlier.csrf.${runId}`, session.csrfToken)
+      window.sessionStorage.setItem(`samlscope.csrf.${runId}`, session.csrfToken)
       setCsrfToken(session.csrfToken)
       setState('ready')
     }).catch(cause => {

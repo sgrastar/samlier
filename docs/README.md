@@ -1,4 +1,4 @@
-# Samlier — SAML Conformance Test Suite
+# SAMLscope — SAML Conformance Test Suite
 
 **Design documentation** / Created: 2026-08-25 / Status: v0.1 implementation complete; operational reference runs remain release evidence
 
@@ -9,7 +9,7 @@ It aims to be the SAML equivalent of the OIDF Conformance Suite.
 
 | Item | Decision |
 |---|---|
-| Product name | **Samlier** (repo `github.com/sgrastar/samlier` / package `org.samlier.*` / image `samlier/suite`) |
+| Product name | **SAMLscope** (repo `github.com/sgrastar/samlscope` / package `com.samlscope.*` / image `samlscope/suite`) |
 | License | **Apache-2.0** (DCO, no CLA) |
 | v0.1 scope | **Complete Phase 1** — all <!--g1:requirements-->69<!--/g1--> IIP v1.1 requirements, including SLO / ECP |
 | Trust model for published results | **Level 0 (local export) + Level 2 (shared URLs only for Hosted Runs)**. Uploading self-hosted results is not adopted |
@@ -22,7 +22,8 @@ It aims to be the SAML equivalent of the OIDF Conformance Suite.
 | Languages | **English only**. Public test-definition YAML uses English fields only; legacy `ja` fields are rejected in CI |
 | Requirements catalog | **`tests/coverage.yaml` is authoritative**; the tables in `04` are generated from it |
 
-**D-15 (the operator, domain, provider, retention enforcement, and cost of an official Hosted deployment) remains an operational deployment decision.**
+**The production domain is `samlscope.com`; the remaining D-15 items (operator, provider,
+retention enforcement, and cost) remain operational deployment decisions.**
 See [09-open-decisions.md](09-open-decisions.md) for the decision history.
 
 ## Status of Design Gate G1

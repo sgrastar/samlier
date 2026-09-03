@@ -17,7 +17,7 @@
     } ]
   },
   "suite" : {
-    "name" : "Samlier",
+    "name" : "SAMLscope",
     "version" : "0.1.0",
     "image_digest" : "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
     "execution_mode" : "self-hosted"
@@ -39,7 +39,7 @@
       "version" : "1.1",
       "date" : "2019-12-18"
     },
-    "level_definition_note" : "Core and Full are Samlier test scopes, not IIP conformance classes."
+    "level_definition_note" : "Core and Full are SAMLscope test scopes, not IIP conformance classes."
   },
   "target" : {
     "declared_product" : "Example IdP",

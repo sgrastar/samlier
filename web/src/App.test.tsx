@@ -44,7 +44,7 @@ test('does not offer local Run creation in hosted mode', async () => {
   render(<App />)
   fireEvent.click(await screen.findByRole('button', { name: /Hosted target/ }))
 
-  expect(await screen.findByRole('heading', { name: 'Where the target reaches Samlier' })).toBeTruthy()
+  expect(await screen.findByRole('heading', { name: 'Where the target reaches SAMLscope' })).toBeTruthy()
   expect(screen.queryByRole('button', { name: 'Create Run and preflight' })).toBeNull()
 })
 
@@ -125,7 +125,7 @@ test('restores plan navigation when browser history changes', async () => {
 })
 
 test('applies the saved theme before the React shell renders', () => {
-  window.localStorage.setItem('samlier.theme', 'dark')
+  window.localStorage.setItem('samlscope.theme', 'dark')
   delete document.documentElement.dataset.theme
   applyPreferredTheme()
   expect(document.documentElement.dataset.theme).toBe('dark')

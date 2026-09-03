@@ -549,7 +549,7 @@ export function RunManagement({ runId, csrfToken, focusCaseId, navigateTo }: {
     : activeProbe?.state === 'AWAITING_RESPONSE'
       ? <article className="interaction active-probe">
           <header><strong>{activeProbe.caseId ?? 'Browser-assisted SAML scenario'}</strong><span>WAITING</span></header>
-          <p>The request was dispatched. Complete target login or consent in that browser. Samlier will continue automatically after a correlated SAML Response.</p>
+          <p>The request was dispatched. Complete target login or consent in that browser. SAMLscope will continue automatically after a correlated SAML Response.</p>
           <button disabled={busy === 'active-probe-retry'} onClick={() => void retryActiveProbe()}>
             Reissue this one-time fixture
           </button>
@@ -562,7 +562,7 @@ export function RunManagement({ runId, csrfToken, focusCaseId, navigateTo }: {
   if (!initialLoadComplete) return error ? <section className="run-load-state" role="alert">
     <p className="eyebrow">Run workspace</p>
     <h1>Run unavailable</h1>
-    <p>Samlier could not load the complete Run state. No Run actions are available until all required data loads successfully.</p>
+    <p>SAMLscope could not load the complete Run state. No Run actions are available until all required data loads successfully.</p>
     <pre>{error}</pre>
     <button type="button" onClick={() => void retryInitialLoad()}>Retry loading Run</button>
   </section> : <section className="report-skeleton run-workspace-skeleton" aria-label="Loading Run workspace" aria-busy="true">
@@ -637,7 +637,7 @@ export function RunManagement({ runId, csrfToken, focusCaseId, navigateTo }: {
     {!focusCaseId && bootstrapContracts.length > 0 && <section className="bootstrap-contracts">
       <p className="eyebrow">One-time environment bootstrap</p>
       <h2>Shared setup contracts</h2>
-      <p>These contracts replace repeated product-specific setup questions. Samlier uses standard SAML metadata and protocol traffic; it does not call a vendor Admin API.</p>
+      <p>These contracts replace repeated product-specific setup questions. SAMLscope uses standard SAML metadata and protocol traffic; it does not call a vendor Admin API.</p>
       <div className="contract-list">{bootstrapContracts.map(contract => <article className="contract" key={contract.id}>
         <header><div><strong>{contract.title}</strong><p>{contract.description}</p></div><span>{humanize(contract.readiness)}</span></header>
         <p>{contract.setupInstruction}</p>
@@ -652,13 +652,13 @@ export function RunManagement({ runId, csrfToken, focusCaseId, navigateTo }: {
         </form>}
         {contract.kind === 'STANDARD_METADATA' && protocolEvidence && protocolEvidence.eligibleCases > 0 && <div className="protocol-evidence">
           <p><strong>{protocolEvidence.eligibleCases}</strong> currently implemented case{protocolEvidence.eligibleCases === 1 ? '' : 's'} can derive outcomes directly from metadata fetches and correlated SAML traffic; <strong>{protocolEvidence.readyCases}</strong> ready now.</p>
-          <p>Samlier normally evaluates these cases automatically as Transcript evidence arrives. Because a public metadata fetch does not identify its caller, use the recovery action only after you triggered the target's normal refresh or re-import and attempted the listed SAML flows.</p>
+          <p>SAMLscope normally evaluates these cases automatically as Transcript evidence arrives. Because a public metadata fetch does not identify its caller, use the recovery action only after you triggered the target's normal refresh or re-import and attempted the listed SAML flows.</p>
           <div className="standard-work-queue">
             <p><strong>Standard work queue:</strong> {metadataWork.completedFixtures}/{metadataWork.totalFixtures} fixture fetches recorded.</p>
             {metadataLab?.ingestionMode === 'AUTOMATIC_POLLING' ? <>
               <p><strong>Automatic polling:</strong> {metadataLab.campaignIndex}/{metadataLab.campaignVariants.length} fixtures completed{metadataLab.campaignComplete ? '. Campaign complete.' : `; currently serving ${humanize(metadataLab.selectedVariant)}.`}</p>
               <p><strong>Operator continuations:</strong> {metadataLab.operatorContinuationActions}</p>
-              <p><small>Samlier waits {metadataLab.pollingDelaySeconds} seconds between successful fixtures so the target's ordinary metadata-key refresh window can elapse. The delay changes orchestration only, never the outcome.</small></p>
+              <p><small>SAMLscope waits {metadataLab.pollingDelaySeconds} seconds between successful fixtures so the target's ordinary metadata-key refresh window can elapse. The delay changes orchestration only, never the outcome.</small></p>
               {!metadataLab.campaignComplete && metadataLab.automaticStartUrl && <a
                 className="button" href={metadataLab.automaticStartUrl} target="_blank" rel="noreferrer">
                 Start or resume the signed metadata campaign
@@ -669,7 +669,7 @@ export function RunManagement({ runId, csrfToken, focusCaseId, navigateTo }: {
                 </form>
                 <p><small>This only advances orchestration after the browser attempt. It does not claim that the Target fetched or used metadata and does not mark the Target satisfied or violated; missing observations remain not verified.</small></p>
               </>}
-              <p><small>The fixture uses a distinct test signing key. A target that refreshes its configured metadata URL on an unknown key can fetch and validate without repeated imports. Samlier holds the document stable across duplicate fetches and advances after the correlated browser result. A target that does not refresh remains unresolved and can use the aggregate or manual queue.</small></p>
+              <p><small>The fixture uses a distinct test signing key. A target that refreshes its configured metadata URL on an unknown key can fetch and validate without repeated imports. SAMLscope holds the document stable across duplicate fetches and advances after the correlated browser result. A target that does not refresh remains unresolved and can use the aggregate or manual queue.</small></p>
               <button disabled={busy === 'metadata-manual'} onClick={() => void useManualMetadataRefresh()}>
                 Return to manual refresh
               </button>
@@ -679,11 +679,11 @@ export function RunManagement({ runId, csrfToken, focusCaseId, navigateTo }: {
                 <dl><dt>Import once</dt><dd><code>{metadataLab.preloadedMetadataUrl}</code></dd></dl>
               </>}
               {metadataLab.preloadedDownloadUrl && <a className="button"
-                href={metadataLab.preloadedDownloadUrl} download="samlier-metadata-campaign.xml">
+                href={metadataLab.preloadedDownloadUrl} download="samlscope-metadata-campaign.xml">
                   Download signed aggregate XML
               </a>}
               <p>{metadataLab.preloadedFetched
-                ? 'A Target fetch of the aggregate URL was recorded. Run the browser sequence; Samlier reuses the session and advances through the imported entities automatically.'
+                ? 'A Target fetch of the aggregate URL was recorded. Run the browser sequence; SAMLscope reuses the session and advances through the imported entities automatically.'
                 : 'Import the downloaded file or let the Target fetch the URL through its ordinary metadata interface. Downloading is not counted as a Target fetch; correlated SAML responses prove actual use.'}</p>
               {metadataLab.preloadedStartUrl && <a className="button" href={metadataLab.preloadedStartUrl} target="_blank" rel="noreferrer">
                 Run {metadataLab.preloadedVariants.length} preloaded SAML flows
@@ -716,7 +716,7 @@ export function RunManagement({ runId, csrfToken, focusCaseId, navigateTo }: {
             {!metadataWork.nextVariant && metadataWork.nextOperation && <p>
               All required fixtures were fetched. Next observation: <code>{metadataWork.nextOperation}</code>.
             </p>}
-            <p><small>Each click changes only the Suite-controlled document behind the stable URL. Samlier never calls the target's administration API; perform the target's ordinary refresh/re-import and protocol flow before advancing.</small></p>
+            <p><small>Each click changes only the Suite-controlled document behind the stable URL. SAMLscope never calls the target's administration API; perform the target's ordinary refresh/re-import and protocol flow before advancing.</small></p>
           </div>
           <button disabled={busy === 'protocol-evidence' || protocolEvidence.readyCases === 0}
             onClick={() => void evaluateProtocolEvidence()}>
@@ -726,7 +726,7 @@ export function RunManagement({ runId, csrfToken, focusCaseId, navigateTo }: {
             onClick={() => void confirmProtocolEvidenceAttempts()}>
             Confirm all listed refreshes and flows were attempted
           </button>
-          <p><small>This confirms only that you performed the listed operations. It is not a verdict questionnaire; Samlier derives every outcome from the recorded fetches and SAML traffic.</small></p>
+          <p><small>This confirms only that you performed the listed operations. It is not a verdict questionnaire; SAMLscope derives every outcome from the recorded fetches and SAML traffic.</small></p>
           <details><summary>Protocol observation progress</summary><ul>
             {protocolEvidence.cases.map(value => <li key={value.caseId}>
               <code>{value.caseId}</code>: {value.completedObservations.length}/{value.requiredObservations.length} required observations
@@ -838,7 +838,7 @@ export function RunManagement({ runId, csrfToken, focusCaseId, navigateTo }: {
     {sharedOperatorActions.length > 0 && <section className="shared-operator-actions">
       <p className="eyebrow">Standard plan operations</p>
       <h2>Shared target policy changes</h2>
-      <p>Perform each target-side policy change once. Samlier applies that operation to every listed case, but the operation itself is not evidence of conformance. Without a conclusive Transcript or other external evidence, those cases remain not verified.</p>
+      <p>Perform each target-side policy change once. SAMLscope applies that operation to every listed case, but the operation itself is not evidence of conformance. Without a conclusive Transcript or other external evidence, those cases remain not verified.</p>
       <div className="interaction-list">{sharedOperatorActions.map(section => {
         const key = `${section.campaign.id}:${section.action.id}`
         return <article className="interaction" key={key}>

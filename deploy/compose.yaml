@@ -1,0 +1,36 @@
+name: samlscope
+
+services:
+  samlscope:
+    image: ${SAMLSCOPE_IMAGE:?Set SAMLSCOPE_IMAGE to a digest-pinned GHCR image}
+    restart: unless-stopped
+    environment:
+      JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=75
+      SAMLSCOPE_MODE: hosted
+      SAMLSCOPE_PUBLIC_BASE_URL: https://app.samlscope.com
+      SAMLSCOPE_PEER_BASE_URL: https://peer.samlscope.com
+      SAMLSCOPE_DATA_DIR: /data
+      SAMLSCOPE_HTTP_PORT: "8080"
+      SAMLSCOPE_OUTBOUND_ALLOW_PRIVATE: "false"
+      SAMLSCOPE_OUTBOUND_ALLOW_INSECURE_TLS: "false"
+      SAMLSCOPE_PUBLISH_ENABLED: "true"
+      SAMLSCOPE_IMAGE_DIGEST: ${SAMLSCOPE_IMAGE_DIGEST:?Set the verified suite image digest}
+    ports:
+      - 127.0.0.1:8080:8080
+    volumes:
+      - /srv/samlscope/data:/data
+    read_only: true
+    tmpfs:
+      - /tmp:size=256m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 512
+    mem_limit: 4g
+    cpus: 3.0
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "5"

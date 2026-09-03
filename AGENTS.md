@@ -1,6 +1,6 @@
-# AGENTS.md — Rules for Samlier implementation agents
+# AGENTS.md — Rules for SAMLscope implementation agents
 
-Samlier is a tool for determining the conformance of SAML implementations.
+SAMLscope is a tool for determining the conformance of SAML implementations.
 **An incorrect determination can unfairly label someone else's product as “non-conforming,”**
 so these rules take precedence over merely “making it work.”
 
@@ -72,7 +72,7 @@ Marking a MUST as `NOT_APPLICABLE` because the environment prevents testing it
 
 ### 6. Do not add conditions or thresholds absent from the source
 
-Do not impose a Samlier-specific absolute threshold on requirements with no numeric value in the specification (such as clock skew).
+Do not impose a SAMLscope-specific absolute threshold on requirements with no numeric value in the specification (such as clock skew).
 Make operationally useful observations **advisory** (`affects_verdict: false`)
 ([the Advisory section of docs/04](docs/04-requirement-coverage.md)).
 

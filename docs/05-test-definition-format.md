@@ -218,7 +218,7 @@ attestation:
     - { value: accepted, outcome: violated }
     - { value: unclear,  outcome: indeterminate }
 
-implementation: org.samlier.tests.md.ExpiredValidUntilCase
+implementation: com.samlscope.tests.md.ExpiredValidUntilCase
 tags: [metadata, trust]
 ```
 

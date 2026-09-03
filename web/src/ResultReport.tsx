@@ -16,7 +16,7 @@ export function ResultReport({ runId }: { runId: string }) {
     filter === 'ALL' || requirement.verdict === filter) ?? [], [result, filter])
 
   if (error) return <AppShell current="report" runId={runId}><main className="shell gate-page">
-    <section className="gate-card error-state"><p className="eyebrow">Samlier result</p><h1>Result unavailable</h1>
+    <section className="gate-card error-state"><p className="eyebrow">SAMLscope result</p><h1>Result unavailable</h1>
       <div className="notice notice-error" role="alert">{error}</div><a className="button button-secondary" href={`/manage/${runId}`}>Return to Run workspace</a>
     </section></main></AppShell>
   if (!result) return <AppShell current="report" runId={runId}><main className="shell page-main">
@@ -28,7 +28,7 @@ export function ResultReport({ runId }: { runId: string }) {
   const filterOptions = ['ALL', ...Object.keys(verdictCounts).map(value => value.toUpperCase())]
   return <AppShell current="report" runId={runId} mode={result.suite.executionMode === 'hosted' ? 'hosted' : 'selfhosted'}>
     <section className="report-hero"><div className="shell report-hero-inner">
-      <div><p className="eyebrow">Samlier conformance result</p><h1>{humanize(result.run.conformance)}</h1><p>{result.conformanceStatement}</p></div>
+      <div><p className="eyebrow">SAMLscope conformance result</p><h1>{humanize(result.run.conformance)}</h1><p>{result.conformanceStatement}</p></div>
       <div className={`verdict-card verdict-${result.run.conformance.toLowerCase()}`}><span>Completeness</span><strong>{humanize(result.run.completeness)}</strong></div>
     </div></section>
     <main className="shell report-main">

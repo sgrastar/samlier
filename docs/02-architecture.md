@@ -12,7 +12,7 @@
        │                             │ (HTTP-Redirect / HTTP-POST)
        ▼                             ▼
 ┌───────────────────────────────────────────────────────────────┐
-│ samlier  (single JVM / single container)                     │
+│ samlscope  (single JVM / single container)                     │
 │                                                               │
 │  ┌─────────────┐  ┌──────────────┐  ┌──────────────────────┐  │
 │  │ Web API     │  │ Test Runner  │  │ Protocol Endpoints   │  │
@@ -98,7 +98,7 @@ include the same Run and variant correlation so that later inbound SAML can demo
 rather than mere retrieval.
 
 The management API selects only the Suite fixture; it never configures the Target. In particular,
-Samlier does not call Keycloak Admin API or any equivalent vendor interface. A Target is connected by
+SAMLscope does not call Keycloak Admin API or any equivalent vendor interface. A Target is connected by
 standard SAML metadata/MDQ or by an explicit one-time manual import.
 
 Evidence-driven cases expose their observation progress at Run scope. After the operator has triggered
@@ -234,15 +234,15 @@ Therefore, the Suite must satisfy the following.
 
 ## 3.7. ★ Role Placement of ECP (Enhanced Client or Proxy)
 
-IIP-IDP13–16 are MUST obligations imposed on the **IdP**, so what is tested in Phase 1 is **the target IdP's ECP support**. In this case, Samlier acts as an **ECP client + SP**, and **not as the Test IdP**.
+IIP-IDP13–16 are MUST obligations imposed on the **IdP**, so what is tested in Phase 1 is **the target IdP's ECP support**. In this case, SAMLscope acts as an **ECP client + SP**, and **not as the Test IdP**.
 
 ECP consists of two segments: “ECP client ↔ SP” and “ECP client ↔ IdP”
 ([OASIS ECP Profile v2.0](https://docs.oasis-open.org/security/saml/Post2.0/saml-ecp/v2.0/saml-ecp-v2.0.html)).
-Because Samlier also acts as the SP, the segment with the SP can be completed internally.
+Because SAMLscope also acts as the SP, the segment with the SP can be completed internally.
 
 ```
 ┌───────────────────────────────────────────────────────────┐
-│ Samlier                                                   │
+│ SAMLscope                                                   │
 │                                                           │
 │  ┌────────────┐  ① Generate AuthnRequest itself (as SP)   │
 │  │ Test SP    │─────────────┐                             │
@@ -286,7 +286,7 @@ PAOS is primarily for the **ECP ↔ SP** segment; **sending PAOS headers to the 
 | IdP → ECP | `ecp:Response`, `cb:ChannelBindings` (matching), `samlec:*` |
 | ECP → SP | `paos:Response`, `ecp:RelayState` (return the one received from the SP) |
 
-Because Samlier also acts as the SP, ① completes internally, but the implementation must enforce **not carrying over the headers from ① when constructing ②**
+Because SAMLscope also acts as the SP, ① completes internally, but the implementation must enforce **not carrying over the headers from ① when constructing ②**
 (make `EcpClient` use a data structure that does not retain headers originating from the SP).
 
 Design implications:
@@ -440,7 +440,7 @@ Key design points:
 ## 6. Code Structure (Proposal)
 
 ```
-samlier/
+samlscope/
 ├── core/            Domain models (Plan, Run, Case, Result, Verdict)
 ├── saml/
 │   ├── normal/      OpenSAML-based generation and parsing

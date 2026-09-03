@@ -19,10 +19,10 @@ KEYCLOAK_IMAGE = (
     "quay.io/keycloak/keycloak@"
     "sha256:9d1f1b2b7261ff53c66cb1092dfcdc34a5fb77e81f9e6a6e75b8b6a795de8067"
 )
-DEFAULT_SAMLIER_IMAGE = "samlier:keycloak-smoke"
-DEFAULT_NETWORK = "samlier-smoke"
-DEFAULT_APP_CONTAINER = "samlier-keycloak-app"
-DEFAULT_IDP_CONTAINER = "samlier-keycloak-idp"
+DEFAULT_SAMLSCOPE_IMAGE = "samlscope:keycloak-smoke"
+DEFAULT_NETWORK = "samlscope-smoke"
+DEFAULT_APP_CONTAINER = "samlscope-keycloak-app"
+DEFAULT_IDP_CONTAINER = "samlscope-keycloak-idp"
 SHA256 = re.compile(r"^sha256:[0-9a-f]{64}$")
 
 
@@ -107,17 +107,17 @@ def wait_for(url: str, attempts: int = 90) -> None:
     raise RuntimeError(f"service did not become ready at {url}: {last_error}")
 
 
-def samlier_run_command(
+def samlscope_run_command(
     *, image: str, digest: str, network: str, name: str, data_dir: pathlib.Path
 ) -> list[str]:
     return [
         "container", "run", "--detach", "--name", name, "--network", network,
         "--publish", "8080:8080", "--volume", f"{data_dir}:/data",
-        "--env", "SAMLIER_MODE=selfhosted",
-        "--env", "SAMLIER_PUBLIC_BASE_URL=http://localhost:8080",
-        "--env", "SAMLIER_PEER_BASE_URL=http://localhost:8080",
-        "--env", "SAMLIER_DATA_DIR=/data",
-        "--env", f"SAMLIER_IMAGE_DIGEST={digest}", image,
+        "--env", "SAMLSCOPE_MODE=selfhosted",
+        "--env", "SAMLSCOPE_PUBLIC_BASE_URL=http://localhost:8080",
+        "--env", "SAMLSCOPE_PEER_BASE_URL=http://localhost:8080",
+        "--env", "SAMLSCOPE_DATA_DIR=/data",
+        "--env", f"SAMLSCOPE_IMAGE_DIGEST={digest}", image,
     ]
 
 
@@ -126,8 +126,8 @@ def keycloak_run_command(*, network: str, name: str) -> list[str]:
         "container", "run", "--detach", "--name", name, "--network", network,
         "--publish", "8180:8080",
         "--volume",
-        f"{ROOT / 'dev/keycloak/realm-samlier.json'}:"
-        "/opt/keycloak/data/import/realm-samlier.json:ro",
+        f"{ROOT / 'dev/keycloak/realm-samlscope.json'}:"
+        "/opt/keycloak/data/import/realm-samlscope.json:ro",
         "--env", "KC_BOOTSTRAP_ADMIN_USERNAME=admin",
         "--env", "KC_BOOTSTRAP_ADMIN_PASSWORD=admin",
         "--env", "KC_HOSTNAME=http://localhost:8180",
@@ -139,7 +139,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--no-build", action="store_true")
     parser.add_argument("--manual", action="store_true")
-    parser.add_argument("--image", default=DEFAULT_SAMLIER_IMAGE)
+    parser.add_argument("--image", default=DEFAULT_SAMLSCOPE_IMAGE)
     parser.add_argument("--network", default=DEFAULT_NETWORK)
     parser.add_argument("--app-container", default=DEFAULT_APP_CONTAINER)
     parser.add_argument("--idp-container", default=DEFAULT_IDP_CONTAINER)
@@ -158,7 +158,7 @@ def main() -> int:
     replace_container(args.idp_container)
 
     command(*keycloak_run_command(network=args.network, name=args.idp_container))
-    command(*samlier_run_command(
+    command(*samlscope_run_command(
         image=args.image,
         digest=digest,
         network=args.network,
@@ -167,23 +167,23 @@ def main() -> int:
     ))
 
     wait_for("http://localhost:8080/api/health")
-    wait_for("http://localhost:8180/realms/samlier/.well-known/openid-configuration")
+    wait_for("http://localhost:8180/realms/samlscope/.well-known/openid-configuration")
     keycloak_ip = network_ipv4(
         json_command("container", "inspect", args.idp_container), args.network
     )
 
     smoke = [
         sys.executable, str(ROOT / "dev/keycloak/smoke.py"), "fixture",
-        "--samlier-base", "http://localhost:8080",
+        "--samlscope-base", "http://localhost:8080",
         "--keycloak-base", "http://localhost:8180",
         "--target-metadata-url",
-        f"http://{keycloak_ip}:8080/realms/samlier/protocol/saml/descriptor",
+        f"http://{keycloak_ip}:8080/realms/samlscope/protocol/saml/descriptor",
     ]
-    if args.manual or os.environ.get("SAMLIER_SMOKE_MANUAL") == "1":
+    if args.manual or os.environ.get("SAMLSCOPE_SMOKE_MANUAL") == "1":
         smoke.append("--manual")
     command(*smoke)
-    print(f"Samlier image digest: {digest}")
-    print(f"Samlier container: {args.app_container}")
+    print(f"SAMLscope image digest: {digest}")
+    print(f"SAMLscope container: {args.app_container}")
     print(f"Keycloak container: {args.idp_container}")
     return 0
 

@@ -18,12 +18,12 @@ export function AppShell({
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
-    try { window.localStorage.setItem('samlier.theme', theme) } catch { /* private mode */ }
+    try { window.localStorage.setItem('samlscope.theme', theme) } catch { /* private mode */ }
   }, [theme])
 
   return <div className="app-frame">
     <header className="app-topbar">
-      <a className="wordmark" href="/">Samlier <small>SAML CONFORMANCE</small></a>
+      <a className="wordmark" href="/">SAMLscope <small>SAML CONFORMANCE</small></a>
       <button
         className="topbar-nav-toggle"
         type="button"
@@ -51,7 +51,7 @@ export function AppShell({
 
 export function preferredTheme(): 'light' | 'dark' {
   try {
-    const saved = window.localStorage.getItem('samlier.theme')
+    const saved = window.localStorage.getItem('samlscope.theme')
     if (saved === 'light' || saved === 'dark') return saved
   } catch { /* private mode */ }
   return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'

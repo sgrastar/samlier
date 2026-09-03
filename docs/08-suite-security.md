@@ -29,7 +29,7 @@ This is a typical non-blind SSRF.
 | Response size limits | Metadata 5 MB, other responses 1 MB |
 | Timeouts | Connection 5 seconds / total 30 seconds |
 | Prohibit access to the Suite's own API | Explicitly block its own base URL / internal ports |
-| self-hosted default | `SAMLIER_OUTBOUND_ALLOW_PRIVATE=true` (allow it because testing internal IdPs is a primary purpose). **State this difference explicitly in the README** |
+| self-hosted default | `SAMLSCOPE_OUTBOUND_ALLOW_PRIVATE=true` (allow it because testing internal IdPs is a primary purpose). **State this difference explicitly in the README** |
 
 > The key point is to use different defaults for `hosted` and `selfhosted`.
 > The reason self-hosted exists is to enable testing internal IdPs, so do not restrict it there.
@@ -61,7 +61,7 @@ The Suite also determines “whether the other party’s signature is correct.�
 - Generate a key pair for each Test Plan (do not share them)
 - **State explicitly in the README that private keys are stored in plaintext under `/data`**. The Suite is not for production use
 - Use a Subject DN that makes clear that generated keys are “for testing only”
-  (example: `CN=samlier test key (DO NOT TRUST), OU=Test Plan 01K3..., O=samlier`)
+  (example: `CN=samlscope test key (DO NOT TRUST), OU=Test Plan 01K3..., O=samlscope`)
 - Delete Hosted-version keys after the Run retention period expires
 - **Do not persist HTTP Basic credentials for the ECP test (IIP-IDP14)**.
   Keep them in memory only while running, and do not write them to `CaseState` or the Transcript.
@@ -87,11 +87,11 @@ If they share an origin, Target-derived content reaching the Test Peer could int
 | Deployment mode | Normative level |
 |---|---|
 | **Hosted** | **MUST**. Use separate origins for `app.<domain>` and `peer.<domain>`. Reject startup for configurations that cannot separate them |
-| **self-hosted (publicly exposed to the Internet)** | **SHOULD**. Strongly recommend setting `SAMLIER_PEER_BASE_URL`, and issue a startup warning if it is unset |
+| **self-hosted (publicly exposed to the Internet)** | **SHOULD**. Strongly recommend setting `SAMLSCOPE_PEER_BASE_URL`, and issue a startup warning if it is unset |
 | **self-hosted (closed network)** | **MAY**. The same origin is acceptable (the administrative token is effectively meaningless) |
 
-When `SAMLIER_MODE=hosted` and `SAMLIER_PEER_BASE_URL` has the same origin as
-`SAMLIER_PUBLIC_BASE_URL`, make startup **fail with an error**.
+When `SAMLSCOPE_MODE=hosted` and `SAMLSCOPE_PEER_BASE_URL` has the same origin as
+`SAMLSCOPE_PUBLIC_BASE_URL`, make startup **fail with an error**.
 
 ### CSP for the administrative UI
 

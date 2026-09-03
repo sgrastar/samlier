@@ -8,7 +8,7 @@ test('renders the authoritative determination and its non-certification boundary
   vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
     schema_version: '1',
     run: { id: 'run_0123456789ABCDEFGHJKMNPQRS', started_at: '2026-08-29T00:00:00Z', finished_at: '2026-08-29T00:01:00Z', conformance: 'CONFORMANT_WITH_WARNINGS', completeness: 'COMPLETE', scope_qualifications: [] },
-    suite: { name: 'Samlier', version: '0.1.0', image_digest: 'sha256:a', execution_mode: 'self-hosted' },
+    suite: { name: 'SAMLscope', version: '0.1.0', image_digest: 'sha256:a', execution_mode: 'self-hosted' },
     evaluation_bundle: { digest: `sha256:${'b'.repeat(64)}` },
     profile: { id: 'idp-core', spec: { document: 'IIP', version: '1.1', date: '2019-12-18' }, level_definition_note: 'Core scope.' },
     target: { declared_product: 'Example IdP', declared_by: 'operator', verified: false, entity_id: 'https://idp.example/entity', metadata_digest: 'sha256:c', role: 'IDP', kind: 'IDP' },
