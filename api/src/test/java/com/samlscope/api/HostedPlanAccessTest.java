@@ -27,7 +27,7 @@ class HostedPlanAccessTest {
         var config = new AppConfig(
                 AppConfig.Mode.HOSTED, URI.create(appOrigin), URI.create("https://peer.example"),
                 dataDirectory, port, false, false, true,
-                "sha256:" + "a".repeat(64));
+                "sha256:" + "a".repeat(64), "127.0.0.1");
         var app = SamlScopeApplication.create(config).start(port);
         try {
             var base = URI.create("http://127.0.0.1:" + port);

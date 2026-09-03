@@ -9,6 +9,7 @@ import java.net.URI;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
+import java.security.MessageDigest;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -16,6 +17,7 @@ import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.HexFormat;
 import com.samlscope.core.Identifiers;
 import com.samlscope.core.plan.PlanRepository;
 import com.samlscope.core.plan.TestPlan;
@@ -63,11 +65,19 @@ public final class SamlScopeApplication {
 
     public static Javalin create(AppConfig config) {
         var clock = Clock.systemUTC();
+        var hostedRateLimiter = new HostedRateLimiter(clock);
         var json = new JsonCodec();
         var database = new SqliteDatabase(config.dataDirectory());
         PlanRepository plans = new SqlitePlanRepository(database, json);
         RunRepository runs = new SqliteRunRepository(database, json);
-        var storedTranscript = new FileTranscriptRecorder(database, json, config.dataDirectory());
+        var storedTranscript = config.mode() == AppConfig.Mode.HOSTED
+                ? new FileTranscriptRecorder(
+                        database, json, config.dataDirectory(),
+                        new FileTranscriptRecorder.Limits(
+                                2_048, 64L * 1024 * 1024,
+                                200_000, 10L * 1024 * 1024 * 1024,
+                                120, 1_200))
+                : new FileTranscriptRecorder(database, json, config.dataDirectory());
         var transcript = new TranscriptAutomationRecorder(storedTranscript, storedTranscript);
         var metadataCache = new MetadataCache(config.dataDirectory());
         var eventBus = new RunEventBus();
@@ -85,6 +95,7 @@ public final class SamlScopeApplication {
                 plans, runs, runService, metadataCache, metadataParser, saml, transcript, clock, true);
         var sloPeer = new SloPeerService(plans, runs, metadataCache, metadataParser, saml, transcript, clock);
         var caseExecutions = new SqliteCaseExecutionRepository(database, json);
+        var hostedRunProvisioner = new com.samlscope.store.SqliteHostedRunProvisioner(database, json);
         var ephemeralCredentials = new InMemoryEphemeralCredentialProvider();
         var outboundDispatcher = new OutboundDispatcher(
                 caseExecutions, HttpOutboundSender.create(transcript, clock), ephemeralCredentials,
@@ -96,17 +107,21 @@ public final class SamlScopeApplication {
                 new EcpProbeService(caseExecutions, ephemeralCredentials, outboundDispatcher, clock));
         var m1 = M1Runtime.create(
                 config, database, json, plans, runs, transcript, transcript, metadataCache,
-                metadataParser, keyStore, caseExecutions, metadataLab, outboundDispatcher, clock);
-        transcript.onRecorded(m1::reconcileTranscriptEvidence);
+                metadataParser, keyStore, caseExecutions, metadataLab, outboundDispatcher,
+                hostedRateLimiter, hostedRunProvisioner, clock);
+        transcript.onRecorded(m1::reconcileTranscriptEvidenceAutomatically);
         var spPeer = new SpPeerService(
                 plans, runs, runService, metadataCache, metadataParser, saml, transcript, clock,
                 m1::acceptActiveProbe);
-        var hostedRateLimiter = new HostedRateLimiter(clock);
-        var hostedRunProvisioner = new com.samlscope.store.SqliteHostedRunProvisioner(database, json);
+        var preloadedMetadataCache = new BoundedByteArrayCache(128);
 
         return Javalin.create(javalin -> {
             javalin.startup.showJavalinBanner = false;
+            javalin.events.serverStopped(transcript::close);
             javalin.http.maxRequestSize = 6L * 1024 * 1024;
+            javalin.contextResolver.ip = ctx -> TrustedProxyClientAddress.resolve(
+                    ctx.req().getRemoteAddr(), ctx.header("X-Forwarded-For"),
+                    config.trustedProxyAddress());
             javalin.jsonMapper(new JavalinJackson().updateMapper(mapper -> {
                 mapper.findAndRegisterModules();
                 mapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
@@ -120,7 +135,7 @@ public final class SamlScopeApplication {
             PublicationRoutes.register(javalin, m1::publish);
             InteractionRoutes.register(javalin, m1::pending);
             CampaignRoutes.register(javalin, m1::campaigns);
-            CampaignActionRoutes.register(javalin, m1.campaignActionCompletionService());
+            CampaignActionRoutes.registerBounded(javalin, m1::completeCampaignAction);
             BootstrapContractRoutes.register(javalin, m1::bootstrapContracts);
             MetadataLabRoutes.register(javalin, metadataLab);
             ProtocolEvidenceRoutes.register(
@@ -266,13 +281,26 @@ public final class SamlScopeApplication {
                         }
                     });
                 }
-                javalin.routes.before("/api/runs/{id}/transcript", ctx ->
-                        m1.authorize(ctx.pathParam("id"), ctx.cookie(ManagementSessionRoutes.COOKIE_NAME)));
+                javalin.routes.before("/api/runs/{id}/transcript", ctx -> {
+                    m1.authorize(ctx.pathParam("id"), ctx.cookie(ManagementSessionRoutes.COOKIE_NAME));
+                    hostedRateLimiter.requireAllowedTogether(
+                            new HostedRateLimiter.Rule(
+                                    "transcript-download-owner",
+                                    hostedRunProvisioner.ownerForRun(ctx.pathParam("id")), 4,
+                                    Duration.ofMinutes(1)),
+                            new HostedRateLimiter.Rule(
+                                    "transcript-download-run", ctx.pathParam("id"), 2,
+                                    Duration.ofMinutes(1)),
+                            new HostedRateLimiter.Rule(
+                                    "transcript-download-global", "service", 10,
+                                    Duration.ofMinutes(1)));
+                });
             }
-            routes(javalin, config, plans, runs, transcript, eventBus, runService, preflight,
+            routes(javalin, config, plans, runs, transcript, storedTranscript,
+                    eventBus, runService, preflight,
                     metadata, metadataLab, metadataCache, metadataParser, spPeer,
                     idpPeer, secondaryIdpPeer, sloPeer, m1,
-                    hostedRateLimiter, hostedRunProvisioner, clock);
+                    hostedRateLimiter, hostedRunProvisioner, preloadedMetadataCache, clock);
             javalin.routes.exception(MisdirectedRequest.class, (error, ctx) ->
                     ctx.status(421).json(new ApiModels.ErrorView("misdirected_request", error.getMessage())));
             javalin.routes.exception(IllegalArgumentException.class, (error, ctx) -> {
@@ -284,6 +312,20 @@ public final class SamlScopeApplication {
             javalin.routes.exception(HostedRateLimiter.RateLimitExceeded.class, (error, ctx) ->
                     ctx.status(HttpStatus.TOO_MANY_REQUESTS)
                             .json(new ApiModels.ErrorView("rate_limited", error.getMessage())));
+            javalin.routes.exception(BoundedByteArrayCache.Busy.class, (error, ctx) ->
+                    ctx.status(HttpStatus.SERVICE_UNAVAILABLE)
+                            .header("Retry-After", "1")
+                            .json(new ApiModels.ErrorView("generation_busy", error.getMessage())));
+            javalin.routes.exception(HostedEvidenceWorkGate.Busy.class, (error, ctx) ->
+                    ctx.status(HttpStatus.SERVICE_UNAVAILABLE)
+                            .header("Retry-After", "1")
+                            .json(new ApiModels.ErrorView("evidence_work_busy", error.getMessage())));
+            javalin.routes.exception(FileTranscriptRecorder.CapacityExceeded.class, (error, ctx) ->
+                    ctx.status(507).json(new ApiModels.ErrorView(
+                            "transcript_capacity_exceeded", error.getMessage())));
+            javalin.routes.exception(FileTranscriptRecorder.AdmissionRateExceeded.class, (error, ctx) ->
+                    ctx.status(HttpStatus.TOO_MANY_REQUESTS).json(new ApiModels.ErrorView(
+                            "transcript_rate_limited", error.getMessage())));
             javalin.routes.exception(Exception.class, (error, ctx) -> {
                 error.printStackTrace();
                 ctx.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -295,6 +337,7 @@ public final class SamlScopeApplication {
     private static void routes(io.javalin.config.JavalinConfig javalin, AppConfig config,
                                PlanRepository plans, RunRepository runs,
                                com.samlscope.core.transcript.TranscriptRecorder transcript,
+                               FileTranscriptRecorder storedTranscript,
                                RunEventBus eventBus, RunService runService, PreflightService preflight,
                                MetadataService metadata, MetadataLabService metadataLab,
                                MetadataCache metadataCache, TargetMetadataParser metadataParser,
@@ -303,6 +346,7 @@ public final class SamlScopeApplication {
                                SloPeerService sloPeer,
                                M1Runtime m1, HostedRateLimiter hostedRateLimiter,
                                com.samlscope.store.SqliteHostedRunProvisioner hostedRunProvisioner,
+                               BoundedByteArrayCache preloadedMetadataCache,
                                Clock clock) {
         javalin.routes.get("/", SamlScopeApplication::serveIndex);
         javalin.routes.get("/reports/{run}", SamlScopeApplication::serveIndex);
@@ -326,7 +370,8 @@ public final class SamlScopeApplication {
             if (config.mode() == AppConfig.Mode.HOSTED) {
                 var run = runService.prepare(plan.id());
                 var access = m1.prepareManagementAccess(run);
-                if (!hostedRunProvisioner.createPlanWithInitialRun(plan, run, access.grant())) {
+                if (!hostedRunProvisioner.createPlanWithInitialRun(
+                        plan, run, access.grant(), hostedOwnerId(ctx.ip()))) {
                     throw new HostedRateLimiter.RateLimitExceeded(
                             "Another Run against this target is already active");
                 }
@@ -354,7 +399,9 @@ public final class SamlScopeApplication {
             ctx.json(view(config, updated));
         });
         javalin.routes.delete("/api/plans/{id}", ctx -> {
-            if (!plans.delete(ctx.pathParam("id"))) ctx.status(HttpStatus.NOT_FOUND);
+            if (!storedTranscript.deletePlanAndEvidence(ctx.pathParam("id"))) {
+                ctx.status(HttpStatus.NOT_FOUND);
+            }
             else ctx.status(HttpStatus.NO_CONTENT);
         });
         javalin.routes.get("/api/plans/{id}/runs", ctx -> ctx.json(runs.listForPlan(ctx.pathParam("id"))));
@@ -417,6 +464,9 @@ public final class SamlScopeApplication {
             var labState = metadataLab.state(runId);
             var variant = MetadataService.Variant.parse(labState.selectedVariant());
             var run = requireRun(runs, runId);
+            if (!plan.id().equals(run.planId())) {
+                throw new IllegalArgumentException("Run belongs to another Test Plan");
+            }
             var redirectStatus = metadataRedirectStatus(variant);
             transcript.record(new com.samlscope.core.transcript.TranscriptInput(
                     run.id(), com.samlscope.core.transcript.Direction.INBOUND, clock.instant(),
@@ -448,9 +498,28 @@ public final class SamlScopeApplication {
             var plan = requirePlan(plans, ctx.pathParam("plan"));
             var runId = requiredQuery(ctx, "run");
             var run = requireRun(runs, runId);
-            var payload = metadata.generatePreloadedCampaign(plan, run.id());
+            var preload = requiredQuery(ctx, "preload");
+            metadataLab.authorizePreloadedFetch(run.id(), plan.id(), preload);
+            var payload = preloadedMetadataCache.getOrCompute(
+                    preloadedCacheKey(plan.id(), run.id()),
+                    () -> {
+                        if (config.mode() == AppConfig.Mode.HOSTED) {
+                            hostedRateLimiter.requireAllowedTogether(
+                                    new HostedRateLimiter.Rule(
+                                            "preloaded-generation-owner",
+                                            hostedRunProvisioner.ownerForRun(run.id()), 8,
+                                            Duration.ofHours(1)),
+                                    new HostedRateLimiter.Rule(
+                                            "preloaded-generation", run.id(), 4,
+                                            Duration.ofHours(1)),
+                                    new HostedRateLimiter.Rule(
+                                            "preloaded-generation-global", "service", 60,
+                                            Duration.ofHours(1)));
+                        }
+                        return metadata.generatePreloadedCampaign(plan, run.id());
+                    });
             var variants = metadataLab.recordPreloadedFetch(
-                    run.id(), plan.id(), requiredQuery(ctx, "preload"));
+                    run.id(), plan.id(), preload);
             transcript.record(new com.samlscope.core.transcript.TranscriptInput(
                     run.id(), com.samlscope.core.transcript.Direction.INBOUND, clock.instant(),
                     "metadata-preloaded", "GET", absoluteRequestUrl(ctx), 200,
@@ -468,9 +537,27 @@ public final class SamlScopeApplication {
             var plan = requirePlan(plans, ctx.pathParam("plan"));
             var runId = requiredQuery(ctx, "run");
             var run = requireRun(runs, runId);
+            var preload = requiredQuery(ctx, "preload");
             var variants = metadataLab.authorizePreloadedDownload(
-                    run.id(), plan.id(), requiredQuery(ctx, "preload"));
-            var payload = metadata.generatePreloadedCampaign(plan, run.id());
+                    run.id(), plan.id(), preload);
+            var payload = preloadedMetadataCache.getOrCompute(
+                    preloadedCacheKey(plan.id(), run.id()),
+                    () -> {
+                        if (config.mode() == AppConfig.Mode.HOSTED) {
+                            hostedRateLimiter.requireAllowedTogether(
+                                    new HostedRateLimiter.Rule(
+                                            "preloaded-generation-owner",
+                                            hostedRunProvisioner.ownerForRun(run.id()), 8,
+                                            Duration.ofHours(1)),
+                                    new HostedRateLimiter.Rule(
+                                            "preloaded-generation", run.id(), 4,
+                                            Duration.ofHours(1)),
+                                    new HostedRateLimiter.Rule(
+                                            "preloaded-generation-global", "service", 60,
+                                            Duration.ofHours(1)));
+                        }
+                        return metadata.generatePreloadedCampaign(plan, run.id());
+                    });
             transcript.record(new com.samlscope.core.transcript.TranscriptInput(
                     run.id(), com.samlscope.core.transcript.Direction.INBOUND, clock.instant(),
                     "metadata-preloaded-download", "GET", absoluteRequestUrl(ctx), 200,
@@ -645,7 +732,7 @@ public final class SamlScopeApplication {
         });
         javalin.routes.get("/p/{plan}/probe/{action}", ctx -> {
             var runId = requiredQuery(ctx, "run");
-            var status = m1.activeProbeStatus(runId);
+            var status = m1.activeProbeRouteStatus(runId);
             requireActiveProbeRoute(ctx, status);
             ctx.header("Cache-Control", "no-store");
             ctx.header("Content-Security-Policy", "default-src 'none'; form-action 'self'; "
@@ -654,7 +741,7 @@ public final class SamlScopeApplication {
         });
         javalin.routes.post("/p/{plan}/probe/{action}", ctx -> {
             var runId = requiredQuery(ctx, "run");
-            var status = m1.activeProbeStatus(runId);
+            var status = m1.activeProbeRouteStatus(runId);
             requireActiveProbeRoute(ctx, status);
             var fresh = "true".equals(ctx.formParam("freshSessionConfirmed"));
             renderActiveProbe(ctx, m1.prepareActiveProbe(
@@ -742,7 +829,7 @@ public final class SamlScopeApplication {
             Context ctx, com.samlscope.peer.sp.SpPeerService.ConsumeResult consumed, M1Runtime m1,
             MetadataLabService metadataLab) {
         if (consumed.activeProbe()) {
-            var status = m1.activeProbeStatus(consumed.activeProbeRunId());
+            var status = m1.activeProbeRouteStatus(consumed.activeProbeRunId());
             if (status.state() == com.samlscope.runner.ActiveProbeCoordinator.State.READY) {
                 renderActiveProbe(ctx, m1.prepareActiveProbe(
                         consumed.activeProbeRunId(), status.actionId(), false));
@@ -988,6 +1075,22 @@ public final class SamlScopeApplication {
         var host = ctx.header("Host");
         if (host == null || !authorityMatches(host, expected)) {
             throw new MisdirectedRequest("This endpoint is not available on the requested origin");
+        }
+    }
+
+    private static String preloadedCacheKey(String planId, String runId) {
+        // The aggregate is a stable Run fixture. Rearming rotates only the access token and a
+        // mutable Plan is intentionally observed by a fresh Run, not by changing an active one.
+        return planId + "\n" + runId;
+    }
+
+    private static String hostedOwnerId(String sourceAddress) {
+        try {
+            var digest = MessageDigest.getInstance("SHA-256")
+                    .digest(sourceAddress.getBytes(StandardCharsets.UTF_8));
+            return "sha256:" + HexFormat.of().formatHex(digest);
+        } catch (java.security.NoSuchAlgorithmException impossible) {
+            throw new IllegalStateException("SHA-256 is unavailable", impossible);
         }
     }
 

@@ -4,6 +4,8 @@ import java.net.URI;
 import java.nio.file.Path;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
+import java.util.logging.Logger;
 
 public record AppConfig(
         Mode mode,
@@ -14,7 +16,9 @@ public record AppConfig(
         boolean outboundAllowPrivate,
         boolean outboundAllowInsecureTls,
         boolean publishEnabled,
-        String suiteImageDigest) {
+        String suiteImageDigest,
+        String trustedProxyAddress) {
+    private static final Logger LOG = Logger.getLogger(AppConfig.class.getName());
 
     public AppConfig {
         validateBaseUrl(publicBaseUrl, "publicBaseUrl");
@@ -40,30 +44,62 @@ public record AppConfig(
         if (mode == Mode.HOSTED && suiteImageDigest.isEmpty()) {
             throw new IllegalArgumentException("Hosted mode requires SAMLSCOPE_IMAGE_DIGEST");
         }
+        trustedProxyAddress = trustedProxyAddress == null ? "" : trustedProxyAddress.trim();
+        if (!trustedProxyAddress.isEmpty()) {
+            trustedProxyAddress = TrustedProxyClientAddress.canonicalAddress(trustedProxyAddress);
+        }
+        if (mode == Mode.HOSTED && trustedProxyAddress.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "Hosted mode requires SAMLSCOPE_TRUSTED_PROXY_ADDRESS");
+        }
     }
 
     public AppConfig(
             Mode mode, URI publicBaseUrl, URI peerBaseUrl, Path dataDirectory, int httpPort,
             boolean outboundAllowPrivate, boolean outboundAllowInsecureTls, boolean publishEnabled) {
         this(mode, publicBaseUrl, peerBaseUrl, dataDirectory, httpPort, outboundAllowPrivate,
-                outboundAllowInsecureTls, publishEnabled, "");
+                outboundAllowInsecureTls, publishEnabled, "", "");
     }
 
     public static AppConfig fromEnvironment() { return from(System.getenv()); }
 
     static AppConfig from(Map<String, String> environment) {
-        var mode = Mode.valueOf(environment.getOrDefault("SAMLSCOPE_MODE", "selfhosted").toUpperCase(Locale.ROOT));
-        var publicBase = URI.create(environment.getOrDefault("SAMLSCOPE_PUBLIC_BASE_URL", "http://localhost:8080"));
-        var peerBase = URI.create(environment.getOrDefault("SAMLSCOPE_PEER_BASE_URL", publicBase.toString()));
-        var data = Path.of(environment.getOrDefault("SAMLSCOPE_DATA_DIR", "/data"));
-        var port = Integer.parseInt(environment.getOrDefault("SAMLSCOPE_HTTP_PORT", "8080"));
-        var allowPrivate = Boolean.parseBoolean(environment.getOrDefault(
-                "SAMLSCOPE_OUTBOUND_ALLOW_PRIVATE", mode == Mode.SELFHOSTED ? "true" : "false"));
-        var insecureTls = Boolean.parseBoolean(environment.getOrDefault("SAMLSCOPE_OUTBOUND_ALLOW_INSECURE_TLS", "false"));
-        var publish = Boolean.parseBoolean(environment.getOrDefault(
-                "SAMLSCOPE_PUBLISH_ENABLED", mode == Mode.HOSTED ? "true" : "false"));
-        var imageDigest = environment.getOrDefault("SAMLSCOPE_IMAGE_DIGEST", "");
-        return new AppConfig(mode, publicBase, peerBase, data, port, allowPrivate, insecureTls, publish, imageDigest);
+        Objects.requireNonNull(environment, "environment");
+        var mode = Mode.valueOf(resolve(environment, "MODE", "selfhosted").toUpperCase(Locale.ROOT));
+        var publicBase = URI.create(resolve(environment, "PUBLIC_BASE_URL", "http://localhost:8080"));
+        var peerBase = URI.create(resolve(environment, "PEER_BASE_URL", publicBase.toString()));
+        var data = Path.of(resolve(environment, "DATA_DIR", "/data"));
+        var port = Integer.parseInt(resolve(environment, "HTTP_PORT", "8080"));
+        var allowPrivate = Boolean.parseBoolean(resolve(
+                environment, "OUTBOUND_ALLOW_PRIVATE", mode == Mode.SELFHOSTED ? "true" : "false"));
+        var insecureTls = Boolean.parseBoolean(resolve(
+                environment, "OUTBOUND_ALLOW_INSECURE_TLS", "false"));
+        var publish = Boolean.parseBoolean(resolve(
+                environment, "PUBLISH_ENABLED", mode == Mode.HOSTED ? "true" : "false"));
+        var imageDigest = resolve(environment, "IMAGE_DIGEST", "");
+        var trustedProxy = resolve(environment, "TRUSTED_PROXY_ADDRESS", "");
+        return new AppConfig(
+                mode, publicBase, peerBase, data, port, allowPrivate, insecureTls, publish,
+                imageDigest, trustedProxy);
+    }
+
+    private static String resolve(Map<String, String> environment, String suffix, String defaultValue) {
+        var currentName = "SAMLSCOPE_" + suffix;
+        var legacyName = "SAMLIER_" + suffix;
+        var currentPresent = environment.containsKey(currentName);
+        var legacyPresent = environment.containsKey(legacyName);
+        var current = environment.get(currentName);
+        var legacy = environment.get(legacyName);
+        if (currentPresent && legacyPresent && !Objects.equals(current, legacy)) {
+            throw new IllegalArgumentException(
+                    "Conflicting environment variables " + currentName + " and " + legacyName);
+        }
+        if (legacyPresent) {
+            LOG.warning(legacyName + " is deprecated; migrate to " + currentName);
+        }
+        if (currentPresent) return Objects.requireNonNull(current, currentName);
+        if (legacyPresent) return Objects.requireNonNull(legacy, legacyName);
+        return defaultValue;
     }
 
     private static boolean sameOrigin(URI left, URI right) {

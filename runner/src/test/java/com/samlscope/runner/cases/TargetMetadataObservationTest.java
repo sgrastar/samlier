@@ -213,6 +213,25 @@ class TargetMetadataObservationTest {
                                 + "<ui:DisplayName xml:lang=\"en\">Name</ui:DisplayName>"
                                 + "<ui:Description xml:lang=\"en\">Description</ui:Description>"
                                 + "</ui:UIInfo></md:Extensions>")));
+        assertOutcome("IIP-MD05-f4-idp-01", Outcome.VIOLATED,
+                metadata(role("IDPSSODescriptor", SAML2,
+                        "<md:Extensions><ui:UIInfo><ui:DisplayName xml:lang=\"en\">One</ui:DisplayName>"
+                                + "</ui:UIInfo><ui:UIInfo><ui:DisplayName xml:lang=\"en\">Two</ui:DisplayName>"
+                                + "</ui:UIInfo></md:Extensions>")));
+        assertOutcome("IIP-MD05-f4-idp-01", Outcome.VIOLATED,
+                metadata(role("IDPSSODescriptor", SAML2,
+                        "<md:Extensions><ui:UIInfo>"
+                                + "<ui:DisplayName xml:lang=\"en\">One</ui:DisplayName>"
+                                + "<ui:DisplayName xml:lang=\"EN\">Two</ui:DisplayName>"
+                                + "</ui:UIInfo></md:Extensions>")));
+        assertOutcome("IIP-MD05-f4-idp-01", Outcome.SATISFIED,
+                metadata(
+                        role("IDPSSODescriptor", SAML2,
+                                "<md:Extensions><ui:UIInfo><ui:DisplayName xml:lang=\"en\">One</ui:DisplayName>"
+                                        + "</ui:UIInfo></md:Extensions>")
+                                + role("IDPSSODescriptor", SAML2,
+                                "<md:Extensions><ui:UIInfo><ui:DisplayName xml:lang=\"en\">Two</ui:DisplayName>"
+                                        + "</ui:UIInfo></md:Extensions>")));
     }
 
     @Test

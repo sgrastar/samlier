@@ -143,6 +143,9 @@ class MetadataLabServiceTest {
         assertTrue(armed.preloadedStartUrl().toString().contains("/start/metadata-preloaded/0"));
         var token = query(armed.preloadedMetadataUrl(), "preload");
 
+        assertThrows(IllegalArgumentException.class,
+                () -> service.authorizePreloadedFetch("run", "plan", "wrong-token"));
+        assertEquals(armed.preloadedVariants(), service.authorizePreloadedFetch("run", "plan", token));
         var exported = service.authorizePreloadedDownload("run", "plan", token);
         assertEquals(armed.preloadedVariants(), exported);
         assertEquals(false, service.state("run").preloadedFetched(),

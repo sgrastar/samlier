@@ -31,7 +31,13 @@ docker run \
 | `SAMLSCOPE_OUTBOUND_ALLOW_PRIVATE` | `true`(selfhosted) / `false`(hosted) | Whether to allow back-channel connections to private IP addresses. See [08](08-suite-security.md) |
 | `SAMLSCOPE_OUTBOUND_ALLOW_INSECURE_TLS` | `false` | Whether to accept the target's self-signed certificate |
 | `SAMLSCOPE_PUBLISH_ENABLED` | `false`(selfhosted) / `true`(hosted) | Whether to issue shared URLs |
+| `SAMLSCOPE_TRUSTED_PROXY_ADDRESS` | None | One numeric reverse-proxy peer address. Required in hosted mode; forwarded client addresses are ignored from every other peer |
 | `SAMLSCOPE_RUN_RETENTION_DAYS` | `30` | |
+
+During migration from the former product name, the runtime variables consumed by the application
+also accept their `SAMLIER_*` aliases. If both names are present they must have exactly the same value;
+conflicting definitions make startup fail instead of silently changing the security mode. The aliases
+are deprecated and operators should migrate to `SAMLSCOPE_*`.
 
 ## 2. ★ Networking Requirements (The Most Important Omission in the Original Memo)
 
@@ -145,6 +151,13 @@ The image is the same, with features enabled by `SAMLSCOPE_MODE=hosted`.
 | Public result storage | Shared URLs |
 | Administrative access | Phase 1 uses **a per-Run secret URL** (no account login). A Hosted Plan-creation request also creates the initial Run; all subsequent Plan and Run reads or mutations require that Run session. Add OIDC login through Authrim in the future. [09 D-09](09-open-decisions.md) |
 | Automatic deletion after the retention period | |
+
+The bundled Caddy configuration overwrites `X-Forwarded-For` with the direct client's
+numeric address. Its Compose network fixes the host gateway to `172.30.0.1` and configures
+that exact address as `SAMLSCOPE_TRUSTED_PROXY_ADDRESS`. The application ignores forwarded
+addresses from every other peer. If the default subnet conflicts with the host network, set
+both `SAMLSCOPE_DOCKER_SUBNET` and `SAMLSCOPE_DOCKER_GATEWAY`; the gateway is propagated to
+the application's trusted-proxy setting.
 
 self-hosted has no authentication (it is intended for use within a trusted network).
 **State this explicitly in the README**. Instruct users to put authentication in front of it when exposing it to the Internet.

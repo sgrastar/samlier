@@ -245,6 +245,14 @@ class MetadataServiceTest {
         var nested = SecureXml.parse(service.generate(
                 plan, MetadataService.Variant.NESTED_ENTITIES, runId));
         assertEquals(2, nested.getElementsByTagNameNS(MetadataService.MD, "EntitiesDescriptor").getLength());
+        var ids = new java.util.HashSet<String>();
+        var all = nested.getElementsByTagName("*");
+        for (var index = 0; index < all.getLength(); index++) {
+            var element = (org.w3c.dom.Element) all.item(index);
+            if (element.hasAttribute("ID")) {
+                assertTrue(ids.add(element.getAttribute("ID")), "duplicate XML ID: " + element.getAttribute("ID"));
+            }
+        }
 
         var cacheOnly = SecureXml.parse(service.generate(
                 plan, MetadataService.Variant.ENTITIES_CACHE_DURATION, runId)).getDocumentElement();

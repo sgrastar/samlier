@@ -15,6 +15,7 @@ services:
       SAMLSCOPE_OUTBOUND_ALLOW_INSECURE_TLS: "false"
       SAMLSCOPE_PUBLISH_ENABLED: "true"
       SAMLSCOPE_IMAGE_DIGEST: ${SAMLSCOPE_IMAGE_DIGEST:?Set the verified suite image digest}
+      SAMLSCOPE_TRUSTED_PROXY_ADDRESS: ${SAMLSCOPE_DOCKER_GATEWAY:-172.30.0.1}
     ports:
       - 127.0.0.1:8080:8080
     volumes:
@@ -34,3 +35,10 @@ services:
       options:
         max-size: 10m
         max-file: "5"
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: ${SAMLSCOPE_DOCKER_SUBNET:-172.30.0.0/24}
+          gateway: ${SAMLSCOPE_DOCKER_GATEWAY:-172.30.0.1}

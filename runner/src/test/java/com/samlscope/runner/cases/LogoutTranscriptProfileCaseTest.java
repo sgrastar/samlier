@@ -147,6 +147,68 @@ class LogoutTranscriptProfileCaseTest {
                 "NotOnOrAfter=\"2026-08-29T00:04:59Z\""), null));
         assertEquals(Outcome.VIOLATED, tooEarly.evaluate(
                 LogoutTranscriptProfileCase.Rule.REQUEST_NOT_ON_OR_AFTER_BOUND));
+
+        var mismatch = logout.replace(">user</saml:NameID>", ">another-user</saml:NameID>");
+        assertEquals(Outcome.VIOLATED, fixture(
+                inbound("assertion", assertion, null),
+                inbound("matching", logout, null),
+                inbound("mismatching", mismatch, null)).evaluate(
+                LogoutTranscriptProfileCase.Rule.REQUEST_IDENTIFIER_MATCH));
+        assertEquals(Outcome.VIOLATED, fixture(
+                inbound("assertion", assertion, null), inbound("mismatching", mismatch, null)).evaluate(
+                LogoutTranscriptProfileCase.Rule.REQUEST_IDENTIFIER_MATCH));
+
+        var encrypted = request("_encrypted", "2.0", "").replace(
+                "<saml:NameID>user</saml:NameID>", "<saml:EncryptedID/>");
+        assertEquals(Outcome.NOT_VERIFIED, fixture(
+                inbound("assertion", assertion, null),
+                inbound("matching", logout, null),
+                inbound("encrypted", encrypted, null)).evaluate(
+                LogoutTranscriptProfileCase.Rule.REQUEST_IDENTIFIER_MATCH));
+
+        var assertionWithSpProvidedId = assertion.replace(
+                "nameid-format:persistent\">user", "nameid-format:persistent\" SPProvidedID=\"current\">user");
+        var requestWithOldSpProvidedId = logout.replace(
+                "nameid-format:persistent\">user", "nameid-format:persistent\" SPProvidedID=\"old\">user");
+        assertEquals(Outcome.VIOLATED, fixture(
+                inbound("assertion", assertionWithSpProvidedId, null),
+                inbound("request", requestWithOldSpProvidedId, null)).evaluate(
+                LogoutTranscriptProfileCase.Rule.REQUEST_IDENTIFIER_MATCH));
+
+        var assertionWithExtension = assertion.replace(
+                "nameid-format:persistent\">user",
+                "nameid-format:persistent\" xmlns:ext=\"urn:example:identifier\" ext:tenant=\"current\">user");
+        var requestWithOtherExtension = logout.replace(
+                "nameid-format:persistent\">user",
+                "nameid-format:persistent\" xmlns:ext=\"urn:example:identifier\" ext:tenant=\"other\">user");
+        assertEquals(Outcome.VIOLATED, fixture(
+                inbound("assertion", assertionWithExtension, null),
+                inbound("request", requestWithOtherExtension, null)).evaluate(
+                LogoutTranscriptProfileCase.Rule.REQUEST_IDENTIFIER_MATCH));
+
+        var assertionA = assertion.replace(">user</saml:NameID>", ">user-a</saml:NameID>")
+                .replace("</saml:Assertion>",
+                        "<saml:AuthnStatement SessionIndex=\"session-a\"/></saml:Assertion>");
+        var assertionB = assertion.replace(">user</saml:NameID>", ">user-b</saml:NameID>")
+                .replace("</saml:Assertion>",
+                        "<saml:AuthnStatement SessionIndex=\"session-b\"/></saml:Assertion>");
+        var wrongSessionIdentifier = logout.replace(">user</saml:NameID>", ">user-a</saml:NameID>")
+                .replace("</samlp:LogoutRequest>",
+                        "<samlp:SessionIndex>session-b</samlp:SessionIndex></samlp:LogoutRequest>");
+        assertEquals(Outcome.VIOLATED, fixture(
+                inbound("assertion-a", assertionA, null),
+                inbound("assertion-b", assertionB, null),
+                inbound("request", wrongSessionIdentifier, null)).evaluate(
+                LogoutTranscriptProfileCase.Rule.REQUEST_IDENTIFIER_MATCH));
+
+        var rejectedAssertion = inboundResponse(
+                "rejected-assertion", assertionA, Map.of("type", "Response", "normalFlowAccepted", false));
+        var acceptedAssertion = inboundResponse(
+                "accepted-assertion", assertionB, Map.of("type", "Response", "normalFlowAccepted", true));
+        assertEquals(Outcome.VIOLATED, fixture(
+                rejectedAssertion, acceptedAssertion,
+                inbound("request", logout.replace(">user</saml:NameID>", ">user-a</saml:NameID>"), null)).evaluate(
+                LogoutTranscriptProfileCase.Rule.REQUEST_IDENTIFIER_MATCH));
     }
 
     @Test
@@ -160,13 +222,19 @@ class LogoutTranscriptProfileCaseTest {
 
     private Fixture fixture(Entry... entries) { return new Fixture(List.of(entries)); }
     private Entry inbound(String id, String xml, String query) {
-        return new Entry(id, Direction.INBOUND, "POST", xml, query);
+        var summary = xml.contains("<samlp:Response")
+                ? Map.<String, Object>of("type", "Response", "normalFlowAccepted", true)
+                : Map.<String, Object>of();
+        return new Entry(id, Direction.INBOUND, "POST", xml, query, summary);
+    }
+    private Entry inboundResponse(String id, String xml, Map<String, Object> summary) {
+        return new Entry(id, Direction.INBOUND, "POST", xml, null, summary);
     }
     private Entry outbound(String id, String xml, String query) {
-        return new Entry(id, Direction.OUTBOUND, "POST", xml, query);
+        return new Entry(id, Direction.OUTBOUND, "POST", xml, query, Map.of());
     }
     private Entry outboundRedirect(String id, String xml, String query) {
-        return new Entry(id, Direction.OUTBOUND, "GET", xml, query);
+        return new Entry(id, Direction.OUTBOUND, "GET", xml, query, Map.of());
     }
 
     private String request(String id, String version, String extra) {
@@ -186,7 +254,9 @@ class LogoutTranscriptProfileCaseTest {
     }
     private String success() { return "urn:oasis:names:tc:SAML:2.0:status:Success"; }
 
-    private record Entry(String id, Direction direction, String method, String xml, String rawQuery) {}
+    private record Entry(
+            String id, Direction direction, String method, String xml, String rawQuery,
+            Map<String, Object> samlSummary) {}
 
     private static final class Fixture {
         private static final String RUN = "run_0123456789ABCDEFGHJKMNPQRS";
@@ -201,7 +271,7 @@ class LogoutTranscriptProfileCaseTest {
                 entries.add(new TranscriptEntry(
                         value.id(), RUN, value.direction(), Instant.parse("2026-08-29T00:00:00Z").plusSeconds(sequence++),
                         "corr", value.method(), "https://suite.example/slo", 200, Map.of(), null, 0,
-                        reference, bytes.length, "application/xml", value.rawQuery(), Map.of()));
+                        reference, bytes.length, "application/xml", value.rawQuery(), value.samlSummary()));
                 content.put(reference, bytes);
             }
         }

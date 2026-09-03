@@ -1,7 +1,9 @@
 package com.samlscope.store;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.charset.StandardCharsets;
@@ -21,6 +23,7 @@ import com.samlscope.core.run.RunStatus;
 import com.samlscope.core.run.TestRun;
 import com.samlscope.core.transcript.Direction;
 import com.samlscope.core.transcript.TranscriptInput;
+import com.samlscope.core.transcript.TranscriptHistoryLimitExceeded;
 
 class FileTranscriptRecorderTest {
     @TempDir java.nio.file.Path directory;
@@ -74,6 +77,174 @@ class FileTranscriptRecorderTest {
                 Map.of(), new byte[0], "application/xml", null, xml, Map.of()));
 
         assertArrayEquals(xml, recorder.readDecodedSaml(entry));
+    }
+
+    @Test
+    void boundedListingFailsInsteadOfReturningPartialEvidence() {
+        var database = new SqliteDatabase(directory);
+        var json = new JsonCodec();
+        var now = Instant.parse("2026-08-29T00:00:00Z");
+        var plan = new TestPlan("plan_0123456789ABCDEFGHJKMNPQRS", "Example", PlanProfile.IDP_CORE,
+                new TestPlan.Target(TargetKind.IDP, "https://idp.example/entity",
+                        new TestPlan.MetadataSource(MetadataSourceKind.URL, "https://idp.example/metadata")),
+                MetadataDeliveryKind.MANUAL, Map.of(), TestPlan.Parameters.defaults(),
+                TestPlan.Interaction.defaults(), now, now);
+        new SqlitePlanRepository(database, json).save(plan);
+        var run = new TestRun("run_0123456789ABCDEFGHJKMNPQRS", plan.id(), RunStatus.RUNNING,
+                Reachability.UNKNOWN, Map.of(), now, now);
+        new SqliteRunRepository(database, json).save(run);
+        var recorder = new FileTranscriptRecorder(database, json, directory);
+        var input = new TranscriptInput(run.id(), Direction.INBOUND, now, "corr", "POST",
+                "https://suite.example/acs", 200, Map.of(), new byte[0], "application/xml", null,
+                "<Response/>".getBytes(StandardCharsets.UTF_8), Map.of());
+        recorder.record(input);
+        recorder.record(input);
+
+        assertThrows(TranscriptHistoryLimitExceeded.class, () -> recorder.listBounded(run.id(), 1));
+        assertTrue(recorder.list(run.id()).size() == 2, "the complete Transcript remains available");
+    }
+
+    @Test
+    void persistentCapacityRejectsBeforeWritingAndSurvivesModeChanges() throws Exception {
+        var database = new SqliteDatabase(directory);
+        var json = new JsonCodec();
+        var now = Instant.parse("2026-08-29T00:00:00Z");
+        var plan = new TestPlan("plan_0123456789ABCDEFGHJKMNPQRS", "Example", PlanProfile.IDP_CORE,
+                new TestPlan.Target(TargetKind.IDP, "https://idp.example/entity",
+                        new TestPlan.MetadataSource(MetadataSourceKind.URL, "https://idp.example/metadata")),
+                MetadataDeliveryKind.MANUAL, Map.of(), TestPlan.Parameters.defaults(),
+                TestPlan.Interaction.defaults(), now, now);
+        new SqlitePlanRepository(database, json).save(plan);
+        var run = new TestRun("run_0123456789ABCDEFGHJKMNPQRS", plan.id(), RunStatus.RUNNING,
+                Reachability.UNKNOWN, Map.of(), now, now);
+        new SqliteRunRepository(database, json).save(run);
+        var input = new TranscriptInput(run.id(), Direction.INBOUND, now, "corr", "POST",
+                "https://suite.example/acs", 200, Map.of(), new byte[0], "application/xml", null,
+                "<Response/>".getBytes(StandardCharsets.UTF_8), Map.of());
+
+        new FileTranscriptRecorder(database, json, directory).record(input);
+        var limited = new FileTranscriptRecorder(
+                database, json, directory,
+                new FileTranscriptRecorder.Limits(1, 1_024, 100, 100_000, 100, 1_000));
+        var publications = new SqlitePublicationRepository(database);
+        assertTrue(publications.publish(run.id(), now));
+
+        assertThrows(FileTranscriptRecorder.CapacityExceeded.class, () -> limited.record(input));
+        assertEquals(1, limited.list(run.id()).size());
+        assertFalse(publications.isPublished(run.id()));
+        assertFalse(publications.publish(run.id(), now.plusSeconds(1)));
+        try (var paths = Files.list(directory.resolve("transcripts").resolve(run.id()))) {
+            assertEquals(1, paths.filter(Files::isRegularFile).count());
+        }
+
+        var afterRestart = new FileTranscriptRecorder(
+                new SqliteDatabase(directory), json, directory,
+                new FileTranscriptRecorder.Limits(1, 1_024, 100, 100_000, 100, 1_000));
+        assertThrows(FileTranscriptRecorder.CapacityExceeded.class, () -> afterRestart.record(input));
+        assertEquals(1, afterRestart.list(run.id()).size());
+    }
+
+    @Test
+    void globalCapacityCannotBeBypassedWithAnotherRun() {
+        var database = new SqliteDatabase(directory);
+        var json = new JsonCodec();
+        var now = Instant.parse("2026-08-29T00:00:00Z");
+        var plan = new TestPlan("plan_0123456789ABCDEFGHJKMNPQRS", "Example", PlanProfile.IDP_CORE,
+                new TestPlan.Target(TargetKind.IDP, "https://idp.example/entity",
+                        new TestPlan.MetadataSource(MetadataSourceKind.URL, "https://idp.example/metadata")),
+                MetadataDeliveryKind.MANUAL, Map.of(), TestPlan.Parameters.defaults(),
+                TestPlan.Interaction.defaults(), now, now);
+        new SqlitePlanRepository(database, json).save(plan);
+        var firstRun = new TestRun("run_0123456789ABCDEFGHJKMNPQRS", plan.id(), RunStatus.RUNNING,
+                Reachability.UNKNOWN, Map.of(), now, now);
+        var secondRun = new TestRun("run_1123456789ABCDEFGHJKMNPQRS", plan.id(), RunStatus.RUNNING,
+                Reachability.UNKNOWN, Map.of(), now, now);
+        var runs = new SqliteRunRepository(database, json);
+        runs.save(firstRun);
+        runs.save(secondRun);
+        var recorder = new FileTranscriptRecorder(
+                database, json, directory,
+                new FileTranscriptRecorder.Limits(10, 10_000, 1, 10_000, 100, 1_000));
+
+        recorder.record(inputFor(firstRun.id(), now));
+
+        assertThrows(FileTranscriptRecorder.CapacityExceeded.class,
+                () -> recorder.record(inputFor(secondRun.id(), now)));
+        assertEquals(1, recorder.list(firstRun.id()).size());
+        assertTrue(recorder.list(secondRun.id()).isEmpty());
+        assertFalse(new SqlitePublicationRepository(database).publish(secondRun.id(), now));
+    }
+
+    @Test
+    void ingressRateRejectionAndPublicationRevocationAreAtomic() {
+        var database = new SqliteDatabase(directory);
+        var json = new JsonCodec();
+        var now = Instant.parse("2026-08-29T00:00:00Z");
+        var plan = new TestPlan("plan_0123456789ABCDEFGHJKMNPQRS", "Example", PlanProfile.IDP_CORE,
+                new TestPlan.Target(TargetKind.IDP, "https://idp.example/entity",
+                        new TestPlan.MetadataSource(MetadataSourceKind.URL, "https://idp.example/metadata")),
+                MetadataDeliveryKind.MANUAL, Map.of(), TestPlan.Parameters.defaults(),
+                TestPlan.Interaction.defaults(), now, now);
+        new SqlitePlanRepository(database, json).save(plan);
+        var run = new TestRun("run_0123456789ABCDEFGHJKMNPQRS", plan.id(), RunStatus.RUNNING,
+                Reachability.UNKNOWN, Map.of(), now, now);
+        new SqliteRunRepository(database, json).save(run);
+        var recorder = new FileTranscriptRecorder(
+                database, json, directory,
+                new FileTranscriptRecorder.Limits(10, 10_000, 100, 100_000, 2, 100));
+        var publications = new SqlitePublicationRepository(database);
+
+        recorder.record(inputFor(run.id(), now));
+        recorder.record(inputFor(run.id(), now));
+        assertTrue(publications.publish(run.id(), now));
+
+        assertThrows(FileTranscriptRecorder.AdmissionRateExceeded.class,
+                () -> recorder.record(inputFor(run.id(), now)));
+        assertEquals(2, recorder.list(run.id()).size());
+        assertFalse(publications.isPublished(run.id()));
+        assertFalse(publications.publish(run.id(), now.plusSeconds(1)));
+    }
+
+    @Test
+    void deletingAPlanRemovesEvidenceAndReleasesItsGlobalCapacity() throws Exception {
+        var database = new SqliteDatabase(directory);
+        var json = new JsonCodec();
+        var now = Instant.parse("2026-08-29T00:00:00Z");
+        var plan = new TestPlan("plan_0123456789ABCDEFGHJKMNPQRS", "Example", PlanProfile.IDP_CORE,
+                new TestPlan.Target(TargetKind.IDP, "https://idp.example/entity",
+                        new TestPlan.MetadataSource(MetadataSourceKind.URL, "https://idp.example/metadata")),
+                MetadataDeliveryKind.MANUAL, Map.of(), TestPlan.Parameters.defaults(),
+                TestPlan.Interaction.defaults(), now, now);
+        var plans = new SqlitePlanRepository(database, json);
+        plans.save(plan);
+        var run = new TestRun("run_0123456789ABCDEFGHJKMNPQRS", plan.id(), RunStatus.RUNNING,
+                Reachability.UNKNOWN, Map.of(), now, now);
+        new SqliteRunRepository(database, json).save(run);
+        var recorder = new FileTranscriptRecorder(
+                database, json, directory,
+                new FileTranscriptRecorder.Limits(10, 10_000, 10, 10_000, 10, 10));
+        recorder.record(inputFor(run.id(), now));
+        var runDirectory = directory.resolve("transcripts").resolve(run.id());
+        assertTrue(Files.exists(runDirectory));
+
+        assertTrue(recorder.deletePlanAndEvidence(plan.id()));
+
+        assertTrue(plans.find(plan.id()).isEmpty());
+        assertFalse(Files.exists(runDirectory));
+        try (var connection = database.open();
+             var usage = connection.createStatement().executeQuery(
+                     "SELECT entry_count, stored_bytes FROM transcript_global_usage")) {
+            assertTrue(usage.next());
+            assertEquals(0, usage.getLong(1));
+            assertEquals(0, usage.getLong(2));
+        }
+        assertFalse(recorder.deletePlanAndEvidence(plan.id()));
+    }
+
+    private static TranscriptInput inputFor(String runId, Instant now) {
+        return new TranscriptInput(runId, Direction.INBOUND, now, "corr", "POST",
+                "https://suite.example/acs", 200, Map.of(), new byte[0], "application/xml", null,
+                "<Response/>".getBytes(StandardCharsets.UTF_8), Map.of());
     }
 
     private byte[] readAll(java.nio.file.Path root) throws Exception {
