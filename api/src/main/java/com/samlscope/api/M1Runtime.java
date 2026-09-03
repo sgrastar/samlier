@@ -55,6 +55,7 @@ import com.samlscope.store.SqliteCaseExecutionRepository;
 import com.samlscope.store.SqliteDatabase;
 import com.samlscope.store.SqliteRunAccessGrantRepository;
 import com.samlscope.store.SqlitePublicationRepository;
+import com.samlscope.store.SqliteHostedRunProvisioner;
 
 /** Phase 1 execution composition kept outside the HTTP root so its boundaries remain independently testable. */
 final class M1Runtime {
@@ -76,6 +77,9 @@ final class M1Runtime {
     private final BrowserCompletionService browserCompletions;
     private final SqliteCaseExecutionRepository caseExecutions;
     private final SqlitePublicationRepository publications;
+    private final HostedRateLimiter reconciliationLimiter;
+    private final SqliteHostedRunProvisioner hostedRunProvisioner;
+    private final HostedEvidenceWorkGate evidenceWorkGate = new HostedEvidenceWorkGate();
     private final ActiveProbeCoordinator activeProbes;
     private final CaseTimeoutService timeouts;
     private final RunCampaignService campaigns;
@@ -100,6 +104,8 @@ final class M1Runtime {
             BrowserCompletionService browserCompletions,
             SqliteCaseExecutionRepository caseExecutions,
             SqlitePublicationRepository publications,
+            HostedRateLimiter reconciliationLimiter,
+            SqliteHostedRunProvisioner hostedRunProvisioner,
             ActiveProbeCoordinator activeProbes,
             CaseTimeoutService timeouts,
             RunCampaignService campaigns,
@@ -122,6 +128,8 @@ final class M1Runtime {
         this.browserCompletions = browserCompletions;
         this.caseExecutions = caseExecutions;
         this.publications = publications;
+        this.reconciliationLimiter = reconciliationLimiter;
+        this.hostedRunProvisioner = hostedRunProvisioner;
         this.activeProbes = activeProbes;
         this.timeouts = timeouts;
         this.campaigns = campaigns;
@@ -142,6 +150,8 @@ final class M1Runtime {
             SqliteCaseExecutionRepository caseExecutions,
             com.samlscope.runner.MetadataLabService metadataLab,
             OutboundDispatcher outboundDispatcher,
+            HostedRateLimiter reconciliationLimiter,
+            SqliteHostedRunProvisioner hostedRunProvisioner,
             Clock clock) {
         var documents = CatalogDocuments.load();
         var coverage = CoverageCatalogMapper.fromDocument(documents.parsed("tests/coverage.yaml"));
@@ -373,21 +383,34 @@ final class M1Runtime {
         return new M1Runtime(
                 config, quickCheck, results, artifacts, access, plans, runs, transcript, clock,
                 starters, pendingInteractions, bootstrapContracts, protocolEvidence, attestations,
-                configurations, browserCompletions, caseExecutions, publications, activeProbes, timeouts,
+                configurations, browserCompletions, caseExecutions, publications,
+                reconciliationLimiter, hostedRunProvisioner, activeProbes, timeouts,
                 campaigns, campaignActions);
     }
 
     QuickCheckService.QuickCheckResult quickCheck(String runId) {
-        var value = quickCheck.execute(runId);
-        var run = requireRun(runId);
-        var plan = requirePlan(run);
-        startInteractive(run, plan, com.samlscope.core.casedef.CaseDefinitionCatalog.Milestone.M1);
-        reconcileTranscriptEvidence(runId);
-        if (results != null) results.generate(runId);
-        return value;
+        return withManualEvidenceWork(runId, () -> {
+            var value = quickCheck.execute(runId);
+            var run = requireRun(runId);
+            var plan = requirePlan(run);
+            startInteractive(run, plan, com.samlscope.core.casedef.CaseDefinitionCatalog.Milestone.M1);
+            reconcileTranscriptEvidenceNow(runId);
+            if (results != null) results.generate(runId);
+            return value;
+        });
     }
 
-    void reconcileTranscriptEvidence(String runId) {
+    void reconcileTranscriptEvidenceAutomatically(String runId) {
+        if (config.mode() == AppConfig.Mode.HOSTED
+                && !publications.isTranscriptEvidenceComplete(runId)) return;
+        if (config.mode() == AppConfig.Mode.HOSTED) {
+            evidenceWorkGate.executeAutomatic(() -> reconcileTranscriptEvidenceNow(runId));
+        } else {
+            reconcileTranscriptEvidenceNow(runId);
+        }
+    }
+
+    private void reconcileTranscriptEvidenceNow(String runId) {
         requireRun(runId);
         var expiredProbe = activeProbes.expireReady(runId);
         var expired = timeouts.expireReady(runId, caseContext(runId));
@@ -399,8 +422,17 @@ final class M1Runtime {
     }
 
     ActiveProbeCoordinator.Status activeProbeStatus(String runId) {
+        return withManualEvidenceWork(runId, () -> {
+            reconcileTranscriptEvidenceNow(runId);
+            return activeProbes.status(runId);
+        });
+    }
+
+    /** Public probe routes need only the coordinator state; Transcript automation runs separately. */
+    ActiveProbeCoordinator.Status activeProbeRouteStatus(String runId) {
         requireRun(runId);
-        reconcileTranscriptEvidence(runId);
+        var expired = activeProbes.expireReady(runId);
+        if (expired.isPresent() && results != null) results.generate(runId);
         return activeProbes.status(runId);
     }
 
@@ -435,93 +467,105 @@ final class M1Runtime {
     }
 
     java.util.List<com.samlscope.runner.InteractionQuery.PendingInteraction> pending(String runId) {
-        requireRun(runId);
-        reconcileTranscriptEvidence(runId);
-        return pendingInteractions.pending(runId);
+        return withManualEvidenceWork(runId, () -> {
+            reconcileTranscriptEvidenceNow(runId);
+            return pendingInteractions.pending(runId);
+        });
     }
 
     com.samlscope.runner.RunCampaignQuery.CampaignReport campaigns(String runId) {
-        requireRun(runId);
-        reconcileTranscriptEvidence(runId);
-        return campaigns.report(runId);
+        return withManualEvidenceWork(runId, () -> {
+            reconcileTranscriptEvidenceNow(runId);
+            return campaigns.report(runId);
+        });
     }
 
     java.util.List<com.samlscope.runner.BootstrapContractQuery.BootstrapContract> bootstrapContracts(String runId) {
-        requireRun(runId);
-        return bootstrapContracts.contracts(runId);
+        return withManualEvidenceWork(runId, () -> bootstrapContracts.contracts(runId));
     }
 
     com.samlscope.runner.ProtocolEvidenceAutomationService.Status protocolEvidence(String runId) {
-        requireRun(runId);
-        reconcileTranscriptEvidence(runId);
-        return protocolEvidence.status(runId);
+        return withManualEvidenceWork(runId, () -> {
+            reconcileTranscriptEvidenceNow(runId);
+            return protocolEvidence.status(runId);
+        });
     }
 
     com.samlscope.runner.ProtocolEvidenceAutomationService.Evaluation evaluateProtocolEvidence(String runId) {
-        requireRun(runId);
-        var value = protocolEvidence.evaluateReady(runId);
-        if (results != null) results.generate(runId);
-        return value;
+        return withManualEvidenceWork(runId, () -> {
+            var value = protocolEvidence.evaluateReady(runId);
+            if (results != null) results.generate(runId);
+            return value;
+        });
     }
 
     com.samlscope.runner.ProtocolEvidenceAutomationService.Evaluation confirmProtocolEvidenceAttempts(
             String runId) {
-        requireRun(runId);
-        var value = protocolEvidence.evaluateAttempted(runId);
-        if (results != null) results.generate(runId);
-        return value;
+        return withManualEvidenceWork(runId, () -> {
+            var value = protocolEvidence.evaluateAttempted(runId);
+            if (results != null) results.generate(runId);
+            return value;
+        });
     }
 
     com.samlscope.runner.AttestationExecutor.Result attest(
             String runId, String caseId, String value, String note) {
-        var result = attestations.attest(runId, caseId, value, note);
-        if (results != null) results.generate(runId);
-        return result;
+        return withManualEvidenceWork(runId, () -> {
+            var result = attestations.attest(runId, caseId, value, note);
+            if (results != null) results.generate(runId);
+            return result;
+        });
     }
 
     com.samlscope.runner.ConfigurationExecutor.Result configure(
             String runId, String caseId, String value, String note) {
-        var result = configurations.answer(runId, caseId, value, note);
-        if (results != null) results.generate(runId);
-        return result;
+        return withManualEvidenceWork(runId, () -> {
+            var result = configurations.answer(runId, caseId, value, note);
+            if (results != null) results.generate(runId);
+            return result;
+        });
     }
 
     com.samlscope.runner.BrowserCompletionExecutor.Result completeBrowser(String runId, String caseId) {
-        var result = browserCompletions.complete(runId, caseId);
-        if (results != null) results.generate(runId);
-        return result;
+        return withManualEvidenceWork(runId, () -> {
+            var result = browserCompletions.complete(runId, caseId);
+            if (results != null) results.generate(runId);
+            return result;
+        });
     }
 
     com.samlscope.runner.CampaignActionCompletionService.Result completeCampaignAction(
             String runId, String campaignId, String actionId) {
-        var result = campaignActions.complete(runId, campaignId, actionId);
-        if (results != null) results.generate(runId);
-        return result;
-    }
-
-    com.samlscope.runner.CampaignActionCompletionService campaignActionCompletionService() {
-        return campaignActions;
+        return withManualEvidenceWork(runId, () -> {
+            var result = campaignActions.complete(runId, campaignId, actionId);
+            if (results != null) results.generate(runId);
+            return result;
+        });
     }
 
     java.util.List<com.samlscope.core.caseexec.CaseExecution> startMilestone(
             String runId, String milestoneName) {
-        var milestone = parseMilestone(milestoneName);
-        var run = requireRun(runId);
-        var plan = requirePlan(run);
-        if (milestone == com.samlscope.core.casedef.CaseDefinitionCatalog.Milestone.M3
-                && plan.profile() == com.samlscope.core.plan.PlanProfile.IDP_FULL
-                && !com.samlscope.runner.outbox.EcpProbeService.allRequiredFixturesSent(caseExecutions, run.id())) {
-            throw new IllegalArgumentException(
-                    "Run the ECP, channel-binding, and SAML-EC probes before starting M3 for an IdP Full Profile Run");
-        }
-        var started = startInteractive(run, plan, milestone);
-        reconcileTranscriptEvidence(runId);
-        if (results != null) results.generate(runId);
-        return started;
+        return withManualEvidenceWork(runId, () -> {
+            var milestone = parseMilestone(milestoneName);
+            var run = requireRun(runId);
+            var plan = requirePlan(run);
+            if (milestone == com.samlscope.core.casedef.CaseDefinitionCatalog.Milestone.M3
+                    && plan.profile() == com.samlscope.core.plan.PlanProfile.IDP_FULL
+                    && !com.samlscope.runner.outbox.EcpProbeService.allRequiredFixturesSent(
+                            caseExecutions, run.id())) {
+                throw new IllegalArgumentException(
+                        "Run the ECP, channel-binding, and SAML-EC probes before starting M3 for an IdP Full Profile Run");
+            }
+            var started = startInteractive(run, plan, milestone);
+            reconcileTranscriptEvidenceNow(runId);
+            if (results != null) results.generate(runId);
+            return started;
+        });
     }
 
     byte[] requireResult(String runId) {
-        reconcileTranscriptEvidence(runId);
+        if (config.mode() == AppConfig.Mode.HOSTED) requireTranscriptEvidenceComplete(runId);
+        else reconcileTranscriptEvidenceNow(runId);
         return artifacts.findResult(runId)
                 .orElseThrow(() -> new IllegalArgumentException(
                         results == null
@@ -531,7 +575,8 @@ final class M1Runtime {
 
     byte[] requireReport(String runId) {
         if (results == null) throw new IllegalArgumentException("Report generation requires SAMLSCOPE_IMAGE_DIGEST");
-        reconcileTranscriptEvidence(runId);
+        if (config.mode() == AppConfig.Mode.HOSTED) requireTranscriptEvidenceComplete(runId);
+        else reconcileTranscriptEvidenceNow(runId);
         return results.requireReport(runId);
     }
 
@@ -541,10 +586,48 @@ final class M1Runtime {
         }
         requireRun(runId);
         if (results == null) throw new IllegalArgumentException("Publication requires SAMLSCOPE_IMAGE_DIGEST");
-        reconcileTranscriptEvidence(runId);
-        results.generate(runId);
-        publications.publish(runId, clock.instant());
-        return new PublicationRoutes.Published(runId, config.publicBaseUrl().resolve("/reports/" + runId));
+        return withManualEvidenceWork(runId, () -> {
+            reconcileTranscriptEvidenceNow(runId);
+            results.generate(runId);
+            if (!publications.publish(runId, clock.instant())) {
+                throw new IllegalArgumentException(
+                        "This Run cannot be published because Transcript evidence was rejected at its capacity limit");
+            }
+            return new PublicationRoutes.Published(
+                    runId, config.publicBaseUrl().resolve("/reports/" + runId));
+        });
+    }
+
+    private <T> T withManualEvidenceWork(String runId, java.util.function.Supplier<T> operation) {
+        requireTranscriptEvidenceComplete(runId);
+        if (config.mode() != AppConfig.Mode.HOSTED) return operation.get();
+        return evidenceWorkGate.executeManual(() -> {
+            requireManualReconciliationAllowed(runId);
+            return operation.get();
+        });
+    }
+
+    private void requireManualReconciliationAllowed(String runId) {
+        reconciliationLimiter.requireAllowedTogether(
+                new HostedRateLimiter.Rule(
+                        "transcript-reconciliation-owner",
+                        hostedRunProvisioner.ownerForRun(runId), 6,
+                        java.time.Duration.ofMinutes(1)),
+                new HostedRateLimiter.Rule(
+                        "transcript-reconciliation-run", runId, 4,
+                        java.time.Duration.ofMinutes(1)),
+                new HostedRateLimiter.Rule(
+                        "transcript-reconciliation-global", "service", 30,
+                        java.time.Duration.ofMinutes(1)));
+    }
+
+    private void requireTranscriptEvidenceComplete(String runId) {
+        requireRun(runId);
+        if (config.mode() == AppConfig.Mode.HOSTED
+                && !publications.isTranscriptEvidenceComplete(runId)) {
+            throw new IllegalArgumentException(
+                    "Transcript evidence was rejected; this Run is incomplete and cannot produce an artifact");
+        }
     }
 
     boolean isPublished(String runId) {

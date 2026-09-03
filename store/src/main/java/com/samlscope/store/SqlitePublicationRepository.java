@@ -12,16 +12,19 @@ public final class SqlitePublicationRepository {
         this.database = Objects.requireNonNull(database, "database");
     }
 
-    public void publish(String runId, Instant publishedAt) {
+    public boolean publish(String runId, Instant publishedAt) {
         validateRunId(runId);
         Objects.requireNonNull(publishedAt, "publishedAt");
         try (var connection = database.open();
              var statement = connection.prepareStatement(
-                     "INSERT INTO published_runs(run_id, published_at) VALUES(?, ?) "
+                     "INSERT INTO published_runs(run_id, published_at) "
+                             + "SELECT ?, ? WHERE NOT EXISTS ("
+                             + "SELECT 1 FROM transcript_usage WHERE run_id = ? AND rejected = 1) "
                              + "ON CONFLICT(run_id) DO UPDATE SET published_at = excluded.published_at")) {
             statement.setString(1, runId);
             statement.setString(2, publishedAt.toString());
-            statement.executeUpdate();
+            statement.setString(3, runId);
+            return statement.executeUpdate() == 1;
         } catch (SQLException error) {
             throw new StoreException("Could not publish Run", error);
         }
@@ -35,6 +38,20 @@ public final class SqlitePublicationRepository {
             try (var rows = statement.executeQuery()) { return rows.next(); }
         } catch (SQLException error) {
             throw new StoreException("Could not read Run publication state", error);
+        }
+    }
+
+    public boolean isTranscriptEvidenceComplete(String runId) {
+        validateRunId(runId);
+        try (var connection = database.open();
+             var statement = connection.prepareStatement(
+                     "SELECT 1 FROM transcript_usage WHERE run_id = ? AND rejected = 1")) {
+            statement.setString(1, runId);
+            try (var rows = statement.executeQuery()) {
+                return !rows.next();
+            }
+        } catch (SQLException error) {
+            throw new StoreException("Could not read Transcript evidence state", error);
         }
     }
 

@@ -39,6 +39,28 @@ class SqliteHostedRunProvisionerTest {
     }
 
     @Test
+    void preservesOneAnonymousOwnerAcrossPlansAndTheirReplacementRuns() {
+        var fixture = fixture();
+        var firstPlan = plan("plan_first", "https://first.example/idp");
+        var firstRun = run("run_first", firstPlan.id(), RunStatus.CREATED);
+        assertTrue(fixture.provisioner.createPlanWithInitialRun(
+                firstPlan, firstRun, grant(firstRun.id(), 'a'), "sha256:shared-owner"));
+        fixture.runs.save(run(firstRun.id(), firstPlan.id(), RunStatus.COMPLETED));
+
+        var secondPlan = plan("plan_second", "https://second.example/idp");
+        var secondRun = run("run_second", secondPlan.id(), RunStatus.CREATED);
+        assertTrue(fixture.provisioner.createPlanWithInitialRun(
+                secondPlan, secondRun, grant(secondRun.id(), 'b'), "sha256:shared-owner"));
+        fixture.runs.save(run(secondRun.id(), secondPlan.id(), RunStatus.COMPLETED));
+        var replacement = run("run_replacement", secondPlan.id(), RunStatus.CREATED);
+        assertTrue(fixture.provisioner.createRun(replacement, grant(replacement.id(), 'c')));
+
+        assertEquals("sha256:shared-owner", fixture.provisioner.ownerForRun(firstRun.id()));
+        assertEquals("sha256:shared-owner", fixture.provisioner.ownerForRun(secondRun.id()));
+        assertEquals("sha256:shared-owner", fixture.provisioner.ownerForRun(replacement.id()));
+    }
+
+    @Test
     void rejectsAnotherActiveRunForTheSameTargetWithoutPersistingAnyRecord() {
         var fixture = fixture();
         var firstPlan = plan("plan_first", "https://target.example/idp");

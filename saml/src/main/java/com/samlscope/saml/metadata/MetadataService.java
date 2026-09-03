@@ -440,7 +440,7 @@ public final class MetadataService {
             case ENTITIES_ROOT_TWO -> wrapEntities(document, entity, plan, 2, false, variant, runId);
             case ENTITIES_ROOT_FIFTY -> wrapEntities(document, entity, plan, 50, false, variant, runId);
             case NESTED_ENTITIES -> wrapEntities(document,
-                    wrapEntities(document, entity, plan, 1, false, variant, runId),
+                    wrapEntities(document, entity, plan, 1, false, variant, runId, "_inner"),
                     plan, 1, true, variant, runId);
             case DISTINCT_ENTITY_IDS -> wrapEntities(document, entity, plan, 2, false, variant, runId);
             case DUPLICATE_ENTITY_IDS, CONFLICTING_DUPLICATE_ENTITY_IDS ->
@@ -457,11 +457,24 @@ public final class MetadataService {
             boolean duplicateEntityId,
             Variant variant,
             String runId) {
+        return wrapEntities(document, child, plan, childCount, duplicateEntityId, variant, runId, "");
+    }
+
+    private Element wrapEntities(
+            Document document,
+            Element child,
+            TestPlan plan,
+            int childCount,
+            boolean duplicateEntityId,
+            Variant variant,
+            String runId,
+            String idSuffix) {
         document.removeChild(child);
         var wrapper = element(document, MD, "md:EntitiesDescriptor");
         wrapper.setAttributeNS(XMLConstants.XMLNS_ATTRIBUTE_NS_URI, "xmlns:md", MD);
         wrapper.setAttributeNS(XMLConstants.XMLNS_ATTRIBUTE_NS_URI, "xmlns:ds", DS);
-        wrapper.setAttribute("ID", "_" + plan.id() + "_entities_" + variant.id().replace('-', '_'));
+        wrapper.setAttribute(
+                "ID", "_" + plan.id() + "_entities_" + variant.id().replace('-', '_') + idSuffix);
         wrapper.setAttribute("validUntil", DateTimeFormatter.ISO_INSTANT.format(
                 clock.instant().plus(Duration.ofDays(14))));
         for (var index = 1; index < childCount; index++) {

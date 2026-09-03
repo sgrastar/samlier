@@ -179,6 +179,17 @@ class SamlScopeApplicationTest {
             assertTrue(preloaded.body().contains("\"preloadedFetched\":false"));
             var preloadedDownloadUrl = URI.create(preloaded.body().replaceFirst(
                     "(?s).*\"preloadedDownloadUrl\":\"([^\"]+)\".*", "$1"));
+            var preloadedUrl = URI.create(preloaded.body().replaceFirst(
+                    "(?s).*\"preloadedMetadataUrl\":\"([^\"]+)\".*", "$1"));
+            var filesBeforeRejectedFetch = regularFiles(dataDirectory.resolve("keys"));
+            var rejectedFetchQuery = preloadedUrl.getRawQuery().replaceFirst(
+                    "(^|&)preload=[^&]+", "$1preload=invalid");
+            var rejectedFetch = client.send(HttpRequest.newBuilder(base.resolve(
+                            preloadedUrl.getRawPath() + "?" + rejectedFetchQuery)).build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(400, rejectedFetch.statusCode(), rejectedFetch.body());
+            assertEquals(filesBeforeRejectedFetch, regularFiles(dataDirectory.resolve("keys")),
+                    "an unauthorized preloaded fetch must not generate keys or fixtures");
             var download = client.send(HttpRequest.newBuilder(base.resolve(
                             preloadedDownloadUrl.getRawPath() + "?" + preloadedDownloadUrl.getRawQuery())).build(),
                     HttpResponse.BodyHandlers.ofString());
@@ -190,8 +201,6 @@ class SamlScopeApplicationTest {
                     HttpResponse.BodyHandlers.ofString());
             assertTrue(afterDownload.body().contains("\"preloadedFetched\":false"),
                     "an operator download must not claim a Target metadata fetch");
-            var preloadedUrl = URI.create(preloaded.body().replaceFirst(
-                    "(?s).*\"preloadedMetadataUrl\":\"([^\"]+)\".*", "$1"));
             var aggregate = client.send(HttpRequest.newBuilder(base.resolve(
                             preloadedUrl.getRawPath() + "?" + preloadedUrl.getRawQuery())).build(),
                     HttpResponse.BodyHandlers.ofString());
@@ -202,6 +211,26 @@ class SamlScopeApplicationTest {
             assertTrue(aggregate.body().contains("<md:EntitiesDescriptor"));
             assertTrue(aggregate.body().contains("metadata-peer/unknown-extension"));
             assertFalse(aggregate.body().contains("metadata-peer/bad-signature"));
+            var rearmed = client.send(HttpRequest.newBuilder(base.resolve(
+                            "/api/runs/" + runId + "/metadata-lab/preloaded"))
+                            .header("Content-Type", "application/json")
+                            .POST(HttpRequest.BodyPublishers.ofString("{}"))
+                            .build(), HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, rearmed.statusCode(), rearmed.body());
+            var rearmedUrl = URI.create(rearmed.body().replaceFirst(
+                    "(?s).*\"preloadedMetadataUrl\":\"([^\"]+)\".*", "$1"));
+            assertNotEquals(preloadedUrl.getRawQuery(), rearmedUrl.getRawQuery(),
+                    "rearming must rotate the campaign capability");
+            var staleTokenFetch = client.send(HttpRequest.newBuilder(base.resolve(
+                            preloadedUrl.getRawPath() + "?" + preloadedUrl.getRawQuery())).build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(400, staleTokenFetch.statusCode(), staleTokenFetch.body());
+            var rearmedFetch = client.send(HttpRequest.newBuilder(base.resolve(
+                            rearmedUrl.getRawPath() + "?" + rearmedUrl.getRawQuery())).build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, rearmedFetch.statusCode(), rearmedFetch.body());
+            assertEquals(aggregate.body(), rearmedFetch.body(),
+                    "token rotation must not force regeneration of the stable Run fixture");
             var aggregateState = client.send(HttpRequest.newBuilder(base.resolve(
                             "/api/runs/" + runId + "/metadata-lab")).build(),
                     HttpResponse.BodyHandlers.ofString());
@@ -375,5 +404,12 @@ class SamlScopeApplicationTest {
             offset += needle.length();
         }
         return count;
+    }
+
+    private static long regularFiles(Path root) throws java.io.IOException {
+        if (!Files.exists(root)) return 0;
+        try (var paths = Files.walk(root)) {
+            return paths.filter(Files::isRegularFile).count();
+        }
     }
 }

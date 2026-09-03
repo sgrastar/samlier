@@ -693,13 +693,25 @@ final class TargetMetadataObservation {
         var uiInfo = elements(document, UI, "UIInfo");
         var localized = 0;
         var duplicates = new ArrayList<String>();
+        var languagesByRole = new java.util.IdentityHashMap<Element, Map<String, Set<String>>>();
         for (var index = 0; index < uiInfo.size(); index++) {
-            var languages = new java.util.LinkedHashMap<String, Set<String>>();
-            for (var child : directElements(uiInfo.get(index))) {
+            var container = uiInfo.get(index);
+            var extensions = parent(container);
+            var role = extensions == null ? null : parent(extensions);
+            if (extensions == null || !MD.equals(extensions.getNamespaceURI())
+                    || !"Extensions".equals(extensions.getLocalName())
+                    || role == null || !MD.equals(role.getNamespaceURI())
+                    || !ROLE_ELEMENTS.contains(role.getLocalName())) {
+                continue; // The dedicated placement rule owns unscoped UIInfo containers.
+            }
+            var languages = languagesByRole.computeIfAbsent(
+                    role, ignored -> new java.util.LinkedHashMap<>());
+            for (var child : directElements(container)) {
                 if (!UI.equals(child.getNamespaceURI())
                         || !LOCALIZED_UI_ELEMENTS.contains(child.getLocalName())) continue;
                 localized++;
-                var language = child.getAttributeNS(XMLConstants.XML_NS_URI, "lang");
+                var language = child.getAttributeNS(XMLConstants.XML_NS_URI, "lang")
+                        .toLowerCase(java.util.Locale.ROOT);
                 var seen = languages.computeIfAbsent(child.getLocalName(), ignored -> new HashSet<>());
                 if (!seen.add(language)) duplicates.add(index + ":" + child.getLocalName() + ":" + language);
             }

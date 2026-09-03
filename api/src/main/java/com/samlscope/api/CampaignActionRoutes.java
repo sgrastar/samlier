@@ -11,6 +11,12 @@ public final class CampaignActionRoutes {
     public static void register(
             JavalinConfig javalin,
             CampaignActionCompletionService actions) {
+        registerBounded(javalin, actions::complete);
+    }
+
+    static void registerBounded(
+            JavalinConfig javalin,
+            Completion actions) {
         Objects.requireNonNull(javalin, "javalin");
         Objects.requireNonNull(actions, "actions");
         javalin.routes.post("/api/runs/{id}/campaigns/{campaignId}/actions/{actionId}/complete", ctx -> {
@@ -20,5 +26,11 @@ public final class CampaignActionRoutes {
             ctx.json(actions.complete(
                     ctx.pathParam("id"), ctx.pathParam("campaignId"), ctx.pathParam("actionId")));
         });
+    }
+
+    @FunctionalInterface
+    public interface Completion {
+        CampaignActionCompletionService.Result complete(
+                String runId, String campaignId, String actionId);
     }
 }

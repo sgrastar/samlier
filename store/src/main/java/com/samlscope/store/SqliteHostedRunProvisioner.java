@@ -19,11 +19,40 @@ public final class SqliteHostedRunProvisioner {
     }
 
     public boolean createPlanWithInitialRun(TestPlan plan, TestRun run, RunAccessGrant grant) {
-        return provision(plan, run, grant, true);
+        return createPlanWithInitialRun(plan, run, grant, "legacy-plan:" + plan.id());
+    }
+
+    public boolean createPlanWithInitialRun(
+            TestPlan plan, TestRun run, RunAccessGrant grant, String ownerId) {
+        if (ownerId == null || ownerId.isBlank()) {
+            throw new IllegalArgumentException("Hosted Plan owner must not be blank");
+        }
+        return provision(plan, run, grant, true, ownerId);
     }
 
     public boolean createRun(TestRun run, RunAccessGrant grant) {
-        return provision(null, run, grant, false);
+        return provision(null, run, grant, false, null);
+    }
+
+    /** Returns the stable anonymous owner shared by every Run of a Hosted Plan. */
+    public String ownerForRun(String runId) {
+        try (var connection = database.open();
+                var statement = connection.prepareStatement("""
+                        SELECT o.owner_id
+                        FROM runs r
+                        LEFT JOIN hosted_plan_owners o ON o.plan_id = r.plan_id
+                        WHERE r.id = ?
+                        """)) {
+            statement.setString(1, runId);
+            try (var rows = statement.executeQuery()) {
+                if (!rows.next()) throw new IllegalArgumentException("Unknown Run");
+                var owner = rows.getString(1);
+                // Conservatively share one limiter for Plans created before this migration.
+                return owner == null ? "legacy-hosted-plans" : owner;
+            }
+        } catch (SQLException error) {
+            throw new StoreException("Could not resolve Hosted Run owner", error);
+        }
     }
 
     /**
@@ -56,7 +85,8 @@ public final class SqliteHostedRunProvisioner {
         }
     }
 
-    private boolean provision(TestPlan plan, TestRun run, RunAccessGrant grant, boolean insertPlan) {
+    private boolean provision(
+            TestPlan plan, TestRun run, RunAccessGrant grant, boolean insertPlan, String ownerId) {
         if ((insertPlan && (plan == null || !run.planId().equals(plan.id())))
                 || !grant.runId().equals(run.id())) {
             throw new IllegalArgumentException("Provisioning records do not belong together");
@@ -70,7 +100,10 @@ public final class SqliteHostedRunProvisioner {
                     execute(connection, "ROLLBACK");
                     return false;
                 }
-                if (insertPlan) insertPlan(connection, currentPlan);
+                if (insertPlan) {
+                    insertPlan(connection, currentPlan);
+                    insertOwner(connection, currentPlan.id(), ownerId);
+                }
                 insertRun(connection, run);
                 insertGrant(connection, grant);
                 execute(connection, "COMMIT");
@@ -132,6 +165,15 @@ public final class SqliteHostedRunProvisioner {
             statement.setString(2, json.write(plan));
             statement.setString(3, plan.createdAt().toString());
             statement.setString(4, plan.updatedAt().toString());
+            statement.executeUpdate();
+        }
+    }
+
+    private void insertOwner(Connection connection, String planId, String ownerId) throws SQLException {
+        try (var statement = connection.prepareStatement(
+                "INSERT INTO hosted_plan_owners(plan_id, owner_id) VALUES(?, ?)")) {
+            statement.setString(1, planId);
+            statement.setString(2, ownerId);
             statement.executeUpdate();
         }
     }

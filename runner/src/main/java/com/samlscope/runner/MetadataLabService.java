@@ -261,6 +261,13 @@ public final class MetadataLabService {
         return preloadedVariants();
     }
 
+    /** Authorizes generation before any expensive preloaded-fixture work is performed. */
+    public List<String> authorizePreloadedFetch(
+            String runId, String planId, String campaignToken) {
+        requirePreloadedAccess(runId, planId, campaignToken);
+        return preloadedVariants();
+    }
+
     /** Authorizes an operator download without claiming that the Target fetched the document. */
     public List<String> authorizePreloadedDownload(
             String runId, String planId, String campaignToken) {

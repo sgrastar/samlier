@@ -9,6 +9,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import javax.xml.XMLConstants;
 import com.samlscope.core.evaluation.CaseOutcome;
 import com.samlscope.core.evaluation.EvidenceRef;
 import com.samlscope.core.evaluation.Outcome;
@@ -95,21 +96,61 @@ public final class LogoutTranscriptProfileCase {
     }
 
     private CaseOutcome requestIdentifierMatches(List<Message> targetLogout, List<Message> all) {
-        var issued = issuedNameIds(all);
+        var issued = issuedSessionIdentifiers(all);
         if (issued.isEmpty()) return CaseOutcome.notVerified(
                 "issued_session_identifier_unavailable", "slo.identifier.assertion-unavailable");
         var requests = targetLogout.stream().filter(value -> is(value.logout(), "LogoutRequest")).toList();
         if (requests.isEmpty()) return optionalNotObserved("slo.LogoutRequest.not-observed");
-        var matched = new ArrayList<Message>();
+        var violations = new ArrayList<String>();
+        var unobservable = new ArrayList<String>();
+        var matched = 0;
         for (var request : requests) {
-            var nameId = direct(request.logout(), ASSERTION, "NameID");
-            if (nameId == null) continue; // EncryptedID/BaseID needs a dedicated semantic/decryption oracle.
-            var key = identifierKey(nameId);
-            if (issued.containsKey(key)) matched.add(request);
+            var nameIds = directElements(request.logout(), ASSERTION, "NameID");
+            var identifierCount = nameIds.size()
+                    + directElements(request.logout(), ASSERTION, "BaseID").size()
+                    + directElements(request.logout(), ASSERTION, "EncryptedID").size();
+            if (identifierCount != 1 || nameIds.size() != 1) {
+                // EncryptedID/BaseID needs a dedicated semantic/decryption oracle. A missing or
+                // malformed identifier choice is likewise incapable of proving a strong match.
+                unobservable.add(request.reference());
+                continue;
+            }
+            var requestedSessions = directElements(request.logout(), PROTOCOL, "SessionIndex").stream()
+                    .map(Element::getTextContent).filter(value -> value != null && !value.isBlank()).collect(
+                            java.util.stream.Collectors.toSet());
+            List<IssuedSessionIdentifier> candidates;
+            if (requestedSessions.isEmpty()) {
+                candidates = issued;
+            } else {
+                candidates = issued.stream().filter(candidate -> candidate.sessionIndexes().stream()
+                        .anyMatch(requestedSessions::contains)).toList();
+                var knownSessions = candidates.stream().flatMap(candidate -> candidate.sessionIndexes().stream())
+                        .collect(java.util.stream.Collectors.toSet());
+                if (!knownSessions.containsAll(requestedSessions)) {
+                    unobservable.add(request.reference());
+                    continue;
+                }
+            }
+            var expected = candidates.stream().map(IssuedSessionIdentifier::identifierKey)
+                    .collect(java.util.stream.Collectors.toSet());
+            if (expected.isEmpty() || requestedSessions.isEmpty() && expected.size() != 1) {
+                unobservable.add(request.reference());
+            } else if (expected.size() == 1 && expected.contains(identifierKey(nameIds.getFirst()))) {
+                matched++;
+            } else {
+                violations.add(request.reference());
+            }
         }
-        if (matched.isEmpty()) return CaseOutcome.notVerified(
-                "logout_identifier_strong_match_unobservable", "slo.identifier.strong-match-unobservable");
-        return outcome(matched, List.of(), "slo.logout-request.identifier-strong-match");
+        if (!violations.isEmpty()) {
+            return outcome(requests, violations, "slo.logout-request.identifier-strong-match");
+        }
+        if (!unobservable.isEmpty()) return new CaseOutcome(
+                Outcome.NOT_VERIFIED, "logout_identifier_strong_match_unobservable",
+                "slo.identifier.strong-match-unobservable", "slo.identifier.strong-match-unobservable",
+                evidence(requests), Map.of(
+                        "observed", requests.size(), "matched", matched,
+                        "unobservable", List.copyOf(unobservable)));
+        return outcome(requests, List.of(), "slo.logout-request.identifier-strong-match");
     }
 
     private CaseOutcome requestNotOnOrAfterBound(List<Message> targetLogout, List<Message> all) {
@@ -161,7 +202,7 @@ public final class LogoutTranscriptProfileCase {
     private Map<String, java.time.Instant> issuedNameIds(List<Message> all) {
         var result = new LinkedHashMap<String, java.time.Instant>();
         for (var message : all) {
-            if (message.entry().direction() != Direction.INBOUND || message.logout() != null) continue;
+            if (!isAcceptedNormalResponse(message)) continue;
             for (var assertion : elements(message.document().getDocumentElement(), ASSERTION, "Assertion")) {
                 var subject = direct(assertion, ASSERTION, "Subject");
                 var nameId = direct(subject, ASSERTION, "NameID");
@@ -183,9 +224,42 @@ public final class LogoutTranscriptProfileCase {
         return result;
     }
 
+    private List<IssuedSessionIdentifier> issuedSessionIdentifiers(List<Message> all) {
+        var result = new ArrayList<IssuedSessionIdentifier>();
+        for (var message : all) {
+            if (!isAcceptedNormalResponse(message)) continue;
+            for (var assertion : elements(message.document().getDocumentElement(), ASSERTION, "Assertion")) {
+                var subject = direct(assertion, ASSERTION, "Subject");
+                var nameId = direct(subject, ASSERTION, "NameID");
+                if (nameId == null) continue;
+                var sessionIndexes = elements(assertion, ASSERTION, "AuthnStatement").stream()
+                        .map(statement -> statement.getAttribute("SessionIndex"))
+                        .filter(value -> !value.isBlank())
+                        .collect(java.util.stream.Collectors.toUnmodifiableSet());
+                result.add(new IssuedSessionIdentifier(identifierKey(nameId), sessionIndexes));
+            }
+        }
+        return List.copyOf(result);
+    }
+
+    private boolean isAcceptedNormalResponse(Message message) {
+        return message.entry().direction() == Direction.INBOUND
+                && message.logout() == null
+                && "Response".equals(message.entry().samlSummary().get("type"))
+                && Boolean.TRUE.equals(message.entry().samlSummary().get("normalFlowAccepted"));
+    }
+
     private String identifierKey(Element nameId) {
-        return String.join("\u0000", nameId.getAttribute("Format"), nameId.getAttribute("NameQualifier"),
-                nameId.getAttribute("SPNameQualifier"), nameId.getTextContent());
+        var attributes = new ArrayList<String>();
+        for (var index = 0; index < nameId.getAttributes().getLength(); index++) {
+            var attribute = nameId.getAttributes().item(index);
+            if (XMLConstants.XMLNS_ATTRIBUTE_NS_URI.equals(attribute.getNamespaceURI())) continue;
+            var localName = attribute.getLocalName() == null ? attribute.getNodeName() : attribute.getLocalName();
+            attributes.add("{" + java.util.Objects.toString(attribute.getNamespaceURI(), "") + "}"
+                    + localName + "=" + attribute.getNodeValue());
+        }
+        attributes.sort(String::compareTo);
+        return nameId.getTextContent() + "\u0000" + String.join("\u0000", attributes);
     }
 
     private List<Element> elements(Element parent, String namespace, String localName) {
@@ -571,4 +645,5 @@ public final class LogoutTranscriptProfileCase {
 
     private record Message(
             TranscriptEntry entry, org.w3c.dom.Document document, Element logout, String reference, String digest) {}
+    private record IssuedSessionIdentifier(String identifierKey, Set<String> sessionIndexes) {}
 }

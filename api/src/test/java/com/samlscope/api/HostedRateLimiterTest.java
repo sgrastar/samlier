@@ -23,6 +23,29 @@ class HostedRateLimiterTest {
         assertDoesNotThrow(() -> limiter.requireAllowed("plan", "client-a", 2, Duration.ofMinutes(1)));
     }
 
+    @Test
+    void combinedAdmissionDoesNotConsumeAnyTokenWhenOneLimitRejects() {
+        var limiter = new HostedRateLimiter(
+                Clock.fixed(Instant.parse("2026-08-29T00:00:00Z"), ZoneId.of("UTC")));
+        var window = Duration.ofMinutes(1);
+        limiter.requireAllowedTogether(
+                new HostedRateLimiter.Rule("run", "run-a", 1, window),
+                new HostedRateLimiter.Rule("global", "service", 2, window));
+
+        assertThrows(HostedRateLimiter.RateLimitExceeded.class, () ->
+                limiter.requireAllowedTogether(
+                        new HostedRateLimiter.Rule("run", "run-a", 1, window),
+                        new HostedRateLimiter.Rule("global", "service", 2, window)));
+
+        assertDoesNotThrow(() -> limiter.requireAllowedTogether(
+                new HostedRateLimiter.Rule("run", "run-b", 1, window),
+                new HostedRateLimiter.Rule("global", "service", 2, window)));
+        assertThrows(HostedRateLimiter.RateLimitExceeded.class, () ->
+                limiter.requireAllowedTogether(
+                        new HostedRateLimiter.Rule("run", "run-c", 1, window),
+                        new HostedRateLimiter.Rule("global", "service", 2, window)));
+    }
+
     private static final class MutableClock extends Clock {
         private Instant instant;
         private MutableClock(Instant instant) { this.instant = instant; }

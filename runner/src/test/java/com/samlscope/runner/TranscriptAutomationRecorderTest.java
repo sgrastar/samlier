@@ -6,10 +6,14 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.Executor;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import com.samlscope.core.caseexec.CaseContext;
@@ -32,6 +36,7 @@ import com.samlscope.core.transcript.Direction;
 import com.samlscope.core.transcript.TranscriptContentReader;
 import com.samlscope.core.transcript.TranscriptEntry;
 import com.samlscope.core.transcript.TranscriptInput;
+import com.samlscope.core.transcript.TranscriptHistoryLimitExceeded;
 import com.samlscope.core.transcript.TranscriptRecorder;
 import com.samlscope.runner.cases.BrowserPrompt;
 import com.samlscope.runner.cases.ProtocolEvidenceCase;
@@ -43,7 +48,7 @@ class TranscriptAutomationRecorderTest {
     @Test
     void notifiesAfterDurableRecordAndDoesNotBreakProtocolTrafficWhenReconciliationFails() {
         var delegate = new MemoryRecorder();
-        var recorder = new TranscriptAutomationRecorder(delegate, delegate);
+        var recorder = new TranscriptAutomationRecorder(delegate, delegate, Runnable::run);
         var calls = new AtomicInteger();
         recorder.onRecorded(runId -> {
             calls.incrementAndGet();
@@ -61,7 +66,7 @@ class TranscriptAutomationRecorderTest {
     @Test
     void completedSamlAnalysisFinishesAWaitingCaseWithoutAnOperatorCompletionEvent() {
         var delegate = new MemoryRecorder();
-        var recorder = new TranscriptAutomationRecorder(delegate, delegate);
+        var recorder = new TranscriptAutomationRecorder(delegate, delegate, Runnable::run);
         var repository = new MemoryExecutions();
         var transitions = new CaseExecutionService(repository);
         var testCase = new ResponseTranscriptCase();
@@ -85,15 +90,163 @@ class TranscriptAutomationRecorderTest {
         assertEquals(Outcome.SATISFIED, finished.outcome().outcome());
     }
 
+    @Test
+    void queuesWithoutBlockingTheRecorderAndCoalescesABurstPerRun() {
+        var delegate = new MemoryRecorder();
+        var executor = new QueuedExecutor();
+        var recorder = new TranscriptAutomationRecorder(delegate, delegate, executor);
+        var calls = new AtomicInteger();
+        recorder.onRecorded(ignored -> calls.incrementAndGet());
+
+        recorder.record(input());
+        recorder.record(input());
+
+        assertEquals(0, calls.get(), "recording must not execute reconciliation on the peer thread");
+        assertEquals(1, executor.tasks.size(), "one Run has at most one queued reconciliation");
+        executor.runNext();
+        assertEquals(1, calls.get());
+    }
+
+    @Test
+    void anEntryRecordedDuringReconciliationRequestsOnlyOneFollowUpPass() {
+        var delegate = new MemoryRecorder();
+        var executor = new QueuedExecutor();
+        var recorder = new TranscriptAutomationRecorder(delegate, delegate, executor);
+        var calls = new AtomicInteger();
+        recorder.onRecorded(ignored -> {
+            if (calls.incrementAndGet() == 1) {
+                recorder.record(input());
+                recorder.record(input());
+            }
+        });
+
+        recorder.record(input());
+        executor.runNext();
+        assertEquals(1, executor.tasks.size());
+        executor.runNext();
+        assertEquals(2, calls.get());
+    }
+
+    @Test
+    void pendingSamlAnalysisSchedulesOnlyItsValidatedUpdate() {
+        var delegate = new MemoryRecorder();
+        var recorder = new TranscriptAutomationRecorder(delegate, delegate, Runnable::run);
+        var calls = new AtomicInteger();
+        recorder.onRecorded(ignored -> calls.incrementAndGet());
+        var pendingInput = new TranscriptInput(
+                RUN, Direction.INBOUND, NOW, "corr", "POST", "https://suite.example/acs", 200,
+                Map.of(), new byte[0], "application/x-www-form-urlencoded", null,
+                "<Response/>".getBytes(), Map.of("parseStatus", "not-yet-parsed"));
+
+        var entry = recorder.record(pendingInput);
+        recorder.updateSamlAnalysis(entry.id(), "request", Map.of("type", "Response"));
+
+        assertEquals(1, calls.get());
+    }
+
+    @Test
+    void aFullQueueNeverBreaksDurableRecording() {
+        var delegate = new MemoryRecorder();
+        Executor rejected = ignored -> { throw new RejectedExecutionException("full"); };
+        var recorder = new TranscriptAutomationRecorder(delegate, delegate, rejected);
+        recorder.onRecorded(ignored -> { });
+
+        var entry = recorder.record(input());
+
+        assertEquals("tx", entry.id());
+        assertEquals(1, recorder.list(RUN).size());
+    }
+
+    @Test
+    void automaticReconciliationStopsAtThePerRunPassBudget() {
+        var delegate = new MemoryRecorder();
+        var recorder = new TranscriptAutomationRecorder(delegate, delegate, Runnable::run);
+        var calls = new AtomicInteger();
+        recorder.onRecorded(ignored -> calls.incrementAndGet());
+
+        for (var index = 0; index < TranscriptAutomationRecorder.MAX_AUTOMATIC_PASSES_PER_RUN + 2; index++) {
+            recorder.record(input());
+        }
+
+        assertEquals(TranscriptAutomationRecorder.MAX_AUTOMATIC_PASSES_PER_RUN, calls.get());
+        assertEquals(1, recorder.list(RUN).size(), "durable evidence remains explicitly readable");
+    }
+
+    @Test
+    void oversizedHistoryDisablesAutomaticScanningWithoutTruncatingExplicitReads() {
+        var delegate = new OversizedRecorder();
+        var recorder = new TranscriptAutomationRecorder(delegate, delegate, Runnable::run);
+        var calls = new AtomicInteger();
+        recorder.onRecorded(runId -> {
+            calls.incrementAndGet();
+            recorder.list(runId);
+        });
+
+        recorder.record(input());
+        recorder.record(input());
+
+        assertEquals(1, calls.get(), "the over-limit Run must not be scheduled again");
+        assertEquals(1, recorder.list(RUN).size(), "explicit reads are not truncated by the automation limit");
+    }
+
+    @Test
+    void oversizedDecodedEvidenceDisablesAutomaticScanningBeforeContentReads() {
+        var delegate = new MemoryRecorder();
+        var recorder = new TranscriptAutomationRecorder(delegate, delegate, Runnable::run);
+        var calls = new AtomicInteger();
+        recorder.onRecorded(runId -> {
+            calls.incrementAndGet();
+            var entries = recorder.list(runId);
+            recorder.readDecodedSaml(entries.getFirst());
+        });
+
+        recorder.record(inputWithDeclaredDecodedBytes(
+                Math.toIntExact(TranscriptAutomationRecorder.MAX_AUTOMATIC_DECODED_BYTES + 1)));
+        recorder.record(input());
+
+        assertEquals(1, calls.get(), "the over-limit Run must not attempt another automatic scan");
+        assertEquals(0, delegate.contentReads.get(), "oversized content must not be loaded automatically");
+    }
+
+    @Test
+    void aQueueOverflowVictimIsRetriedWithoutAnotherEvidenceEvent() {
+        var delegate = new MemoryRecorder();
+        var executor = new QueuedExecutor(2);
+        var recorder = new TranscriptAutomationRecorder(delegate, delegate, executor);
+        var reconciled = new ArrayList<String>();
+        recorder.onRecorded(reconciled::add);
+
+        recorder.record(input("run-a"));
+        recorder.record(input("run-b"));
+        recorder.record(input("run-victim"));
+        executor.runNext();
+        executor.runNext();
+        executor.runNext();
+
+        assertEquals(List.of("run-a", "run-b", "run-victim"), reconciled);
+    }
+
     private TranscriptInput input() {
+        return input(RUN);
+    }
+
+    private TranscriptInput input(String runId) {
         return new TranscriptInput(
-                RUN, Direction.INBOUND, NOW, "corr", "POST",
+                runId, Direction.INBOUND, NOW, "corr", "POST",
                 "https://suite.example/acs", 200, Map.of(), new byte[0],
                 "application/x-www-form-urlencoded", null, "<Response/>".getBytes(), Map.of());
     }
 
-    private static final class MemoryRecorder implements TranscriptRecorder, TranscriptContentReader {
+    private TranscriptInput inputWithDeclaredDecodedBytes(int bytes) {
+        return new TranscriptInput(
+                RUN, Direction.INBOUND, NOW, "corr", "POST",
+                "https://suite.example/acs", 200, Map.of(), new byte[0],
+                "application/x-www-form-urlencoded", null, new byte[bytes], Map.of());
+    }
+
+    private static class MemoryRecorder implements TranscriptRecorder, TranscriptContentReader {
         private TranscriptEntry entry;
+        private final AtomicInteger contentReads = new AtomicInteger();
         @Override public TranscriptEntry record(TranscriptInput input) {
             entry = new TranscriptEntry(
                     "tx", input.runId(), input.direction(), input.timestamp(), input.correlationId(),
@@ -112,7 +265,28 @@ class TranscriptAutomationRecorderTest {
             return entry;
         }
         @Override public List<TranscriptEntry> list(String runId) { return List.of(entry); }
-        @Override public byte[] readDecodedSaml(TranscriptEntry value) { return "<Response/>".getBytes(); }
+        @Override public byte[] readDecodedSaml(TranscriptEntry value) {
+            contentReads.incrementAndGet();
+            return "<Response/>".getBytes();
+        }
+    }
+
+    private static final class OversizedRecorder extends MemoryRecorder {
+        @Override public List<TranscriptEntry> listBounded(String runId, int maximumEntries) {
+            throw new TranscriptHistoryLimitExceeded(runId, maximumEntries);
+        }
+    }
+
+    private static final class QueuedExecutor implements Executor {
+        private final ArrayDeque<Runnable> tasks = new ArrayDeque<>();
+        private final int capacity;
+        private QueuedExecutor() { this(Integer.MAX_VALUE); }
+        private QueuedExecutor(int capacity) { this.capacity = capacity; }
+        @Override public void execute(Runnable command) {
+            if (tasks.size() >= capacity) throw new RejectedExecutionException("full");
+            tasks.add(command);
+        }
+        private void runNext() { tasks.remove().run(); }
     }
 
     private static final class MemoryExecutions implements CaseExecutionRepository {

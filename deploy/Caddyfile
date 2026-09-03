@@ -1,6 +1,8 @@
 app.samlscope.com, peer.samlscope.com {
 	encode zstd gzip
-	reverse_proxy 127.0.0.1:8080
+	reverse_proxy 127.0.0.1:8080 {
+		header_up X-Forwarded-For {remote_host}
+	}
 }
 
 samlscope.com, www.samlscope.com {
