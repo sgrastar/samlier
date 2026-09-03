@@ -15,6 +15,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "samlier"
+rootProject.name = "samlscope"
 
 include("core", "saml", "store", "runner", "peer", "api", "web")

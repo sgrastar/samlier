@@ -39,7 +39,7 @@ test('removes the fragment before exchanging it and keeps only the CSRF token in
 
   expect(await screen.findByText('Run unlocked')).toBeTruthy()
   expect(replace).toHaveBeenCalledWith(null, '', `/manage/${runId}`)
-  expect(window.sessionStorage.getItem(`samlier.csrf.${runId}`)).toBe('c'.repeat(43))
+  expect(window.sessionStorage.getItem(`samlscope.csrf.${runId}`)).toBe('c'.repeat(43))
   expect(document.body.textContent).not.toContain(token)
 })
 

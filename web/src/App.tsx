@@ -31,7 +31,7 @@ export function App() {
     <main className="shell page-main"><RunManagement
       runId={browserRunId}
       focusCaseId={browserMatch?.[2]}
-      csrfToken={window.sessionStorage.getItem(`samlier.csrf.${browserRunId}`) ?? undefined}
+      csrfToken={window.sessionStorage.getItem(`samlscope.csrf.${browserRunId}`) ?? undefined}
     /></main>
   </AppShell>
 
@@ -136,7 +136,7 @@ function PlanWorkspace() {
     if (!selected) return
     setError('')
     try {
-      const csrfToken = runs.map(run => window.sessionStorage.getItem(`samlier.csrf.${run.id}`)).find(Boolean) ?? undefined
+      const csrfToken = runs.map(run => window.sessionStorage.getItem(`samlscope.csrf.${run.id}`)).find(Boolean) ?? undefined
       const created = await api.createRun(selected.plan.id, csrfToken)
       setRuns(current => [created.run, ...current])
       setPlanRuns(current => {
@@ -228,7 +228,7 @@ function NewPlan({ input, setInput, create, cancel }: {
   return <section className="form-wrap">
     <button className="text-button back-link" onClick={cancel}>Back to Test Plans</button>
     <header className="page-head compact"><p className="eyebrow">New Test Plan</p><h1>Register a target</h1>
-      <p>Choose the profile and tell Samlier how the target can be reached.</p></header>
+      <p>Choose the profile and tell SAMLscope how the target can be reached.</p></header>
     <form onSubmit={create}>
       <fieldset className="field-group"><legend>Profile</legend><p>Choose the conformance profile for this Test Plan.</p>
         <div className="profile-grid">{profiles.map(profile => <label className={`profile-option${input.profile === profile.id ? ' selected' : ''}`} key={profile.id}>
@@ -244,7 +244,7 @@ function NewPlan({ input, setInput, create, cancel }: {
         <label>Target metadata URL<input required type="url" value={input.metadataSourceLocation} onChange={event => setInput({ ...input, metadataSourceLocation: event.target.value })} /></label>
       </fieldset>
       <fieldset className="field-group"><legend>Suite metadata delivery</legend>
-        <p>How the target retrieves Samlier's metadata. This never grants Samlier access to a vendor administration API.</p>
+        <p>How the target retrieves SAMLscope's metadata. This never grants SAMLscope access to a vendor administration API.</p>
         <div className="choice-grid">{(['MANUAL', 'HTTP_URL', 'MDQ'] as const).map(value => <label className={`choice-option${input.suiteMetadataDelivery === value ? ' selected' : ''}`} key={value}>
           <input type="radio" name="delivery" value={value} checked={input.suiteMetadataDelivery === value} onChange={() => setInput({ ...input, suiteMetadataDelivery: value })} />
           {humanize(value)}
@@ -270,7 +270,7 @@ function PlanDetail({ plan, runs, createRun, canCreateRun, back }: {
     <button className="text-button back-link" onClick={back}>Back to Test Plans</button>
     <header className="plan-detail-head"><div><p className="eyebrow">Test Plan / {humanize(plan.plan.profile)}</p><h1>{plan.plan.name}</h1></div>
       <span className="authorization-state"><span className="semantic-dot status-live" />Authorized target</span></header>
-    <section className="panel peer-panel"><p className="eyebrow">Test Peer registration</p><h2>Where the target reaches Samlier</h2>
+    <section className="panel peer-panel"><p className="eyebrow">Test Peer registration</p><h2>Where the target reaches SAMLscope</h2>
       <dl className="key-values">
         <dt>Entity ID</dt><dd><code>{plan.entityId}</code></dd>
         <dt>Metadata</dt><dd><a href={plan.metadataUrl}>{plan.metadataUrl}</a></dd>

@@ -19,7 +19,8 @@ dependencies {
 }
 
 application {
-    mainClass.set("org.samlier.api.SamlierApplication")
+    mainClass.set("com.samlscope.api.SamlScopeApplication")
+    applicationName = "samlscope"
 }
 
 tasks.processResources {

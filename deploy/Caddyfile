@@ -1,0 +1,8 @@
+app.samlscope.com, peer.samlscope.com {
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:8080
+}
+
+samlscope.com, www.samlscope.com {
+	redir https://app.samlscope.com{uri} permanent
+}

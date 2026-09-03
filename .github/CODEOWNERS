@@ -42,12 +42,12 @@
 /tests/                       @sgrastar
 
 # Production boundaries and executable evidence bound by G2 approval
-/saml/src/main/java/org/samlier/saml/binding/       @sgrastar
-/saml/src/main/java/org/samlier/saml/ecp/           @sgrastar
-/saml/src/main/java/org/samlier/saml/logout/        @sgrastar
-/saml/src/main/java/org/samlier/saml/metadata/MetadataVariantRegistry.java @sgrastar
-/saml/src/main/java/org/samlier/saml/raw/BytePreservingRawMessageBuilder.java @sgrastar
-/peer/src/main/java/org/samlier/peer/PeerIdentity.java @sgrastar
-/api/src/main/java/org/samlier/api/SamlierApplication.java @sgrastar
-/saml/src/test/java/org/samlier/saml/G2FeasibilitySpikeTest.java @sgrastar
-/peer/src/test/java/org/samlier/peer/PeerG2FeasibilityTest.java @sgrastar
+/saml/src/main/java/com/samlscope/saml/binding/       @sgrastar
+/saml/src/main/java/com/samlscope/saml/ecp/           @sgrastar
+/saml/src/main/java/com/samlscope/saml/logout/        @sgrastar
+/saml/src/main/java/com/samlscope/saml/metadata/MetadataVariantRegistry.java @sgrastar
+/saml/src/main/java/com/samlscope/saml/raw/BytePreservingRawMessageBuilder.java @sgrastar
+/peer/src/main/java/com/samlscope/peer/PeerIdentity.java @sgrastar
+/api/src/main/java/com/samlscope/api/SamlScopeApplication.java @sgrastar
+/saml/src/test/java/com/samlscope/saml/G2FeasibilitySpikeTest.java @sgrastar
+/peer/src/test/java/com/samlscope/peer/PeerG2FeasibilityTest.java @sgrastar

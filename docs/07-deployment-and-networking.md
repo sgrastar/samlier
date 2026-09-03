@@ -8,9 +8,10 @@ Use the **same image, same Test Runner, and same evaluation logic** for the Host
 ```bash
 docker run \
   -p 8080:8080 \
-  -v samlier-data:/data \
-  -e SAMLIER_PUBLIC_BASE_URL=https://samltest.example \
-  samlier/suite:0.1.0
+  -v samlscope-data:/data \
+  -e SAMLSCOPE_PUBLIC_BASE_URL=https://app.samlscope.com \
+  -e SAMLSCOPE_PEER_BASE_URL=https://peer.samlscope.com \
+  samlscope/suite:0.1.0
 ```
 
 - Base image: distroless or Alpine + JRE 21
@@ -22,15 +23,15 @@ docker run \
 
 | Variable | Default | Description |
 |---|---|---|
-| `SAMLIER_PUBLIC_BASE_URL` | `http://localhost:8080` | **Most important**. The URL at which the Suite is externally visible. All metadata endpoint URLs are generated based on this |
-| `SAMLIER_MODE` | `selfhosted` | `selfhosted` / `hosted` |
-| `SAMLIER_DATA_DIR` | `/data` | |
-| `SAMLIER_HTTP_PORT` | `8080` | |
-| `SAMLIER_TLS_CERT` / `_KEY` | None | When terminating TLS directly |
-| `SAMLIER_OUTBOUND_ALLOW_PRIVATE` | `true`(selfhosted) / `false`(hosted) | Whether to allow back-channel connections to private IP addresses. See [08](08-suite-security.md) |
-| `SAMLIER_OUTBOUND_ALLOW_INSECURE_TLS` | `false` | Whether to accept the target's self-signed certificate |
-| `SAMLIER_PUBLISH_ENABLED` | `false`(selfhosted) / `true`(hosted) | Whether to issue shared URLs |
-| `SAMLIER_RUN_RETENTION_DAYS` | `30` | |
+| `SAMLSCOPE_PUBLIC_BASE_URL` | `http://localhost:8080` | **Most important**. The URL at which the Suite is externally visible. All metadata endpoint URLs are generated based on this |
+| `SAMLSCOPE_MODE` | `selfhosted` | `selfhosted` / `hosted` |
+| `SAMLSCOPE_DATA_DIR` | `/data` | |
+| `SAMLSCOPE_HTTP_PORT` | `8080` | |
+| `SAMLSCOPE_TLS_CERT` / `_KEY` | None | When terminating TLS directly |
+| `SAMLSCOPE_OUTBOUND_ALLOW_PRIVATE` | `true`(selfhosted) / `false`(hosted) | Whether to allow back-channel connections to private IP addresses. See [08](08-suite-security.md) |
+| `SAMLSCOPE_OUTBOUND_ALLOW_INSECURE_TLS` | `false` | Whether to accept the target's self-signed certificate |
+| `SAMLSCOPE_PUBLISH_ENABLED` | `false`(selfhosted) / `true`(hosted) | Whether to issue shared URLs |
+| `SAMLSCOPE_RUN_RETENTION_DAYS` | `30` | |
 
 ## 2. ★ Networking Requirements (The Most Important Omission in the Original Memo)
 
@@ -118,7 +119,7 @@ Options:
 | Method | Use |
 |---|---|
 | TLS termination at a reverse proxy | Production-like self-hosting. Recommended |
-| Direct termination with `SAMLIER_TLS_CERT` / `_KEY` | Standalone operation |
+| Direct termination with `SAMLSCOPE_TLS_CERT` / `_KEY` | Standalone operation |
 | Generate and bundle a self-signed certificate | Local development. Warn that trust must be configured in both the browser and the Target |
 | Tunnel | Temporary use |
 
@@ -135,7 +136,7 @@ If the container clock is skewed, **all tests will fail** (`NotOnOrAfter` / `Iss
 
 ## 5. Additions for the Hosted Version
 
-The image is the same, with features enabled by `SAMLIER_MODE=hosted`.
+The image is the same, with features enabled by `SAMLSCOPE_MODE=hosted`.
 
 | Feature | Reason |
 |---|---|
@@ -166,8 +167,8 @@ Protect the structure from Phase 1 onward.
 
 - Separate the session stores, Cookie names, and code paths for `peer/` (testing) and `auth/` (administration)
 - **Serve them from separate origins**: `app.<domain>` (UI + administration) and `peer.<domain>` (Test Peer endpoints)
-- Add `SAMLIER_PEER_BASE_URL` alongside `SAMLIER_PUBLIC_BASE_URL`
-- **A separate origin is mandatory in `SAMLIER_MODE=hosted`**. If the origins are the same, make startup fail
+- Add `SAMLSCOPE_PEER_BASE_URL` alongside `SAMLSCOPE_PUBLIC_BASE_URL`
+- **A separate origin is mandatory in `SAMLSCOPE_MODE=hosted`**. If the origins are the same, make startup fail
 - If unset in self-hosted, fall back to the same origin and **issue a startup warning**
   (do not break a simple configuration in a closed network). The normative level is [08 §5](08-suite-security.md)
 

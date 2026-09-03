@@ -14,14 +14,14 @@ COPY --from=web-build /src/web/build/dist /src/web/build/dist
 RUN ./gradlew :api:installDist -x :web:buildWeb --no-daemon
 
 FROM eclipse-temurin:21.0.12_8-jre-noble@sha256:96975602e131485862eb8cd32927face8a06d7591a5e865944b634a701d9df72
-RUN groupadd --system --gid 10001 samlier \
-    && useradd --system --uid 10001 --gid samlier --home-dir /opt/samlier --shell /usr/sbin/nologin samlier \
-    && mkdir -p /opt/samlier /data \
-    && chown -R samlier:samlier /opt/samlier /data
-COPY --from=java-build --chown=samlier:samlier /src/api/build/install/api/ /opt/samlier/
+RUN groupadd --system --gid 10001 samlscope \
+    && useradd --system --uid 10001 --gid samlscope --home-dir /opt/samlscope --shell /usr/sbin/nologin samlscope \
+    && mkdir -p /opt/samlscope /data \
+    && chown -R samlscope:samlscope /opt/samlscope /data
+COPY --from=java-build --chown=samlscope:samlscope /src/api/build/install/samlscope/ /opt/samlscope/
 USER 10001:10001
-WORKDIR /opt/samlier
-ENV SAMLIER_DATA_DIR=/data \
-    SAMLIER_HTTP_PORT=8080
+WORKDIR /opt/samlscope
+ENV SAMLSCOPE_DATA_DIR=/data \
+    SAMLSCOPE_HTTP_PORT=8080
 EXPOSE 8080
-ENTRYPOINT ["/opt/samlier/bin/api"]
+ENTRYPOINT ["/opt/samlscope/bin/samlscope"]

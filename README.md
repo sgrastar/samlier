@@ -1,8 +1,8 @@
-# Samlier
+# SAMLscope
 
-Samlier is an open-source black-box conformance test suite for SAML identity providers (IdPs) and service providers (SPs). It currently targets the [Kantara SAML V2.0 Implementation Profile for Federation Interoperability v1.1](docs/04-requirement-coverage.md).
+SAMLscope is an open-source black-box conformance test suite for SAML identity providers (IdPs) and service providers (SPs). It currently targets the [Kantara SAML V2.0 Implementation Profile for Federation Interoperability v1.1](docs/04-requirement-coverage.md).
 
-Samlier drives standard SAML and metadata endpoints, records redacted Transcripts, and evaluates observable evidence. It does not use vendor administration APIs as conformance evidence and does not ask operators to decide PASS or FAIL. Evidence that cannot be obtained is reported as `NOT_VERIFIED`, not silently excluded or treated as target failure.
+SAMLscope drives standard SAML and metadata endpoints, records redacted Transcripts, and evaluates observable evidence. It does not use vendor administration APIs as conformance evidence and does not ask operators to decide PASS or FAIL. Evidence that cannot be obtained is reported as `NOT_VERIFIED`, not silently excluded or treated as target failure.
 
 ## Test coverage
 
@@ -20,8 +20,8 @@ The plans are cumulative and differ only in evidence depth.
 
 | Plan | Evidence | Operator involvement |
 |---|---|---|
-| **Quick** | Protocol-observed | Follow login, consent, logout, or Continue steps. Samlier evaluates the resulting SAML, metadata, browser result, and Transcript. |
-| **Standard** | Quick + operator-assisted | Make requested configuration or metadata-refresh changes. Samlier determines the outcome from subsequent observations. |
+| **Quick** | Protocol-observed | Follow login, consent, logout, or Continue steps. SAMLscope evaluates the resulting SAML, metadata, browser result, and Transcript. |
+| **Standard** | Quick + operator-assisted | Make requested configuration or metadata-refresh changes. SAMLscope determines the outcome from subsequent observations. |
 | **Full** | Standard + self-attested | Supply grouped evidence only for behavior that standard external interfaces cannot establish. |
 
 One action can provide evidence to multiple cases. The UI reports both case coverage and remaining deliberate user actions. Self-attested evidence is always shown separately from externally verified evidence.
@@ -42,20 +42,20 @@ External-observation coverage and reference implementation acceptance testing co
 
 ```bash
 ./gradlew check
-SAMLIER_IMAGE_DIGEST="sha256:<digest-of-the-build-you-are-running>" \
-SAMLIER_DATA_DIR="$PWD/data" ./gradlew :api:run
+SAMLSCOPE_IMAGE_DIGEST="sha256:<digest-of-the-build-you-are-running>" \
+SAMLSCOPE_DATA_DIR="$PWD/data" ./gradlew :api:run
 ```
 
-Open <http://localhost:8080>. Runtime state, generated Test Peer keys, cached metadata, and redacted Transcripts are stored below `SAMLIER_DATA_DIR`.
+Open <http://localhost:8080>. Runtime state, generated Test Peer keys, cached metadata, and redacted Transcripts are stored below `SAMLSCOPE_DATA_DIR`.
 
 ## Run a test
 
 1. Create a Test Plan for an IdP or SP that you are authorized to test.
 2. Enter its entity ID and metadata URL, then run **Preflight**.
-3. Register the displayed Samlier Test Peer metadata in the target.
+3. Register the displayed SAMLscope Test Peer metadata in the target.
 4. Start the initial browser round trip and use a non-production test account.
 5. Run or resume M1, M2, and M3 as required by the selected evidence plan.
-6. Follow the operation prompts. Samlier completes protocol-driven cases when correlated evidence arrives.
+6. Follow the operation prompts. SAMLscope completes protocol-driven cases when correlated evidence arrives.
 7. Review the result and export `result.json` or the self-contained `report.html`.
 
 Use a fresh/private browser context when instructed. Positive and negative controls must both have sufficient evidence before an evaluative case can complete.
@@ -67,28 +67,36 @@ Use a fresh/private browser context when instructed. Positive and negative contr
 - **Not verified**: required evidence or configuration was unavailable or inconclusive.
 - **Incomplete**: applicable mandatory obligations remain unresolved.
 
-A Samlier report is a test result, not a certification. Neither Kantara nor OASIS endorses an individual result.
+A SAMLscope report is a test result, not a certification. Neither Kantara nor OASIS endorses an individual result.
 
 ## Run with Docker
 
 ```bash
-docker build -t samlier:0.1.0 .
-IMAGE_DIGEST="$(docker image inspect --format '{{.Id}}' samlier:0.1.0)"
-docker run --rm -p 8080:8080 -v samlier-data:/data \
-  -e SAMLIER_PUBLIC_BASE_URL=http://localhost:8080 \
-  -e SAMLIER_PEER_BASE_URL=http://localhost:8080 \
-  -e SAMLIER_IMAGE_DIGEST="$IMAGE_DIGEST" \
-  samlier:0.1.0
+docker build -t samlscope:0.1.0 .
+IMAGE_DIGEST="$(docker image inspect --format '{{.Id}}' samlscope:0.1.0)"
+docker run --rm -p 8080:8080 -v samlscope-data:/data \
+  -e SAMLSCOPE_PUBLIC_BASE_URL=http://localhost:8080 \
+  -e SAMLSCOPE_PEER_BASE_URL=http://localhost:8080 \
+  -e SAMLSCOPE_IMAGE_DIGEST="$IMAGE_DIGEST" \
+  samlscope:0.1.0
 ```
 
 Self-hosted mode has no application authentication and must not be exposed directly to an untrusted network. Generated Test Peer private keys are test-only and must never be trusted by production systems.
+
+## Deploy samlscope.com
+
+The initial production profile runs on one VPS with Caddy, a digest-pinned GHCR image, SQLite, and
+all persistent state mounted from `/srv/samlscope/data`. It serves administration from
+`https://app.samlscope.com` and Test Peer endpoints from `https://peer.samlscope.com`, as required by
+hosted mode. The version-controlled deployment manifests are in [`deploy/`](deploy/);
+operator-specific VPS and GitHub environment setup notes are kept outside the public repository.
 
 ## Keycloak acceptance fixture
 
 Docker:
 
 ```bash
-SAMLIER_SMOKE_MANUAL=1 dev/keycloak/prepare-smoke.sh
+SAMLSCOPE_SMOKE_MANUAL=1 dev/keycloak/prepare-smoke.sh
 ```
 
 Apple Container on macOS:

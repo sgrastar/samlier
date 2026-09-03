@@ -39,7 +39,7 @@ be checked under its old target while a concurrent update moved it to an occupie
 | 5 | “All 69 requirements in v0.1” contradicts the actual plan / totals do not match the table | **Valid** | Separated “include in the documents” from “make judgment possible.” Returned IIP-SP05 to Phase 1 with the `secondary_peer` option. Removed hand-written totals and switched to generation from `coverage.yaml` → [01](01-scope-and-roadmap.md), [04](04-requirement-coverage.md) |
 | 6 | The Transcript design stores ECP passwords | **Valid** | Placed a **Redactor** at the Recorder boundary and **irreversibly remove** `Authorization` / `Cookie` / password-equivalent form values **before persistence**. Inspect the entire `/data` tree with `RedactorTest` → [02 §5.2](02-architecture.md), [08 §4](08-suite-security.md) |
 | 7 | Interactive steps cannot be resumed through a synchronous `execute()` | **Valid** | Changed to explicit state transitions with `start(ctx)` / `resume(ctx, state, event)`. `CaseStep` is a sealed interface, and `CaseState` is serialized to JSON and persisted in SQLite. Idempotency was made a formal rule → [05 §4](05-test-definition-format.md) |
-| 8 | The roles of the ECP endpoints are reversed | **Valid** | When testing an IdP’s ECP support, Samlier is the **ECP client + SP**. Removed `/p/{plan}/idp/ecp` and added `/p/{plan}/sp/paos` (PAOS Response Consumer). Include a PAOS ACS in metadata → [02 §3.7](02-architecture.md) |
+| 8 | The roles of the ECP endpoints are reversed | **Valid** | When testing an IdP’s ECP support, SAMLscope is the **ECP client + SP**. Removed `/p/{plan}/idp/ecp` and added `/p/{plan}/sp/paos` (PAOS Response Consumer). Include a PAOS ACS in metadata → [02 §3.7](02-architecture.md) |
 | 9 | Preflight alone cannot determine Target→Suite reachability | **Valid** | Separated reachability into `ASSERTED` / `CONFIRMED`. Promote to `CONFIRMED` only after observing inbound traffic to metadata containing a nonce. Cases declaring `requires.reachability` are not executed until then → [07 §2](07-deployment-and-networking.md) |
 
 ### Results of Cross-Checking the Original Text for Finding 4
@@ -89,7 +89,7 @@ R1 stated that “all 9 findings had been applied,” but **the application was 
 | 2 | SP15–17 are also conditional MUSTs. “SP14 is the only one” is incorrect | **Valid (confirmed against the original text)** | Corrected all 3 as conditional MUSTs. Corrected the R1 wording as well → [04](04-requirement-coverage.md) |
 | 3 | Obligations can be bypassed if condition evaluation relies only on self-declaration | **Valid** | Changed conditions to **three-valued evaluation** (TRUE / FALSE / UNKNOWN). Made `observed` evidence mandatory; contradictions between declaration and observation become `INCONSISTENT` (observation takes precedence). UNKNOWN becomes `NOT_VERIFIED(applicability_undetermined)` → [03 §1](03-test-model.md), [05 §2.1](05-test-definition-format.md) |
 | 4 | The condition and test target for IIP-MD08 are incorrect (confused with SP08) | **Valid (confirmed against the original text)** | Corrected to a conditional MUST concerning outbound encryption. Changed the target to “whether multiple encryption keys from the peer can be consumed” → [04](04-requirement-coverage.md) |
-| 5 | The too-distant threshold for IIP-MD04 is **configurable by the target**. It is incorrect for Samlier to FAIL at 90 days | **Valid (confirmed against the original text)** | Withdrew the proprietary threshold. Have the target set threshold T, then verify using the **boundary-value pair** `T−δ` / `T+δ`. Configurability itself is also an obligation → [09 D-14](09-open-decisions.md), [04](04-requirement-coverage.md) |
+| 5 | The too-distant threshold for IIP-MD04 is **configurable by the target**. It is incorrect for SAMLscope to FAIL at 90 days | **Valid (confirmed against the original text)** | Withdrew the proprietary threshold. Have the target set threshold T, then verify using the **boundary-value pair** `T−δ` / `T+δ`. Configurability itself is also an obligation → [09 D-14](09-open-decisions.md), [04](04-requirement-coverage.md) |
 | 6 | The inspection target for IIP-IDP15 is `samlec:GeneratedKey` (SAML-EC draft §5.3.1) | **Valid (confirmed against the original text)** | The statement that `ecp:RelayState`/`ecp:Request` should be inspected was incorrect. Split `peer/ecp/` into `profile/` and `samlec/`. Fix the referenced draft version in `specs.yaml` → [02 §3.7](02-architecture.md) |
 | 7 | IIP-IDP13 also has a MUST to verify channel bindings | **Valid (confirmed against the original text)** | *MUST support "Bearer" subject confirmation **and verification of channel bindings***. Defined 5 cases → [02 §3.7](02-architecture.md), [04](04-requirement-coverage.md) |
 | 8 | Coverage is insufficient for MD02 / ALG06 / SP09 / IDP05 / IDP17. Complete cross-checking should be a design gate | **Valid (confirmed against the original text)** | Corrected all 5. Established **Design Gate G1** and placed it before test implementation → [04 Design Gate G1](04-requirement-coverage.md), [01](01-scope-and-roadmap.md) |
@@ -106,7 +106,7 @@ R1 stated that “all 9 findings had been applied,” but **the application was 
 |---|---|---|
 | IIP-SP15/16/17 | Each says *SPs that support the SingleLogout profile …* | Treated as unconditional MUSTs |
 | IIP-MD08 | *implementations that support outbound encryption* … *consume any number of encryption keys bound to a single role descriptor* | Unconditional MUST. Also confused it with “SP decryption-key rollover” (that is IIP-SP08) |
-| IIP-MD04 | *too far into the future (**configurable**)* | FAIL judgment based on Samlier’s absolute 90-day threshold |
+| IIP-MD04 | *too far into the future (**configurable**)* | FAIL judgment based on SAMLscope’s absolute 90-day threshold |
 | IIP-MD02 | *redirects (301, 302, 307) MUST be honored* / *both `<md:EntityDescriptor>` and `<md:EntitiesDescriptor>`* / *any number of child elements* | 3 clauses were missing. Conversely, **ETag / Last-Modified**, which are absent from the original text, were incorrectly included as inspection targets |
 | IIP-ALG06 | `rsa-oaep-mgf1p` / `rsa-oaep` / both DigestMethod **sha256 and sha1** / **default MGF1-SHA1** | The latter 3 clauses were missing |
 | IIP-SP09 | *preserve POST bodies across successful SSO* (RECOMMENDED, with size restrictions) | Missing |
@@ -121,7 +121,7 @@ R1 stated that “all 9 findings had been applied,” but **the application was 
   Since 11 of 17 cross-checked requirements contained errors, the remaining 52 should be treated the same way
 - **Do not hand-write JSON examples in documents.** Generate `Evaluator` output as golden fixtures
 - **MUST obligations cannot be excluded by self-declaration alone.** Conditions require observed evidence
-- **Samlier must not use absolute thresholds absent from the specification for judgments** (IIP-MD04.c).
+- **SAMLscope must not use absolute thresholds absent from the specification for judgments** (IIP-MD04.c).
   Have the target configure the configurable threshold and verify it with boundary values
 - **Case implementations do not send directly.** Ensure crash consistency through the outbox
 
@@ -334,7 +334,7 @@ Observed error categories (already incorporated into the G1 decomposition proced
 | **Expected result cannot be determined without tracing back to a referenced specification** | SSO07 (SAML2Core) / IDP15 (SAML-EC) / SSO06 (SAML2Prof §4.1.6) / IDP13 (ECP v2) |
 | **Applicability exclusion at the end of a requirement was overlooked** | IDP13 (token translation Proxy / IIP-SSO02 / SSO03) |
 | **Conditional nature was overlooked** | SP14–17 / MD08 / MD01.c / SSO06 |
-| **Samlier added conditions or thresholds absent from the original text** | MD04.c (90 days) / ALG05 (CBC default) / MD05 (mdrpi) / IDP21 (character set) |
+| **SAMLscope added conditions or thresholds absent from the original text** | MD04.c (90 days) / ALG05 (CBC default) / MD05 (mdrpi) / IDP21 (character set) |
 | **Confused with the content of an adjacent requirement** | MD08 ↔ SP08 / MD06 ↔ MD12 |
 
 ### Assumptions Changed by This Correction
@@ -343,7 +343,7 @@ Observed error categories (already incorporated into the G1 decomposition proced
 - **Do not write `excluded_obligations` manually.** Collect them mechanically from the catalog
 - **`source_digest` alone is insufficient.** Store a normalized original-text excerpt as well so CI can inspect the words
 - **Invariants must be written consistently with aggregation rules.** Use “at least,” not “equal to”
-- **Whether Samlier has added things absent from the original text** is also a G1 review item
+- **Whether SAMLscope has added things absent from the original text** is also a G1 review item
   (excess is an error, not only omission)
 
 ---
@@ -373,7 +373,7 @@ The cumulative misreading rate was **27/33**.
 |---|---|---|---|
 | 1 | P1 | The `source_digest` verification rule cannot work (the digest of a section’s full text cannot match the digest of an abbreviated excerpt) | **Eliminated `source_excerpt_normalized`**. Retained only `source_selector` + `source_section_digest`; word inspection is performed by **`:specReconcile`** (a network-required job that retrieves the original text into `build/spec-cache/`). This permits inspection **without distributing even one character of the original text**, and is also consistent with [09 D-11](09-open-decisions.md) → [04 G1](04-requirement-coverage.md), [05 §5](05-test-definition-format.md) |
 | 2 | P1 | IIP-MD06.c is an unconditional MUST | Made it `condition: uses_tls_for_saml_messaging` (`CAPABILITY_BASED`). Do not FAIL front-channel-only implementations → [04](04-requirement-coverage.md) |
-| 3 | P1 | IIP-IDP04.a arbitrarily fixes a deployment policy | Changed to a procedure in which Samlier does not determine the result: ① have the target configure a policy “that produces a difference based on `isRequired`” ② distribute variants in that state and observe the difference ③ if it cannot be configured, branch into **(a) product cannot use it as input to a judgment → FAIL** / **(b) user cannot configure or confirm it → `NOT_VERIFIED`** → [04](04-requirement-coverage.md) |
+| 3 | P1 | IIP-IDP04.a arbitrarily fixes a deployment policy | Changed to a procedure in which SAMLscope does not determine the result: ① have the target configure a policy “that produces a difference based on `isRequired`” ② distribute variants in that state and observe the difference ③ if it cannot be configured, branch into **(a) product cannot use it as input to a judgment → FAIL** / **(b) user cannot configure or confirm it → `NOT_VERIFIED`** → [04](04-requirement-coverage.md) |
 | 4 | P2 | R6’s cumulative values were internally inconsistent (`24/30` vs summary table `25/31`) | Corrected to `25/31` to match the summary table |
 | 5 | P1 | IIP-IDP16 covers only PAOS ACS | Decomposed the 5 elements of §2.3.10 into `.a`–`.e`. HoK is conditional → [04](04-requirement-coverage.md) |
 | 6 | P1 | `KeyDescriptor` is missing from IIP-SP17 / IIP-IDP20 | Decomposed both into `.a` `SingleLogoutService` / `.b` **`KeyDescriptor use="encryption"` when encryption is used** (`condition: uses_encrypted_identifiers`). Confirm the exact §4.4.5 enumeration in G1 → [04](04-requirement-coverage.md) |
@@ -392,7 +392,7 @@ The cumulative misreading rate was **27/33**.
 | **Cumulative** | **33** | **27** |
 
 ★ In R7, there were also 2 errors in **the previous correction itself** (MD06.c / IDP04.a).
-Both were of the type **“Samlier added a condition absent from the original text,”** and the review perspective newly introduced in R6—“excess is also an error”—had not been applied to my own corrections.
+Both were of the type **“SAMLscope added a condition absent from the original text,”** and the review perspective newly introduced in R6—“excess is also an error”—had not been applied to my own corrections.
 
 **Implication**: G1 review must confirm not only “whether everything in the original text has been decomposed,”
 but also, in the reverse direction, **“whether everything decomposed is present in the original text.”**
@@ -403,7 +403,7 @@ Specify bidirectional confirmation in the approval checklist.
 - **Do not place the original text in the repository.** CI inspects it when retrieved through `:specReconcile`.
   Routine `./gradlew check` completes offline
 - **Do not confuse capability obligations with result obligations.** “Being able to use X as input to a judgment” and “doing Y when X is true” are different; do not arbitrarily expect the latter
-- **G1 confirmation is bidirectional.** Detect not only omissions but also excess added by Samlier
+- **G1 confirmation is bidirectional.** Detect not only omissions but also excess added by SAMLscope
 
 ---
 

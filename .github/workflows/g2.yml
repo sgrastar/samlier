@@ -110,8 +110,8 @@ jobs:
           TARGET=$(mktemp -d)
           git archive "$G2_TOOLS_COMMIT" | tar -x -C "$TARGET"
           cd "$TARGET"
-          ./gradlew :saml:test --tests org.samlier.saml.G2FeasibilitySpikeTest --no-daemon
-          ./gradlew :peer:test --tests org.samlier.peer.PeerG2FeasibilityTest --no-daemon
+          ./gradlew :saml:test --tests com.samlscope.saml.G2FeasibilitySpikeTest --no-daemon
+          ./gradlew :peer:test --tests com.samlscope.peer.PeerG2FeasibilityTest --no-daemon
       - uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882
         if: always()
         with: { name: g2-approval-report, path: build/g2-report.json }

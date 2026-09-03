@@ -6,16 +6,16 @@
 
 ---
 
-## ✅ D-01. Project Name / Repository Name — **Decision: Samlier**
+## ✅ D-01. Project Name / Repository Name — **Decision: SAMLscope**
 
 | Item | Value |
 |---|---|
-| Product name | **Samlier** |
-| Tagline | `Samlier — SAML Conformance Test Suite` |
-| Repository | **`github.com/sgrastar/samlier`** (under a personal account for the time being) |
-| Java package | `org.samlier.*` |
-| Docker image | `samlier/suite` |
-| Environment-variable prefix | `SAMLIER_` |
+| Product name | **SAMLscope** |
+| Tagline | `SAMLscope — SAML Conformance Test Suite` |
+| Repository | **`github.com/sgrastar/samlscope`** (under a personal account for the time being) |
+| Java package | `com.samlscope.*` |
+| Docker image | `samlscope/suite` |
+| Environment-variable prefix | `SAMLSCOPE_` |
 
 Because it is a coined name, the risk of conflict with trademarks or existing projects is low. The functionality is conveyed by the tagline.
 (Rejected: `samlconf` = poor searchability, `saml-conformance-suite` = easily confused with codice/saml-conformance,
@@ -25,22 +25,20 @@ Because it is a coined name, the risk of conflict with trademarks or existing pr
 
 | Namespace | Status | Notes |
 |---|---|---|
-| GitHub repo `sgrastar/samlier` | ✅ Available | Start here |
-| GitHub org/user **`samlier`** | ❌ **Taken** | Personal user (uid 91261879, 0 public repos, no bio = effectively dormant). Do not expect GitHub to release the dormant name |
-| Docker Hub **`samlier`** | ✅ Available | `samlier/suite` can be used. **Recommended to secure it immediately with a free account** |
-| npm `samlier` | ✅ Available | Not currently planned for use |
-| PyPI `samlier` | ✅ Available | Same as above |
-| `samlier.com` | ❌ Registered | Via Dominet (HK) Limited. Returns only HTTP 403 = appears intended for parking/resale |
-| `samlier.org` | ✅ Unregistered | Confirmed 404 through PIR RDAP |
-| `samlier.dev` | ✅ Unregistered | |
-| `samlier.io` | ✅ Unregistered | |
-| `samlier.net` / `samlier.app` | ✅ Unregistered | |
+| GitHub repo `sgrastar/samlscope` | ⏳ Rename required | Rename the existing repository before enabling deployment |
+| GitHub org/user **`samlscope`** | Not assessed | A dedicated organization is optional; the personal repository is sufficient initially |
+| GHCR `ghcr.io/sgrastar/samlscope` | Planned | Published automatically from verified `main` builds |
+| Docker Hub **`samlscope`** | Not assessed | Not required for the initial GHCR-based deployment |
+| npm / PyPI `samlscope` | Not assessed | No public package publication is currently planned |
+| `samlscope.com` | ✅ Acquired | Primary production domain |
+| Other TLDs | Not assessed | Not required for the initial deployment |
 
-**Response to the unavailable GitHub org**: `sgrastar/samlier` is fine for now.
-Once the community has grown, create an org such as `samlier-project` and transfer the repository.
+**Response to the unavailable GitHub org**: `sgrastar/samlscope` is fine for now.
+Once the community has grown, create an org such as `samlscope-project` and transfer the repository.
 GitHub redirects the old URL after a transfer, so migration costs are low.
 
-> **Do now**: Secure the `samlier` namespace on Docker Hub while it is still available.
+> **Do now**: Rename the GitHub repository and configure its `production` environment before
+> enabling the deployment workflow.
 
 ## ✅ D-02. License — **Decision: Apache-2.0**
 
@@ -73,7 +71,7 @@ v0.1 targets all IIP v1.1 requirements (Common 31 + SP 17 + IdP 21),
 | Level 1 — ATTESTED UPLOAD | ❌ **Rejected**. Forged JSON could be uploaded, reducing the value of all results |
 | Level 2 — HOSTED RUN | ✅ Issue shared URLs only for results from runs executed on the official Hosted version. The Suite retains the Transcript |
 
-`SAMLIER_PUBLISH_ENABLED` becomes `true` only in `hosted` mode;
+`SAMLSCOPE_PUBLISH_ENABLED` becomes `true` only in `hosted` mode;
 even if enabled in a self-hosted build, it **will not appear on the official results domain**.
 
 > **Implication**: Operating a Hosted version becomes necessary in Phase 1.
@@ -141,7 +139,7 @@ and comparison against the coverage table). If this is a CI-only script, broken 
 
 ## ✅ D-08. Repository Structure — **Decision: Single repository**
 
-Place the backend / frontend / test definitions all in `github.com/sgrastar/samlier`.
+Place the backend / frontend / test definitions all in `github.com/sgrastar/samlscope`.
 
 Splitting test definitions into another repository would make it impossible to enforce in CI the
 **“1:1 correspondence between YAML and implementation classes”** designed in [05 §5](05-test-definition-format.md).
@@ -169,8 +167,8 @@ This provides the lowest barrier to use. Counter bot activity with rate limiting
 ```
 Completely separate the public ID and administrative token:
 
-  Result URL   https://samlier.example/results/01K3ZQ8N…        (public ID only)
-  Manage URL   https://samlier.example/manage/01K3ZQ8N…#t=<token>
+  Result URL   https://app.samlscope.com/results/01K3ZQ8N…        (public ID only)
+  Manage URL   https://app.samlscope.com/manage/01K3ZQ8N…#t=<token>
                                                      ^^^^^^^^^^
                                                      fragment (not sent to the server)
 ```
@@ -202,30 +200,30 @@ Use Authrim (OIDC or SAML) for login to the Hosted version.
 
 **Caution 1 — Do not add Authrim-specific dependencies to the code.**
 The non-goal in [00-concept.md](00-concept.md), “do not include any Authrim-specific code,” remains in force.
-What Samlier implements is a **standards-compliant OIDC RP (or SAML SP)**;
+What SAMLscope implements is a **standards-compliant OIDC RP (or SAML SP)**;
 Authrim is merely a deployment choice. It must be possible to point it at Keycloak or Auth0 through configuration.
 Depending on Authrim-only endpoints or proprietary claims would violate the principle.
 
 **Caution 2 — ★ Completely separate the login SP and the Test Peer.**
-If Samlier logs in as a SAML SP, **the “Test SP for testing” and the “SP for login”
+If SAMLscope logs in as a SAML SP, **the “Test SP for testing” and the “SP for login”
 will coexist in the same process**. This is dangerous.
 
 | | Test Peer (`/p/{plan}/sp/...`) | Login SP (`/auth/...`) |
 |---|---|---|
-| entityID | Issued per Test Plan | One fixed Samlier value |
+| entityID | Issued per Test Plan | One fixed SAMLscope value |
 | Keys | Generated per Test Plan, plaintext in `/data` | Operational keys. **Manage separately** |
 | Signature verification | **Intentionally lax** (its job is to “receive and observe” invalid signatures) | Strict. Same as a normal SP |
-| Session | Disposable for testing | Has Samlier administrative privileges |
+| Session | Disposable for testing | Has SAMLscope administrative privileges |
 | Assertion acceptance | Accept and record even aggressive Assertions | Pass all normal validations |
 
-Because **Test Peer verification is intentionally lax**, creating a Samlier login session from an Assertion that arrives there would be an authentication bypass. Observe the following:
+Because **Test Peer verification is intentionally lax**, creating a SAMLscope login session from an Assertion that arrives there would be an authentication bypass. Observe the following:
 
 - Use separate code paths, separate session stores, and separate Cookie names
-- **Use separate origins** (`app.samlier.example` and `peer.samlier.example`). This matches the policy in [08 §5](08-suite-security.md)
+- **Use separate origins** (`app.samlscope.com` and `peer.samlscope.com`). This matches the policy in [08 §5](08-suite-security.md)
 - Make OIDC the first choice for the Login SP (using SAML increases the confusion caused by coexistence)
 - Retain the secret-URL method after introducing OIDC login (to preserve the migration path and anonymous use)
 
-> Secondary benefit: having Samlier log in through Authrim's OIDC/SAML provides dogfooding for Authrim's implementation. However, README must make clear that **Authrim as Samlier's test target is an entirely separate matter**, so this does not appear to be a conflict of interest.
+> Secondary benefit: having SAMLscope log in through Authrim's OIDC/SAML provides dogfooding for Authrim's implementation. However, README must make clear that **Authrim as SAMLscope's test target is an entirely separate matter**, so this does not appear to be a conflict of interest.
 
 ## ✅ D-10. Machine-Readable Requirement Catalog — **Decision / Implemented: `tests/coverage.yaml` is authoritative**
 
@@ -300,7 +298,7 @@ If permission is granted, design the system so it can switch simply by adding `q
 
 | Purpose | Policy |
 |---|---|
-| Samlier's own regression detection | Run Keycloak / Shibboleth IdP / SimpleSAMLphp periodically in CI (GitHub Actions) and **detect result changes internally** |
+| SAMLscope's own regression detection | Run Keycloak / Shibboleth IdP / SimpleSAMLphp periodically in CI (GitHub Actions) and **detect result changes internally** |
 | ★ Proof of detection power | **Use mutant peers, not reference implementations** ([00 §5](00-concept.md)). “Differences among three products” has been removed from the completion criteria |
 | External presentation | Publish **sample results pinned to specific versions**. They demonstrate “what this report looks like” and will not be continuously updated |
 
@@ -374,24 +372,24 @@ because they would reintroduce non-English canonical field names immediately aft
 
 ## ✅ D-14. Numerical Interpretation of “reasonable” — **Decision: Use an intermediate value by default, configurable in the Test Plan**
 
-Defaults adopted by Samlier for requirements without a numeric value in the specification.
+Defaults adopted by SAMLscope for requirements without a numeric value in the specification.
 
 | Requirement | Default | Judgment |
 |---|---|---|
 | **IIP-G01** clock skew | `clock_skew_tolerance_seconds: 180` | **FAIL** if a ±180-second difference is rejected (the lower bound that should be tolerated). **Do not judge an upper bound** (separate it as an advisory; see below) |
-| **IIP-MD04.c** validUntil too distant | ★ **Do not set a threshold on the Samlier side** (below) | Judge at the **boundary** of the target's configured threshold |
+| **IIP-MD04.c** validUntil too distant | ★ **Do not set a threshold on the SAMLscope side** (below) | Judge at the **boundary** of the target's configured threshold |
 
-> **Samlier will not set an upper bound for clock skew either.** The original text (IIP-G01)
+> **SAMLscope will not set an upper bound for clock skew either.** The original text (IIP-G01)
 > merely requires that “reasonable skew can be tolerated” and
 > **does not define a non-conformance condition for tolerating too much**.
 > Accepting an extremely large skew is recorded as `clock_skew.very_permissive` in
 > [04 §Advisory](04-requirement-coverage.md) as **information that does not affect the judgment** (the previous version made it WARNING without support in the original text).
 
-#### ★ Samlier must not set the threshold for IIP-MD04.c (review finding 5)
+#### ★ SAMLscope must not set the threshold for IIP-MD04.c (review finding 5)
 
 The original MUST is *reject metadata if `validUntil` is too far into the future (**configurable**)*,
 and the obligations are that **the threshold be configurable** and **rejection based on that configuration be possible**.
-The Samlier-specific absolute threshold “FAIL if more than 90 days is accepted” is stricter than the original
+The SAMLscope-specific absolute threshold “FAIL if more than 90 days is accepted” is stricter than the original
 and would incorrectly FAIL a product configured with a 365-day threshold.
 
 Correct procedure:
@@ -408,7 +406,7 @@ Correct procedure:
 ④ Record the adopted T and δ in the result JSON
 ```
 
-**Do not FAIL because of Samlier's convenience.**
+**Do not FAIL because of SAMLscope's convenience.**
 Do not treat “the user cannot answer” as the product's non-conformance (follow the three branches in the common judgment procedure).
 
 Basis (clock skew only):
@@ -418,7 +416,7 @@ Provide three safety measures.
 
 1. **Everything can be changed in the Test Plan** (`parameters`)
 2. **Always record the adopted values in the result JSON** (`configuration` in [06 §1](06-results-and-publication.md))
-3. **State in the report that “this is Samlier's interpretation, not a provision of the specification”**
+3. **State in the report that “this is SAMLscope's interpretation, not a provision of the specification”**
 
 > A stricter value (±60 seconds / 7 days) would be desirable for security, but would be stricter than existing implementations in practice,
 > causing frequent FAIL results and undermining trust in the report as a whole.
@@ -429,19 +427,9 @@ Provide three safety measures.
 
 Because Level 2 was adopted, the official Hosted version is included in the Phase 1 deliverables.
 
-### Domain (to be decided)
+### Domain — decided
 
-Availability is as shown in the table in [D-01](#-d-01-project-name--repository-name--decision-samlier).
-`.com` is taken, but all others are available.
-
-| Candidate | Evaluation |
-|---|---|
-| **`samlier.org`** (recommended) | Consistent with OSS project convention. Just as OIDF uses `openid.net`, the provider of conformance tests needs a non-profit impression. Inexpensive and stable |
-| `samlier.dev` | Google Registry. **HSTS preload is enforced, making HTTP access impossible**. Samlier requires HTTPS ([07 §3](07-deployment-and-networking.md)), so this matches policy. Obtaining it as well for the documentation site is useful |
-| `samlier.io` | Technology-oriented but expensive, with uncertainty about the future of the `.io` TLD (debate accompanying the transfer of sovereignty over the British Indian Ocean Territory). **Best avoided** |
-| `samlier.com` | Taken. Negotiation/purchase cost is unpredictable. Do not pursue it |
-
-Recommendation: **Acquire `samlier.org` as the primary domain**, and also secure `samlier.dev` for documentation / defensively.
+`samlscope.com` has been acquired and is the primary production domain.
 
 ### Subdomain structure
 
@@ -449,10 +437,10 @@ Align with [09 D-09](#-d-09-hosted-version-authentication--decision-no-authentic
 and the separate-origin policy in [08 §5](08-suite-security.md).
 
 ```
-samlier.org           Project site / documentation
-app.samlier.org       Hosted-version UI and administration (future OIDC login also here)
-peer.samlier.org      Test Peer endpoint (surface reached by the target) ★ separate origin
-results.samlier.org   Published results (static serving is sufficient)
+samlscope.com           Redirect to the Hosted application; future project site / documentation
+app.samlscope.com       Hosted-version UI and administration (future OIDC login also here)
+peer.samlscope.com      Test Peer endpoint (surface reached by the target) ★ separate origin
+results.samlscope.com   Reserved for future separately served published results
 ```
 
 Reason for separating `peer`: Test Peer is designed to receive and observe invalid Assertions as well,

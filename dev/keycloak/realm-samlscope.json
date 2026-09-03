@@ -1,0 +1,22 @@
+{
+  "realm": "samlscope",
+  "enabled": true,
+  "displayName": "SAMLscope M0 smoke test",
+  "users": [
+    {
+      "username": "samlscope-m0-user",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "SAMLscope",
+      "lastName": "Smoke",
+      "email": "samlscope-m0@example.invalid",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "samlscope-m0-password",
+          "temporary": false
+        }
+      ]
+    }
+  ]
+}

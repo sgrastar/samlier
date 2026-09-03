@@ -397,7 +397,7 @@ ask one question per case. Runner groups compatible prerequisites into a small s
 bootstrap contracts and reuses the verified setup across cases.
 
 - **Standard metadata contract**: the operator registers one stable Suite metadata URL or MDQ
-  source. Samlier changes controlled fixtures behind that standard interface and records Target
+  source. SAMLscope changes controlled fixtures behind that standard interface and records Target
   fetches plus correlated SAML traffic. A vendor administration API is neither required nor used.
 - When the Target periodically polls the registered URL or refreshes metadata after encountering an
   unknown signing key, the operator MAY arm one ordered automatic polling campaign. Each fixture
@@ -413,7 +413,7 @@ bootstrap contracts and reuses the verified setup across cases.
 - Automatic polling removes repeated Target-side re-import operations, but it does not manufacture
   use evidence. Cases that require a correlated SAML flow remain waiting until that flow is observed
   or the operator records that the approved attempts were made.
-- A static-import Target MAY instead use the preloaded positive aggregate. Samlier combines only
+- A static-import Target MAY instead use the preloaded positive aggregate. SAMLscope combines only
   mutually compatible acceptance fixtures in one downloadable signed `EntitiesDescriptor`, gives each fixture
   a distinct entityID and correlated ACS URL, and then runs a browser sequence across the imported
   entities. A Target fetch of the aggregate URL is retrieval evidence for its listed logical

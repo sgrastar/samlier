@@ -8,7 +8,7 @@ plugins {
     base
 }
 
-group = "org.samlier"
+group = "com.samlscope"
 version = "0.1.0"
 
 subprojects {

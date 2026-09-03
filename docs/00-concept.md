@@ -63,7 +63,7 @@ Existing OSS / services investigated:
 3. With a Web UI + Docker, allow users without specialized knowledge to create and run a **Test Plan**.
 4. Distribute results in a **shareable format**.
 
-> Note: codice/saml-conformance is LGPL-3.0, while **Samlier is Apache-2.0**.
+> Note: codice/saml-conformance is LGPL-3.0, while **SAMLscope is Apache-2.0**.
 > Design and test perspectives may be consulted freely, but **code must not be copied**.
 > `ctk/idp/NotTested.md` (a list of requirements that cannot be verified externally) is useful as a conceptual reference.
 
@@ -85,7 +85,7 @@ and make “the targeted obligation is always detected as violated” a golden t
 
 #### ★ Terminology: a mutant is the target (SUT), not the Suite’s Test Peer
 
-Samlier’s `peer/` (Test IdP / Test SP) is **the inspecting side** and always operates correctly.
+SAMLscope’s `peer/` (Test IdP / Test SP) is **the inspecting side** and always operates correctly.
 A mutant is injected into **the inspected side (SUT: System Under Test)**.
 `tests/mutants/` defines “target implementations that intentionally violate requirements” and is separate from `peer/`.
 Confusing them leads to the incorrect implementation of “break the Suite side to measure detection power.”
@@ -204,7 +204,7 @@ The **position of the reference implementations (Keycloak / Shibboleth / SimpleS
 
 ## 6. Relationship with Authrim (explicitly stated)
 
-Authrim originated this project, but Samlier’s code will contain **no Authrim-specific dependencies**.
+Authrim originated this project, but SAMLscope’s code will contain **no Authrim-specific dependencies**.
 From the Suite’s perspective, Authrim and Keycloak are equally “external SAML implementations.”
 
 Authrim may appear in three contexts, each treated as a separate matter.
@@ -212,7 +212,7 @@ Authrim may appear in three contexts, each treated as a separate matter.
 | Context | Treatment |
 |---|---|
 | **Authrim as a test target** | Exactly the same as any other implementation. No preferential or special treatment. If included in public samples of reference implementations, list it alongside Keycloak / Shibboleth / SimpleSAMLphp using the same format and Test Plan structure. |
-| **Authrim as the login IdP for the Hosted version** (future) | Merely a deployment choice. Samlier implements a standards-compliant OIDC RP that can be directed to Keycloak or Auth0 through configuration. → [09 D-09](09-open-decisions.md) |
+| **Authrim as the login IdP for the Hosted version** (future) | Merely a deployment choice. SAMLscope implements a standards-compliant OIDC RP that can be directed to Keycloak or Auth0 through configuration. → [09 D-09](09-open-decisions.md) |
 | **Authrim as a peer for development-time operational checks** | It may be used freely, but do not write tests that pass only with Authrim. CI reference implementations must always include implementations other than Authrim. |
 
 > It is important that this not appear to be a conflict of interest. State the above in the README,

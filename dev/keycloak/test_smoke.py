@@ -83,22 +83,22 @@ class FormParsingTest(unittest.TestCase):
             ]
         }).encode()
         with self.assertRaisesRegex(
-            RuntimeError, "Samlier preflight failed: target_metadata: connection refused"
+            RuntimeError, "SAMLscope preflight failed: target_metadata: connection refused"
         ):
             smoke.require_preflight_success(document)
 
     def test_accepts_the_current_acs_completion_receipt(self) -> None:
-        smoke.require_samlier_completion_page("<h1>SAML Response recorded</h1>")
+        smoke.require_samlscope_completion_page("<h1>SAML Response recorded</h1>")
 
     def test_rejects_an_unrelated_page_as_a_completion_receipt(self) -> None:
         with self.assertRaisesRegex(RuntimeError, "completion marker"):
-            smoke.require_samlier_completion_page("<h1>Keycloak error</h1>")
+            smoke.require_samlscope_completion_page("<h1>Keycloak error</h1>")
 
     def test_localhost_secure_cookie_matches_browser_local_development_behavior(self) -> None:
         jar = CookieJar()
         cookie = Cookie(
             0, "KC_RESTART", "value", None, False, "localhost.local", False, False,
-            "/realms/samlier/", True, True, None, True, None, None, {}, False,
+            "/realms/samlscope/", True, True, None, True, None, None, {}, False,
         )
         jar.set_cookie(cookie)
         smoke.permit_localhost_http_cookies(jar, "http://localhost:8180/login")

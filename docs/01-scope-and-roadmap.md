@@ -66,7 +66,7 @@ SAML Implementation Profile (Kantara IIP v1.1)
 Full(role)  = All obligations applicable to that role (excluding NOT_APPLICABLE)
               ★ Nothing is excluded. By definition, this is the entire profile.
 Core(role)  ⊂ Full(role)
-              The subset Samlier selected as the “minimum interoperability line.”
+              The subset SAMLscope selected as the “minimum interoperability line.”
 ```
 
 **Core selection criteria** (recorded per obligation in `coverage.yaml`’s `level_assignment`):
@@ -91,7 +91,7 @@ Within the same requirement, `.a` may be Core while `.b` is Full
 
 The source of truth for Core / Full assignments is `coverage.yaml`,
 and [04-requirement-coverage.md](04-requirement-coverage.md) is generated from it.
-The report must state that **the IIP source does not distinguish Core/Full** (this is Samlier’s own classification).
+The report must state that **the IIP source does not distinguish Core/Full** (this is SAMLscope’s own classification).
 
 ## v0.1 milestones
 

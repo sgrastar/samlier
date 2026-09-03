@@ -422,7 +422,7 @@ test('offers one aggregate import for compatible positive metadata fixtures', as
   expect(await screen.findByText(/Preloaded aggregate prepared with 2 compatible positive fixtures/)).toBeTruthy()
   expect(await screen.findByText(/metadata\/preloaded\?run=run&preload=token/)).toBeTruthy()
   expect(screen.getByRole('link', { name: 'Download signed aggregate XML' })
-    .getAttribute('download')).toBe('samlier-metadata-campaign.xml')
+    .getAttribute('download')).toBe('samlscope-metadata-campaign.xml')
   const post = calls.find(call => call.url.includes('/metadata-lab/preloaded'))!
   expect(post.init?.body).toBe('{}')
   expect(String(post.init?.body)).not.toContain('verdict')

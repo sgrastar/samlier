@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Complete the pinned Keycloak SAML login and verify that the Samlier Run finishes."""
+"""Complete the pinned Keycloak SAML login and verify that the SAMLscope Run finishes."""
 
 from __future__ import annotations
 
@@ -68,17 +68,17 @@ def permit_localhost_http_cookies(cookie_jar: http.cookiejar.CookieJar, page_url
             cookie.secure = False
 
 
-def require_samlier_completion_page(document: str) -> None:
+def require_samlscope_completion_page(document: str) -> None:
     """Accept the current ACS receipt while remaining compatible with older M0 fixtures."""
     markers = ("SAML Response recorded", "M0 SSO round trip completed")
     if not any(marker in document for marker in markers):
-        raise RuntimeError("Samlier ACS did not return the completion marker")
+        raise RuntimeError("SAMLscope ACS did not return the completion marker")
 
 
 def request_text(opener, url: str, fields: dict[str, str] | None = None) -> tuple[str, str]:
     data = urlencode(fields).encode("utf-8") if fields is not None else None
     request = Request(url, data=data, headers={
-        "User-Agent": "Samlier-Keycloak-Smoke/1",
+        "User-Agent": "SAMLscope-Keycloak-Smoke/1",
         "Content-Type": "application/x-www-form-urlencoded",
     })
     try:
@@ -98,7 +98,7 @@ def request_bytes(
     content_type: str | None = None,
     headers: dict[str, str] | None = None,
 ) -> bytes:
-    request_headers = {"User-Agent": "Samlier-Keycloak-Smoke/1", **(headers or {})}
+    request_headers = {"User-Agent": "SAMLscope-Keycloak-Smoke/1", **(headers or {})}
     if content_type:
         request_headers["Content-Type"] = content_type
     request = Request(url, data=body, headers=request_headers, method=method)
@@ -121,7 +121,7 @@ def complete_round_trip(start_url: str, run_url: str, username: str, password: s
     _, saml_post_page = request_text(opener, login.action, login.fields)
     saml_post = require_form(saml_post_page, {"SAMLResponse"})
     _, completion_page = request_text(opener, saml_post.action, saml_post.fields)
-    require_samlier_completion_page(completion_page)
+    require_samlscope_completion_page(completion_page)
 
     _, run_document = request_text(opener, run_url)
     run = json.loads(run_document)
@@ -155,11 +155,11 @@ def require_preflight_success(document: bytes) -> dict:
             f"{check.get('code', 'unknown')}: {check.get('message', 'preflight failed')}"
             for check in failures
         )
-        raise RuntimeError(f"Samlier preflight failed: {details}")
+        raise RuntimeError(f"SAMLscope preflight failed: {details}")
     return report
 
 
-def prepare_fixture(samlier_base: str, keycloak_base: str, target_metadata_url: str) -> tuple[str, str]:
+def prepare_fixture(samlscope_base: str, keycloak_base: str, target_metadata_url: str) -> tuple[str, str]:
     opener = build_opener(HTTPCookieProcessor(http.cookiejar.CookieJar()))
     token_body = urlencode({
         "client_id": "admin-cli",
@@ -179,7 +179,7 @@ def prepare_fixture(samlier_base: str, keycloak_base: str, target_metadata_url: 
         "name": "Keycloak 26.7.2 IdP smoke",
         "profile": "IDP_CORE",
         "targetKind": "IDP",
-        "targetEntityId": f"{keycloak_base}/realms/samlier",
+        "targetEntityId": f"{keycloak_base}/realms/samlscope",
         "metadataSourceKind": "URL",
         "metadataSourceLocation": target_metadata_url,
         "suiteMetadataDelivery": "HTTP_URL",
@@ -187,24 +187,24 @@ def prepare_fixture(samlier_base: str, keycloak_base: str, target_metadata_url: 
         "parameters": {
             "clockSkewToleranceSeconds": 180,
             "metadataRefreshWaitSeconds": 300,
-            "testUserHint": "samlier-m0-user",
+            "testUserHint": "samlscope-m0-user",
         },
         "interaction": {"allowBrowserSteps": True, "allowAttestation": True},
         "authorizedTarget": True,
     }
     plan_document = json.loads(request_bytes(
         opener,
-        f"{samlier_base}/api/plans",
+        f"{samlscope_base}/api/plans",
         method="POST",
         body=json.dumps(plan_request).encode("utf-8"),
         content_type="application/json",
     ))
     plan_id = plan_document["plan"]["plan"]["id"]
 
-    metadata = request_bytes(opener, f"{samlier_base}/p/{quote(plan_id)}/metadata")
+    metadata = request_bytes(opener, f"{samlscope_base}/p/{quote(plan_id)}/metadata")
     converted_client = request_bytes(
         opener,
-        f"{keycloak_base}/admin/realms/samlier/client-description-converter",
+        f"{keycloak_base}/admin/realms/samlscope/client-description-converter",
         method="POST",
         body=metadata,
         content_type="application/xml",
@@ -213,7 +213,7 @@ def prepare_fixture(samlier_base: str, keycloak_base: str, target_metadata_url: 
     client = configure_keycloak_client(converted_client)
     request_bytes(
         opener,
-        f"{keycloak_base}/admin/realms/samlier/clients",
+        f"{keycloak_base}/admin/realms/samlscope/clients",
         method="POST",
         body=client,
         content_type="application/json",
@@ -222,21 +222,21 @@ def prepare_fixture(samlier_base: str, keycloak_base: str, target_metadata_url: 
 
     run = json.loads(request_bytes(
         opener,
-        f"{samlier_base}/api/plans/{quote(plan_id)}/runs",
+        f"{samlscope_base}/api/plans/{quote(plan_id)}/runs",
         method="POST",
         body=b"",
     ))
     run_id = run["run"]["id"]
     preflight = request_bytes(
         opener,
-        f"{samlier_base}/api/runs/{quote(run_id)}/preflight",
+        f"{samlscope_base}/api/runs/{quote(run_id)}/preflight",
         method="POST",
         body=b"",
     )
     require_preflight_success(preflight)
     return (
-        f"{samlier_base}/p/{quote(plan_id)}/start/m0-roundtrip?run={quote(run_id)}",
-        f"{samlier_base}/api/runs/{quote(run_id)}",
+        f"{samlscope_base}/p/{quote(plan_id)}/start/m0-roundtrip?run={quote(run_id)}",
+        f"{samlscope_base}/api/runs/{quote(run_id)}",
     )
 
 
@@ -247,17 +247,17 @@ def main() -> int:
     round_trip.add_argument("--start-url", required=True)
     round_trip.add_argument("--run-url", required=True)
     fixture = subparsers.add_parser("fixture")
-    fixture.add_argument("--samlier-base", required=True)
+    fixture.add_argument("--samlscope-base", required=True)
     fixture.add_argument("--keycloak-base", required=True)
     fixture.add_argument("--target-metadata-url", required=True)
     fixture.add_argument("--manual", action="store_true")
     for command in (round_trip, fixture):
-        command.add_argument("--username", default="samlier-m0-user")
-        command.add_argument("--password", default="samlier-m0-password")
+        command.add_argument("--username", default="samlscope-m0-user")
+        command.add_argument("--password", default="samlscope-m0-password")
     args = parser.parse_args()
     if args.command == "fixture":
         start_url, run_url = prepare_fixture(
-            args.samlier_base, args.keycloak_base, args.target_metadata_url
+            args.samlscope_base, args.keycloak_base, args.target_metadata_url
         )
         if args.manual:
             print(f"Open: {start_url}")

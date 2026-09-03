@@ -33,29 +33,29 @@ class AppleContainerInspectionTest(unittest.TestCase):
     def test_reads_ipv4_from_the_requested_network_only(self) -> None:
         document = [{"status": {"networks": [
             {"network": "default", "ipv4Address": "192.168.65.2/24"},
-            {"network": "samlier-smoke", "ipv4Address": "192.168.64.2/24"},
+            {"network": "samlscope-smoke", "ipv4Address": "192.168.64.2/24"},
         ]}}]
-        self.assertEqual("192.168.64.2", launcher.network_ipv4(document, "samlier-smoke"))
+        self.assertEqual("192.168.64.2", launcher.network_ipv4(document, "samlscope-smoke"))
 
-    def test_samlier_command_binds_actual_digest_and_data_directory(self) -> None:
+    def test_samlscope_command_binds_actual_digest_and_data_directory(self) -> None:
         digest = "sha256:" + "b" * 64
-        result = launcher.samlier_run_command(
-            image="samlier:test",
+        result = launcher.samlscope_run_command(
+            image="samlscope:test",
             digest=digest,
-            network="samlier-smoke",
-            name="samlier-app",
-            data_dir=pathlib.Path("/tmp/samlier-data"),
+            network="samlscope-smoke",
+            name="samlscope-app",
+            data_dir=pathlib.Path("/tmp/samlscope-data"),
         )
-        self.assertIn(f"SAMLIER_IMAGE_DIGEST={digest}", result)
-        self.assertIn("/tmp/samlier-data:/data", result)
-        self.assertEqual("samlier:test", result[-1])
+        self.assertIn(f"SAMLSCOPE_IMAGE_DIGEST={digest}", result)
+        self.assertIn("/tmp/samlscope-data:/data", result)
+        self.assertEqual("samlscope:test", result[-1])
 
     def test_keycloak_command_uses_pinned_image_and_imports_read_only(self) -> None:
-        result = launcher.keycloak_run_command(network="samlier-smoke", name="keycloak")
+        result = launcher.keycloak_run_command(network="samlscope-smoke", name="keycloak")
         self.assertIn(launcher.KEYCLOAK_IMAGE, result)
         self.assertTrue(any(
             value.endswith(
-                "/realm-samlier.json:/opt/keycloak/data/import/realm-samlier.json:ro"
+                "/realm-samlscope.json:/opt/keycloak/data/import/realm-samlscope.json:ro"
             )
             for value in result
         ))
@@ -79,8 +79,8 @@ class RepositoryLaunchConfigurationTest(unittest.TestCase):
 
     def test_compose_requires_image_digest(self) -> None:
         compose = (launcher.ROOT / "dev/keycloak/compose.yml").read_text()
-        self.assertIn("SAMLIER_IMAGE_DIGEST:", compose)
-        self.assertIn("SAMLIER_IMAGE_DIGEST must identify the image being run", compose)
+        self.assertIn("SAMLSCOPE_IMAGE_DIGEST:", compose)
+        self.assertIn("SAMLSCOPE_IMAGE_DIGEST must identify the image being run", compose)
 
     def test_docker_launcher_derives_and_checks_actual_image_digest(self) -> None:
         script = (launcher.ROOT / "dev/keycloak/prepare-smoke.sh").read_text()
@@ -93,7 +93,7 @@ class RepositoryLaunchConfigurationTest(unittest.TestCase):
             "- name: Run pinned Keycloak SAML round trip", 1
         )[0]
         self.assertIn("docker image inspect", build_step)
-        self.assertIn("SAMLIER_IMAGE_DIGEST=", build_step)
+        self.assertIn("SAMLSCOPE_IMAGE_DIGEST=", build_step)
         self.assertIn('>> "$GITHUB_ENV"', build_step)
 
 

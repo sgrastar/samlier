@@ -86,8 +86,8 @@ cases or interoperability claims about an external product.
 
 ## Approval protocol
 
-The authoring state remains `PENDING_REVIEW`. A reviewer other than
-`samlier-g2-builder` reviews target commit C and creates signed commit A whose
+The authoring state remains `PENDING_REVIEW`. A reviewer other than the historical
+author identity `samlier-g2-builder` reviews target commit C and creates signed commit A whose
 sole change is `tests/approvals/g2.yaml`. The approval record binds every case
 digest; all G1 inputs; the complete fixture tree; dependency and Gradle inputs;
 the production feasibility boundaries; validators, schemas, and CI. Approval
